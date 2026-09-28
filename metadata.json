@@ -1,0 +1,6 @@
+{
+  "name": "E-Vedhika One-Click Deployment Tool",
+  "description": "Legacy web application deployment tool for automated Edge IE Mode, Registry, DSC Token, ActiveX, and .NET configuration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

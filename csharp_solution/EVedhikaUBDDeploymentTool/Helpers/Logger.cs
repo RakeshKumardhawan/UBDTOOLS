@@ -1,0 +1,157 @@
+using System;
+using System.IO;
+
+namespace EVedhikaUBDDeploymentTool.Helpers
+{
+    public static class Logger
+    {
+        private static string logFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "EVedhika_UBD_Deployment_Log.txt");
+
+        public static void LogInfo(string operation, string message)
+        {
+            WriteLog("INFO", operation, message, "SUCCESS", "", "");
+        }
+
+        public static void LogWarn(string operation, string message)
+        {
+            WriteLog("WARN", operation, message, "WARNING", "", "");
+        }
+
+        public static void LogWarning(string operation, string message)
+        {
+            WriteLog("WARN", operation, message, "WARNING", "", "");
+        }
+
+        public static void LogError(string operation, string error, string solution)
+        {
+            WriteLog("ERROR", operation, "", "FAILED", error, solution);
+        }
+
+        private static void WriteLog(string level, string operation, string message, string status, string error, string solution)
+        {
+            try
+            {
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                string logEntry = $"[{timestamp}] [{level}] [{status}] Op: {operation}";
+                if (!string.IsNullOrEmpty(message)) logEntry += $" | Msg: {message}";
+                if (!string.IsNullOrEmpty(error)) logEntry += $" | Error: {error}";
+                if (!string.IsNullOrEmpty(solution)) logEntry += $" | Solution: {solution}";
+
+                File.AppendAllText(logFilePath, logEntry + Environment.NewLine);
+            }
+            catch
+            {
+                // Ignore logging failures to prevent crashing
+            }
+        }
+
+        public static string GetLogFilePath()
+        {
+            return logFilePath;
+        }
+
+        public static void PostTelemetryData(System.Collections.Generic.Dictionary<string, string> data, Action<bool, string> onComplete = null)
+        {
+            SendCentralTelemetry(data, onComplete);
+        }
+
+        public static void SendCentralTelemetry(System.Collections.Generic.Dictionary<string, string> data, Action<bool, string> onComplete = null)
+        {
+            if (data == null) return;
+            if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
+            if (!data.ContainsKey("time")) data["time"] = DateTime.Now.ToString("HH:mm:ss");
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{");
+            bool first = true;
+            foreach (var kvp in data)
+            {
+                if (!first) sb.Append(",");
+                string val = (kvp.Value ?? "").Replace("\\", "\\\\").Replace("\"", "'");
+                sb.Append($"\"{kvp.Key}\":\"{val}\"");
+                first = false;
+            }
+            sb.Append("}");
+
+            string jsonPayload = sb.ToString();
+
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                // Ensure TLS 1.2 and SSL certificate bypass on background worker thread
+                try
+                {
+                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11 | System.Net.SecurityProtocolType.Tls;
+                    System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate(object sender, System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors sslPolicyErrors) { return true; };
+                    System.Net.ServicePointManager.Expect100Continue = false;
+                }
+                catch { }
+
+                // Place active cloud run instance endpoints first to prevent 100-sec DNS timeouts
+                string[] endpoints = new string[]
+                {
+                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://ais-pre-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://www.e-vedhika.in/api/telemetry"
+                };
+
+                bool delivered = false;
+                string lastError = "";
+
+                foreach (var url in endpoints)
+                {
+                    try
+                    {
+                        using (var wc = new TimeoutWebClient(4000))
+                        {
+                            wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                            wc.Encoding = System.Text.Encoding.UTF8;
+                            string response = wc.UploadString(url, "POST", jsonPayload);
+                            delivered = true;
+                            onComplete?.Invoke(true, $"Delivered to {url}");
+                            break; // Stop after first successful delivery
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex.Message;
+                        // Continue trying next endpoint
+                    }
+                }
+
+                if (!delivered)
+                {
+                    onComplete?.Invoke(false, lastError);
+                }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Custom WebClient with custom HTTP timeout to prevent 100-second UI/thread freezes
+    /// </summary>
+    public class TimeoutWebClient : System.Net.WebClient
+    {
+        private readonly int _timeoutMs;
+
+        public TimeoutWebClient(int timeoutMs = 4000)
+        {
+            _timeoutMs = timeoutMs;
+        }
+
+        protected override System.Net.WebRequest GetWebRequest(Uri address)
+        {
+            var request = base.GetWebRequest(address);
+            if (request != null)
+            {
+                request.Timeout = _timeoutMs;
+                System.Net.HttpWebRequest httpRequest = request as System.Net.HttpWebRequest;
+                if (httpRequest != null)
+                {
+                    httpRequest.ReadWriteTimeout = _timeoutMs;
+                    httpRequest.KeepAlive = false;
+                }
+            }
+            return request;
+        }
+    }
+}

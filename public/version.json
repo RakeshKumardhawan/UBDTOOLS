@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "executableName": "e-Vedhika_UBD_Deployment_v1.0.0.exe",
+  "currentVersion": "v1.0.0 Official Final",
+  "latestVersion": "v1.0.0 Official Final",
+  "versionCode": 200,
+  "releaseDate": "2026-09-28",
+  "downloadUrl": "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool.exe",
+  "githubRepo": "https://github.com/Rakeshkumardhawan123/UBDTOOLS",
+  "updateRequired": false,
+  "silent": true,
+  "releaseNotes": "E-Vedhika UBD Tool v1.0.0 Official Final Release - Complete One-Click Automated Deployment for Telangana & Andhra Pradesh with DSC Drivers and Silent OTA Updates.",
+  "publisher": "E-Vedhika (Rakesh Dhawan)"
+}

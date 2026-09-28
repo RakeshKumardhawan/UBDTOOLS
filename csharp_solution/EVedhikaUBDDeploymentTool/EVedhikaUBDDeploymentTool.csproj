@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{8F932991-A8B4-4B45-8C7A-362243C6E1D8}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>
+    <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
+    <TargetFrameworkVersion Condition=" '$(TargetFrameworkVersion)' == '' ">v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="StateSelectionDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MainForm.Designer.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Engine\RegistryManager.cs" />
+    <Compile Include="Engine\EdgePolicyEngine.cs" />
+    <Compile Include="Engine\EdgeManagementEngine.cs" />
+    <Compile Include="Engine\BrowserSecurityEngine.cs" />
+    <Compile Include="Engine\DriverInstaller.cs" />
+    <Compile Include="Engine\DiagnosticsEngine.cs" />
+    <Compile Include="Engine\BackupEngine.cs" />
+    <Compile Include="Engine\GeminiAiService.cs" />
+    <Compile Include="Engine\WindowsActivationEngine.cs" />
+    <Compile Include="Engine\AutoRepairEngine.cs" />
+    <Compile Include="Engine\UninstallEngine.cs" />
+    <Compile Include="Engine\AutoUpdateEngine.cs" />
+    <Compile Include="Engine\ProactiveHealthEngine.cs" />
+    <Compile Include="Engine\EasyAdditionsEngine.cs" />
+    <Compile Include="Engine\OSCompatibilityEngine.cs" />
+    <Compile Include="Engine\SystemRepairTools.cs" />
+    <Compile Include="PCBoostEngine.cs" />
+    <Compile Include="Helpers\Logger.cs" />
+    <Compile Include="Helpers\SystemInfoHelper.cs" />
+    <Compile Include="Helpers\DscVerificationHelper.cs" />
+    <Compile Include="Helpers\NativeRemoteAgent.cs" />
+    <Compile Include="Helpers\ModernMetricsCardPanel.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Properties\app.manifest" />
+    <None Include="App.config" />
+    <Content Include="app.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
