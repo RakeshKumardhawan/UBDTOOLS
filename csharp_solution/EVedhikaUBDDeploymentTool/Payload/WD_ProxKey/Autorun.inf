@@ -1,0 +1,7 @@
+[AUTORUN]
+open=Setup.exe
+icon=PROXKey.ico
+
+[WATCHSAFE]
+version=6.0.3
+
