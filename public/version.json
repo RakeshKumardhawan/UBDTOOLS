@@ -1,14 +1,14 @@
 {
   "success": true,
-  "executableName": "e-Vedhika_UBD_Deployment_v1.0.0.exe",
-  "currentVersion": "v1.0.0 Official Final",
-  "latestVersion": "v1.0.0 Official Final",
-  "versionCode": 200,
+  "executableName": "EVedhika_Setup_v1.0.1.exe",
+  "currentVersion": "v1.0.1 Official Setup",
+  "latestVersion": "v1.0.1 Official Setup",
+  "versionCode": 201,
   "releaseDate": "2026-09-28",
-  "downloadUrl": "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool.exe",
-  "githubRepo": "https://github.com/Rakeshkumardhawan123/UBDTOOLS",
+  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/v1.0.1/EVedhika_Setup_v1.0.1.exe",
+  "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": true,
-  "releaseNotes": "E-Vedhika UBD Tool v1.0.0 Official Final Release - Complete One-Click Automated Deployment for Telangana & Andhra Pradesh with DSC Drivers and Silent OTA Updates.",
+  "releaseNotes": "E-Vedhika UBD Tool v1.0.1 Official Release - Complete 1-Click Automated Setup for Telangana & Andhra Pradesh with DSC Drivers and Central Cloud Telemetry.",
   "publisher": "E-Vedhika (Rakesh Dhawan)"
 }
