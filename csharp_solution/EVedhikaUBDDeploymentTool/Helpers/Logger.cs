@@ -55,9 +55,34 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             SendCentralTelemetry(data, onComplete);
         }
 
+        public static string GetUniqueMachineId()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
+                {
+                    if (key != null)
+                    {
+                        object val = key.GetValue("MachineGuid");
+                        if (val != null && !string.IsNullOrEmpty(val.ToString()))
+                        {
+                            string guid = val.ToString().Replace("-", "").ToUpper();
+                            return $"EVD-PC-{guid.Substring(0, 4)}-{guid.Substring(4, 4)}";
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            string fallback = Math.Abs((Environment.MachineName + "_" + Environment.UserName).GetHashCode()).ToString("X8");
+            return $"EVD-PC-{fallback.Substring(0, 4)}-{fallback.Substring(4)}";
+        }
+
         public static void SendCentralTelemetry(System.Collections.Generic.Dictionary<string, string> data, Action<bool, string> onComplete = null)
         {
             if (data == null) return;
+            if (!data.ContainsKey("pcId")) data["pcId"] = GetUniqueMachineId();
+            if (!data.ContainsKey("livePresence")) data["livePresence"] = "ONLINE";
             if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
             if (!data.ContainsKey("time")) data["time"] = DateTime.Now.ToString("HH:mm:ss");
 

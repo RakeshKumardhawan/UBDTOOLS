@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   History, 
   Plus, 
@@ -28,7 +28,10 @@ import {
   Activity,
   AlertTriangle,
   Eye,
-  Send
+  Send,
+  Github,
+  Link2,
+  Copy
 } from 'lucide-react';
 import { BackupSnapshot } from '../types';
 import { TelegramNotificationCard } from './TelegramNotificationCard';
@@ -54,6 +57,10 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<'telemetry' | 'telegram' | 'remote_queue' | 'snapshots'>('telemetry');
+  
+  // High-fidelity interactive notification toasts for critical telemetry failures
+  const [criticalToasts, setCriticalToasts] = useState<any[]>([]);
+  const seenFailuresRef = useRef<Set<string>>(new Set());
 
   // Detailed Telemetry Reports gathered from all Panchayat/Mandal office computers with exact requested columns
   const [centralTelemetryLogs, setCentralTelemetryLogs] = useState<any[]>([
@@ -171,6 +178,45 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
             }
           }
           setCentralTelemetryLogs(uniqueLogs);
+
+          // Check for critical failures in newly arrived logs to trigger immediate Toast alerts
+          uniqueLogs.forEach(l => {
+            const dscFail = String(l.dscStatus || '').toLowerCase().includes('disconnected') || 
+                            String(l.dscStatus || '').toLowerCase().includes('not found') || 
+                            String(l.dscStatus || '').toLowerCase().includes('missing');
+            const ieFail = String(l.edgeIeMode || '').toLowerCase().includes('disabled') || 
+                           String(l.edgeIeMode || '').toLowerCase().includes('error');
+            const isFailedStatus = String(l.status || '').toUpperCase().includes('FAIL') || 
+                                   String(l.status || '').toUpperCase().includes('ERROR') || 
+                                   (l.healthScore !== undefined && Number(l.healthScore) < 85);
+
+            if (dscFail || ieFail || isFailedStatus) {
+              const logId = l.id || `${l.pcName}-${l.time}-${l.date}`;
+              if (!seenFailuresRef.current.has(logId)) {
+                seenFailuresRef.current.add(logId);
+                const errorType = dscFail 
+                  ? '🔌 DSC Token Disconnected' 
+                  : (ieFail ? '🌐 IE Mode Settings Error' : '❌ Critical Deployment Failure');
+                const details = dscFail 
+                  ? 'Digital Signature USB token was unplugged or smart card driver was missing during UBD authentication.' 
+                  : (ieFail ? 'Enterprise Edge Site List zone is inactive or sites.xml policy is missing.' : (l.remarks || '15/15 UBD verification failed on client PC.'));
+                
+                // Add to active toasts
+                setCriticalToasts(prev => [
+                  {
+                    id: logId,
+                    pcId: l.pcId || `EVD-TS-${String(l.id || '9A').slice(-6).toUpperCase()}`,
+                    pcName: l.pcName || 'GP-COMPUTER',
+                    officeLocation: l.officeLocation || 'Grama Panchayat Office',
+                    errorType,
+                    details,
+                    timestamp: l.time || new Date().toLocaleTimeString()
+                  },
+                  ...prev
+                ]);
+              }
+            }
+          });
         }
       }
 
@@ -187,17 +233,73 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         const vData = await versionRes.json();
         if (vData.success) {
           setOtaConfig({
-            latestVersion: vData.latestVersion || 'v1.0.1',
-            versionCode: vData.versionCode || 101,
+            latestVersion: vData.latestVersion || 'v1.0.0 Official Final',
+            versionCode: vData.versionCode || 200,
             downloadUrl: vData.downloadUrl || 'https://www.e-vedhika.in/EVedhikaUBDDeploymentTool.exe',
-            releaseNotes: vData.releaseNotes || 'E-Vedhika One-Click UBD Deployment Tool v1.0.1',
-            executableName: vData.executableName || 'e-Vedhika_UBD_Deployment_v1.0.1.exe'
+            releaseNotes: vData.releaseNotes || 'E-Vedhika UBD Tool v1.0.0 Official Final Release',
+            executableName: vData.executableName || 'e-Vedhika_UBD_Deployment_v1.0.0.exe',
+            githubRepo: vData.githubRepo || 'https://github.com/Rakeshkumardhawan123/UBDTOOLS',
+            silent: vData.silent !== undefined ? Boolean(vData.silent) : true
           });
         }
       }
     } catch (e) {
       console.warn('Syncing fallback local state:', e);
     }
+  };
+
+  const [isSyncingGithub, setIsSyncingGithub] = useState(false);
+  const [githubSyncMsg, setGithubSyncMsg] = useState('');
+
+  const handleSyncFromGithub = async () => {
+    setIsSyncingGithub(true);
+    setGithubSyncMsg('');
+    try {
+      const rawUrl = 'https://raw.githubusercontent.com/Rakeshkumardhawan123/UBDTOOLS/main/version.json';
+      const res = await fetch(rawUrl, { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`GitHub raw file fetch returned HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const updated = {
+        ...otaConfig,
+        latestVersion: data.latestVersion || otaConfig.latestVersion,
+        versionCode: data.versionCode || otaConfig.versionCode,
+        downloadUrl: data.downloadUrl || otaConfig.downloadUrl,
+        releaseNotes: data.releaseNotes || otaConfig.releaseNotes,
+        executableName: data.executableName || otaConfig.executableName,
+        silent: data.silent !== undefined ? Boolean(data.silent) : true
+      };
+      setOtaConfig(updated);
+      
+      // Persist to server
+      await fetch('/api/version', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+
+      setGithubSyncMsg(`✨ Successfully connected & synced with GitHub UBDTOOLS! (Live: ${updated.latestVersion})`);
+      setTimeout(() => setGithubSyncMsg(''), 5000);
+    } catch (err: any) {
+      setGithubSyncMsg(`ℹ️ GitHub Status: ${err.message}. (Ensure UBDTOOLS repo is Public and version.json is committed).`);
+      setTimeout(() => setGithubSyncMsg(''), 7000);
+    } finally {
+      setIsSyncingGithub(false);
+    }
+  };
+
+  const handleDownloadVersionJson = () => {
+    const jsonStr = JSON.stringify(otaConfig, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'version.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleSaveOtaConfig = async () => {
@@ -560,6 +662,68 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Critical Telemetry Failure Toasts Overlay */}
+      {criticalToasts.length > 0 && (
+        <div className="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-md w-full">
+          {criticalToasts.map((toast) => (
+            <div 
+              key={toast.id} 
+              className="bg-rose-950 border-2 border-rose-600 rounded-2xl shadow-2xl p-4 text-white relative overflow-hidden ring-4 ring-rose-500/20"
+            >
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500"></div>
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  <AlertCircle className="w-5 h-5 text-rose-400 animate-pulse" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase tracking-wider text-rose-400 font-extrabold font-mono">
+                      🔴 CRITICAL SYSTEM FAILURE
+                    </span>
+                    <span className="text-[10px] text-rose-300 font-medium">
+                      {toast.timestamp}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-black text-rose-100 mt-1 flex items-center gap-1.5 font-sans">
+                    {toast.errorType}
+                  </h4>
+                  <p className="text-xs text-rose-200 mt-1 font-medium font-sans">
+                    {toast.details}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between text-[10px] bg-rose-900/40 p-2 rounded-lg border border-rose-800/40 font-mono">
+                    <div>
+                      <span className="text-rose-400">PC:</span> <span className="font-bold text-white">{toast.pcName}</span>
+                    </div>
+                    <div>
+                      <span className="text-rose-400">ID:</span> <span className="font-bold text-white">{toast.pcId}</span>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 text-[10px] text-rose-300 italic font-sans truncate">
+                    📍 {toast.officeLocation}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCriticalToasts(prev => prev.filter(t => t.id !== toast.id))}
+                  className="text-rose-400 hover:text-white p-1 rounded-lg hover:bg-rose-800/30 transition-all cursor-pointer shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+          {criticalToasts.length > 1 && (
+            <button
+              onClick={() => setCriticalToasts([])}
+              className="px-4 py-1.5 bg-rose-900 hover:bg-rose-850 border border-rose-700 text-white font-bold text-xs rounded-xl self-end cursor-pointer shadow-md transition-all font-sans"
+            >
+              Clear All ({criticalToasts.length})
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Direct Link Banner */}
       <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-2xl p-4 border border-indigo-800 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-3">
@@ -607,7 +771,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Telemetry Reports (16 Columns)</span>
+            <span>EXE & UBD Live Monitoring (16 Columns)</span>
           </button>
 
           <button
@@ -774,6 +938,114 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* GitHub Repository Admin Controller & Live Sync Hub */}
+          <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-purple-500/30 shadow-xl space-y-4">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold text-[11px] border border-purple-500/40 tracking-wider flex items-center gap-1.5">
+                    <Github className="w-3.5 h-3.5 text-purple-400" />
+                    GITHUB REPO ADMIN LINK
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Connected: Rakeshkumardhawan123/UBDTOOLS
+                  </span>
+                  {githubSyncMsg && (
+                    <span className="text-emerald-400 text-xs font-bold animate-pulse">
+                      {githubSyncMsg}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                  <span>GitHub Repository (UBDTOOLS) ↔ Website Admin Panel Link</span>
+                </h3>
+                <p className="text-xs text-purple-200/80">
+                  మీ GitHub రిపోజిటరీ మరియు వెబ్‌సైట్ అడ్మిన్ ప్యానెల్ పూర్తిగా లింక్ అయ్యాయి. GitHub లో మీరు మార్పులు చేసిన వెంటనే ఇక్కడి నుంచి 1-క్లిక్‌తో సింక్ చేయవచ్చు లేదా ఇక్కడి సెట్టింగ్స్‌ను GitHub కి ఎగుమతి చేయవచ్చు.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
+                <button
+                  onClick={handleSyncFromGithub}
+                  disabled={isSyncingGithub}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  title="GitHub UBDTOOLS నుండి నేరుగా version.json ను ఈ వెబ్ అడ్మిన్ ప్యానెల్‌లోకి సింక్ చేయండి"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingGithub ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingGithub ? 'Syncing...' : '🔄 Sync from GitHub'}</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadVersionJson}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="ఈ వెర్షన్ కాన్ఫిగరేషన్‌ను version.json ఫైల్‌గా డౌన్‌లోడ్ చేసి GitHub లో అప్‌లోడ్ చేయవచ్చు"
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Download version.json</span>
+                </button>
+
+                <a
+                  href="https://github.com/Rakeshkumardhawan123/UBDTOOLS"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-purple-500/40 transition-all flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Open GitHub Repo</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Connection Pipeline Details */}
+            <div className="pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+                <div className="text-slate-400 text-[11px] font-medium flex items-center gap-1.5 mb-1">
+                  <Link2 className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Target GitHub Repository</span>
+                </div>
+                <div className="font-mono text-cyan-300 font-bold text-xs break-all">
+                  https://github.com/Rakeshkumardhawan123/UBDTOOLS
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+                <div className="text-slate-400 text-[11px] font-medium flex items-center gap-1.5 mb-1">
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Raw GitHub OTA Endpoint</span>
+                </div>
+                <div className="font-mono text-emerald-400 text-[11px] break-all truncate" title="https://raw.githubusercontent.com/Rakeshkumardhawan123/UBDTOOLS/main/version.json">
+                  .../UBDTOOLS/main/version.json
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+                <div className="text-slate-400 text-[11px] font-medium flex items-center gap-1.5 mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Auto-Sync Status</span>
+                </div>
+                <div className="text-slate-200 text-xs font-semibold">
+                  100% Silent OTA Mode Active (<span className="text-emerald-400 font-mono">v1.0.0 Official</span>)
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Guidance / Workflow Instructions */}
+            <div className="p-3 bg-purple-950/30 rounded-xl border border-purple-800/30 text-[11px] text-purple-200/90 leading-relaxed flex items-start gap-2.5">
+              <div className="p-1 rounded bg-purple-900/60 text-purple-300 shrink-0 mt-0.5">
+                <Github className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <strong className="text-purple-300">అడ్మిన్ ప్యానెల్ & GitHub లింక్ పనిచేసే విధానం:</strong>
+                <ol className="list-decimal list-inside mt-1 space-y-0.5 text-slate-300">
+                  <li>మీరు GitHub లో <code className="text-cyan-300 bg-slate-950 px-1 py-0.5 rounded font-mono">version.json</code> లేదా EXE ఫైల్‌ను అప్‌డేట్ చేసినప్పుడు, ఇక్కడ పైనున్న <strong>"Sync from GitHub"</strong> బటన్ నొక్కితే వెబ్‌సైట్ సర్వర్ ఆటోమేటిక్‌గా కొత్త వెర్షన్‌ను స్వీకరిస్తుంది.</li>
+                  <li>లేదా మీరు ఈ అడ్మిన్ ప్యానెల్‌లోనే వెర్షన్ నంబర్ మార్చి <strong>"Download version.json"</strong> నొక్కి ఆ ఫైల్‌ను నేరుగా GitHub లో డ్రాప్ చేయవచ్చు.</li>
+                  <li>రాష్ట్రంలోని అన్ని పంచాయతీ కంప్యూటర్లు ఈ లింక్ ద్వారానే ఏకకాలంలో సైలెంట్‌గా అప్‌డేట్ అవుతాయి!</li>
+                </ol>
+              </div>
+            </div>
           </div>
 
           {/* Telegram & Live Telemetry Health & Diagnostic Gateway */}
@@ -1096,6 +1368,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                   <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px] whitespace-nowrap">
                     <th className="p-3 text-center">Action</th>
                     <th className="p-3">Sl. No.</th>
+                    <th className="p-3">Unique PC ID & Presence</th>
                     <th className="p-3">Date</th>
                     <th className="p-3">Time</th>
                     <th className="p-3">Computer Name</th>
@@ -1164,6 +1437,12 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                             </button>
                           </td>
                           <td className="p-3 font-bold text-slate-900">{log.slNo || index + 1}</td>
+                          <td className="p-3 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5 font-mono font-bold text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200">
+                              <span className={`w-2 h-2 rounded-full ${String(log.livePresence || 'ONLINE').toUpperCase() === 'ONLINE' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                              <span>{log.pcId || `EVD-${String(officeLoc).toLowerCase().includes('andhra') ? 'AP' : 'TS'}-${String(log.id || '9A').slice(-6).toUpperCase()}`}</span>
+                            </div>
+                          </td>
                           <td className="p-3 text-slate-600 whitespace-nowrap">{log.date || new Date().toISOString().slice(0, 10)}</td>
                           <td className="p-3 text-slate-600 whitespace-nowrap">{log.time || new Date().toLocaleTimeString()}</td>
                           <td className="p-3 font-bold text-indigo-800 whitespace-nowrap flex items-center gap-1.5">

@@ -588,8 +588,23 @@ async function startServer() {
       const verif = body.verification || body.verificationCompleted || body.regVerification || 'Passed (15/15)';
       const ver = body.version || body.deployVersion || 'v1.0.1';
 
+      // Generate or retrieve persistent Unique Machine/PC ID
+      let pcId = body.pcId;
+      if (!pcId) {
+        const rawSeed = `${body.pcName || 'PC'}_${body.userName || 'USER'}_${officeLoc}`;
+        let hash = 0;
+        for (let i = 0; i < rawSeed.length; i++) {
+          hash = (hash << 5) - hash + rawSeed.charCodeAt(i);
+          hash |= 0;
+        }
+        const hex = Math.abs(hash).toString(16).toUpperCase().padStart(6, '0');
+        const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
+        pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4) || '9A'}`;
+      }
+
       const newRecord = {
         id: body.id || `TEL-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+        pcId: pcId,
         slNo: telemetryLogsStore.length + 1,
         date: body.date || new Date().toISOString().slice(0, 10),
         time: body.time || new Date().toLocaleTimeString(),
@@ -597,6 +612,9 @@ async function startServer() {
         userName: body.userName || 'Gram-Panchayat-User',
         officeLocation: officeLoc,
         state: stateVal,
+        livePresence: body.livePresence || 'ONLINE',
+        lastSeen: 'Just Now',
+        lastSeenEpoch: Date.now(),
         targetDomain: targetDom,
         osVersion: osVer,
         winEdition: osVer,
@@ -627,6 +645,7 @@ async function startServer() {
       if (telegramConfig.autoNotifyOnTelemetry && telegramConfig.botToken && telegramConfig.chatId) {
         const teleMsg = `🛡️ <b>E-VEDHIKA TELEMETRY REPORT</b>\n` +
           `━━━━━━━━━━━━━━━━━━━\n` +
+          `🆔 <b>Unique PC ID:</b> <code>${newRecord.pcId}</code>\n` +
           `🏢 <b>Office:</b> ${newRecord.officeLocation}\n` +
           `💻 <b>PC:</b> <code>${newRecord.pcName}</code>\n` +
           `👤 <b>User:</b> ${newRecord.userName}\n` +

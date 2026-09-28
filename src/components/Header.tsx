@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, X, Terminal, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Menu, X, Terminal, ShieldCheck, ChevronDown, Github } from 'lucide-react';
 import { EnvironmentStatus, DepartmentProfile, NavigationTab } from '../types';
 import { EVedhikaLogo } from './EVedhikaLogo';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
@@ -82,6 +82,19 @@ export const Header: React.FC<HeaderProps> = ({
           </select>
           <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-medium pointer-events-none" />
         </div>
+
+        {/* GitHub Repository Link */}
+        <a
+          href="https://github.com/Rakeshkumardhawan123/UBDTOOLS"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pill text-cyan-400 border-cyan-500/40 hover:border-cyan-400 hover:bg-cyan-500/10 transition-colors inline-flex items-center gap-1.5 font-mono text-[0.65rem]"
+          title="Open Official GitHub Repository (UBDTOOLS)"
+        >
+          <Github size={12} />
+          <span className="hidden sm:inline">GitHub:</span>
+          <span>UBDTOOLS</span>
+        </a>
 
         {/* Admin Badge */}
         <div className="pill text-accent border-accent font-bold hidden md:inline-flex items-center gap-1">
