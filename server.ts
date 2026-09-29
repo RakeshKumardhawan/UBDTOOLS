@@ -395,6 +395,18 @@ async function startServer() {
     publisher: 'E-Vedhika.in (Rakesh Dhawan)'
   };
 
+  // Try to load saved version config from public folder if it exists
+  try {
+    const versionFilePath = path.join(process.cwd(), 'public', 'version.json');
+    if (fs.existsSync(versionFilePath)) {
+      const savedVersion = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
+      currentVersionConfig = { ...currentVersionConfig, ...savedVersion };
+      console.log(`[BOOT] Loaded version config: ${currentVersionConfig.latestVersion}`);
+    }
+  } catch (e) {
+    console.warn('[BOOT] Could not load public/version.json');
+  }
+
   // API Route: Check Software Version & Live OTA Auto-Updates
   const handleGetVersion = (req: any, res: any) => {
     return res.json({
@@ -404,6 +416,17 @@ async function startServer() {
   };
   app.get('/api/version', handleGetVersion);
   app.get('/exe/api/version', handleGetVersion);
+  app.get('/version.json', handleGetVersion);
+
+  // API Route: Permanent Download Link for Latest EXE
+  app.get('/EVedhikaUBDDeploymentTool.exe', (req, res) => {
+    // This always redirects to the latest download URL defined in config
+    if (currentVersionConfig.downloadUrl) {
+      return res.redirect(currentVersionConfig.downloadUrl);
+    }
+    // Fallback if no URL is set
+    return res.status(404).send('Latest build not found. Please sync from GitHub or check back later.');
+  });
 
   // API Route: Update Software Version Config (For Admin/Developer Updates)
   app.post('/api/version', (req, res) => {

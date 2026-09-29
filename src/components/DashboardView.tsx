@@ -2,6 +2,7 @@ import React from 'react';
 import { EnvironmentStatus, DepartmentProfile, NavigationTab, LogEntry } from '../types';
 import { Download, Play, Shield, CheckCircle2 } from 'lucide-react';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
+import { ReleaseNotes } from './ReleaseNotes';
 
 interface DashboardViewProps {
   envStatus: EnvironmentStatus;
@@ -24,7 +25,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Hero Section */}
       <div className="mb-8 sm:mb-12 lg:mb-14">
-        <p className="label text-accent mb-2 sm:mb-3 tracking-widest">[ SYSTEM_V1.0.1 - TELANGANA PR&RD ]</p>
+        <p className="label text-accent mb-2 sm:mb-3 tracking-widest">[ SYSTEM_V1.0.2 - TELANGANA PR&RD ]</p>
         <h2 className="font-syne text-[clamp(1.85rem,4.8vw,3.6rem)] leading-[1.05] sm:leading-[0.95] tracking-[-0.04em] mb-4 sm:mb-6">
           ALL PROBLEMS,<br />ONE SOLUTION.
         </h2>
@@ -32,6 +33,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           Enterprise-grade WinForms deployment framework for Telangana Grama Panchayath & Mandal operations. 
           Automated ActiveX policies, USB token PKCS#11 drivers, and UBD IE5 Quirks Mode integration.
         </p>
+      </div>
+
+      {/* Release Notes Component */}
+      <div className="mb-10">
+        <ReleaseNotes />
       </div>
 
       {/* Status Cards Grid */}

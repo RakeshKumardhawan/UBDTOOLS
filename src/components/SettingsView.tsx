@@ -162,6 +162,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
               />
             </div>
+            
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div>
+                <span className="font-bold text-slate-900 block">Auto-install Updates on Launch</span>
+                <span className="text-slate-500 text-[11px]">Automatically trigger the update download if a newer build is detected.</span>
+              </div>
+              <input
+                id="toggle-autoinstall"
+                type="checkbox"
+                checked={autoInstallOnLaunch}
+                onChange={(e) => setAutoInstallOnLaunch(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
+              />
+            </div>
 
             <div className="space-y-1">
               <label className="block text-slate-700 font-bold">Update Schedule</label>
