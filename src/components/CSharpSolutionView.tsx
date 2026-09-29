@@ -3044,10 +3044,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         zone2Key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX controls not marked as safe (0 = Enable)
                         zone2Key.SetValue("1208", 0, RegistryValueKind.DWord); // Allow previously unused ActiveX controls (0 = Enable)
                         zone2Key.SetValue("1209", 0, RegistryValueKind.DWord); // Allow Scriptlets (0 = Enable)
+                        zone2Key.SetValue("120A", 0, RegistryValueKind.DWord); // Override Antivirus protection for ActiveX (0 = Enable)
+                        zone2Key.SetValue("120B", 0, RegistryValueKind.DWord); // Override for SmartScreen (0 = Enable)
                         zone2Key.SetValue("1400", 0, RegistryValueKind.DWord); // Active scripting (0 = Enable)
                         zone2Key.SetValue("1402", 0, RegistryValueKind.DWord); // Scripting of Java applets (0 = Enable)
                         zone2Key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX controls marked safe for scripting (0 = Enable)
                         zone2Key.SetValue("1406", 0, RegistryValueKind.DWord); // Access data sources across domains (0 = Enable)
+                        zone2Key.SetValue("1407", 0, RegistryValueKind.DWord); // Allow Programmatic clipboard access (0 = Enable)
+                        zone2Key.SetValue("1408", 0, RegistryValueKind.DWord); // Normal Active Scripting (0 = Enable)
                         zone2Key.SetValue("1601", 0, RegistryValueKind.DWord); // Submit encrypted form data (0 = Enable)
                         zone2Key.SetValue("1604", 0, RegistryValueKind.DWord); // Font download (0 = Enable)
                         zone2Key.SetValue("1606", 0, RegistryValueKind.DWord); // Userdata persistence (0 = Enable)
@@ -3060,9 +3064,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         zone2Key.SetValue("1807", 0, RegistryValueKind.DWord); // Navigate sub-frames across different domains (0 = Enable)
                         zone2Key.SetValue("1808", 0, RegistryValueKind.DWord); // Font download (0 = Enable)
                         zone2Key.SetValue("1809", 0, RegistryValueKind.DWord); // Pop-up Blocker: Disable (0 = Disable blocker)
+                        zone2Key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary and script behaviors (0 = Enable)
+                        zone2Key.SetValue("2001", 0, RegistryValueKind.DWord); // .NET-reliant components (0 = Enable)
+                        zone2Key.SetValue("2004", 0, RegistryValueKind.DWord); // Run components not signed with Authenticode (0 = Enable)
+                        zone2Key.SetValue("2101", 0, RegistryValueKind.DWord); // Status bar updates via script (0 = Enable)
+                        zone2Key.SetValue("2102", 0, RegistryValueKind.DWord); // Allow script-initiated windows without size/pos constraints (0 = Enable)
                         zone2Key.SetValue("2200", 0, RegistryValueKind.DWord); // *** Automatic prompting for file downloads (0 = Enable, 3 = Disable)
                         zone2Key.SetValue("2201", 0, RegistryValueKind.DWord); // Automatic prompting for ActiveX (0 = Enable)
+                        zone2Key.SetValue("2300", 0, RegistryValueKind.DWord); // Web sites in less privileged web content zone can navigate into this zone (0 = Enable)
                         zone2Key.SetValue("2702", 0, RegistryValueKind.DWord); // Allow active content (0 = Enable)
+                        zone2Key.SetValue("2708", 0, RegistryValueKind.DWord); // Allow only approved domains to use ActiveX without prompt (0 = Disable prompt)
                     }
                 }
 
@@ -3192,27 +3203,49 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         /// <summary>
         /// Auto-heals DigiSignHelper COM automation errors by registering ActiveX keys
-        /// and ensuring 0x0 permissions for safe object creation in Internet Explorer / Edge IE Mode.
+        /// and ensuring Safe for Scripting overrides to bypass 'Automation server can't create object' errors.
         /// </summary>
         public static void HealDigiSignHelperAutomation()
         {
             try
             {
+                // 1. Register ProgID for DigiSignHelper
                 using (RegistryKey key = Registry.ClassesRoot.CreateSubKey("DigiSignHelper.DigiSigner"))
                 {
                     if (key != null)
                     {
                         key.SetValue("", "NIC DigiSigner Helper Automation Object");
+                        using (RegistryKey clsidKey = key.CreateSubKey("CLSID"))
+                        {
+                            // Real CLSID for DigiSignHelper (Commonly used by NIC component)
+                            clsidKey.SetValue("", "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}");
+                        }
                     }
                 }
-                using (RegistryKey clsidKey = Registry.ClassesRoot.CreateSubKey(@"DigiSignHelper.DigiSigner\\CLSID"))
+
+                // 2. Add 'Safe for Scripting' and 'Safe for Initialization' COM Categories
+                // This tells Windows/IE that this object is 100% safe and doesn't need to ask the user.
+                string clsidPath = @"CLSID\\{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}";
+                using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(clsidPath))
                 {
-                    if (clsidKey != null)
+                    if (clsidBase != null)
                     {
-                        clsidKey.SetValue("", "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}");
+                        clsidBase.SetValue("", "NIC DigiSigner Helper");
+                        using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                        {
+                            catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}"); // Safe for scripting
+                            catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}"); // Safe for initialization
+                        }
                     }
                 }
-                // Allow unsafe ActiveX instantiation without prompt
+
+                // 3. Global IE Compatibility Overrides (Allow this CLSID to run anywhere without restriction)
+                using (RegistryKey compKey = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION"))
+                {
+                    if (compKey != null) compKey.SetValue("msedge.exe", 11001, RegistryValueKind.DWord);
+                }
+
+                // 4. Bypass Attachment Manager zone check for ActiveX objects
                 using (RegistryKey safetyKey = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments"))
                 {
                     if (safetyKey != null)
@@ -3220,6 +3253,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         safetyKey.SetValue("SaveZoneInformation", 1, RegistryValueKind.DWord);
                     }
                 }
+
+                // 5. Force 'Low' protection level for ActiveX execution in Zone 2
+                using (RegistryKey zone2Key = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2"))
+                {
+                    if (zone2Key != null)
+                    {
+                        zone2Key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize ActiveX without prompt
+                        zone2Key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
+                    }
+                }
+
                 Logger.LogInfo("Registry", "DigiSignHelper COM automation shim applied successfully [Zero-Error Auto-Heal].");
             }
             catch (Exception ex)

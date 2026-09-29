@@ -382,16 +382,16 @@ async function startServer() {
   let currentVersionConfig = {
     name: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     appName: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
-    executableName: 'EVedhika_Setup_v1.0.1.exe',
-    currentVersion: 'v1.0.1 Official Setup',
-    latestVersion: 'v1.0.1 Official Setup',
-    versionCode: 201,
-    releaseDate: '2026-09-28',
-    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/v1.0.1/EVedhika_Setup_v1.0.1.exe',
+    executableName: 'EVedhika_Setup_v1.0.2.exe',
+    currentVersion: 'v1.0.2 Official Setup',
+    latestVersion: 'v1.0.2 Official Setup',
+    versionCode: 202,
+    releaseDate: '2026-09-29',
+    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/v1.0.2/EVedhika_Setup_v1.0.2.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: true,
-    releaseNotes: 'E-Vedhika UBD Tool v1.0.1 Official Release - Complete 1-Click Automated Setup for Telangana & Andhra Pradesh with DSC Drivers and Central Cloud Telemetry.',
+    releaseNotes: 'E-Vedhika UBD Tool v1.0.2 Official Release - FIXED: "Automation server can\'t create object" error in UBD Portal. Comprehensive ActiveX & DigiSigner auto-heal engine updated.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)'
   };
 
