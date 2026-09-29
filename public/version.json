@@ -1,14 +1,15 @@
 {
-  "success": true,
-  "executableName": "EVedhika_Setup_v1.0.2.exe",
-  "currentVersion": "v1.0.2 Official Setup",
-  "latestVersion": "v1.0.2 Official Setup",
-  "versionCode": 202,
+  "name": "E-VEDHIKA All Problems One Solution & UBD Deployment Tool",
+  "appName": "E-VEDHIKA All Problems One Solution & UBD Deployment Tool",
+  "executableName": "EVedhika_Setup_v1.0.1.exe",
+  "currentVersion": "v1.0.1",
+  "latestVersion": "v1.0.1",
+  "versionCode": 101,
   "releaseDate": "2026-09-29",
-  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/v1.0.2/EVedhika_Setup_v1.0.2.exe",
+  "downloadUrl": "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool.exe",
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
-  "silent": true,
-  "releaseNotes": "E-Vedhika UBD Tool v1.0.2 Official Release - FIXED: \"Automation server can't create object\" error in UBD Portal. Comprehensive ActiveX & DigiSigner auto-heal engine updated.",
-  "publisher": "E-Vedhika (Rakesh Dhawan)"
+  "silent": false,
+  "releaseNotes": "Stable Official Release v1.0.1 - Integrated ActiveX Auto-Heal & Central Monitoring.",
+  "publisher": "E-Vedhika.in (Rakesh Dhawan)"
 }

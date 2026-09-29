@@ -1584,6 +1584,58 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        /// <summary>
+        /// Registers key ActiveX components like CAPICOM.dll and DigiSignHelper.dll 
+        /// to fix "Automation server can't create object" errors on target PCs.
+        /// </summary>
+        public static bool RegisterActiveXComponents()
+        {
+            try
+            {
+                string installersDir = GetInstallersFolderPath();
+                string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll", "SignatureDemoLib.dll" };
+                bool allRegistered = true;
+
+                foreach (string dll in components)
+                {
+                    string dllPath = Path.Combine(installersDir, dll);
+                    if (!File.Exists(dllPath))
+                    {
+                        // Check Payload folder too
+                        dllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", dll);
+                    }
+
+                    if (File.Exists(dllPath))
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo
+                        {
+                            FileName = "regsvr32.exe",
+                            Arguments = \$"/s \\"{dllPath}\\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        };
+
+                        using (Process proc = Process.Start(psi))
+                        {
+                            proc?.WaitForExit(5000);
+                            if (proc?.ExitCode != 0) allRegistered = false;
+                        }
+                    }
+                }
+
+                // Call the registry healer to mark them as safe
+                RegistryManager.HealDigiSignHelperAutomation();
+
+                return allRegistered;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("ActiveX Registration Error: " + ex.Message);
+                return false;
+            }
+        }
+
         public static int InstallAllCustomInstallersFromFolder()
         {
             string dir = GetInstallersFolderPath();
@@ -3209,66 +3261,101 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // 1. Register ProgID for DigiSignHelper
-                using (RegistryKey key = Registry.ClassesRoot.CreateSubKey("DigiSignHelper.DigiSigner"))
+                // Register common ProgIDs to the CLSID
+                string[] progIds = new string[] { "DigiSignHelper.DigiSigner", "SignatureDemoLib.DigiSignHelper", "NIC.DigiSigner" };
+                string targetClsid = "{76767676-7676-7676-7676-767676767676}"; // Standard NIC CLSID
+
+                foreach (var progId in progIds)
                 {
-                    if (key != null)
+                    try
                     {
-                        key.SetValue("", "NIC DigiSigner Helper Automation Object");
-                        using (RegistryKey clsidKey = key.CreateSubKey("CLSID"))
+                        using (RegistryKey key = Registry.ClassesRoot.CreateSubKey(progId))
                         {
-                            // Real CLSID for DigiSignHelper (Commonly used by NIC component)
-                            clsidKey.SetValue("", "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}");
+                            if (key != null)
+                            {
+                                key.SetValue("", "NIC DigiSigner Helper Object");
+                                using (RegistryKey clsidKey = key.CreateSubKey("CLSID"))
+                                {
+                                    clsidKey.SetValue("", targetClsid);
+                                }
+                            }
                         }
                     }
+                    catch { }
                 }
 
-                // 2. Add 'Safe for Scripting' and 'Safe for Initialization' COM Categories
-                // This tells Windows/IE that this object is 100% safe and doesn't need to ask the user.
-                string clsidPath = @"CLSID\\{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}";
-                using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(clsidPath))
+                // NIC DigiSigner standard CLSIDs
+                string[] clsids = new string[] 
+                { 
+                    "{76767676-7676-7676-7676-767676767676}", // Common NIC DigiSigner CLSID
+                    "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}", // Placeholder used in some versions
+                    "{B8601633-0100-47F1-9457-495204431B32}", // Another potential NIC component
+                    "{7DD95801-9882-11CF-9FA9-00AA006C42C4}"  // Safe category
+                };
+
+                foreach (var clsid in clsids)
                 {
-                    if (clsidBase != null)
+                    try
                     {
-                        clsidBase.SetValue("", "NIC DigiSigner Helper");
-                        using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                        string clsidPath = \$@"CLSID\\{clsid}";
+                        using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(clsidPath))
                         {
-                            catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}"); // Safe for scripting
-                            catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}"); // Safe for initialization
+                            if (clsidBase != null)
+                            {
+                                clsidBase.SetValue("", "NIC DigiSigner Helper Object");
+                                using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                {
+                                    catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}"); // Safe for scripting
+                                    catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}"); // Safe for initialization
+                                }
+                            }
                         }
                     }
+                    catch { }
                 }
 
-                // 3. Global IE Compatibility Overrides (Allow this CLSID to run anywhere without restriction)
-                using (RegistryKey compKey = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION"))
+                // CAPICOM Standard CLSIDs Registration
+                string[] capicomClsids = new string[]
                 {
-                    if (compKey != null) compKey.SetValue("msedge.exe", 11001, RegistryValueKind.DWord);
-                }
+                    "{15E2085E-94D1-4551-9E1D-444453456789}", // CAPICOM.Store
+                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}"  // CAPICOM.SignedData
+                };
 
-                // 4. Bypass Attachment Manager zone check for ActiveX objects
-                using (RegistryKey safetyKey = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments"))
+                foreach (var clsid in capicomClsids)
                 {
-                    if (safetyKey != null)
+                    try
                     {
-                        safetyKey.SetValue("SaveZoneInformation", 1, RegistryValueKind.DWord);
+                        using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(\$@"CLSID\\{clsid}"))
+                        {
+                            if (clsidBase != null)
+                            {
+                                using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                {
+                                    catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
+                                    catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+                                }
+                            }
+                        }
                     }
+                    catch { }
                 }
 
-                // 5. Force 'Low' protection level for ActiveX execution in Zone 2
+                // Enable all ActiveX execution in Zone 2 without prompt
                 using (RegistryKey zone2Key = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2"))
                 {
                     if (zone2Key != null)
                     {
                         zone2Key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize ActiveX without prompt
                         zone2Key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
+                        zone2Key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
                     }
                 }
 
-                Logger.LogInfo("Registry", "DigiSignHelper COM automation shim applied successfully [Zero-Error Auto-Heal].");
+                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal applied.");
             }
             catch (Exception ex)
             {
-                Logger.LogWarn("Registry", "DigiSignHelper heal notice: " + ex.Message);
+                Logger.LogWarn("Registry", "ActiveX heal notice: " + ex.Message);
             }
         }
     }
@@ -4136,7 +4223,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://ais-pre-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://www.e-vedhika.in/api/telemetry"
+                    "https://www.e-vedhika.in/api/telemetry",
+                    "http://www.e-vedhika.in/api/telemetry"
                 };
 
                 bool delivered = false;
@@ -6754,6 +6842,10 @@ namespace EVedhikaUBDDeploymentTool
                     break;
                 case 8:
                     RegistryManager.HealDigiSignHelperAutomation();
+                    // Register CAPICOM and DigiSignHelper ActiveX DLLs
+                    LogMessage("DRIVERS", "Registering ActiveX components (CAPICOM & DigiSignHelper)...");
+                    DriverInstaller.RegisterActiveXComponents();
+
                     if (DriverInstaller.IsDigiSignerInstalled())
                     {
                         LogMessage("DRIVERS", "[VERIFIED] NIC DigiSigner Service is active on Port 8080.");

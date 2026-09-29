@@ -29,19 +29,30 @@ jobs:
       run: |
         msbuild csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.sln /p:Configuration=Release /p:Platform="Any CPU"
 
+    - name: Install Inno Setup
+      run: choco install innosetup --no-progress -y
+
+    - name: Compile Full Bundled Installer with Inno Setup (Includes all Payload files)
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss
+
     - name: Create Release Link (Fixed URL)
       uses: softprops/action-gh-release@v2
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       with:
         tag_name: latest
-        files: csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/*.exe
+        files: |
+          csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
+          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/*.exe
         name: Latest Stable Build
-        body: "Automatic build from GitHub Actions. This link always points to the latest EXE for OTA updates."
+        body: "Automatic build from GitHub Actions. Contains full bundled single-file Installer (.exe) with all Payload software/drivers included."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Build Artifact
+    - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: EVedhika-UBD-Tool-Exe
-        path: csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/*.exe
+        name: EVedhika-UBD-Full-Bundle-Setup
+        path: |
+          csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
+          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/*.exe

@@ -116,7 +116,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://ais-pre-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://www.e-vedhika.in/api/telemetry"
+                    "https://www.e-vedhika.in/api/telemetry",
+                    "http://www.e-vedhika.in/api/telemetry"
                 };
 
                 bool delivered = false;

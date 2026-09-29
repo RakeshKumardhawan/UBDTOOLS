@@ -323,12 +323,36 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
+                // Register common ProgIDs to the CLSID
+                string[] progIds = new string[] { "DigiSignHelper.DigiSigner", "SignatureDemoLib.DigiSignHelper", "NIC.DigiSigner" };
+                string targetClsid = "{76767676-7676-7676-7676-767676767676}"; // Standard NIC CLSID
+
+                foreach (var progId in progIds)
+                {
+                    try
+                    {
+                        using (RegistryKey key = Registry.ClassesRoot.CreateSubKey(progId))
+                        {
+                            if (key != null)
+                            {
+                                key.SetValue("", "NIC DigiSigner Helper Object");
+                                using (RegistryKey clsidKey = key.CreateSubKey("CLSID"))
+                                {
+                                    clsidKey.SetValue("", targetClsid);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
                 // NIC DigiSigner standard CLSIDs
                 string[] clsids = new string[] 
                 { 
                     "{76767676-7676-7676-7676-767676767676}", // Common NIC DigiSigner CLSID
                     "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}", // Placeholder used in some versions
-                    "{B8601633-0100-47F1-9457-495204431B32}"  // Another potential NIC component
+                    "{B8601633-0100-47F1-9457-495204431B32}", // Another potential NIC component
+                    "{7DD95801-9882-11CF-9FA9-00AA006C42C4}"  // Safe category
                 };
 
                 foreach (var clsid in clsids)

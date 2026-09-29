@@ -16,7 +16,19 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Enable CORS for all origins so any C# client or external PC can post telemetry
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Initialize Gemini AI Client
   const getAiClient = () => {
@@ -383,16 +395,16 @@ async function startServer() {
   let currentVersionConfig = {
     name: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     appName: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
-    executableName: 'EVedhika_Setup_v1.0.2.exe',
-    currentVersion: 'v1.0.2 Official Setup',
-    latestVersion: 'v1.0.2 Official Setup',
-    versionCode: 202,
+    executableName: 'EVedhika_Setup_v1.0.1.exe',
+    currentVersion: 'v1.0.1',
+    latestVersion: 'v1.0.1',
+    versionCode: 101,
     releaseDate: '2026-09-29',
-    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/v1.0.2/EVedhika_Setup_v1.0.2.exe',
+    downloadUrl: 'https://www.e-vedhika.in/EVedhikaUBDDeploymentTool.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
-    silent: true,
-    releaseNotes: 'E-Vedhika UBD Tool v1.0.2 Official Release - FIXED: "Automation server can\'t create object" error in UBD Portal. Comprehensive ActiveX & DigiSigner auto-heal engine updated.',
+    silent: false,
+    releaseNotes: 'Stable Official Release v1.0.1 - Integrated ActiveX Auto-Heal & Central Monitoring.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)'
   };
 
@@ -695,8 +707,26 @@ async function startServer() {
     }
   });
 
+  // API Route: Reload Telemetry from Disk
+  app.post('/api/telemetry/reload', (req, res) => {
+    try {
+      if (fs.existsSync(TELEMETRY_FILE_PATH)) {
+        const diskData = JSON.parse(fs.readFileSync(TELEMETRY_FILE_PATH, 'utf8'));
+        if (Array.isArray(diskData)) {
+          telemetryLogsStore.length = 0;
+          telemetryLogsStore.push(...diskData);
+          return res.json({ success: true, message: `Reloaded ${telemetryLogsStore.length} logs from disk.` });
+        }
+      }
+      return res.status(404).json({ success: false, message: 'Telemetry file not found or invalid.' });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // API Route: Get Central Telemetry Logs
   app.get('/api/telemetry', (req, res) => {
+    console.log(`[GET /api/telemetry] Serving ${telemetryLogsStore.length} records.`);
     res.json({ success: true, count: telemetryLogsStore.length, logs: telemetryLogsStore });
   });
 

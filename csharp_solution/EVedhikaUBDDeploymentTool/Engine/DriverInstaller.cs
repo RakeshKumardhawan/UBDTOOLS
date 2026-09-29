@@ -188,7 +188,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 string installersDir = GetInstallersFolderPath();
-                string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll" };
+                string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll", "SignatureDemoLib.dll" };
                 bool allRegistered = true;
 
                 foreach (string dll in components)
