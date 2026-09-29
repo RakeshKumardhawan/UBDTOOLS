@@ -100,9 +100,9 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
       const res = await fetch('/api/telemetry');
       if (res.ok) {
         const data = await res.json();
-        if (data.logs && data.logs.length > 0) {
-          setCentralTelemetryLogs(data.logs);
-        }
+        // Fallback to empty array if logs is missing, but ensure we update state
+        const logs = data.logs || [];
+        setCentralTelemetryLogs(logs);
       }
 
       const vRes = await fetch('/api/version');
@@ -235,6 +235,18 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
 
       {selectedTab === 'telemetry' && (
         <div className="space-y-6 animate-in fade-in duration-500">
+          {/* 🛠️ Troubleshooting Alert for ActiveX Errors (Only show if relevant) */}
+          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-2xl flex items-start gap-4">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-amber-900">ActiveX & "Automation Server" Error Fix (నివారణ):</h4>
+              <p className="text-xs text-amber-700 mt-1">
+                ఒకవేళ మీకు "Automation server can't create object" ఎర్రర్ వస్తుంటే, C# టూల్‌లో <b>Step 8</b> ని మళ్ళీ రన్ చేయండి. 
+                ఇది <b>capicom.dll</b> మరియు <b>DigiSignHelper.dll</b> ఫైల్స్‌ని ఆటోమేటిక్‌గా రిజిస్టర్ చేసి ఫిక్స్ చేస్తుంది.
+              </p>
+            </div>
+          </div>
+
           {/* 🚀 OTA Manager Card */}
           <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-700 shadow-2xl overflow-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>

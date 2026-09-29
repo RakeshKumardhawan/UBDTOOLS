@@ -179,6 +179,58 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        /// <summary>
+        /// Registers key ActiveX components like CAPICOM.dll and DigiSignHelper.dll 
+        /// to fix "Automation server can't create object" errors on target PCs.
+        /// </summary>
+        public static bool RegisterActiveXComponents()
+        {
+            try
+            {
+                string installersDir = GetInstallersFolderPath();
+                string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll" };
+                bool allRegistered = true;
+
+                foreach (string dll in components)
+                {
+                    string dllPath = Path.Combine(installersDir, dll);
+                    if (!File.Exists(dllPath))
+                    {
+                        // Check Payload folder too
+                        dllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", dll);
+                    }
+
+                    if (File.Exists(dllPath))
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo
+                        {
+                            FileName = "regsvr32.exe",
+                            Arguments = $"/s \"{dllPath}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        };
+
+                        using (Process proc = Process.Start(psi))
+                        {
+                            proc?.WaitForExit(5000);
+                            if (proc?.ExitCode != 0) allRegistered = false;
+                        }
+                    }
+                }
+
+                // Call the registry healer to mark them as safe
+                RegistryManager.HealDigiSignHelperAutomation();
+
+                return allRegistered;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("ActiveX Registration Error: " + ex.Message);
+                return false;
+            }
+        }
+
         public static int InstallAllCustomInstallersFromFolder()
         {
             string dir = GetInstallersFolderPath();

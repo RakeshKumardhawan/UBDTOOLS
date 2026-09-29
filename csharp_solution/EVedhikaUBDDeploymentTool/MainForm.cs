@@ -941,6 +941,10 @@ namespace EVedhikaUBDDeploymentTool
                     break;
                 case 8:
                     RegistryManager.HealDigiSignHelperAutomation();
+                    // Register CAPICOM and DigiSignHelper ActiveX DLLs
+                    LogMessage("DRIVERS", "Registering ActiveX components (CAPICOM & DigiSignHelper)...");
+                    DriverInstaller.RegisterActiveXComponents();
+
                     if (DriverInstaller.IsDigiSignerInstalled())
                     {
                         LogMessage("DRIVERS", "[VERIFIED] NIC DigiSigner Service is active on Port 8080.");

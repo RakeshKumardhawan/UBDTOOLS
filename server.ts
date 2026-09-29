@@ -284,9 +284,10 @@ async function startServer() {
   try {
     if (fs.existsSync(TELEMETRY_FILE_PATH)) {
       const diskData = JSON.parse(fs.readFileSync(TELEMETRY_FILE_PATH, 'utf8'));
-      if (Array.isArray(diskData) && diskData.length > 0) {
+      if (Array.isArray(diskData)) {
         telemetryLogsStore.length = 0;
         telemetryLogsStore.push(...diskData);
+        console.log(`[BOOT] Loaded ${telemetryLogsStore.length} telemetry logs.`);
       }
     }
   } catch (err) {
