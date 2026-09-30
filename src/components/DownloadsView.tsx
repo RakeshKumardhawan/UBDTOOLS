@@ -147,14 +147,26 @@ Write-Host "========================================================" -Foregroun
           </div>
         </div>
 
-        <button
-          id="btn-download-offline-ps1"
-          onClick={downloadPs1}
-          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
-        >
-          <Download className="w-4 h-4" />
-          <span>{activeScriptTab === 'deploy' ? 'Download PowerShell Installer (.ps1)' : 'Download Uninstall Script (.ps1)'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {/* Main Full EXE Bundle Download */}
+          <a
+            id="btn-download-full-exe"
+            href="/EVedhikaUBDDeploymentTool.exe"
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-indigo-200 transition-all cursor-pointer"
+          >
+            <Archive className="w-4 h-4" />
+            <span>Download Full Windows Bundle (.exe)</span>
+          </a>
+
+          <button
+            id="btn-download-offline-ps1"
+            onClick={downloadPs1}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            <span>{activeScriptTab === 'deploy' ? 'Download PowerShell Installer (.ps1)' : 'Download Uninstall Script (.ps1)'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Grid: Left PowerShell Code Preview, Right Offline Manual Instructions */}
