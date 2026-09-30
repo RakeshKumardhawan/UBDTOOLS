@@ -45,23 +45,27 @@ Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
 Type: files; Name: "{group}\{#MyAppName}.lnk"
 
 [Code]
-function IsDotNet48Installed: Boolean;
+function IsDotNet45Installed: Boolean;
 var
   Release: Cardinal;
 begin
   Result := False;
   if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', Release) then
   begin
-    Result := Release >= 528040; // .NET 4.8 = 528040
+    Result := Release >= 378389; // .NET 4.5 = 378389
   end;
 end;
 
 function InitializeSetup: Boolean;
 begin
   Result := True;
-  if not IsDotNet48Installed then
+  if not IsDotNet45Installed then
   begin
-    MsgBox('.NET Framework 4.8 or higher is required to run this application.' #13#13 'Please install .NET Framework 4.8 from Microsoft and run this setup again.', mbError, MB_OK);
-    Result := False;
+    // Just a warning instead of blocking if it's really old, 
+    // but honestly 4.5 is on every Win8/10 PC already.
+    if MsgBox('This tool needs .NET Framework 4.5 (standard in Windows). If the tool fails to open, please update Windows.' #13#13 'Do you want to continue?', mbConfirmation, MB_YESNO) = IDNO then
+    begin
+      Result := False;
+    end;
   end;
 end;
