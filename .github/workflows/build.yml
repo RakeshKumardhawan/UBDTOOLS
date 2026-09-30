@@ -16,18 +16,17 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Setup NuGet
-      uses: nuget/setup-nuget@v1
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
 
     - name: Restore NuGet Packages
-      run: nuget restore csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.sln
+      run: dotnet restore csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.sln
 
-    - name: Build Solution (Release)
+    - name: Build and Publish Self-Contained EXE
       run: |
-        msbuild csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.sln /p:Configuration=Release /p:Platform="Any CPU"
+        dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/publish
 
     - name: Install Inno Setup
       run: choco install innosetup --no-progress -y
@@ -43,9 +42,9 @@ jobs:
         tag_name: latest
         files: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
-          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/*.exe
+          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/publish/*.exe
         name: Latest Stable Build
-        body: "Automatic build from GitHub Actions. Contains full bundled single-file Installer (.exe) with all Payload software/drivers included."
+        body: "Automatic build from GitHub Actions. NEW: .NET 8 Self-Contained Version (Zero Dependencies Required)."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -55,4 +54,4 @@ jobs:
         name: EVedhika-UBD-Full-Bundle-Setup
         path: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
-          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/*.exe
+          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/publish/*.exe
