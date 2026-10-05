@@ -136,6 +136,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
             return false;
         }
 
+        public static bool IsMTokenInstalled()
+        {
+            if (IsSoftwareInstalled("mToken") || IsSoftwareInstalled("Longmai"))
+                return true;
+
+            string sys = Environment.GetFolderPath(Environment.SpecialFolder.System);
+            if (File.Exists(Path.Combine(sys, "mTokenCSP.dll")) || File.Exists(Path.Combine(sys, "cryptoida_pkcs11.dll")))
+                return true;
+
+            return false;
+        }
+
         public static bool InstallDotNet35Offline()
         {
             string installersDir = GetInstallersFolderPath();
@@ -307,6 +319,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                     k2.SetValue("Image Path", "eps2003csp11.dll", RegistryValueKind.String);
                                     k2.SetValue("Type", 1, RegistryValueKind.DWord);
                                     k2.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                }
+                            }
+
+                            // 3. Register Longmai mToken (Class 3) CSP
+                            using (var k3 = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\mToken CryptoAPI Service Provider"))
+                            {
+                                if (k3 != null)
+                                {
+                                    k3.SetValue("Image Path", "mTokenCSP.dll", RegistryValueKind.String);
+                                    k3.SetValue("Type", 1, RegistryValueKind.DWord);
+                                    k3.SetValue("SigInFile", 0, RegistryValueKind.DWord);
                                 }
                             }
                         }
@@ -497,6 +520,51 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Path.Combine(baseDir, "HYP2003Setup_20250805.exe"),
                 Path.Combine(baseDir, "Payload", "HYP2003", "HYP2003Setup_20250805.exe"),
                 Path.Combine(baseDir, "Payload", "HYP2003", "HYP2003.exe")
+            };
+
+            foreach (string path in possiblePaths)
+            {
+                if (File.Exists(path))
+                {
+                    return InstallManualExe(path);
+                }
+            }
+            return false;
+        }
+
+        public static bool InstallMTokenSilent()
+        {
+            RegisterSmartCardAndCspProviders();
+            if (IsMTokenInstalled()) return true;
+
+            string dir = GetInstallersFolderPath();
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string[] possiblePaths = new string[]
+            {
+                Path.Combine(dir, "mToken_K9_Setup.exe"),
+                Path.Combine(dir, "mToken_Setup.exe"),
+                Path.Combine(baseDir, "Payload", "mToken", "mToken_K9_Setup.exe")
+            };
+
+            foreach (string path in possiblePaths)
+            {
+                if (File.Exists(path))
+                {
+                    return InstallSilentExe(path, "/S /verysilent /norestart");
+                }
+            }
+            return false;
+        }
+
+        public static bool InstallMTokenManual()
+        {
+            string dir = GetInstallersFolderPath();
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string[] possiblePaths = new string[]
+            {
+                Path.Combine(dir, "mToken_K9_Setup.exe"),
+                Path.Combine(dir, "mToken_Setup.exe"),
+                Path.Combine(baseDir, "Payload", "mToken", "mToken_K9_Setup.exe")
             };
 
             foreach (string path in possiblePaths)

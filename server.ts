@@ -405,7 +405,8 @@ async function startServer() {
     updateRequired: false,
     silent: false,
     releaseNotes: 'Stable Official Release v1.0.1 - Integrated ActiveX Auto-Heal & Central Monitoring.',
-    publisher: 'E-Vedhika.in (Rakesh Dhawan)'
+    publisher: 'E-Vedhika.in (Rakesh Dhawan)',
+    telemetryRelayUrl: '' // Global relay endpoint for third-party integrations
   };
 
   // Try to load saved version config from public folder if it exists
@@ -431,6 +432,36 @@ async function startServer() {
   app.get('/exe/api/version', handleGetVersion);
   app.get('/version.json', handleGetVersion);
 
+  // API Route: Live News & Announcements for C# Application (Website Posts)
+  app.get('/api/news', (req, res) => {
+    return res.json({
+      success: true,
+      news: [
+        {
+          id: 1,
+          title: 'IMPORTANT: v1.0.4 Update Released',
+          content: 'New v1.0.4 version includes Longmai mToken (Class 3) support and Windows 7 DLL auto-repair. Please update if prompted.',
+          date: '2026-10-05',
+          importance: 'High'
+        },
+        {
+          id: 2,
+          title: 'Class 3 Token Compatibility',
+          content: 'All new FIPS 140-3 Level 3 tokens are now supported in the 16-Step Deployment engine.',
+          date: '2026-10-04',
+          importance: 'Medium'
+        },
+        {
+          id: 3,
+          title: 'New UBD Portal Links',
+          content: 'UBD Telangana portal links have been updated in the auto-launch engine.',
+          date: '2026-10-01',
+          importance: 'Normal'
+        }
+      ]
+    });
+  });
+
   // API Route: Permanent Download Link for Latest EXE
   app.get('/EVedhikaUBDDeploymentTool.exe', (req, res) => {
     // This always redirects to the latest download URL defined in config
@@ -444,7 +475,7 @@ async function startServer() {
   // API Route: Update Software Version Config (For Admin/Developer Updates)
   app.post('/api/version', (req, res) => {
     try {
-      const { latestVersion, currentVersion, versionCode, downloadUrl, releaseNotes, updateRequired, executableName, silent } = req.body || {};
+      const { latestVersion, currentVersion, versionCode, downloadUrl, releaseNotes, updateRequired, executableName, silent, telemetryRelayUrl } = req.body || {};
       if (latestVersion) currentVersionConfig.latestVersion = latestVersion;
       if (currentVersion) currentVersionConfig.currentVersion = currentVersion;
       if (versionCode !== undefined) currentVersionConfig.versionCode = Number(versionCode);
@@ -453,6 +484,7 @@ async function startServer() {
       if (executableName) currentVersionConfig.executableName = executableName;
       if (updateRequired !== undefined) currentVersionConfig.updateRequired = Boolean(updateRequired);
       if (silent !== undefined) (currentVersionConfig as any).silent = Boolean(silent);
+      if (telemetryRelayUrl !== undefined) currentVersionConfig.telemetryRelayUrl = telemetryRelayUrl;
       
       try {
         fs.writeFileSync(path.join(process.cwd(), 'public', 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
@@ -611,6 +643,10 @@ async function startServer() {
   app.post('/api/telemetry', (req, res) => {
     try {
       const body = req.body || {};
+      
+      // Log incoming request for debugging persistence issues
+      fs.appendFileSync(path.join(process.cwd(), 'telemetry_access.log'), `[${new Date().toISOString()}] POST /api/telemetry from ${req.ip} - PC: ${body.pcName}\n`);
+
       const targetDom = body.targetDomain || (String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in');
       const stateVal = body.state || (targetDom.includes('ap.gov.in') || String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana');
       const officeLoc = body.officeLocation || body.office || (stateVal === 'Andhra Pradesh' ? 'Visakhapatnam, Andhra Pradesh' : 'Rangareddy, Telangana');
@@ -622,7 +658,7 @@ async function startServer() {
       const edgeMode = body.edgeIeMode || 'IE5 Quirks Active';
       const sitesXmlVal = body.sitesXml || (body.sitesXmlExists === 'Yes' ? 'IE5 Quirks Active (sites.xml present)' : 'Active') || 'IE5 Quirks Active (sites.xml present)';
       const verif = body.verification || body.verificationCompleted || body.regVerification || 'Passed (15/15)';
-      const ver = body.version || body.deployVersion || 'v1.0.1';
+      const ver = body.version || body.deployVersion || 'v1.0.4';
 
       // Generate or retrieve persistent Unique Machine/PC ID
       let pcId = body.pcId;
@@ -633,9 +669,9 @@ async function startServer() {
           hash = (hash << 5) - hash + rawSeed.charCodeAt(i);
           hash |= 0;
         }
-        const hex = Math.abs(hash).toString(16).toUpperCase().padStart(6, '0');
+        const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
         const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
-        pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4) || '9A'}`;
+        pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4)}`;
       }
 
       const newRecord = {
@@ -648,7 +684,7 @@ async function startServer() {
         userName: body.userName || 'Gram-Panchayat-User',
         officeLocation: officeLoc,
         state: stateVal,
-        livePresence: body.livePresence || 'ONLINE',
+        livePresence: 'ONLINE',
         lastSeen: 'Just Now',
         lastSeenEpoch: Date.now(),
         targetDomain: targetDom,
@@ -669,13 +705,23 @@ async function startServer() {
         deployVersion: ver,
         healthScore: body.healthScore ? Number(body.healthScore) : 100,
         status: body.status || 'SUCCESS',
-        remarks: body.remarks || 'All 90 parameters verified successfully.',
+        remarks: body.remarks || 'Report received successfully.',
         ...body
       };
 
       telemetryLogsStore.unshift(newRecord);
       saveTelemetryLogs();
+      
       console.log(`[CENTRAL TELEMETRY RECEIVED] ${newRecord.pcName} (${newRecord.userName}) -> ${newRecord.status}`);
+
+      // Global Relay: Forward report to external URL if configured in Admin Panel
+      if (currentVersionConfig.telemetryRelayUrl) {
+        fetch(currentVersionConfig.telemetryRelayUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRecord)
+        }).catch(err => console.warn(`Relay failed to ${currentVersionConfig.telemetryRelayUrl}:`, err.message));
+      }
 
       // Auto-forward Telemetry Report to Telegram if configured
       if (telegramConfig.autoNotifyOnTelemetry && telegramConfig.botToken && telegramConfig.chatId) {

@@ -12,6 +12,7 @@ import {
   Database 
 } from 'lucide-react';
 import { DepartmentProfile } from '../types';
+import { useToast } from './Toast';
 
 interface SettingsViewProps {
   selectedProfile: DepartmentProfile;
@@ -26,6 +27,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   departmentProfiles,
   onClearLogs,
 }) => {
+  const { showSuccess, showError } = useToast();
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [updateInterval, setUpdateInterval] = useState('Daily');
   const [logLevel, setLogLevel] = useState('Detailed Audit');
@@ -55,6 +57,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const saved = localStorage.getItem('autoInstallOnLaunch');
     return saved !== null ? saved === 'true' : true;
   });
+
+  const [tgBotToken, setTgBotToken] = useState('');
+  const [tgChatId, setTgChatId] = useState('');
+  const [tgAutoNotify, setTgAutoNotify] = useState(true);
+  const [isSavingTg, setIsSavingTg] = useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/telegram-config')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setTgChatId(data.chatId);
+          setTgAutoNotify(data.autoNotifyOnTelemetry);
+          // Bot token is masked for security
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveTelegram = async () => {
+    setIsSavingTg(true);
+    try {
+      const res = await fetch('/api/telegram-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: tgBotToken,
+          chatId: tgChatId,
+          autoNotifyOnTelemetry: tgAutoNotify
+        })
+      });
+      if (res.ok) {
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 2000);
+      }
+    } catch (e) {}
+    setIsSavingTg(false);
+  };
 
   const handleSaveSettings = () => {
     localStorage.setItem('autoInstallOnLaunch', String(autoInstallOnLaunch));
@@ -267,7 +307,70 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* Webhook API Integration */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+            <Bell className="w-4 h-4 text-emerald-600" />
+            <h3 className="text-sm font-bold text-slate-900">Telegram Notifications (Live Reports)</h3>
+          </div>
+          <div className="space-y-4 text-xs">
+            <div className="space-y-2">
+              <label className="block text-slate-700 font-bold">Bot Token</label>
+              <input
+                type="password"
+                value={tgBotToken}
+                onChange={(e) => setTgBotToken(e.target.value)}
+                placeholder="Enter Telegram Bot Token..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-slate-700 font-bold">Chat ID</label>
+              <input
+                type="text"
+                value={tgChatId}
+                onChange={(e) => setTgChatId(e.target.value)}
+                placeholder="Enter Chat ID..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div>
+                <span className="font-bold text-slate-900 block">Auto-Notify on Telemetry</span>
+                <span className="text-slate-500 text-[10px]">Forward every PC installation report to Telegram.</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={tgAutoNotify}
+                onChange={(e) => setTgAutoNotify(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveTelegram}
+                disabled={isSavingTg}
+                className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-black transition-all"
+              >
+                {isSavingTg ? 'Saving...' : 'Save Telegram Config'}
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/telegram-notify', { method: 'POST' });
+                    if (res.ok) showSuccess('Test alert sent! Check your Telegram.', 'Telegram Alert');
+                    else showError('Failed to send test alert. Check token/chatId.', 'Telegram Error');
+                  } catch (e) { showError('Error: ' + String(e), 'Connection Error'); }
+                }}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-all"
+              >
+                Test Alert
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Webhook API Integration */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <Database className="w-4 h-4 text-teal-600" />
             <h3 className="text-sm font-bold text-slate-900">API Integration (Webhook)</h3>

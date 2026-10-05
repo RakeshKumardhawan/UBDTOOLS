@@ -19,17 +19,25 @@ export interface UpdateCheckResult {
 
 export const VERSION_HISTORY = [
   {
-    version: 'V3.5',
-    date: 'September 2026',
+    version: 'v1.0.4',
+    date: 'October 2026',
     changes: [
-      'Added Corporate Blue refined aesthetic palette',
-      'Implemented Glass-Morphism effects across main dashboard cards',
-      'Upgraded OTA Engine for seamless C# executable replacements',
-      'Optimized Edge IE Mode diagnostic checks',
+      'Added support for Longmai mToken (Class 3) - FIPS 140-3 Level 3',
+      'Fixed telemetry report delivery issues for corporate firewalls',
+      'Integrated live Website Posts / News Feed into C# Dashboard',
+      'Automated CSP registry repairs for consistent token handshake',
     ]
   },
   {
-    version: 'V3.4',
+    version: 'v1.0.1',
+    date: 'September 2026',
+    changes: [
+      'Stable Official Release - Integrated ActiveX Auto-Heal',
+      'Central Monitoring Gateway established',
+    ]
+  },
+  {
+    version: 'V3.5',
     date: 'August 2026',
     changes: [
       'Added Central Cloud Telemetry Dashboard & Logs',
@@ -56,7 +64,7 @@ export const VERSION_HISTORY = [
   }
 ];
 
-export const CURRENT_APP_VERSION = 'V3.5';
+export const CURRENT_APP_VERSION = 'v1.0.4';
 export const DEFAULT_GITHUB_RAW_URL = 'https://raw.githubusercontent.com/e-vedhika/EVedhikaUBDDeploymentTool/main/version.json';
 
 /**

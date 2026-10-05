@@ -8,8 +8,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.1";
-        public const int CurrentVersionCode = 100;
+        public const string CurrentVersion = "v1.0.4";
+        public const int CurrentVersionCode = 104;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/version.json";
 
         public class UpdateInfo
@@ -308,6 +308,54 @@ del ""%~f0""
                 logCallback?.Invoke($"[OTA PACKAGE ERROR] Failed to fetch OTA package: {ex.Message}");
                 return false;
             }
+        }
+
+        public class NewsItem
+        {
+            public string Title { get; set; }
+            public string Content { get; set; }
+            public string Date { get; set; }
+            public string Importance { get; set; }
+        }
+
+        public static System.Collections.Generic.List<NewsItem> GetLiveNewsFeed()
+        {
+            var news = new System.Collections.Generic.List<NewsItem>();
+            try
+            {
+                using (var wc = new TimeoutWebClient(3000))
+                {
+                    wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika-News-Agent/1.0";
+                    string json = wc.DownloadString("https://www.e-vedhika.in/api/news");
+                    if (!string.IsNullOrEmpty(json) && json.Contains("\"news\":"))
+                    {
+                        // Minimalist JSON parsing for News items
+                        int newsIdx = json.IndexOf("\"news\":");
+                        string newsList = json.Substring(newsIdx);
+                        
+                        // Parse up to 5 items
+                        for (int i = 0; i < 5; i++)
+                        {
+                            int itemStart = newsList.IndexOf("{");
+                            if (itemStart == -1) break;
+                            int itemEnd = newsList.IndexOf("}", itemStart);
+                            if (itemEnd == -1) break;
+                            
+                            string itemJson = newsList.Substring(itemStart, itemEnd - itemStart + 1);
+                            news.Add(new NewsItem
+                            {
+                                Title = ExtractJsonValue(itemJson, "title"),
+                                Content = ExtractJsonValue(itemJson, "content"),
+                                Date = ExtractJsonValue(itemJson, "date"),
+                                Importance = ExtractJsonValue(itemJson, "importance")
+                            });
+                            newsList = newsList.Substring(itemEnd + 1);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return news;
         }
 
         private static string ExtractJsonValue(string json, string key)

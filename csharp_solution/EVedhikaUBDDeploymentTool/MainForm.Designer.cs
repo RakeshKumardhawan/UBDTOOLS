@@ -43,8 +43,10 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDrivers = new System.Windows.Forms.TabPage();
             this.btnInstallHYP2003 = new System.Windows.Forms.Button();
             this.btnInstallProxKey = new System.Windows.Forms.Button();
+            this.btnInstallMToken = new System.Windows.Forms.Button();
             this.lblDriversInfo = new System.Windows.Forms.Label();
             this.tabAiTrouble = new System.Windows.Forms.TabPage();
+            this.tabLiveUpdates = new System.Windows.Forms.TabPage();
             this.lblAiStatus = new System.Windows.Forms.Label();
             this.txtAiResponse = new System.Windows.Forms.TextBox();
             this.btnAskAi = new System.Windows.Forms.Button();
@@ -82,6 +84,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabControlMain.Controls.Add(this.tabDiagnostics);
             this.tabControlMain.Controls.Add(this.tabDrivers);
             this.tabControlMain.Controls.Add(this.tabAiTrouble);
+            this.tabControlMain.Controls.Add(this.tabLiveUpdates);
             this.tabControlMain.Controls.Add(this.tabBackup);
             this.tabControlMain.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabControlMain.Name = "tabControlMain";
@@ -366,6 +369,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // tabDrivers
             // 
+            this.tabDrivers.Controls.Add(this.btnInstallMToken);
             this.tabDrivers.Controls.Add(this.btnInstallHYP2003);
             this.tabDrivers.Controls.Add(this.btnInstallProxKey);
             this.tabDrivers.Controls.Add(this.lblDriversInfo);
@@ -376,6 +380,19 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDrivers.TabIndex = 2;
             this.tabDrivers.Text = "🔌 Drivers & Token";
             this.tabDrivers.UseVisualStyleBackColor = true;
+            // 
+            // btnInstallMToken
+            // 
+            this.btnInstallMToken.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
+            this.btnInstallMToken.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnInstallMToken.ForeColor = System.Drawing.Color.White;
+            this.btnInstallMToken.Location = new System.Drawing.Point(450, 60);
+            this.btnInstallMToken.Name = "btnInstallMToken";
+            this.btnInstallMToken.Size = new System.Drawing.Size(200, 36);
+            this.btnInstallMToken.TabIndex = 3;
+            this.btnInstallMToken.Text = "Install Class 3 mToken";
+            this.btnInstallMToken.UseVisualStyleBackColor = false;
+            this.btnInstallMToken.Click += new System.EventHandler(this.btnInstallMToken_Click);
             // 
             // btnInstallHYP2003
             // 
@@ -411,6 +428,16 @@ namespace EVedhikaUBDDeploymentTool
             this.lblDriversInfo.Size = new System.Drawing.Size(430, 17);
             this.lblDriversInfo.TabIndex = 0;
             this.lblDriversInfo.Text = "Silent USB DSC Token Drivers & PKCS#11 Cryptographic Token Managers";
+            // 
+            // tabLiveUpdates
+            // 
+            this.tabLiveUpdates.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.tabLiveUpdates.Location = new System.Drawing.Point(4, 26);
+            this.tabLiveUpdates.Name = "tabLiveUpdates";
+            this.tabLiveUpdates.Padding = new System.Windows.Forms.Padding(12);
+            this.tabLiveUpdates.Size = new System.Drawing.Size(876, 444);
+            this.tabLiveUpdates.TabIndex = 6;
+            this.tabLiveUpdates.Text = "✨ Live Website Posts";
             // 
             // tabAiTrouble
             // 
@@ -623,8 +650,8 @@ namespace EVedhikaUBDDeploymentTool
             // toolStripStatusLabel
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
-            this.toolStripStatusLabel.Size = new System.Drawing.Size(378, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool | Status: Ready";
+            this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.4 | Status: Ready";
             // 
             // MainForm
             // 
@@ -675,6 +702,7 @@ namespace EVedhikaUBDDeploymentTool
         private System.Windows.Forms.TabPage tabDiagnostics;
         private System.Windows.Forms.TabPage tabDrivers;
         private System.Windows.Forms.TabPage tabAiTrouble;
+        private System.Windows.Forms.TabPage tabLiveUpdates;
         private System.Windows.Forms.TabPage tabBackup;
         private System.Windows.Forms.Panel panelHeader;
         private System.Windows.Forms.Label lblHeaderTitle;
@@ -697,6 +725,7 @@ namespace EVedhikaUBDDeploymentTool
         private System.Windows.Forms.Label lblDriversInfo;
         private System.Windows.Forms.Button btnInstallProxKey;
         private System.Windows.Forms.Button btnInstallHYP2003;
+        private System.Windows.Forms.Button btnInstallMToken;
         private System.Windows.Forms.Label lblAskAi;
         private System.Windows.Forms.TextBox txtAiQuery;
         private System.Windows.Forms.Button btnAskAi;

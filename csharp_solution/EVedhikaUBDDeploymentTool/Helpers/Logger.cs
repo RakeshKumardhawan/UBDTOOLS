@@ -114,9 +114,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // Place active cloud run instance endpoints first to prevent 100-sec DNS timeouts
                 string[] endpoints = new string[]
                 {
-                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://ais-pre-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://www.e-vedhika.in/api/telemetry",
+                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
                     "http://www.e-vedhika.in/api/telemetry"
                 };
 
@@ -127,10 +126,15 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     try
                     {
-                        using (var wc = new TimeoutWebClient(4000))
+                        using (var wc = new TimeoutWebClient(5000))
                         {
                             wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
                             wc.Encoding = System.Text.Encoding.UTF8;
+                            
+                            // Auto-detect and use system default proxy (Crucial for Govt/Mandal office networks)
+                            wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                            wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+
                             string response = wc.UploadString(url, "POST", jsonPayload);
                             delivered = true;
                             onComplete?.Invoke(true, $"Delivered to {url}");

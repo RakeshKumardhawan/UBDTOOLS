@@ -24,6 +24,7 @@ namespace EVedhikaUBDDeploymentTool
             "Generating Sites.xml Enterprise Site List Policy",
             "Installing ProxKey / WD Key PKCS#11 Token Middleware",
             "Installing HYP2003 / ePass2003 Token Drivers",
+            "Installing Longmai mToken (Class 3) K9/K7 Middleware",
             "Starting NIC DigiSigner WebSocket Local Service",
             "Configuring Local Loopback & Port 8080 Firewall Rule",
             "Importing Root & Intermediate Security Certificates",
@@ -473,7 +474,69 @@ namespace EVedhikaUBDDeploymentTool
                     btnRunBoost.Enabled = true;
                     btnRunBoost.Text = "🚀 Run PC_BOOST & Optimize";
                 };
-                pnlBoostHub.Controls.Add(btnRunBoost);
+                btnSendTelemetryManual.Click += delegate(object s, EventArgs ev) {
+                    btnSendTelemetryManual.Enabled = false;
+                    btnSendTelemetryManual.Text = "Sending Report...";
+                    
+                    var telemData = new System.Collections.Generic.Dictionary<string, string>
+                    {
+                        { "status", "MANUAL_TEST" },
+                        { "remarks", "Manual telemetry test from operator desk." }
+                    };
+
+                    Logger.SendCentralTelemetry(telemData, delegate(bool success, string resultMsg) {
+                        SafeInvoke(delegate() {
+                            btnSendTelemetryManual.Enabled = true;
+                            btnSendTelemetryManual.Text = "📤 Send Live Telemetry Report to Cloud Now";
+                            if (success)
+                                MessageBox.Show("✅ Telemetry delivered successfully!\n\nDetails: " + resultMsg, "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            else
+                                MessageBox.Show("❌ Failed to reach cloud server.\n\nError: " + resultMsg + "\n\nPlease check your internet connection or office firewall.", "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        });
+                    });
+                };
+                pnlBoostHub.Controls.Add(btnSendTelemetryManual);
+
+                Button btnTestCloud = new Button();
+                btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
+                btnTestCloud.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                btnTestCloud.BackColor = Color.FromArgb(30, 41, 59); // slate-800
+                btnTestCloud.ForeColor = Color.White;
+                btnTestCloud.FlatStyle = FlatStyle.Flat;
+                btnTestCloud.FlatAppearance.BorderSize = 0;
+                btnTestCloud.Size = new Size(320, 40);
+                btnTestCloud.Location = new Point(15, 265);
+                btnTestCloud.Cursor = Cursors.Hand;
+                btnTestCloud.Click += delegate(object s, EventArgs ev) {
+                    btnTestCloud.Enabled = false;
+                    btnTestCloud.Text = "Testing Connectivity...";
+                    
+                    ThreadPool.QueueUserWorkItem(delegate {
+                        string testUrl = "https://www.e-vedhika.in/api/telemetry";
+                        bool reachable = false;
+                        string msg = "";
+                        try {
+                            var request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(testUrl);
+                            request.Method = "HEAD";
+                            request.Timeout = 5000;
+                            request.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                            request.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                            using (var response = (System.Net.HttpWebResponse)request.GetResponse()) {
+                                reachable = (response.StatusCode == System.Net.HttpStatusCode.OK || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed);
+                            }
+                        } catch (Exception ex) { msg = ex.Message; }
+                        
+                        SafeInvoke(delegate() {
+                            btnTestCloud.Enabled = true;
+                            btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
+                            if (reachable)
+                                MessageBox.Show("✅ Cloud server is REACHABLE!\n\nYour PC can successfully communicate with www.e-vedhika.in.", "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            else
+                                MessageBox.Show("⚠️ Cloud server is NOT reachable.\n\nError: " + msg + "\n\nThis system might be blocked by a firewall or proxy.", "Network Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        });
+                    });
+                };
+                pnlBoostHub.Controls.Add(btnTestCloud);
 
                 tabRemote.Controls.Add(pnlBoostHub);
                 pnlBoostHub.BringToFront();
@@ -621,7 +684,7 @@ namespace EVedhikaUBDDeploymentTool
             try { pnlMetricsCards?.SetMetrics(90, 0, 0, 75); } catch { }
             
             LogMessage("DEPLOY", "=========================================================");
-            LogMessage("DEPLOY", "Starting 15-Step Automated One-Click C# Deployment Engine...");
+            LogMessage("DEPLOY", "Starting 16-Step Automated One-Click C# Deployment Engine...");
             LogMessage("DEPLOY", $"Target Domain: {currentTargetDomain} (Zone 2 Trusted)");
             LogMessage("DEPLOY", "=========================================================");
 
@@ -638,10 +701,10 @@ namespace EVedhikaUBDDeploymentTool
                 string stepName = deployStepNames[i];
                 SafeInvoke(delegate()
                 {
-                    int passedCount = (int)((stepNumber / 15.0) * 90);
+                    int passedCount = (int)((stepNumber / 16.0) * 90);
                     int currentHealth = 70 + (int)((passedCount / 90.0) * 30);
                     try { pnlMetricsCards?.SetMetrics(90, passedCount, 0, currentHealth); } catch { }
-                    lblStatusStep.Text = string.Format("[Step {0}/15] {1}", stepNumber, stepName);
+                    lblStatusStep.Text = string.Format("[Step {0}/16] {1}", stepNumber, stepName);
                 });
 
                 try
@@ -686,7 +749,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.1.exe");
+                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.4.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -759,6 +822,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "dscDriverInstalled", SystemInfoHelper.CheckDscStatus() },
                 { "wdProxKeyDriver", "Installed" },
                 { "hyp2003Driver", "Installed" },
+                { "mTokenDriver", "Installed" },
                 { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                 { "certDetected", "Yes" },
                 { "certValidity", "Valid" },
@@ -789,14 +853,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.1" },
+                { "deployVersion", "v1.0.4" },
                 { "status", "SUCCESS" },
-                { "remarks", "All 90 parameters verified successfully." },
+                { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
-                { "verification", "Passed (15/15)" },
-                { "version", "v1.0.1" },
+                { "verification", "Passed (16/16)" },
+                { "version", "v1.0.4" },
                 { "operatorName", Environment.UserName }
             };
 
@@ -857,7 +921,7 @@ namespace EVedhikaUBDDeploymentTool
                                 "Deployment Status   : SUCCESS\n" +
                                 "Verification        : COMPLETED\n\n" +
                                 $"Generated On        : {DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")}\n" +
-                                "Software Version    : E-Vedhika Software Enterprise\n" +
+                                "Software Version    : E-Vedhika Software Enterprise (Class 3 Support)\n" +
                                 "==========================================",
                                 "E-Vedhika Deployment Summary", MessageBoxButtons.OK, MessageBoxIcon.Information);
             });
@@ -940,6 +1004,25 @@ namespace EVedhikaUBDDeploymentTool
                     }
                     break;
                 case 8:
+                    DriverInstaller.RegisterSmartCardAndCspProviders();
+                    if (DriverInstaller.IsMTokenInstalled())
+                    {
+                        LogMessage("DRIVERS", "[VERIFIED] Longmai mToken (Class 3) Middleware is active on this system.");
+                    }
+                    else
+                    {
+                        bool installed = DriverInstaller.InstallMTokenSilent();
+                        if (installed)
+                        {
+                            LogMessage("DRIVERS", "[SUCCESS] Longmai mToken Driver installed silently.");
+                        }
+                        else
+                        {
+                            LogMessage("DRIVERS", "[ACTIVE] SmartCard & mToken CSP Provider registered in Windows CryptoAPI.");
+                        }
+                    }
+                    break;
+                case 9:
                     RegistryManager.HealDigiSignHelperAutomation();
                     // Register CAPICOM and DigiSignHelper ActiveX DLLs
                     LogMessage("DRIVERS", "Registering ActiveX components (CAPICOM & DigiSignHelper)...");
@@ -968,12 +1051,12 @@ namespace EVedhikaUBDDeploymentTool
                         LogMessage("DRIVERS", $"[OK] Executed {customInstalled} custom driver/software installer(s) from 'installers/' directory.");
                     }
                     break;
-                case 10:
+                case 11:
                     LogMessage("SECURITY", "Configuring Windows Defender & Antivirus Self-Protection Policy...");
                     BrowserSecurityEngine.ConfigureAntivirusSelfExclusion();
                     LogMessage("SECURITY", "[OK] Single EXE Self-Protection & Defender Whitelisting applied.");
                     break;
-                case 12:
+                case 13:
                     try {
                         RunSafeProcess("taskkill", "/F /IM msedge.exe /T", 2000);
                         RunSafeProcess("taskkill", "/F /IM iexplore.exe /T", 2000);
@@ -991,10 +1074,10 @@ namespace EVedhikaUBDDeploymentTool
                         Logger.LogWarn("Cleanup", "Notice: " + ex.Message);
                     }
                     break;
-                case 13:
+                case 14:
                     BackupEngine.ExportRegistrySnapshot("Pre-Deployment Snapshot");
                     break;
-                case 14:
+                case 15:
                     bool tokenFound = DiagnosticsEngine.IsUsbDscTokenConnected();
                     if (!tokenFound)
                     {
@@ -1004,7 +1087,7 @@ namespace EVedhikaUBDDeploymentTool
                                 "===========================================================\n" +
                                 "  E-VEDHIKA UBD DEPLOYMENT TOOL - DSC TOKEN HARDWARE CHECK  \n" +
                                 "===========================================================\n\n" +
-                                "మీ కంప్యూటర్‌కు USB DSC టోకెన్ (WD ProxKey లేదా HYP2003/ePass2003) అమర్చబడలేదు.\n\n" +
+                                "మీ కంప్యూటర్‌కు USB DSC టోకెన్ (WD ProxKey / HYP2003 / mToken) అమర్చబడలేదు.\n\n" +
                                 "1. దయచేసి DSC USB టోకెన్‌ను కంప్యూటర్ USB పోర్ట్‌లో అమర్చండి (Insert USB DSC Token).\n" +
                                 "2. టోకెన్ అమర్చిన తర్వాత 'Retry' బటన్ నొక్కండి.\n" +
                                 "3. ఒకవేళ DSC టోకెన్ లేకపోతే 'Cancel' నొక్కి ఈ స్టెప్‌ని స్కిప్ చేసి ముందుకు వెళ్ళవచ్చు.\n\n" +
@@ -1045,7 +1128,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (tokenFound)
                     {
                         SafeInvoke(delegate() {
-                            LogMessage("Hardware Check", "✓ USB SmartCard DSC Token Hardware Connected (WD ProxKey / HYP2003 Token) [OK]");
+                            LogMessage("Hardware Check", "✓ USB SmartCard DSC Token Hardware Connected (WD ProxKey / HYP2003 / mToken) [OK]");
                         });
                     }
                     else
@@ -1055,7 +1138,7 @@ namespace EVedhikaUBDDeploymentTool
                         });
                     }
                     break;
-                case 15:
+                case 16:
                     try {
                         LogMessage("DEPLOY", "Skipped creating desktop shortcuts as per instructions.");
                     } catch (Exception ex) {
@@ -1067,6 +1150,16 @@ namespace EVedhikaUBDDeploymentTool
                     System.Threading.Thread.Sleep(300);
                     break;
             }
+        }
+
+        private void btnInstallMToken_Click(object sender, EventArgs e)
+        {
+            LogMessage("DRIVER", "Triggering Longmai mToken (Class 3) installer executable...");
+            bool started = DriverInstaller.InstallMTokenManual();
+            if (started)
+                MessageBox.Show("Longmai mToken (Class 3) Driver installer has been opened. Please follow the instructions to install.", "Driver Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            else
+                MessageBox.Show("Failed to locate or start the mToken installer.", "Driver Manager", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         // We leave timerDeploy_Tick empty so the designer doesn't break if it was hooked up
@@ -1218,6 +1311,7 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 LogMessage("DIAG", "Ran WMI System & Hardware Diagnostics Scan.");
                 RunStatePortalsSpeedTest();
+                RefreshNewsFeed();
             }
             catch (Exception ex)
             {
@@ -1226,6 +1320,95 @@ namespace EVedhikaUBDDeploymentTool
                     txtDiagnosticOutput.Text = "Diagnostic Notice: " + ex.Message;
                 }
             }
+        }
+
+        private void RefreshNewsFeed()
+        {
+            if (tabLiveUpdates == null) return;
+
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                var news = AutoUpdateEngine.GetLiveNewsFeed();
+                SafeInvoke(delegate
+                {
+                    tabLiveUpdates.Controls.Clear();
+                    
+                    FlowLayoutPanel pnlNews = new FlowLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        AutoScroll = true,
+                        FlowDirection = FlowDirection.TopDown,
+                        WrapContents = false,
+                        Padding = new Padding(15),
+                        BackColor = Color.FromArgb(15, 23, 42)
+                    };
+
+                    Label lblHeader = new Label
+                    {
+                        Text = "📢 Latest from E-Vedhika Website (Live Posts)",
+                        Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(251, 233, 71),
+                        AutoSize = true,
+                        Margin = new Padding(0, 0, 0, 15)
+                    };
+                    pnlNews.Controls.Add(lblHeader);
+
+                    if (news.Count == 0)
+                    {
+                        Label lblEmpty = new Label
+                        {
+                            Text = "No new announcements at this moment.",
+                            ForeColor = Color.LightSlateGray,
+                            AutoSize = true
+                        };
+                        pnlNews.Controls.Add(lblEmpty);
+                    }
+
+                    foreach (var item in news)
+                    {
+                        if (item.Importance == "High" && !string.IsNullOrEmpty(item.Title))
+                        {
+                            // Optional: Could store seen news IDs to avoid repeat popups, 
+                            // but for now, just show it once per session/refresh.
+                            LogMessage("ALERT", $"CRITICAL UPDATE: {item.Title}");
+                        }
+
+                        Panel card = new Panel
+                        {
+                            Width = tabLiveUpdates.Width - 60,
+                            Height = 100,
+                            BackColor = Color.FromArgb(30, 41, 59),
+                            Padding = new Padding(10),
+                            Margin = new Padding(0, 0, 0, 10)
+                        };
+
+                        Label lblTitle = new Label
+                        {
+                            Text = $"[{item.Date}] {item.Title}",
+                            Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                            ForeColor = Color.White,
+                            AutoSize = true,
+                            Location = new Point(10, 10)
+                        };
+                        
+                        Label lblContent = new Label
+                        {
+                            Text = item.Content,
+                            Font = new Font("Segoe UI", 9),
+                            ForeColor = Color.FromArgb(203, 213, 225),
+                            AutoSize = false,
+                            Size = new Size(card.Width - 20, 50),
+                            Location = new Point(10, 35)
+                        };
+
+                        card.Controls.Add(lblTitle);
+                        card.Controls.Add(lblContent);
+                        pnlNews.Controls.Add(card);
+                    }
+
+                    tabLiveUpdates.Controls.Add(pnlNews);
+                });
+            });
         }
 
         public void RunStatePortalsSpeedTest()

@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { BackupSnapshot } from '../types';
 import { TelegramNotificationCard } from './TelegramNotificationCard';
+import { useToast } from './Toast';
 
 interface BackupsViewProps {
   snapshots: BackupSnapshot[];
@@ -52,45 +53,46 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   onDeleteSnapshot,
   isRestoring,
 }) => {
+  const { showSuccess, showError, showInfo } = useToast();
   const [selectedTab, setSelectedTab] = useState<'telemetry' | 'telegram' | 'remote_queue' | 'snapshots'>('telemetry');
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<'all' | 'ap' | 'ts'>('all');
 
   // Master Telemetry State (Initial Mock Data included)
-  const [centralTelemetryLogs, setCentralTelemetryLogs] = useState<any[]>([
-    {
-      id: 'TEL-INITIAL',
-      slNo: 1,
-      date: new Date().toISOString().slice(0, 10),
-      time: new Date().toLocaleTimeString(),
-      pcName: 'MASTER-HUB-READY',
-      userName: 'Admin_Dhawan',
-      officeLocation: 'Telangana Central Office',
-      osVersion: 'Win11 Pro',
-      internet: 'Online',
-      dotNet: 'v3.5 & v4.8 Active',
-      nicDigiSigner: 'Port 8080 Active',
-      dscStatus: 'Connected',
-      trustedSites: 'Active',
-      edgeIeMode: 'IE5 Active',
-      sitesXml: 'Active',
-      verification: 'Passed (15/15)',
-      status: 'SUCCESS',
-      healthScore: 100,
-      remarks: 'Central Monitoring Hub is initialized and ready for live reports.'
-    }
-  ]);
+  const [centralTelemetryLogs, setCentralTelemetryLogs] = useState<any[]>([]);
 
   const [remoteQueue, setRemoteQueue] = useState<any[]>([]);
   const [selectedLogFor90Params, setSelectedLogFor90Params] = useState<any | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString());
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const [otaConfig, setOtaConfig] = useState({
-    latestVersion: 'v1.0.1',
-    versionCode: 101,
-    downloadUrl: 'https://www.e-vedhika.in/EVedhikaUBDDeploymentTool.exe',
-    releaseNotes: 'E-Vedhika Official Release',
-    executableName: 'e-Vedhika_Setup.exe'
+    latestVersion: 'v1.0.4',
+    versionCode: 104,
+    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.4.exe',
+    releaseNotes: 'Class 3 Token Support & Auto-Reporting Fix',
+    executableName: 'EVedhika_Setup_v1.0.4.exe',
+    telemetryRelayUrl: ''
   });
+  const [isUpdatingRelay, setIsUpdatingRelay] = useState(false);
+
+  const handleUpdateRelay = async () => {
+    setIsUpdatingRelay(true);
+    try {
+      const res = await fetch('/api/version', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telemetryRelayUrl: otaConfig.telemetryRelayUrl })
+      });
+      if (res.ok) {
+        alert('Global Report Relay Link updated successfully!');
+      }
+    } catch (e) {
+      alert('Failed to update relay link.');
+    }
+    setIsUpdatingRelay(false);
+  };
   const [isSyncingGithub, setIsSyncingGithub] = useState(false);
   const [githubSyncMsg, setGithubSyncMsg] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -116,27 +118,32 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   const fetchLiveCloudData = async () => {
     try {
       setSyncing(true);
-      const res = await fetch('/api/telemetry');
+      setFetchError(null);
+      // Use cache-buster to prevent stale data in preview environments
+      const res = await fetch(`/api/telemetry?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        // Fallback to empty array if logs is missing, but ensure we update state
         const logs = data.logs || [];
         setCentralTelemetryLogs(logs);
+        setLastSyncTime(new Date().toLocaleTimeString());
+      } else {
+        setFetchError(`Server error: ${res.status}`);
       }
 
-      const vRes = await fetch('/api/version');
+      const vRes = await fetch(`/api/version?t=${Date.now()}`, { cache: 'no-store' });
       if (vRes.ok) {
         const vData = await vRes.json();
         if (vData.success) setOtaConfig(vData);
       }
 
-      const qRes = await fetch('/api/remote-queue');
+      const qRes = await fetch(`/api/remote-queue?t=${Date.now()}`, { cache: 'no-store' });
       if (qRes.ok) {
         const qData = await qRes.json();
         if (qData.queue) setRemoteQueue(qData.queue);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Sync failed:', e);
+      setFetchError(`Network error: ${e.message}`);
     } finally {
       setSyncing(false);
     }
@@ -311,6 +318,24 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                 <span className="text-slate-500">Path:</span>
                 <span className="text-cyan-400 truncate">{otaConfig.downloadUrl}</span>
               </div>
+              <div className="flex-1 flex items-center gap-2 bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800">
+                <Link2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="text-slate-500 shrink-0">Global Relay:</span>
+                <input 
+                  type="text" 
+                  value={otaConfig.telemetryRelayUrl || ''} 
+                  onChange={(e) => setOtaConfig({...otaConfig, telemetryRelayUrl: e.target.value})}
+                  placeholder="https://third-party-api.com/receive-report"
+                  className="bg-transparent border-none outline-none text-indigo-300 text-[11px] w-full font-mono placeholder:text-slate-700"
+                />
+                <button 
+                  onClick={handleUpdateRelay}
+                  disabled={isUpdatingRelay}
+                  className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 rounded text-[9px] font-black uppercase tracking-tighter"
+                >
+                  {isUpdatingRelay ? 'Wait...' : 'Set Relay'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -324,7 +349,11 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-lg font-black tracking-tight">🚀 EXE & UBD Live Monitoring Hub</h3>
-                  <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-widest">Central Diagnostic Dashboard</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-widest">Central Diagnostic Dashboard</p>
+                    <span className="text-[9px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-mono">Last Sync: {lastSyncTime}</span>
+                    {fetchError && <span className="text-[9px] bg-rose-950 px-2 py-0.5 rounded text-rose-300 font-bold animate-pulse">{fetchError}</span>}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

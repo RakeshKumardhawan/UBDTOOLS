@@ -324,7 +324,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 // Register common ProgIDs to the CLSID
-                string[] progIds = new string[] { "DigiSignHelper.DigiSigner", "SignatureDemoLib.DigiSignHelper", "NIC.DigiSigner" };
+                string[] progIds = new string[] { "DigiSignHelper.DigiSigner", "SignatureDemoLib.DigiSignHelper", "NIC.DigiSigner", "CAPICOM.SignedData.1", "CAPICOM.Store.1" };
                 string targetClsid = "{76767676-7676-7676-7676-767676767676}"; // Standard NIC CLSID
 
                 foreach (var progId in progIds)
@@ -352,7 +352,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     "{76767676-7676-7676-7676-767676767676}", // Common NIC DigiSigner CLSID
                     "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}", // Placeholder used in some versions
                     "{B8601633-0100-47F1-9457-495204431B32}", // Another potential NIC component
-                    "{7DD95801-9882-11CF-9FA9-00AA006C42C4}"  // Safe category
+                    "{7DD95801-9882-11CF-9FA9-00AA006C42C4}", // Safe category
+                    "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}", // Additional DigiSigner CLSID
+                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}"  // Safe category variant
                 };
 
                 foreach (var clsid in clsids)
@@ -380,7 +382,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string[] capicomClsids = new string[]
                 {
                     "{15E2085E-94D1-4551-9E1D-444453456789}", // CAPICOM.Store
-                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}"  // CAPICOM.SignedData
+                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}", // CAPICOM.SignedData
+                    "{BD0D437A-F76E-4545-9244-6720D911718F}"  // CAPICOM variant
                 };
 
                 foreach (var clsid in capicomClsids)
@@ -402,18 +405,36 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     catch { }
                 }
 
-                // Enable all ActiveX execution in Zone 2 without prompt
-                using (RegistryKey zone2Key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2"))
+                // *** MANDATORY FIX: Enable all ActiveX execution in Zone 2 (Trusted) and Zone 1 (Intranet)
+                // We set this in both HKCU and HKLM to bypass almost all policy blocks
+                RegistryKey[] rootKeys = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                string[] zones = new string[] { "1", "2" }; // 1 = Intranet, 2 = Trusted
+
+                foreach (var root in rootKeys)
                 {
-                    if (zone2Key != null)
+                    foreach (var zone in zones)
                     {
-                        zone2Key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize ActiveX without prompt
-                        zone2Key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
-                        zone2Key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
+                        try
+                        {
+                            string zonePath = $@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\{zone}";
+                            using (RegistryKey key = root.CreateSubKey(zonePath))
+                            {
+                                if (key != null)
+                                {
+                                    key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX controls not marked as safe for scripting: Enable (0)
+                                    key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX controls marked safe for scripting: Enable (0)
+                                    key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX controls and plug-ins: Enable (0)
+                                    key.SetValue("2708", 0, RegistryValueKind.DWord); // Only allow approved domains to use ActiveX without prompt: Disable (0)
+                                    key.SetValue("1001", 0, RegistryValueKind.DWord); // Download signed ActiveX: Enable (0)
+                                    key.SetValue("1004", 0, RegistryValueKind.DWord); // Download unsigned ActiveX: Enable (0)
+                                }
+                            }
+                        }
+                        catch { }
                     }
                 }
 
-                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal applied.");
+                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Force Policy Bypass) applied.");
             }
             catch (Exception ex)
             {
