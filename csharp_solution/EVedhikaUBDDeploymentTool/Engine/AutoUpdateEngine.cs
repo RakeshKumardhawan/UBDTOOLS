@@ -53,11 +53,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://raw.githubusercontent.com/Rakeshkumardhawan123/UBDTOOLS/main/version.json",
-                "https://raw.githubusercontent.com/Rakeshkumardhawan123/UBDTOOLS/master/version.json",
+                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/version.json",
                 "https://www.e-vedhika.in/version.json",
-                "https://www.e-vedhika.in/api/version.json",
-                "https://www.e-vedhika.in/exe/api/version.json",
                 "https://www.e-vedhika.in/api/version",
                 "https://www.e-vedhika.in/exe/api/version"
             };
