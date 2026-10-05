@@ -288,9 +288,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch { }
         }
 
-        public static Dictionary ReadCurrentRegistryStatus()
+        public static Dictionary<string, string> ReadCurrentRegistryStatus()
         {
-            var dict = new Dictionary();
+            var dict = new Dictionary<string, string>();
             try
             {
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings"))

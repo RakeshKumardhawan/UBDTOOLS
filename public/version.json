@@ -11,5 +11,6 @@
   "updateRequired": false,
   "silent": false,
   "releaseNotes": "Class 3 Token Support (Longmai mToken), Reporting Proxy Fix, and Live News Feed integration.",
-  "publisher": "E-Vedhika.in (Rakesh Dhawan)"
+  "publisher": "E-Vedhika.in (Rakesh Dhawan)",
+  "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live"
 }

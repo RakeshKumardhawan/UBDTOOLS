@@ -111,12 +111,12 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
                 catch { }
 
-                // Place active cloud run instance endpoints first to prevent 100-sec DNS timeouts
+                // Primary target is strictly the requested endpoint
                 string[] endpoints = new string[]
                 {
+                    "https://www.e-vedhika.in/admin/exe_ubd_live",
                     "https://www.e-vedhika.in/api/telemetry",
-                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "http://www.e-vedhika.in/api/telemetry"
+                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry"
                 };
 
                 bool delivered = false;

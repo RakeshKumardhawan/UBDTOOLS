@@ -406,7 +406,7 @@ async function startServer() {
     silent: false,
     releaseNotes: 'Stable Official Release v1.0.1 - Integrated ActiveX Auto-Heal & Central Monitoring.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
-    telemetryRelayUrl: '' // Global relay endpoint for third-party integrations
+    telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live' // Global relay endpoint for third-party integrations
   };
 
   // Try to load saved version config from public folder if it exists
@@ -420,6 +420,9 @@ async function startServer() {
   } catch (e) {
     console.warn('[BOOT] Could not load public/version.json');
   }
+
+  // Force permanent telemetry relay destination
+  currentVersionConfig.telemetryRelayUrl = 'https://www.e-vedhika.in/admin/exe_ubd_live';
 
   // API Route: Check Software Version & Live OTA Auto-Updates
   const handleGetVersion = (req: any, res: any) => {
@@ -484,7 +487,9 @@ async function startServer() {
       if (executableName) currentVersionConfig.executableName = executableName;
       if (updateRequired !== undefined) currentVersionConfig.updateRequired = Boolean(updateRequired);
       if (silent !== undefined) (currentVersionConfig as any).silent = Boolean(silent);
-      if (telemetryRelayUrl !== undefined) currentVersionConfig.telemetryRelayUrl = telemetryRelayUrl;
+      
+      // Always lock relay URL permanently
+      currentVersionConfig.telemetryRelayUrl = 'https://www.e-vedhika.in/admin/exe_ubd_live';
       
       try {
         fs.writeFileSync(path.join(process.cwd(), 'public', 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
