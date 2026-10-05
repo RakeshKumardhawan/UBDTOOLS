@@ -164,6 +164,12 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
       if (!res.ok) throw new Error('GitHub Sync Failed');
       const data = await res.json();
       
+      // Enforce v1.0.4
+      data.latestVersion = 'v1.0.4';
+      data.currentVersion = 'v1.0.4';
+      data.versionCode = 104;
+      data.executableName = 'EVedhika_Setup_v1.0.4.exe';
+
       // Update local state
       setOtaConfig(data);
       

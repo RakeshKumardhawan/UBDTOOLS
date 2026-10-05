@@ -395,8 +395,8 @@ async function startServer() {
   let currentVersionConfig = {
     name: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     appName: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
-    executableName: 'EVedhika_Setup_v1.0.1.exe',
-    currentVersion: 'v1.0.1',
+    executableName: 'EVedhika_Setup_v1.0.4.exe',
+    currentVersion: 'v1.0.4',
     latestVersion: 'v1.0.4',
     versionCode: 104,
     releaseDate: '2026-10-05',
@@ -404,7 +404,7 @@ async function startServer() {
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'Stable Official Release v1.0.1 - Integrated ActiveX Auto-Heal & Central Monitoring.',
+    releaseNotes: 'Class 3 Token Support, Windows 7 & 8 DLL Repair, and Dual Telemetry Delivery.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live' // Global relay endpoint for third-party integrations
   };
@@ -443,22 +443,15 @@ async function startServer() {
         {
           id: 1,
           title: 'IMPORTANT: v1.0.4 Update Released',
-          content: 'New v1.0.4 version includes Longmai mToken (Class 3) support and Windows 7 DLL auto-repair. Please update if prompted.',
+          content: 'New v1.0.4 version includes Longmai mToken (Class 3) support and Windows 7 & 8 DLL auto-repair. Please update if prompted.',
           date: '2026-10-05',
           importance: 'High'
         },
         {
           id: 2,
-          title: 'Class 3 Token Compatibility',
-          content: 'All new FIPS 140-3 Level 3 tokens are now supported in the 16-Step Deployment engine.',
+          title: 'UBD Portal Security Guidelines',
+          content: 'Ensure Edge IE Mode and Zone 2 Trusted Sites are configured before signing documents with USB DSC Token.',
           date: '2026-10-04',
-          importance: 'Medium'
-        },
-        {
-          id: 3,
-          title: 'New UBD Portal Links',
-          content: 'UBD Telangana portal links have been updated in the auto-launch engine.',
-          date: '2026-10-01',
           importance: 'Normal'
         }
       ]

@@ -321,40 +321,48 @@ del ""%~f0""
         public static System.Collections.Generic.List<NewsItem> GetLiveNewsFeed()
         {
             var news = new System.Collections.Generic.List<NewsItem>();
-            try
+            string[] endpoints = new string[]
             {
-                using (var wc = new TimeoutWebClient(3000))
+                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/news",
+                "https://www.e-vedhika.in/api/news"
+            };
+
+            foreach (var url in endpoints)
+            {
+                try
                 {
-                    wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika-News-Agent/1.0";
-                    string json = wc.DownloadString("https://www.e-vedhika.in/api/news");
-                    if (!string.IsNullOrEmpty(json) && json.Contains("\"news\":"))
+                    using (var wc = new TimeoutWebClient(3000))
                     {
-                        // Minimalist JSON parsing for News items
-                        int newsIdx = json.IndexOf("\"news\":");
-                        string newsList = json.Substring(newsIdx);
-                        
-                        // Parse up to 5 items
-                        for (int i = 0; i < 5; i++)
+                        wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika-News-Agent/1.0";
+                        string json = wc.DownloadString(url);
+                        if (!string.IsNullOrEmpty(json) && json.Contains("\"news\":"))
                         {
-                            int itemStart = newsList.IndexOf("{");
-                            if (itemStart == -1) break;
-                            int itemEnd = newsList.IndexOf("}", itemStart);
-                            if (itemEnd == -1) break;
+                            int newsIdx = json.IndexOf("\"news\":");
+                            string newsList = json.Substring(newsIdx);
                             
-                            string itemJson = newsList.Substring(itemStart, itemEnd - itemStart + 1);
-                            news.Add(new NewsItem
+                            for (int i = 0; i < 5; i++)
                             {
-                                Title = ExtractJsonValue(itemJson, "title"),
-                                Content = ExtractJsonValue(itemJson, "content"),
-                                Date = ExtractJsonValue(itemJson, "date"),
-                                Importance = ExtractJsonValue(itemJson, "importance")
-                            });
-                            newsList = newsList.Substring(itemEnd + 1);
+                                int itemStart = newsList.IndexOf("{");
+                                if (itemStart == -1) break;
+                                int itemEnd = newsList.IndexOf("}", itemStart);
+                                if (itemEnd == -1) break;
+                                
+                                string itemJson = newsList.Substring(itemStart, itemEnd - itemStart + 1);
+                                news.Add(new NewsItem
+                                {
+                                    Title = ExtractJsonValue(itemJson, "title"),
+                                    Content = ExtractJsonValue(itemJson, "content"),
+                                    Date = ExtractJsonValue(itemJson, "date"),
+                                    Importance = ExtractJsonValue(itemJson, "importance")
+                                });
+                                newsList = newsList.Substring(itemEnd + 1);
+                            }
+                            if (news.Count > 0) break; // Stop after first successful fetch
                         }
                     }
                 }
+                catch { }
             }
-            catch { }
             return news;
         }
 

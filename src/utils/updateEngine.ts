@@ -65,10 +65,10 @@ export const VERSION_HISTORY = [
 ];
 
 export const CURRENT_APP_VERSION = 'v1.0.4';
-export const DEFAULT_GITHUB_RAW_URL = 'https://raw.githubusercontent.com/e-vedhika/EVedhikaUBDDeploymentTool/main/version.json';
+export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 /**
- * Parses version string into numeric weight for comparison (e.g. "V1.6.2" -> 10602, "V1.0" -> 10000)
+ * Parses version string into numeric weight for comparison (e.g. "V1.0.0" -> 1000, "V1.0" -> 10000)
  */
 export function parseVersionWeight(versionStr: string): number {
   if (!versionStr) return 10000;

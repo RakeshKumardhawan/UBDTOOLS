@@ -114,9 +114,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // Primary target is strictly the requested endpoint
                 string[] endpoints = new string[]
                 {
-                    "https://www.e-vedhika.in/admin/exe_ubd_live",
+                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://www.e-vedhika.in/api/telemetry",
-                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry"
+                    "https://www.e-vedhika.in/admin/exe_ubd_live",
+                    "http://www.e-vedhika.in/admin/exe_ubd_live"
                 };
 
                 bool delivered = false;
