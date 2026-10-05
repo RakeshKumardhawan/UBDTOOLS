@@ -24,6 +24,10 @@ jobs:
     - name: Restore NuGet Packages
       run: dotnet restore csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.sln
 
+    - name: Download Visual C++ Redistributable (x86) for Win7 Compatibility
+      run: |
+        curl -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/vc_redist.x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
+
     - name: Build and Publish Self-Contained EXE
       run: |
         dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/publish
