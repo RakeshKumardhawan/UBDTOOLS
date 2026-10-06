@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Management;
 using System.Net.Sockets;
+using System.Security;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
 using EVedhikaUBDDeploymentTool.Helpers;
 
