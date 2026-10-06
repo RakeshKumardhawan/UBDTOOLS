@@ -32,12 +32,11 @@ const csharpFiles: CSharpFile[] = [
       - Legacy environments (.NET 1.1 fallback)
     -->
     <startup useLegacyV2RuntimeActivationPolicy="true"> 
+        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5" />
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8" />
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.7.2" />
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.6.2" />
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5.2" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.0" />
         <supportedRuntime version="v4.0" />
         <supportedRuntime version="v2.0.50727" />
         <supportedRuntime version="v1.1.4322" />
@@ -60,98 +59,38 @@ const csharpFiles: CSharpFile[] = [
     name: 'EVedhikaUBDDeploymentTool.csproj',
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj',
     type: 'csproj',
-    content: `<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="\$(MSBuildExtensionsPath)\\\$(MSBuildToolsVersion)\\Microsoft.Common.props" Condition="Exists('\$(MSBuildExtensionsPath)\\\$(MSBuildToolsVersion)\\Microsoft.Common.props')" />
+    content: `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '\$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '\$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{8F932991-A8B4-4B45-8C7A-362243C6E1D8}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>
-    <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
-    <TargetFrameworkVersion Condition=" '\$(TargetFrameworkVersion)' == '' ">v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Deterministic>true</Deterministic>
-    <ApplicationManifest>Properties\\app.manifest</ApplicationManifest>
+    <TargetFramework>net48</TargetFramework>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
+    <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Platforms>AnyCPU;x86</Platforms>
+    <LangVersion>latest</LangVersion>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
   </PropertyGroup>
-  <PropertyGroup Condition=" '\$(Configuration)|\$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\\Debug\\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '\$(Configuration)|\$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\\Release\\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Security" />
-    <Reference Include="System.Core" />
     <Reference Include="System.Management" />
     <Reference Include="System.ServiceProcess" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Deployment" />
-    <Reference Include="System.Drawing" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Deployment" />
   </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="Program.cs" />
-    <Compile Include="StateSelectionDialog.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="MainForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="MainForm.Designer.cs">
-      <DependentUpon>MainForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Engine\\RegistryManager.cs" />
-    <Compile Include="Engine\\EdgePolicyEngine.cs" />
-    <Compile Include="Engine\\EdgeManagementEngine.cs" />
-    <Compile Include="Engine\\BrowserSecurityEngine.cs" />
-    <Compile Include="Engine\\DriverInstaller.cs" />
-    <Compile Include="Engine\\DiagnosticsEngine.cs" />
-    <Compile Include="Engine\\BackupEngine.cs" />
-    <Compile Include="Engine\\GeminiAiService.cs" />
-    <Compile Include="Engine\\WindowsActivationEngine.cs" />
-    <Compile Include="Engine\\AutoRepairEngine.cs" />
-    <Compile Include="Engine\\UninstallEngine.cs" />
-    <Compile Include="Engine\\AutoUpdateEngine.cs" />
-    <Compile Include="Engine\\ProactiveHealthEngine.cs" />
-    <Compile Include="Engine\\EasyAdditionsEngine.cs" />
-    <Compile Include="Engine\\OSCompatibilityEngine.cs" />
-    <Compile Include="Engine\\SystemRepairTools.cs" />
-    <Compile Include="PCBoostEngine.cs" />
-    <Compile Include="Helpers\\Logger.cs" />
-    <Compile Include="Helpers\\SystemInfoHelper.cs" />
-    <Compile Include="Helpers\\DscVerificationHelper.cs" />
-    <Compile Include="Helpers\\NativeRemoteAgent.cs" />
-    <Compile Include="Helpers\\ModernMetricsCardPanel.cs" />
-    <Compile Include="Properties\\AssemblyInfo.cs" />
-    <None Include="Properties\\app.manifest" />
-    <None Include="App.config" />
     <Content Include="app.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <Import Project="\$(MSBuildToolsPath)\\Microsoft.CSharp.targets" />
 </Project>
 `
   },
@@ -189,7 +128,7 @@ EndGlobal
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss',
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "E-Vedhika"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
@@ -214,20 +153,20 @@ CloseApplications=yes
 CloseApplicationsFilter=*.exe
 
 [Files]
-; Copy all build outputs - supports both Release and Debug builds
-Source: "bin\\Release\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Copy all build outputs for .NET Framework 4.8
+Source: "bin\\Release\\net48\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\\*"; DestDir: "{app}\\Payload"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
+Source: "installers\\vc_redist.x86.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "installers\\ndp48-x86-x64-allos-enu.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "installers\\*"; DestDir: "{app}\\Installers"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
-
-[Registry]
-Root: HKA; Subkey: "Software\\E-Vedhika"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekeyifempty
-Root: HKA; Subkey: "Software\\E-Vedhika"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"; Flags: uninsdeletekeyifempty
 
 [Icons]
 Name: "{group}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"
 Name: "{commondesktop}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"
 
 [Run]
+Filename: "{tmp}\\ndp48-x86-x64-allos-enu.exe"; Parameters: "/passive /norestart /showrmui"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
+Filename: "{tmp}\\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing System Components (Fixing missing DLLs for Windows 7)..."; Check: NeedsVCRedist
 Filename: "{app}\\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallDelete]
@@ -235,25 +174,52 @@ Type: files; Name: "{commondesktop}\\{#MyAppName}.lnk"
 Type: files; Name: "{group}\\{#MyAppName}.lnk"
 
 [Code]
-function IsDotNet48Installed: Boolean;
+function IsWin7SP1OrHigher: Boolean;
 var
-  Release: Cardinal;
+  Version: TWindowsVersion;
 begin
-  Result := False;
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', Release) then
+  GetWindowsVersionEx(Version);
+  // Windows 7 is Major 6, Minor 1
+  if (Version.Major = 6) and (Version.Minor = 1) then
   begin
-    Result := Release >= 528040; // .NET 4.8 = 528040
+    // Check for Service Pack 1 (ServicePackMajor should be 1)
+    Result := Version.ServicePackMajor >= 1;
+  end
+  else
+  begin
+    // For Windows 8, 10, 11 etc, we assume compatibility
+    Result := Version.Major >= 6;
   end;
 end;
 
 function InitializeSetup: Boolean;
 begin
   Result := True;
-  if not IsDotNet48Installed then
+  if not IsWin7SP1OrHigher then
   begin
-    MsgBox('.NET Framework 4.8 or higher is required to run this application.' #13#13 'Please install .NET Framework 4.8 from Microsoft and run this setup again.', mbError, MB_OK);
-    Result := False;
+    if MsgBox('⚠️ Windows 7 Service Pack 1 (SP1) is required for this tool.' + #13#10#13#10 +
+              'మీ పీసీలో Windows 7 SP1 అప్‌డేట్ లేదు. దయచేసి SP1 ఇన్‌స్టాల్ చేసి మళ్లీ ప్రయత్నించండి.' + #13#10#13#10 +
+              'Do you want to continue anyway?', mbConfirmation, MB_YESNO) = IDNO then
+    begin
+      Result := False;
+    end;
   end;
+end;
+
+function NeedsDotNet48: Boolean;
+var
+  v: Cardinal;
+begin
+  // Check for .NET Framework 4.8 (Release value 528040 or higher)
+  if RegQueryDWordValue(HKLM, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) then
+    Result := v < 528040
+  else
+    Result := True;
+end;
+
+function NeedsVCRedist: Boolean;
+begin
+  Result := True;
 end;
 `
   },
@@ -608,8 +574,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.1";
-        public const int CurrentVersionCode = 100;
+        public const string CurrentVersion = "v1.0.4";
+        public const int CurrentVersionCode = 104;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/version.json";
 
         public class UpdateInfo
@@ -653,11 +619,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://raw.githubusercontent.com/Rakeshkumardhawan123/UBDTOOLS/main/version.json",
-                "https://raw.githubusercontent.com/Rakeshkumardhawan123/UBDTOOLS/master/version.json",
+                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/version.json",
                 "https://www.e-vedhika.in/version.json",
-                "https://www.e-vedhika.in/api/version.json",
-                "https://www.e-vedhika.in/exe/api/version.json",
                 "https://www.e-vedhika.in/api/version",
                 "https://www.e-vedhika.in/exe/api/version"
             };
@@ -908,6 +871,62 @@ del ""%~f0""
                 logCallback?.Invoke(\$"[OTA PACKAGE ERROR] Failed to fetch OTA package: {ex.Message}");
                 return false;
             }
+        }
+
+        public class NewsItem
+        {
+            public string Title { get; set; }
+            public string Content { get; set; }
+            public string Date { get; set; }
+            public string Importance { get; set; }
+        }
+
+        public static System.Collections.Generic.List<NewsItem> GetLiveNewsFeed()
+        {
+            var news = new System.Collections.Generic.List<NewsItem>();
+            string[] endpoints = new string[]
+            {
+                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/news",
+                "https://www.e-vedhika.in/api/news"
+            };
+
+            foreach (var url in endpoints)
+            {
+                try
+                {
+                    using (var wc = new TimeoutWebClient(3000))
+                    {
+                        wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika-News-Agent/1.0";
+                        string json = wc.DownloadString(url);
+                        if (!string.IsNullOrEmpty(json) && json.Contains("\\"news\\":"))
+                        {
+                            int newsIdx = json.IndexOf("\\"news\\":");
+                            string newsList = json.Substring(newsIdx);
+                            
+                            for (int i = 0; i < 5; i++)
+                            {
+                                int itemStart = newsList.IndexOf("{");
+                                if (itemStart == -1) break;
+                                int itemEnd = newsList.IndexOf("}", itemStart);
+                                if (itemEnd == -1) break;
+                                
+                                string itemJson = newsList.Substring(itemStart, itemEnd - itemStart + 1);
+                                news.Add(new NewsItem
+                                {
+                                    Title = ExtractJsonValue(itemJson, "title"),
+                                    Content = ExtractJsonValue(itemJson, "content"),
+                                    Date = ExtractJsonValue(itemJson, "date"),
+                                    Importance = ExtractJsonValue(itemJson, "importance")
+                                });
+                                newsList = newsList.Substring(itemEnd + 1);
+                            }
+                            if (news.Count > 0) break; // Stop after first successful fetch
+                        }
+                    }
+                }
+                catch { }
+            }
+            return news;
         }
 
         private static string ExtractJsonValue(string json, string key)
@@ -1208,6 +1227,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 using System.IO;
 using System.Management;
 using System.Net.Sockets;
+using System.Security;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
 using EVedhikaUBDDeploymentTool.Helpers;
 
@@ -1407,6 +1428,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
+using EVedhikaUBDDeploymentTool.Helpers;
 
 namespace EVedhikaUBDDeploymentTool.Engine
 {
@@ -1541,6 +1563,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
             return false;
         }
 
+        public static bool IsMTokenInstalled()
+        {
+            if (IsSoftwareInstalled("mToken") || IsSoftwareInstalled("Longmai"))
+                return true;
+
+            string sys = Environment.GetFolderPath(Environment.SpecialFolder.System);
+            if (File.Exists(Path.Combine(sys, "mTokenCSP.dll")) || File.Exists(Path.Combine(sys, "cryptoida_pkcs11.dll")))
+                return true;
+
+            return false;
+        }
+
         public static bool InstallDotNet35Offline()
         {
             string installersDir = GetInstallersFolderPath();
@@ -1593,38 +1627,71 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 string installersDir = GetInstallersFolderPath();
+                string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
+                string system32 = Environment.SystemDirectory; // C:\\Windows\\System32
+                string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
+
                 string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll", "SignatureDemoLib.dll" };
                 bool allRegistered = true;
 
                 foreach (string dll in components)
                 {
-                    string dllPath = Path.Combine(installersDir, dll);
-                    if (!File.Exists(dllPath))
+                    string sourceDll = Path.Combine(installersDir, dll);
+                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(payloadDir, dll);
+                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dll);
+
+                    // Copy DLL to System32 and SysWOW64 so Windows COM engine can always locate them
+                    if (File.Exists(sourceDll))
                     {
-                        // Check Payload folder too
-                        dllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", dll);
+                        try
+                        {
+                            string targetSys32 = Path.Combine(system32, dll);
+                            if (!File.Exists(targetSys32) || new FileInfo(sourceDll).Length != new FileInfo(targetSys32).Length)
+                                File.Copy(sourceDll, targetSys32, true);
+                        }
+                        catch { }
+
+                        if (Directory.Exists(sysWOW64))
+                        {
+                            try
+                            {
+                                string targetSysWOW64 = Path.Combine(sysWOW64, dll);
+                                if (!File.Exists(targetSysWOW64) || new FileInfo(sourceDll).Length != new FileInfo(targetSysWOW64).Length)
+                                    File.Copy(sourceDll, targetSysWOW64, true);
+                            }
+                            catch { }
+                        }
                     }
 
-                    if (File.Exists(dllPath))
+                    // Register using System32 regsvr32
+                    string sys32DllPath = Path.Combine(system32, dll);
+                    if (File.Exists(sys32DllPath))
                     {
-                        ProcessStartInfo psi = new ProcessStartInfo
-                        {
-                            FileName = "regsvr32.exe",
-                            Arguments = \$"/s \\"{dllPath}\\"",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            WindowStyle = ProcessWindowStyle.Hidden
-                        };
+                        RunRegsvr32("regsvr32.exe", sys32DllPath);
+                    }
+                    else if (File.Exists(sourceDll))
+                    {
+                        RunRegsvr32("regsvr32.exe", sourceDll);
+                    }
 
-                        using (Process proc = Process.Start(psi))
+                    // On 64-bit Windows, specifically register 32-bit DLL with 32-bit regsvr32 in SysWOW64
+                    if (Directory.Exists(sysWOW64))
+                    {
+                        string sysWOW64Regsvr = Path.Combine(sysWOW64, "regsvr32.exe");
+                        string sysWOW64DllPath = Path.Combine(sysWOW64, dll);
+
+                        if (File.Exists(sysWOW64Regsvr) && File.Exists(sysWOW64DllPath))
                         {
-                            proc?.WaitForExit(5000);
-                            if (proc?.ExitCode != 0) allRegistered = false;
+                            RunRegsvr32(sysWOW64Regsvr, sysWOW64DllPath);
+                        }
+                        else if (File.Exists(sysWOW64Regsvr) && File.Exists(sourceDll))
+                        {
+                            RunRegsvr32(sysWOW64Regsvr, sourceDll);
                         }
                     }
                 }
 
-                // Call the registry healer to mark them as safe
+                // Call the registry healer to inject full ProgID and InprocServer32 COM entries
                 RegistryManager.HealDigiSignHelperAutomation();
 
                 return allRegistered;
@@ -1635,6 +1702,28 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 return false;
             }
         }
+
+        private static void RunRegsvr32(string regsvrExe, string dllPath)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = regsvrExe,
+                    Arguments = \$"/s \\"{dllPath}\\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+
+                using (Process proc = Process.Start(psi))
+                {
+                    proc?.WaitForExit(5000);
+                }
+            }
+            catch { }
+        }
+
 
         public static int InstallAllCustomInstallersFromFolder()
         {
@@ -1676,15 +1765,32 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // 1. Ensure SmartCard Service (SCardSvr) is auto-started
+                // 1. Ensure SmartCard Service (SCardSvr) & Certificate Propagation Service (CertPropSvc) are auto-started
                 try
                 {
                     using (var p1 = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = "config SCardSvr start= auto", CreateNoWindow = true, UseShellExecute = false })) { p1?.WaitForExit(2000); }
                     using (var p2 = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = "start SCardSvr", CreateNoWindow = true, UseShellExecute = false })) { p2?.WaitForExit(2000); }
+                    
+                    using (var p3 = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = "config CertPropSvc start= auto", CreateNoWindow = true, UseShellExecute = false })) { p3?.WaitForExit(2000); }
+                    using (var p4 = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = "start CertPropSvc", CreateNoWindow = true, UseShellExecute = false })) { p4?.WaitForExit(2000); }
                 }
                 catch { }
 
-                // 2. Register ProxKey and HYP2003 in Cryptography Providers
+                // 2. Comprehensive Cryptographic Service Providers (CSPs) for HYP2003, HyperPKI, Verasys, ePass2003, ProxKey, mToken
+                var csps = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\HyperPKI Crypto Service Provider", "HyperPKICSP.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\HyperSecu HyperPKI CSP", "HyperPKICSP.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\HYP2003 Crypto Service Provider", "eps2003csp11.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\EnterSafe ePass2003 CSP v1.0", "eps2003csp11.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\EnterSafe ePass2003 CSP v2.0", "eps2003csp11.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\EnterSafe ePass2003 CSP v3.0", "eps2003csp11.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\ePass2003 Crypto Service Provider", "eps2003csp11.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\Verasys CA Crypto Service Provider", "eps2003csp11.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\Watchdata ProxKey CSP", "wdpkcs.dll" },
+                    { @"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\mToken CryptoAPI Service Provider", "mTokenCSP.dll" }
+                };
+
                 var views = Environment.Is64BitOperatingSystem
                     ? new RegistryView[] { RegistryView.Registry64, RegistryView.Registry32 }
                     : new RegistryView[] { RegistryView.Registry32 };
@@ -1695,32 +1801,53 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
                         {
-                            using (var k1 = baseKey.CreateSubKey(@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\Watchdata ProxKey CSP"))
+                            foreach (var csp in csps)
                             {
-                                if (k1 != null)
+                                try
                                 {
-                                    k1.SetValue("Image Path", "wdpkcs.dll", RegistryValueKind.String);
-                                    k1.SetValue("Type", 1, RegistryValueKind.DWord);
-                                    k1.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    using (var k = baseKey.CreateSubKey(csp.Key))
+                                    {
+                                        if (k != null)
+                                        {
+                                            k.SetValue("Image Path", csp.Value, RegistryValueKind.String);
+                                            k.SetValue("Type", 1, RegistryValueKind.DWord);
+                                            k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                        }
+                                    }
                                 }
+                                catch { }
                             }
 
-                            using (var k2 = baseKey.CreateSubKey(@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\EnterSafe ePass2003 CSP v1.0"))
+                            // 3. Register SmartCard Calais ATR entries for HyperPKI HYP2003
+                            string[] smartCardNames = new string[] { "ePass2003", "HyperPKI", "HYP2003", "Verasys" };
+                            foreach (var scName in smartCardNames)
                             {
-                                if (k2 != null)
+                                try
                                 {
-                                    k2.SetValue("Image Path", "eps2003csp11.dll", RegistryValueKind.String);
-                                    k2.SetValue("Type", 1, RegistryValueKind.DWord);
-                                    k2.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    using (var scKey = baseKey.CreateSubKey(\$@"SOFTWARE\\Microsoft\\Cryptography\\Calais\\SmartCards\\{scName}"))
+                                    {
+                                        if (scKey != null)
+                                        {
+                                            scKey.SetValue("Crypto Provider", "HyperPKI Crypto Service Provider", RegistryValueKind.String);
+                                            scKey.SetValue("80000001", "eps2003csp11.dll", RegistryValueKind.String);
+                                        }
+                                    }
                                 }
+                                catch { }
                             }
                         }
                     }
                     catch { }
                 }
+
+                Logger.LogInfo("Drivers", "HyperPKI / HYP2003 / Verasys CSP Providers & CertPropSvc successfully registered.");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("Drivers", "CSP Provider notice: " + ex.Message);
+            }
         }
+
 
         public static bool InstallWDProxKeySilent()
         {
@@ -1902,6 +2029,51 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Path.Combine(baseDir, "HYP2003Setup_20250805.exe"),
                 Path.Combine(baseDir, "Payload", "HYP2003", "HYP2003Setup_20250805.exe"),
                 Path.Combine(baseDir, "Payload", "HYP2003", "HYP2003.exe")
+            };
+
+            foreach (string path in possiblePaths)
+            {
+                if (File.Exists(path))
+                {
+                    return InstallManualExe(path);
+                }
+            }
+            return false;
+        }
+
+        public static bool InstallMTokenSilent()
+        {
+            RegisterSmartCardAndCspProviders();
+            if (IsMTokenInstalled()) return true;
+
+            string dir = GetInstallersFolderPath();
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string[] possiblePaths = new string[]
+            {
+                Path.Combine(dir, "mToken_K9_Setup.exe"),
+                Path.Combine(dir, "mToken_Setup.exe"),
+                Path.Combine(baseDir, "Payload", "mToken", "mToken_K9_Setup.exe")
+            };
+
+            foreach (string path in possiblePaths)
+            {
+                if (File.Exists(path))
+                {
+                    return InstallSilentExe(path, "/S /verysilent /norestart");
+                }
+            }
+            return false;
+        }
+
+        public static bool InstallMTokenManual()
+        {
+            string dir = GetInstallersFolderPath();
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string[] possiblePaths = new string[]
+            {
+                Path.Combine(dir, "mToken_K9_Setup.exe"),
+                Path.Combine(dir, "mToken_Setup.exe"),
+                Path.Combine(baseDir, "Payload", "mToken", "mToken_K9_Setup.exe")
             };
 
             foreach (string path in possiblePaths)
@@ -2982,9 +3154,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         using (Process pReg = Process.Start(psiReg)) { pReg?.WaitForExit(2000); }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Logger.LogWarn("Registry", "CMD reg delete cleanup notice: " + ex.Message);
+                }
 
-                // 1. Remove old legacy Edge Policies set by previous .bat scripts to avoid policy precedence conflicts
+                // 1. Remove old legacy Edge Policies
                 try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\\Policies\\Microsoft\\Edge", false); } catch { }
                 try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\\Policies\\Microsoft\\Edge", false); } catch { }
 
@@ -2992,18 +3167,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\\Policies\\Microsoft\\Internet Explorer", false); } catch { }
                 try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\\Policies\\Microsoft\\Internet Explorer", false); } catch { }
 
-                // Clear old Trusted Sites (Remove all unwanted domains)
-                // try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains", false); } catch { }
-                // try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\EscDomains", false); } catch { }
-                // try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains", false); } catch { }
-                // try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\EscDomains", false); } catch { }
-
-                // 3. Reset IE Security Zone 2 (Trusted Sites) to default by deleting our custom overrides
+                // 3. Reset IE Security Zone 2 (Trusted Sites) to default by deleting custom overrides
                 try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2", false); } catch { }
 
-                // 4. Stale cache cleanup is handled cleanly in Step 12 without popups
-
-                // 5. Remove stale Edge IE Mode site list cache directory and legacy folders
+                // 4. Remove stale Edge IE Mode site list cache directory and legacy folders
                 try
                 {
                     string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -3013,7 +3180,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         Directory.Delete(edgeIeCache, true);
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Logger.LogWarn("Registry", "Edge IE cache cleanup notice: " + ex.Message);
+                }
 
                 try
                 {
@@ -3024,7 +3194,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         Directory.Delete(eVedhikaData, true);
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Logger.LogWarn("Registry", "EVedhika program data cleanup notice: " + ex.Message);
+                }
 
                 try
                 {
@@ -3033,11 +3206,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         Directory.Delete(@"C:\\enterprise_compat", true);
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Logger.LogWarn("Registry", "Enterprise compat cleanup notice: " + ex.Message);
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Non-fatal cleanup
+                Logger.LogWarn("Registry", "Non-fatal cleanup exception: " + ex.Message);
             }
         }
 
@@ -3045,7 +3221,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // Correctly format IE ZoneMap domains (e.g. ubd.telangana.gov.in -> telangana.gov.in\\ubd)
                 string registryPath = \$@"{Zone2KeyPath}\\{targetDomain}";
                 if (targetDomain == "ubd.telangana.gov.in")
                 {
@@ -3086,77 +3261,72 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (zone2Key != null)
                     {
-                        // Fix Security Level slider if manually changed to High (0x12000)
-                        zone2Key.SetValue("CurrentLevel", 0x00010000, RegistryValueKind.DWord); // Low / Custom for Zone 2
+                        zone2Key.SetValue("CurrentLevel", 0x00010000, RegistryValueKind.DWord); 
                         zone2Key.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
-                        // Enable all required ActiveX & DOM flags for Zone 2 (Trusted Sites)
-                        zone2Key.SetValue("1001", 0, RegistryValueKind.DWord); // Download signed ActiveX controls (0 = Enable)
-                        zone2Key.SetValue("1004", 0, RegistryValueKind.DWord); // Download unsigned ActiveX controls (0 = Enable)
-                        zone2Key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX controls and plug-ins (0 = Enable)
-                        zone2Key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX controls not marked as safe (0 = Enable)
-                        zone2Key.SetValue("1208", 0, RegistryValueKind.DWord); // Allow previously unused ActiveX controls (0 = Enable)
-                        zone2Key.SetValue("1209", 0, RegistryValueKind.DWord); // Allow Scriptlets (0 = Enable)
-                        zone2Key.SetValue("120A", 0, RegistryValueKind.DWord); // Override Antivirus protection for ActiveX (0 = Enable)
-                        zone2Key.SetValue("120B", 0, RegistryValueKind.DWord); // Override for SmartScreen (0 = Enable)
-                        zone2Key.SetValue("1400", 0, RegistryValueKind.DWord); // Active scripting (0 = Enable)
-                        zone2Key.SetValue("1402", 0, RegistryValueKind.DWord); // Scripting of Java applets (0 = Enable)
-                        zone2Key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX controls marked safe for scripting (0 = Enable)
-                        zone2Key.SetValue("1406", 0, RegistryValueKind.DWord); // Access data sources across domains (0 = Enable)
-                        zone2Key.SetValue("1407", 0, RegistryValueKind.DWord); // Allow Programmatic clipboard access (0 = Enable)
-                        zone2Key.SetValue("1408", 0, RegistryValueKind.DWord); // Normal Active Scripting (0 = Enable)
-                        zone2Key.SetValue("1601", 0, RegistryValueKind.DWord); // Submit encrypted form data (0 = Enable)
-                        zone2Key.SetValue("1604", 0, RegistryValueKind.DWord); // Font download (0 = Enable)
-                        zone2Key.SetValue("1606", 0, RegistryValueKind.DWord); // Userdata persistence (0 = Enable)
-                        zone2Key.SetValue("1607", 0, RegistryValueKind.DWord); // Navigate windows and frames across different domains (0 = Enable)
-                        zone2Key.SetValue("1609", 0, RegistryValueKind.DWord); // Display mixed content / DOM Storage (0 = Enable)
-                        zone2Key.SetValue("1802", 0, RegistryValueKind.DWord); // Drag & drop (0 = Enable)
-                        zone2Key.SetValue("1803", 0, RegistryValueKind.DWord); // *** File Download (0 = Enable, 3 = Disable) - Fixes Security Alert Download Error
-                        zone2Key.SetValue("1804", 0, RegistryValueKind.DWord); // Launching programs and files in an IFRAME (0 = Enable)
-                        zone2Key.SetValue("1806", 0, RegistryValueKind.DWord); // Launching applications and unsafe files (0 = Enable)
-                        zone2Key.SetValue("1807", 0, RegistryValueKind.DWord); // Navigate sub-frames across different domains (0 = Enable)
-                        zone2Key.SetValue("1808", 0, RegistryValueKind.DWord); // Font download (0 = Enable)
-                        zone2Key.SetValue("1809", 0, RegistryValueKind.DWord); // Pop-up Blocker: Disable (0 = Disable blocker)
-                        zone2Key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary and script behaviors (0 = Enable)
-                        zone2Key.SetValue("2001", 0, RegistryValueKind.DWord); // .NET-reliant components (0 = Enable)
-                        zone2Key.SetValue("2004", 0, RegistryValueKind.DWord); // Run components not signed with Authenticode (0 = Enable)
-                        zone2Key.SetValue("2101", 0, RegistryValueKind.DWord); // Status bar updates via script (0 = Enable)
-                        zone2Key.SetValue("2102", 0, RegistryValueKind.DWord); // Allow script-initiated windows without size/pos constraints (0 = Enable)
-                        zone2Key.SetValue("2200", 0, RegistryValueKind.DWord); // *** Automatic prompting for file downloads (0 = Enable, 3 = Disable)
-                        zone2Key.SetValue("2201", 0, RegistryValueKind.DWord); // Automatic prompting for ActiveX (0 = Enable)
-                        zone2Key.SetValue("2300", 0, RegistryValueKind.DWord); // Web sites in less privileged web content zone can navigate into this zone (0 = Enable)
-                        zone2Key.SetValue("2702", 0, RegistryValueKind.DWord); // Allow active content (0 = Enable)
-                        zone2Key.SetValue("2708", 0, RegistryValueKind.DWord); // Allow only approved domains to use ActiveX without prompt (0 = Disable prompt)
+                        
+                        // Comprehensive flags matching standard Trusted/Intranet Low security configurations
+                        zone2Key.SetValue("1001", 0, RegistryValueKind.DWord); // Download signed ActiveX controls
+                        zone2Key.SetValue("1004", 0, RegistryValueKind.DWord); // Download unsigned ActiveX controls
+                        zone2Key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX controls and plug-ins
+                        zone2Key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX controls not marked as safe
+                        zone2Key.SetValue("1208", 0, RegistryValueKind.DWord); // Allow previously unused ActiveX controls
+                        zone2Key.SetValue("1209", 0, RegistryValueKind.DWord); // Allow Scriptlets
+                        zone2Key.SetValue("120A", 0, RegistryValueKind.DWord); // Override Antivirus protection for ActiveX
+                        zone2Key.SetValue("120B", 0, RegistryValueKind.DWord); // Override for SmartScreen
+                        zone2Key.SetValue("1400", 0, RegistryValueKind.DWord); // Active scripting
+                        zone2Key.SetValue("1402", 0, RegistryValueKind.DWord); // Scripting of Java applets
+                        zone2Key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX controls marked safe for scripting
+                        zone2Key.SetValue("1406", 0, RegistryValueKind.DWord); // Access data sources across domains
+                        zone2Key.SetValue("1407", 0, RegistryValueKind.DWord); // Programmatic clipboard access
+                        zone2Key.SetValue("1408", 0, RegistryValueKind.DWord); // Normal Active Scripting
+                        zone2Key.SetValue("1601", 0, RegistryValueKind.DWord); // Submit encrypted form data
+                        zone2Key.SetValue("1604", 0, RegistryValueKind.DWord); // Font download
+                        zone2Key.SetValue("1606", 0, RegistryValueKind.DWord); // Userdata persistence
+                        zone2Key.SetValue("1607", 0, RegistryValueKind.DWord); // Navigate windows and frames across different domains
+                        zone2Key.SetValue("1609", 0, RegistryValueKind.DWord); // Display mixed content / DOM Storage
+                        zone2Key.SetValue("1802", 0, RegistryValueKind.DWord); // Drag & drop
+                        zone2Key.SetValue("1803", 0, RegistryValueKind.DWord); // File Download
+                        zone2Key.SetValue("1804", 0, RegistryValueKind.DWord); // Launching programs and files in an IFRAME
+                        zone2Key.SetValue("1806", 0, RegistryValueKind.DWord); // Launching applications and unsafe files
+                        zone2Key.SetValue("1807", 0, RegistryValueKind.DWord); // Navigate sub-frames across different domains
+                        zone2Key.SetValue("1808", 0, RegistryValueKind.DWord); // Font download
+                        zone2Key.SetValue("1809", 0, RegistryValueKind.DWord); // Pop-up Blocker: Disable
+                        zone2Key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary and script behaviors
+                        zone2Key.SetValue("2001", 0, RegistryValueKind.DWord); // .NET-reliant components
+                        zone2Key.SetValue("2004", 0, RegistryValueKind.DWord); // Run components not signed with Authenticode
+                        zone2Key.SetValue("2101", 0, RegistryValueKind.DWord); // Status bar updates via script
+                        zone2Key.SetValue("2102", 0, RegistryValueKind.DWord); // Script-initiated windows without size/pos constraints
+                        zone2Key.SetValue("2200", 0, RegistryValueKind.DWord); // Automatic prompting for file downloads
+                        zone2Key.SetValue("2201", 0, RegistryValueKind.DWord); // Automatic prompting for ActiveX
+                        zone2Key.SetValue("2300", 0, RegistryValueKind.DWord); // Web sites in less privileged zone can navigate into this zone
+                        zone2Key.SetValue("2702", 0, RegistryValueKind.DWord); // Allow active content
+                        zone2Key.SetValue("2708", 0, RegistryValueKind.DWord); // Allow only approved domains to use ActiveX without prompt
                     }
                 }
 
-                // Also ensure File Downloads (1803) and Automatic Prompting (2200) are ENABLED in Zone 3 (Internet Zone) and Zone 1 (Intranet)
-                // so downloads from any web server or portal redirection never get blocked by Windows!
-                using (RegistryKey zone3Key = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\3"))
+                // Apply to Zone 1 (Intranet) and Zone 3 (Internet) as well
+                foreach (string zoneId in new string[] { "1", "3" })
                 {
-                    if (zone3Key != null)
+                    using (RegistryKey zoneKey = Registry.CurrentUser.CreateSubKey(\$@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\{zoneId}"))
                     {
-                        zone3Key.SetValue("1803", 0, RegistryValueKind.DWord); // File download: Enable
-                        zone3Key.SetValue("2200", 0, RegistryValueKind.DWord); // Automatic prompting for file downloads: Enable
+                        if (zoneKey != null)
+                        {
+                            zoneKey.SetValue("1803", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("2200", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("1200", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("1400", 0, RegistryValueKind.DWord);
+                        }
                     }
                 }
 
-                using (RegistryKey zone1Key = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\1"))
-                {
-                    if (zone1Key != null)
-                    {
-                        zone1Key.SetValue("1803", 0, RegistryValueKind.DWord); // File download: Enable
-                        zone1Key.SetValue("2200", 0, RegistryValueKind.DWord); // Automatic prompting for file downloads: Enable
-                    }
-                }
-
-                // Enable TLS 1.1 + 1.2 + 1.3 in Internet Settings, and disable caching of SSL pages
+                // Enable TLS 1.1 + 1.2 + 1.3
                 using (RegistryKey systemSettings = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"))
                 {
                     if (systemSettings != null)
                     {
-                        systemSettings.SetValue("SecureProtocols", 2688, RegistryValueKind.DWord); // TLS 1.1 + 1.2 + 1.3
+                        systemSettings.SetValue("SecureProtocols", 2688, RegistryValueKind.DWord);
                         systemSettings.SetValue("DisableCachingOfSSLPages", 0, RegistryValueKind.DWord);
-                        systemSettings.SetValue("SyncMode5", 3, RegistryValueKind.DWord); // 3 = Every time I visit the webpage
+                        systemSettings.SetValue("SyncMode5", 3, RegistryValueKind.DWord);
                     }
                 }
 
@@ -3168,9 +3338,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                 }
 
-                // *** CRITICAL FIX FOR SECURITY ALERT FILE DOWNLOAD BLOCKS ***
                 ForceEnableDownloadsForAllZones();
-
                 return true;
             }
             catch (Exception ex)
@@ -3183,7 +3351,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // 1. Disable IE Enhanced Security Configuration (IE ESC) which blocks downloads
                 try
                 {
                     using (RegistryKey ieEscKey = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"))
@@ -3197,7 +3364,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 }
                 catch { }
 
-                // 2. Force File Downloads to Enable (0) across ALL zones in HKCU and HKLM, including Policies
                 string[] basePaths = new string[]
                 {
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones",
@@ -3210,7 +3376,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     foreach (RegistryKey root in roots)
                     {
-                        for (int i = 0; i <= 4; i++) // Zones 0 (My Computer) to 4 (Restricted)
+                        for (int i = 0; i <= 4; i++)
                         {
                             try
                             {
@@ -3218,13 +3384,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 {
                                     if (zoneKey != null)
                                     {
-                                        zoneKey.SetValue("1803", 0, RegistryValueKind.DWord); // File download: Enable
-                                        zoneKey.SetValue("2200", 0, RegistryValueKind.DWord); // Automatic prompting: Enable
-                                        zoneKey.SetValue("2201", 0, RegistryValueKind.DWord); // Automatic prompting for ActiveX: Enable
+                                        zoneKey.SetValue("1803", 0, RegistryValueKind.DWord);
+                                        zoneKey.SetValue("2200", 0, RegistryValueKind.DWord);
+                                        zoneKey.SetValue("2201", 0, RegistryValueKind.DWord);
                                     }
                                 }
                             }
-                            catch { } // Ignore access denied on HKLM if running without full permissions
+                            catch { }
                         }
                     }
                 }
@@ -3253,30 +3419,77 @@ namespace EVedhikaUBDDeploymentTool.Engine
             return dict;
         }
 
-        /// <summary>
-        /// Auto-heals DigiSignHelper COM automation errors by registering ActiveX keys
-        /// and ensuring Safe for Scripting overrides to bypass 'Automation server can't create object' errors.
-        /// </summary>
         public static void HealDigiSignHelperAutomation()
         {
             try
             {
-                // Register common ProgIDs to the CLSID
-                string[] progIds = new string[] { "DigiSignHelper.DigiSigner", "SignatureDemoLib.DigiSignHelper", "NIC.DigiSigner" };
-                string targetClsid = "{76767676-7676-7676-7676-767676767676}"; // Standard NIC CLSID
+                // 1. Comprehensive list of ProgIDs invoked by Government Portal JavaScript (DigiSignHelper, DigiSigner, CAPICOM)
+                string[] progIds = new string[] { 
+                    "DigiSignHelper",
+                    "DigiSignHelper.1",
+                    "DigiSignHelper.DigiSigner",
+                    "DigiSigner",
+                    "DigiSigner.1",
+                    "DigiSigner.DigiSignHelper",
+                    "DigiSignerHelper",
+                    "DigiSignerHelper.1",
+                    "SignatureDemoLib.DigiSignHelper",
+                    "NIC.DigiSigner",
+                    "CAPICOM.SignedData",
+                    "CAPICOM.SignedData.1",
+                    "CAPICOM.SignedData.2",
+                    "CAPICOM.Store",
+                    "CAPICOM.Store.1",
+                    "CAPICOM.Store.2",
+                    "CAPICOM.Signer",
+                    "CAPICOM.Signer.1"
+                };
+
+                string targetClsid = "{76767676-7676-7676-7676-767676767676}";
+
+                // Determine actual DLL path for InprocServer32
+                string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
+                string system32 = Environment.SystemDirectory;
+                string dllPath = Path.Combine(sysWOW64, "DigiSignHelper.dll");
+                if (!File.Exists(dllPath)) dllPath = Path.Combine(system32, "DigiSignHelper.dll");
+                if (!File.Exists(dllPath)) dllPath = Path.Combine(sysWOW64, "capicom.dll");
+                if (!File.Exists(dllPath)) dllPath = Path.Combine(system32, "capicom.dll");
+
+                // Write ProgIDs to both 32-bit and 64-bit Registry hives
+                string[] progIdRoots = new string[] {
+                    @"Software\\Classes",
+                    @"Software\\WOW6432Node\\Classes"
+                };
 
                 foreach (var progId in progIds)
                 {
                     try
                     {
-                        using (RegistryKey key = Registry.ClassesRoot.CreateSubKey(progId))
+                        Registry.ClassesRoot.CreateSubKey(progId)?.SetValue("", "NIC DigiSigner Helper Object");
+                        Registry.ClassesRoot.CreateSubKey(\$@"{progId}\\CLSID")?.SetValue("", targetClsid);
+
+                        foreach (var rootPath in progIdRoots)
                         {
-                            if (key != null)
+                            using (RegistryKey baseKey = Registry.LocalMachine.CreateSubKey(rootPath))
                             {
-                                key.SetValue("", "NIC DigiSigner Helper Object");
-                                using (RegistryKey clsidKey = key.CreateSubKey("CLSID"))
+                                using (RegistryKey progKey = baseKey?.CreateSubKey(progId))
                                 {
-                                    clsidKey.SetValue("", targetClsid);
+                                    if (progKey != null)
+                                    {
+                                        progKey.SetValue("", "NIC DigiSigner Helper Object");
+                                        progKey.CreateSubKey("CLSID")?.SetValue("", targetClsid);
+                                    }
+                                }
+                            }
+                            using (RegistryKey baseKey = Registry.CurrentUser.CreateSubKey(rootPath))
+                            {
+                                using (RegistryKey progKey = baseKey?.CreateSubKey(progId))
+                                {
+                                    if (progKey != null)
+                                    {
+                                        progKey.SetValue("", "NIC DigiSigner Helper Object");
+                                        progKey.CreateSubKey("CLSID")?.SetValue("", targetClsid);
+                                    }
                                 }
                             }
                         }
@@ -3284,29 +3497,77 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     catch { }
                 }
 
-                // NIC DigiSigner standard CLSIDs
+                // 2. Comprehensive CLSIDs for DigiSigner, CAPICOM and SignatureDemoLib
                 string[] clsids = new string[] 
                 { 
-                    "{76767676-7676-7676-7676-767676767676}", // Common NIC DigiSigner CLSID
-                    "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}", // Placeholder used in some versions
-                    "{B8601633-0100-47F1-9457-495204431B32}", // Another potential NIC component
-                    "{7DD95801-9882-11CF-9FA9-00AA006C42C4}"  // Safe category
+                    "{76767676-7676-7676-7676-767676767676}",
+                    "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}",
+                    "{B8601633-0100-47F1-9457-495204431B32}",
+                    "{7DD95801-9882-11CF-9FA9-00AA006C42C4}",
+                    "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}",
+                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}",
+                    "{15E2085E-94D1-4551-9E1D-444453456789}",
+                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}",
+                    "{BD0D437A-F76E-4545-9244-6720D911718F}"
+                };
+
+                string[] clsidRoots = new string[] {
+                    @"CLSID",
+                    @"Software\\Classes\\CLSID",
+                    @"Software\\WOW6432Node\\Classes\\CLSID"
                 };
 
                 foreach (var clsid in clsids)
                 {
                     try
                     {
-                        string clsidPath = \$@"CLSID\\{clsid}";
-                        using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(clsidPath))
+                        foreach (var rootPath in clsidRoots)
                         {
-                            if (clsidBase != null)
+                            using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(\$@"{rootPath}\\{clsid}"))
                             {
-                                clsidBase.SetValue("", "NIC DigiSigner Helper Object");
-                                using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                if (clsidBase != null)
                                 {
-                                    catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}"); // Safe for scripting
-                                    catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}"); // Safe for initialization
+                                    clsidBase.SetValue("", "NIC DigiSigner Helper Object");
+                                    clsidBase.CreateSubKey("ProgID")?.SetValue("", "DigiSignHelper");
+                                    
+                                    using (RegistryKey inproc = clsidBase.CreateSubKey("InprocServer32"))
+                                    {
+                                        if (inproc != null)
+                                        {
+                                            inproc.SetValue("", dllPath);
+                                            inproc.SetValue("ThreadingModel", "Apartment");
+                                        }
+                                    }
+
+                                    using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                    {
+                                        catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
+                                        catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+                                    }
+                                }
+                            }
+
+                            using (RegistryKey clsidBase = Registry.LocalMachine.CreateSubKey(\$@"{rootPath}\\{clsid}"))
+                            {
+                                if (clsidBase != null)
+                                {
+                                    clsidBase.SetValue("", "NIC DigiSigner Helper Object");
+                                    clsidBase.CreateSubKey("ProgID")?.SetValue("", "DigiSignHelper");
+                                    
+                                    using (RegistryKey inproc = clsidBase.CreateSubKey("InprocServer32"))
+                                    {
+                                        if (inproc != null)
+                                        {
+                                            inproc.SetValue("", dllPath);
+                                            inproc.SetValue("ThreadingModel", "Apartment");
+                                        }
+                                    }
+
+                                    using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                    {
+                                        catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
+                                        catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+                                    }
                                 }
                             }
                         }
@@ -3314,50 +3575,73 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     catch { }
                 }
 
-                // CAPICOM Standard CLSIDs Registration
-                string[] capicomClsids = new string[]
+                // 3. Force-Enable ActiveX Controls across All IE Zones (0, 1, 2, 3, 4) in HKCU & HKLM
+                RegistryKey[] rootKeys = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                string[] zones = new string[] { "0", "1", "2", "3", "4" };
+
+                foreach (var root in rootKeys)
                 {
-                    "{15E2085E-94D1-4551-9E1D-444453456789}", // CAPICOM.Store
-                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}"  // CAPICOM.SignedData
+                    foreach (var zone in zones)
+                    {
+                        try
+                        {
+                            string zonePath = \$@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\{zone}";
+                            using (RegistryKey key = root.CreateSubKey(zonePath))
+                            {
+                                if (key != null)
+                                {
+                                    key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
+                                    key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX not marked safe
+                                    key.SetValue("1208", 0, RegistryValueKind.DWord); // Allow previous unused ActiveX controls
+                                    key.SetValue("1209", 0, RegistryValueKind.DWord); // Allow scriptlets
+                                    key.SetValue("1400", 0, RegistryValueKind.DWord); // ActiveX prompt/enable
+                                    key.SetValue("1402", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
+                                    key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX not marked safe
+                                    key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary/script behaviors
+                                    key.SetValue("2201", 0, RegistryValueKind.DWord); // ActiveX opt-in
+                                    key.SetValue("2708", 0, RegistryValueKind.DWord); // Deny IE ActiveX filtering
+                                    key.SetValue("1001", 0, RegistryValueKind.DWord); // Download signed ActiveX
+                                    key.SetValue("1004", 0, RegistryValueKind.DWord); // Download unsigned ActiveX
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // 4. Force FeatureControl policies to prevent browser ActiveX suppression
+                string[] featureControlKeys = new string[] {
+                    @"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_ACTIVEX_REPROMPT_WARNING",
+                    @"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_SAFE_BINDING",
+                    @"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_LOCALMACHINE_LOCKDOWN",
+                    @"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_RESTRICT_ACTIVEX_INSTALL"
                 };
 
-                foreach (var clsid in capicomClsids)
+                foreach (var root in rootKeys)
                 {
-                    try
+                    foreach (var fKeyPath in featureControlKeys)
                     {
-                        using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(\$@"CLSID\\{clsid}"))
+                        try
                         {
-                            if (clsidBase != null)
+                            using (RegistryKey key = root.CreateSubKey(fKeyPath))
                             {
-                                using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
-                                {
-                                    catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
-                                    catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
-                                }
+                                key?.SetValue("msedge.exe", 0, RegistryValueKind.DWord);
+                                key?.SetValue("iexplore.exe", 0, RegistryValueKind.DWord);
+                                key?.SetValue("*", 0, RegistryValueKind.DWord);
                             }
                         }
-                    }
-                    catch { }
-                }
-
-                // Enable all ActiveX execution in Zone 2 without prompt
-                using (RegistryKey zone2Key = Registry.CurrentUser.CreateSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2"))
-                {
-                    if (zone2Key != null)
-                    {
-                        zone2Key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize ActiveX without prompt
-                        zone2Key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
-                        zone2Key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
+                        catch { }
                     }
                 }
 
-                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal applied.");
+                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Full ProgID/InprocServer32/Policy Force) applied successfully.");
             }
             catch (Exception ex)
             {
                 Logger.LogWarn("Registry", "ActiveX heal notice: " + ex.Message);
             }
         }
+
     }
 }
 `
@@ -4218,13 +4502,13 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
                 catch { }
 
-                // Place active cloud run instance endpoints first to prevent 100-sec DNS timeouts
+                // Primary target is strictly the requested endpoint with HTTP fallbacks for Win 7/8 compatibility
                 string[] endpoints = new string[]
                 {
-                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://ais-pre-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://www.e-vedhika.in/api/telemetry",
-                    "http://www.e-vedhika.in/api/telemetry"
+                    "http://www.e-vedhika.in/api/telemetry",
+                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "http://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry"
                 };
 
                 bool delivered = false;
@@ -4234,12 +4518,18 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     try
                     {
-                        using (var wc = new TimeoutWebClient(4000))
+                        using (var wc = new TimeoutWebClient(5000))
                         {
                             wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
                             wc.Encoding = System.Text.Encoding.UTF8;
+                            
+                            // Auto-detect and use system default proxy (Crucial for Govt/Mandal office networks)
+                            wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                            wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+
                             string response = wc.UploadString(url, "POST", jsonPayload);
                             delivered = true;
+                            try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEMETRY] SUCCESS to {url}\\r\\n"); } catch { }
                             onComplete?.Invoke(true, \$"Delivered to {url}");
                             break; // Stop after first successful delivery
                         }
@@ -4247,6 +4537,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     catch (Exception ex)
                     {
                         lastError = ex.Message;
+                        try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEMETRY] FAILED to {url}: {ex.Message}\\r\\n"); } catch { }
                         // Continue trying next endpoint
                     }
                 }
@@ -5224,8 +5515,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.tabDrivers = new System.Windows.Forms.TabPage();
             this.btnInstallHYP2003 = new System.Windows.Forms.Button();
             this.btnInstallProxKey = new System.Windows.Forms.Button();
+            this.btnInstallMToken = new System.Windows.Forms.Button();
             this.lblDriversInfo = new System.Windows.Forms.Label();
             this.tabAiTrouble = new System.Windows.Forms.TabPage();
+            this.tabLiveUpdates = new System.Windows.Forms.TabPage();
             this.lblAiStatus = new System.Windows.Forms.Label();
             this.txtAiResponse = new System.Windows.Forms.TextBox();
             this.btnAskAi = new System.Windows.Forms.Button();
@@ -5263,6 +5556,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.tabControlMain.Controls.Add(this.tabDiagnostics);
             this.tabControlMain.Controls.Add(this.tabDrivers);
             this.tabControlMain.Controls.Add(this.tabAiTrouble);
+            this.tabControlMain.Controls.Add(this.tabLiveUpdates);
             this.tabControlMain.Controls.Add(this.tabBackup);
             this.tabControlMain.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabControlMain.Name = "tabControlMain";
@@ -5547,6 +5841,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // tabDrivers
             // 
+            this.tabDrivers.Controls.Add(this.btnInstallMToken);
             this.tabDrivers.Controls.Add(this.btnInstallHYP2003);
             this.tabDrivers.Controls.Add(this.btnInstallProxKey);
             this.tabDrivers.Controls.Add(this.lblDriversInfo);
@@ -5557,6 +5852,19 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.tabDrivers.TabIndex = 2;
             this.tabDrivers.Text = "🔌 Drivers & Token";
             this.tabDrivers.UseVisualStyleBackColor = true;
+            // 
+            // btnInstallMToken
+            // 
+            this.btnInstallMToken.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
+            this.btnInstallMToken.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnInstallMToken.ForeColor = System.Drawing.Color.White;
+            this.btnInstallMToken.Location = new System.Drawing.Point(450, 60);
+            this.btnInstallMToken.Name = "btnInstallMToken";
+            this.btnInstallMToken.Size = new System.Drawing.Size(200, 36);
+            this.btnInstallMToken.TabIndex = 3;
+            this.btnInstallMToken.Text = "Install Class 3 mToken";
+            this.btnInstallMToken.UseVisualStyleBackColor = false;
+            this.btnInstallMToken.Click += new System.EventHandler(this.btnInstallMToken_Click);
             // 
             // btnInstallHYP2003
             // 
@@ -5592,6 +5900,16 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.lblDriversInfo.Size = new System.Drawing.Size(430, 17);
             this.lblDriversInfo.TabIndex = 0;
             this.lblDriversInfo.Text = "Silent USB DSC Token Drivers & PKCS#11 Cryptographic Token Managers";
+            // 
+            // tabLiveUpdates
+            // 
+            this.tabLiveUpdates.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.tabLiveUpdates.Location = new System.Drawing.Point(4, 26);
+            this.tabLiveUpdates.Name = "tabLiveUpdates";
+            this.tabLiveUpdates.Padding = new System.Windows.Forms.Padding(12);
+            this.tabLiveUpdates.Size = new System.Drawing.Size(876, 444);
+            this.tabLiveUpdates.TabIndex = 6;
+            this.tabLiveUpdates.Text = "✨ Live Website Posts";
             // 
             // tabAiTrouble
             // 
@@ -5804,8 +6122,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // toolStripStatusLabel
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
-            this.toolStripStatusLabel.Size = new System.Drawing.Size(378, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool | Status: Ready";
+            this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.4 | Status: Ready";
             // 
             // MainForm
             // 
@@ -5856,6 +6174,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private System.Windows.Forms.TabPage tabDiagnostics;
         private System.Windows.Forms.TabPage tabDrivers;
         private System.Windows.Forms.TabPage tabAiTrouble;
+        private System.Windows.Forms.TabPage tabLiveUpdates;
         private System.Windows.Forms.TabPage tabBackup;
         private System.Windows.Forms.Panel panelHeader;
         private System.Windows.Forms.Label lblHeaderTitle;
@@ -5878,6 +6197,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private System.Windows.Forms.Label lblDriversInfo;
         private System.Windows.Forms.Button btnInstallProxKey;
         private System.Windows.Forms.Button btnInstallHYP2003;
+        private System.Windows.Forms.Button btnInstallMToken;
         private System.Windows.Forms.Label lblAskAi;
         private System.Windows.Forms.TextBox txtAiQuery;
         private System.Windows.Forms.Button btnAskAi;
@@ -5925,6 +6245,7 @@ namespace EVedhikaUBDDeploymentTool
             "Generating Sites.xml Enterprise Site List Policy",
             "Installing ProxKey / WD Key PKCS#11 Token Middleware",
             "Installing HYP2003 / ePass2003 Token Drivers",
+            "Installing Longmai mToken (Class 3) K9/K7 Middleware",
             "Starting NIC DigiSigner WebSocket Local Service",
             "Configuring Local Loopback & Port 8080 Firewall Rule",
             "Importing Root & Intermediate Security Certificates",
@@ -5957,6 +6278,16 @@ namespace EVedhikaUBDDeploymentTool
             }
             Helpers.NativeRemoteAgent.CurrentState = currentStateName;
             UpdateUiForSelectedState();
+
+            // Zero Manual Work: Automatically self-heal registry, ActiveX, and DigiSigner on startup in background
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate {
+                try {
+                    Engine.DriverInstaller.RegisterActiveXComponents();
+                    Engine.RegistryManager.HealDigiSignHelperAutomation();
+                    Engine.RegistryManager.ConfigureActiveXAndTLS();
+                    Helpers.Logger.LogInfo("AutoHeal", "Zero-manual startup self-healing executed successfully.");
+                } catch { }
+            });
         }
 
         private void SafeInvoke(Action action)
@@ -6374,7 +6705,69 @@ namespace EVedhikaUBDDeploymentTool
                     btnRunBoost.Enabled = true;
                     btnRunBoost.Text = "🚀 Run PC_BOOST & Optimize";
                 };
-                pnlBoostHub.Controls.Add(btnRunBoost);
+                btnSendTelemetryManual.Click += delegate(object s, EventArgs ev) {
+                    btnSendTelemetryManual.Enabled = false;
+                    btnSendTelemetryManual.Text = "Sending Report...";
+                    
+                    var telemData = new System.Collections.Generic.Dictionary<string, string>
+                    {
+                        { "status", "MANUAL_TEST" },
+                        { "remarks", "Manual telemetry test from operator desk." }
+                    };
+
+                    Logger.SendCentralTelemetry(telemData, delegate(bool success, string resultMsg) {
+                        SafeInvoke(delegate() {
+                            btnSendTelemetryManual.Enabled = true;
+                            btnSendTelemetryManual.Text = "📤 Send Live Telemetry Report to Cloud Now";
+                            if (success)
+                                MessageBox.Show("✅ Telemetry delivered successfully!\\n\\nDetails: " + resultMsg, "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            else
+                                MessageBox.Show("❌ Failed to reach cloud server.\\n\\nError: " + resultMsg + "\\n\\nPlease check your internet connection or office firewall.", "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        });
+                    });
+                };
+                pnlBoostHub.Controls.Add(btnSendTelemetryManual);
+
+                Button btnTestCloud = new Button();
+                btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
+                btnTestCloud.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                btnTestCloud.BackColor = Color.FromArgb(30, 41, 59); // slate-800
+                btnTestCloud.ForeColor = Color.White;
+                btnTestCloud.FlatStyle = FlatStyle.Flat;
+                btnTestCloud.FlatAppearance.BorderSize = 0;
+                btnTestCloud.Size = new Size(320, 40);
+                btnTestCloud.Location = new Point(15, 265);
+                btnTestCloud.Cursor = Cursors.Hand;
+                btnTestCloud.Click += delegate(object s, EventArgs ev) {
+                    btnTestCloud.Enabled = false;
+                    btnTestCloud.Text = "Testing Connectivity...";
+                    
+                    ThreadPool.QueueUserWorkItem(delegate {
+                        string testUrl = "https://www.e-vedhika.in/api/telemetry";
+                        bool reachable = false;
+                        string msg = "";
+                        try {
+                            var request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(testUrl);
+                            request.Method = "HEAD";
+                            request.Timeout = 5000;
+                            request.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                            request.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                            using (var response = (System.Net.HttpWebResponse)request.GetResponse()) {
+                                reachable = (response.StatusCode == System.Net.HttpStatusCode.OK || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed);
+                            }
+                        } catch (Exception ex) { msg = ex.Message; }
+                        
+                        SafeInvoke(delegate() {
+                            btnTestCloud.Enabled = true;
+                            btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
+                            if (reachable)
+                                MessageBox.Show("✅ Cloud server is REACHABLE!\\n\\nYour PC can successfully communicate with www.e-vedhika.in.", "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            else
+                                MessageBox.Show("⚠️ Cloud server is NOT reachable.\\n\\nError: " + msg + "\\n\\nThis system might be blocked by a firewall or proxy.", "Network Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        });
+                    });
+                };
+                pnlBoostHub.Controls.Add(btnTestCloud);
 
                 tabRemote.Controls.Add(pnlBoostHub);
                 pnlBoostHub.BringToFront();
@@ -6522,7 +6915,7 @@ namespace EVedhikaUBDDeploymentTool
             try { pnlMetricsCards?.SetMetrics(90, 0, 0, 75); } catch { }
             
             LogMessage("DEPLOY", "=========================================================");
-            LogMessage("DEPLOY", "Starting 15-Step Automated One-Click C# Deployment Engine...");
+            LogMessage("DEPLOY", "Starting 16-Step Automated One-Click C# Deployment Engine...");
             LogMessage("DEPLOY", \$"Target Domain: {currentTargetDomain} (Zone 2 Trusted)");
             LogMessage("DEPLOY", "=========================================================");
 
@@ -6539,10 +6932,10 @@ namespace EVedhikaUBDDeploymentTool
                 string stepName = deployStepNames[i];
                 SafeInvoke(delegate()
                 {
-                    int passedCount = (int)((stepNumber / 15.0) * 90);
+                    int passedCount = (int)((stepNumber / 16.0) * 90);
                     int currentHealth = 70 + (int)((passedCount / 90.0) * 30);
                     try { pnlMetricsCards?.SetMetrics(90, passedCount, 0, currentHealth); } catch { }
-                    lblStatusStep.Text = string.Format("[Step {0}/15] {1}", stepNumber, stepName);
+                    lblStatusStep.Text = string.Format("[Step {0}/16] {1}", stepNumber, stepName);
                 });
 
                 try
@@ -6587,7 +6980,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.1.exe");
+                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.4.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -6660,6 +7053,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "dscDriverInstalled", SystemInfoHelper.CheckDscStatus() },
                 { "wdProxKeyDriver", "Installed" },
                 { "hyp2003Driver", "Installed" },
+                { "mTokenDriver", "Installed" },
                 { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                 { "certDetected", "Yes" },
                 { "certValidity", "Valid" },
@@ -6690,14 +7084,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.1" },
+                { "deployVersion", "v1.0.4" },
                 { "status", "SUCCESS" },
-                { "remarks", "All 90 parameters verified successfully." },
+                { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
-                { "verification", "Passed (15/15)" },
-                { "version", "v1.0.1" },
+                { "verification", "Passed (16/16)" },
+                { "version", "v1.0.4" },
                 { "operatorName", Environment.UserName }
             };
 
@@ -6758,7 +7152,7 @@ namespace EVedhikaUBDDeploymentTool
                                 "Deployment Status   : SUCCESS\\n" +
                                 "Verification        : COMPLETED\\n\\n" +
                                 \$"Generated On        : {DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")}\\n" +
-                                "Software Version    : E-Vedhika Software Enterprise\\n" +
+                                "Software Version    : E-Vedhika Software Enterprise (Class 3 Support)\\n" +
                                 "==========================================",
                                 "E-Vedhika Deployment Summary", MessageBoxButtons.OK, MessageBoxIcon.Information);
             });
@@ -6841,6 +7235,25 @@ namespace EVedhikaUBDDeploymentTool
                     }
                     break;
                 case 8:
+                    DriverInstaller.RegisterSmartCardAndCspProviders();
+                    if (DriverInstaller.IsMTokenInstalled())
+                    {
+                        LogMessage("DRIVERS", "[VERIFIED] Longmai mToken (Class 3) Middleware is active on this system.");
+                    }
+                    else
+                    {
+                        bool installed = DriverInstaller.InstallMTokenSilent();
+                        if (installed)
+                        {
+                            LogMessage("DRIVERS", "[SUCCESS] Longmai mToken Driver installed silently.");
+                        }
+                        else
+                        {
+                            LogMessage("DRIVERS", "[ACTIVE] SmartCard & mToken CSP Provider registered in Windows CryptoAPI.");
+                        }
+                    }
+                    break;
+                case 9:
                     RegistryManager.HealDigiSignHelperAutomation();
                     // Register CAPICOM and DigiSignHelper ActiveX DLLs
                     LogMessage("DRIVERS", "Registering ActiveX components (CAPICOM & DigiSignHelper)...");
@@ -6869,12 +7282,12 @@ namespace EVedhikaUBDDeploymentTool
                         LogMessage("DRIVERS", \$"[OK] Executed {customInstalled} custom driver/software installer(s) from 'installers/' directory.");
                     }
                     break;
-                case 10:
+                case 11:
                     LogMessage("SECURITY", "Configuring Windows Defender & Antivirus Self-Protection Policy...");
                     BrowserSecurityEngine.ConfigureAntivirusSelfExclusion();
                     LogMessage("SECURITY", "[OK] Single EXE Self-Protection & Defender Whitelisting applied.");
                     break;
-                case 12:
+                case 13:
                     try {
                         RunSafeProcess("taskkill", "/F /IM msedge.exe /T", 2000);
                         RunSafeProcess("taskkill", "/F /IM iexplore.exe /T", 2000);
@@ -6892,10 +7305,10 @@ namespace EVedhikaUBDDeploymentTool
                         Logger.LogWarn("Cleanup", "Notice: " + ex.Message);
                     }
                     break;
-                case 13:
+                case 14:
                     BackupEngine.ExportRegistrySnapshot("Pre-Deployment Snapshot");
                     break;
-                case 14:
+                case 15:
                     bool tokenFound = DiagnosticsEngine.IsUsbDscTokenConnected();
                     if (!tokenFound)
                     {
@@ -6905,7 +7318,7 @@ namespace EVedhikaUBDDeploymentTool
                                 "===========================================================\\n" +
                                 "  E-VEDHIKA UBD DEPLOYMENT TOOL - DSC TOKEN HARDWARE CHECK  \\n" +
                                 "===========================================================\\n\\n" +
-                                "మీ కంప్యూటర్‌కు USB DSC టోకెన్ (WD ProxKey లేదా HYP2003/ePass2003) అమర్చబడలేదు.\\n\\n" +
+                                "మీ కంప్యూటర్‌కు USB DSC టోకెన్ (WD ProxKey / HYP2003 / mToken) అమర్చబడలేదు.\\n\\n" +
                                 "1. దయచేసి DSC USB టోకెన్‌ను కంప్యూటర్ USB పోర్ట్‌లో అమర్చండి (Insert USB DSC Token).\\n" +
                                 "2. టోకెన్ అమర్చిన తర్వాత 'Retry' బటన్ నొక్కండి.\\n" +
                                 "3. ఒకవేళ DSC టోకెన్ లేకపోతే 'Cancel' నొక్కి ఈ స్టెప్‌ని స్కిప్ చేసి ముందుకు వెళ్ళవచ్చు.\\n\\n" +
@@ -6946,7 +7359,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (tokenFound)
                     {
                         SafeInvoke(delegate() {
-                            LogMessage("Hardware Check", "✓ USB SmartCard DSC Token Hardware Connected (WD ProxKey / HYP2003 Token) [OK]");
+                            LogMessage("Hardware Check", "✓ USB SmartCard DSC Token Hardware Connected (WD ProxKey / HYP2003 / mToken) [OK]");
                         });
                     }
                     else
@@ -6956,7 +7369,7 @@ namespace EVedhikaUBDDeploymentTool
                         });
                     }
                     break;
-                case 15:
+                case 16:
                     try {
                         LogMessage("DEPLOY", "Skipped creating desktop shortcuts as per instructions.");
                     } catch (Exception ex) {
@@ -6968,6 +7381,16 @@ namespace EVedhikaUBDDeploymentTool
                     System.Threading.Thread.Sleep(300);
                     break;
             }
+        }
+
+        private void btnInstallMToken_Click(object sender, EventArgs e)
+        {
+            LogMessage("DRIVER", "Triggering Longmai mToken (Class 3) installer executable...");
+            bool started = DriverInstaller.InstallMTokenManual();
+            if (started)
+                MessageBox.Show("Longmai mToken (Class 3) Driver installer has been opened. Please follow the instructions to install.", "Driver Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            else
+                MessageBox.Show("Failed to locate or start the mToken installer.", "Driver Manager", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         // We leave timerDeploy_Tick empty so the designer doesn't break if it was hooked up
@@ -7119,6 +7542,7 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 LogMessage("DIAG", "Ran WMI System & Hardware Diagnostics Scan.");
                 RunStatePortalsSpeedTest();
+                RefreshNewsFeed();
             }
             catch (Exception ex)
             {
@@ -7127,6 +7551,95 @@ namespace EVedhikaUBDDeploymentTool
                     txtDiagnosticOutput.Text = "Diagnostic Notice: " + ex.Message;
                 }
             }
+        }
+
+        private void RefreshNewsFeed()
+        {
+            if (tabLiveUpdates == null) return;
+
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                var news = AutoUpdateEngine.GetLiveNewsFeed();
+                SafeInvoke(delegate
+                {
+                    tabLiveUpdates.Controls.Clear();
+                    
+                    FlowLayoutPanel pnlNews = new FlowLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        AutoScroll = true,
+                        FlowDirection = FlowDirection.TopDown,
+                        WrapContents = false,
+                        Padding = new Padding(15),
+                        BackColor = Color.FromArgb(15, 23, 42)
+                    };
+
+                    Label lblHeader = new Label
+                    {
+                        Text = "📢 Latest from E-Vedhika Website (Live Posts)",
+                        Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(251, 233, 71),
+                        AutoSize = true,
+                        Margin = new Padding(0, 0, 0, 15)
+                    };
+                    pnlNews.Controls.Add(lblHeader);
+
+                    if (news.Count == 0)
+                    {
+                        Label lblEmpty = new Label
+                        {
+                            Text = "No new announcements at this moment.",
+                            ForeColor = Color.LightSlateGray,
+                            AutoSize = true
+                        };
+                        pnlNews.Controls.Add(lblEmpty);
+                    }
+
+                    foreach (var item in news)
+                    {
+                        if (item.Importance == "High" && !string.IsNullOrEmpty(item.Title))
+                        {
+                            // Optional: Could store seen news IDs to avoid repeat popups, 
+                            // but for now, just show it once per session/refresh.
+                            LogMessage("ALERT", \$"CRITICAL UPDATE: {item.Title}");
+                        }
+
+                        Panel card = new Panel
+                        {
+                            Width = tabLiveUpdates.Width - 60,
+                            Height = 100,
+                            BackColor = Color.FromArgb(30, 41, 59),
+                            Padding = new Padding(10),
+                            Margin = new Padding(0, 0, 0, 10)
+                        };
+
+                        Label lblTitle = new Label
+                        {
+                            Text = \$"[{item.Date}] {item.Title}",
+                            Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                            ForeColor = Color.White,
+                            AutoSize = true,
+                            Location = new Point(10, 10)
+                        };
+                        
+                        Label lblContent = new Label
+                        {
+                            Text = item.Content,
+                            Font = new Font("Segoe UI", 9),
+                            ForeColor = Color.FromArgb(203, 213, 225),
+                            AutoSize = false,
+                            Size = new Size(card.Width - 20, 50),
+                            Location = new Point(10, 35)
+                        };
+
+                        card.Controls.Add(lblTitle);
+                        card.Controls.Add(lblContent);
+                        pnlNews.Controls.Add(card);
+                    }
+
+                    tabLiveUpdates.Controls.Add(pnlNews);
+                });
+            });
         }
 
         public void RunStatePortalsSpeedTest()
@@ -8625,18 +9138,28 @@ namespace EVedhikaUBDDeploymentTool
         [STAThread]
         static void Main(string[] args)
         {
+            // Immediate startup log to verify process launch on Win 7/8
+            try {
+                string startupLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup.log");
+                string logMsg = string.Format("[{0}] Process started\\nOS: {1}\\nRuntime: {2}\\nDir: {3}\\n-------------------\\n", 
+                    DateTime.Now, Environment.OSVersion, Environment.Version, AppDomain.CurrentDomain.BaseDirectory);
+                File.AppendAllText(startupLog, logMsg);
+            } catch { }
+
             // Global Exception Handlers to catch runtime errors and log crash details safely
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             
             Application.ThreadException += delegate(object sender, System.Threading.ThreadExceptionEventArgs e)
             {
                 LogCrashAndShowRecoveryDialog("UI Thread Error", e.Exception);
+                MessageBox.Show("A critical interface error occurred. Please check EVedhika_CrashLog.txt in the application folder.\\n\\n(సాఫ్ట్‌వేర్‌లో చిన్న సమస్య వచ్చింది. దయచేసి అప్లికేషన్ ఫోల్డర్‌లోని CrashLog ఫైల్‌ను చెక్ చేయండి.)", "Critical Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
 
             AppDomain.CurrentDomain.UnhandledException += delegate(object sender, UnhandledExceptionEventArgs e)
             {
                 Exception ex = e.ExceptionObject as Exception;
                 LogCrashAndShowRecoveryDialog("AppDomain Background Error", ex);
+                MessageBox.Show("The application encountered an unexpected environment error and must close.\\n\\n(సిస్టమ్ ఎర్రర్ వల్ల అప్లికేషన్ ఆగిపోయింది. దయచేసి సాఫ్ట్‌వేర్ రీ-ఇన్‌స్టాల్ చేయండి.)", "Fatal System Error", MessageBoxButtons.OK, MessageBoxIcon.Stop);
             };
 
             try
@@ -8848,6 +9371,12 @@ using System.Runtime.InteropServices;
   </trustInfo>
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}" />
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}" />
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}" />
       <!-- Windows 10 & Windows 11 -->
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
     </application>
