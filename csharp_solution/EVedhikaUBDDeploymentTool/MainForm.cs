@@ -57,6 +57,15 @@ namespace EVedhikaUBDDeploymentTool
             }
             Helpers.NativeRemoteAgent.CurrentState = currentStateName;
             UpdateUiForSelectedState();
+
+            // Zero Manual Work: Automatically self-heal registry, ActiveX, and DigiSigner on startup in background
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate {
+                try {
+                    Engine.RegistryManager.HealDigiSignHelperAutomation();
+                    Engine.RegistryManager.ConfigureActiveXAndTLS();
+                    Helpers.Logger.LogInfo("AutoHeal", "Zero-manual startup self-healing executed successfully.");
+                } catch { }
+            });
         }
 
         private void SafeInvoke(Action action)

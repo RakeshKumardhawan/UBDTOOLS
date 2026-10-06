@@ -115,9 +115,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 string[] endpoints = new string[]
                 {
                     "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://www.e-vedhika.in/api/telemetry",
-                    "https://www.e-vedhika.in/admin/exe_ubd_live",
-                    "http://www.e-vedhika.in/admin/exe_ubd_live"
+                    "https://www.e-vedhika.in/api/telemetry"
                 };
 
                 bool delivered = false;
