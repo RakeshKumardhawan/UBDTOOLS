@@ -24,9 +24,11 @@ jobs:
     - name: Restore NuGet Packages
       run: dotnet restore csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.sln
 
-    - name: Download Visual C++ Redistributable (x86) for Win7 Compatibility
+    - name: Download Prerequisites (VC++ Redist & .NET 4.8) for Win7/8 Compatibility
       run: |
-        curl -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/vc_redist.x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
+        if (!(Test-Path -Path "csharp_solution/EVedhikaUBDDeploymentTool/installers")) { New-Item -ItemType Directory -Path "csharp_solution/EVedhikaUBDDeploymentTool/installers" -Force }
+        curl.exe -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/vc_redist.x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
+        curl.exe -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/ndp48-x86-x64-allos-enu.exe "https://go.microsoft.com/fwlink/?linkid=2088631"
 
     - name: Build and Publish Executable
       run: |

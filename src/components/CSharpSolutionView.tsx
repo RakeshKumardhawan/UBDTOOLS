@@ -156,8 +156,8 @@ CloseApplicationsFilter=*.exe
 ; Copy all build outputs for .NET Framework 4.8
 Source: "bin\\Release\\net48\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\\*"; DestDir: "{app}\\Payload"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
-Source: "installers\\vc_redist.x86.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
-Source: "installers\\ndp48-x86-x64-allos-enu.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "installers\\vc_redist.x86.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
+Source: "installers\\ndp48-x86-x64-allos-enu.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
 Source: "installers\\*"; DestDir: "{app}\\Installers"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
 
 [Icons]
@@ -210,6 +210,11 @@ function NeedsDotNet48: Boolean;
 var
   v: Cardinal;
 begin
+  if not FileExists(ExpandConstant('{tmp}\\ndp48-x86-x64-allos-enu.exe')) then
+  begin
+    Result := False;
+    Exit;
+  end;
   // Check for .NET Framework 4.8 (Release value 528040 or higher)
   if RegQueryDWordValue(HKLM, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) then
     Result := v < 528040
@@ -219,7 +224,7 @@ end;
 
 function NeedsVCRedist: Boolean;
 begin
-  Result := True;
+  Result := FileExists(ExpandConstant('{tmp}\\vc_redist.x86.exe'));
 end;
 `
   },
