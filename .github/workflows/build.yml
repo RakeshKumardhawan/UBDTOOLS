@@ -28,9 +28,9 @@ jobs:
       run: |
         curl -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/vc_redist.x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
 
-    - name: Build and Publish Self-Contained EXE
+    - name: Build and Publish Executable
       run: |
-        dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/publish
+        dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48
 
     - name: Install Inno Setup
       run: choco install innosetup --no-progress -y
@@ -46,9 +46,9 @@ jobs:
         tag_name: latest
         files: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
-          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/publish/*.exe
-        name: Latest Stable Build
-        body: "Automatic build from GitHub Actions. NEW: .NET 8 Self-Contained Version (Zero Dependencies Required)."
+          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
+        name: Latest Stable Build v1.0.4
+        body: "Automatic build from GitHub Actions. Enterprise v1.0.4 - Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -58,4 +58,4 @@ jobs:
         name: EVedhika-UBD-Full-Bundle-Setup
         path: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
-          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/publish/*.exe
+          csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
