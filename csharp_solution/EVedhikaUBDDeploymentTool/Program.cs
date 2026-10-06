@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Principal;
 using System.Windows.Forms;
 using EVedhikaUBDDeploymentTool.Engine;
+using EVedhikaUBDDeploymentTool.Helpers;
 
 namespace EVedhikaUBDDeploymentTool
 {
@@ -197,7 +198,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "remarks", $"Exception in {source}: {ex.Message}" },
                     { "errorDetails", errDetails.Length > 500 ? errDetails.Substring(0, 500) : errDetails }
                 };
-                Logger.SendCentralTelemetry(errorTelemetry);
+                EVedhikaUBDDeploymentTool.Helpers.Logger.SendCentralTelemetry(errorTelemetry);
             }
             catch { }
         }
