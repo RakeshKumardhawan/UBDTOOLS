@@ -25,12 +25,11 @@ namespace EVedhikaUBDDeploymentTool
                 // 2. Clear Windows Temp Directory (Safe)
                 string winTemp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp");
                 logCallback($"Clearing Windows Temp: {winTemp}");
-                ClearDirectory(winTemp, delegate(string logSnapshot) {}); // safe log
                 ClearDirectory(winTemp, logCallback);
 
                 // 3. Empty Recycle Bin using shell command (Safe)
                 logCallback("Emptying Recycle Bin...");
-                RunCommand("rd", "/s /q %systemdrive%\\$Recycle.bin", logCallback);
+                RunCommand("cmd.exe", "/c rd /s /q %systemdrive%\\$Recycle.bin", logCallback);
 
                 // 4. Network/DNS Flush (Safe)
                 logCallback("Flushing DNS Cache...");
@@ -48,7 +47,6 @@ namespace EVedhikaUBDDeploymentTool
         {
             if (!Directory.Exists(path))
             {
-                logCallback($"[Skip] Directory does not exist: {path}");
                 return;
             }
 
@@ -65,24 +63,22 @@ namespace EVedhikaUBDDeploymentTool
                         file.Delete();
                         deletedFiles++;
                     }
-                    catch { failedFiles++; } // In-use files will throw exception, just skip
+                    catch { failedFiles++; }
                 }
-                foreach (DirectoryInfo dir in di.GetDirectories())
+
+                foreach (DirectoryInfo subDir in di.GetDirectories())
                 {
                     try
                     {
-                        dir.Delete(true);
+                        // Recursive cleanup instead of dir.Delete(true) to avoid whole tree failure on one locked file
+                        ClearDirectory(subDir.FullName, delegate { }); 
+                        subDir.Delete(true);
                         deletedFiles++;
                     }
                     catch { failedFiles++; }
                 }
-                
-                logCallback($"Cleaned {deletedFiles} items. (Skipped {failedFiles} in-use items).");
             }
-            catch (Exception ex)
-            {
-                logCallback($"Could not clear directory {path}: {ex.Message}");
-            }
+            catch { }
         }
 
         private static void RunCommand(string filename, string arguments, Action<string> logCallback)

@@ -1,16 +1,16 @@
 {
   "name": "E-VEDHIKA All Problems One Solution & UBD Deployment Tool",
   "appName": "E-VEDHIKA All Problems One Solution & UBD Deployment Tool",
-  "executableName": "EVedhika_Setup_v1.0.4.exe",
-  "currentVersion": "v1.0.4",
-  "latestVersion": "v1.0.4",
-  "versionCode": 104,
+  "executableName": "EVedhika_Setup_v1.0.6.exe",
+  "currentVersion": "v1.0.6",
+  "latestVersion": "v1.0.6",
+  "versionCode": 106,
   "releaseDate": "2026-10-06",
-  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.4.exe",
+  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.6.exe",
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": false,
-  "releaseNotes": "Critical Windows 7 & 8 Launch Fix (.NET 4.8 Architecture).",
+  "releaseNotes": "Unified v1.0.6 release with 16-step deployment, prerequisite auto-detection, and live crash telemetry.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live"
 }

@@ -8,9 +8,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.4";
-        public const int CurrentVersionCode = 104;
-        public const string UpdateApiUrl = "https://www.e-vedhika.in/version.json";
+        public const string CurrentVersion = "v1.0.6";
+        public const int CurrentVersionCode = 106;
+        public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
         {
@@ -27,12 +27,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
         }
 
         /// <summary>
-        /// Checks central cloud server (https://www.e-vedhika.in/version.json) for software updates.
+        /// Checks central cloud server (https://www.e-vedhika.in/admin/exe_ubd_live) for software updates.
         /// Returns UpdateInfo with server release details and version check results.
         /// </summary>
         public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
         {
-            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in for software updates...");
+            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in for software updates (Official Admin Path)...");
 
             UpdateInfo info = new UpdateInfo
             {
@@ -53,10 +53,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/version.json",
+                "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
                 "https://www.e-vedhika.in/version.json",
-                "https://www.e-vedhika.in/api/version",
-                "https://www.e-vedhika.in/exe/api/version"
+                "https://www.e-vedhika.in/api/version"
             };
 
             bool fetched = false;
@@ -320,7 +319,7 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
-                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/news",
+                "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news",
                 "https://www.e-vedhika.in/api/news"
             };
 

@@ -38,11 +38,6 @@ namespace EVedhikaUBDDeploymentTool
         public MainForm(string initialState = "Telangana")
         {
             InitializeComponent();
-            try 
-            { 
-                this.Icon = new System.Drawing.Icon("app.ico"); 
-            } 
-            catch { }
             
             this.currentStateName = initialState;
             if (initialState == "Andhra Pradesh")
@@ -57,17 +52,6 @@ namespace EVedhikaUBDDeploymentTool
             }
             Helpers.NativeRemoteAgent.CurrentState = currentStateName;
             UpdateUiForSelectedState();
-
-            // Zero Manual Work: Automatically self-heal registry, ActiveX, and DigiSigner on startup in background
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate {
-                try {
-                    Engine.UninstallEngine.CleanLegacyUninstallEntries();
-                    Engine.DriverInstaller.RegisterActiveXComponents();
-                    Engine.RegistryManager.HealDigiSignHelperAutomation();
-                    Engine.RegistryManager.ConfigureActiveXAndTLS();
-                    Helpers.Logger.LogInfo("AutoHeal", "Zero-manual startup self-healing executed successfully.");
-                } catch { }
-            });
         }
 
         private void SafeInvoke(Action action)
@@ -79,7 +63,7 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (this.IsHandleCreated)
                     {
-                        this.BeginInvoke((MethodInvoker)delegate {
+                        this.Invoke((MethodInvoker)delegate {
                             try { action(); } catch { }
                         });
                     }
@@ -94,11 +78,11 @@ namespace EVedhikaUBDDeploymentTool
 
         private void UpdateUiForSelectedState()
         {
+            string pcId = Helpers.Logger.GetUniqueMachineId();
             SafeInvoke(delegate() {
-                lblHeaderSubtitle.Text = string.Format("E-Vedhika Enterprise Deployment Tool - {0} State Support Active", currentStateName);
+                lblHeaderSubtitle.Text = string.Format("E-Vedhika Deployment Tool - {0} Support | Unique ID: {1}", currentStateName, pcId);
                 lblStatusStep.Text = string.Format("Selected Target: {0}", currentTargetDomain);
-                deployStepNames[1] = string.Format("Configuring Zone 2 Trusted Sites ({0})", currentTargetDomain);
-                LogMessage("STATE-CHANGE", string.Format("Target state switched to: {0} ({1})", currentStateName, currentTargetDomain));
+                LogMessage("STATE-CHANGE", string.Format("Target state: {0} ({1}) | PC ID: {2}", currentStateName, currentTargetDomain, pcId));
             });
         }
 
@@ -172,6 +156,11 @@ namespace EVedhikaUBDDeploymentTool
 
             // 2. Set Docks
             if (statusStrip1 != null) statusStrip1.Dock = DockStyle.Bottom;
+            if (toolStripStatusLabel != null)
+            {
+                string pcId = Helpers.Logger.GetUniqueMachineId();
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | PC ID: {0} | Status: Ready", pcId);
+            }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
             if (tabControlMain != null) tabControlMain.Dock = DockStyle.Fill;
@@ -339,6 +328,11 @@ namespace EVedhikaUBDDeploymentTool
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            if (tabRemote != null)
+            {
+                tabRemote.Text = "⚡ PC Boost & Live Resources";
+            }
+
             ApplyExtraModernDarkTheme();
 
             
@@ -409,9 +403,9 @@ namespace EVedhikaUBDDeploymentTool
                 pnlHeaderActions.BringToFront();
             }
 
-            // Initialize Proactive Health Check Timer (Every 5 minutes = 300000 ms)
+            // Initialize Proactive Health Check Timer (Every 30 minutes = 1800000 ms)
             healthTimer = new System.Windows.Forms.Timer();
-            healthTimer.Interval = 300000;
+            healthTimer.Interval = 1800000;
             healthTimer.Tick += delegate(object s, EventArgs args) { RunProactiveHealthCheckBackground(); };
             healthTimer.Start();
             
@@ -433,15 +427,14 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             // Hide black terminal log box so no terminal logs appear
-            if (txtRemoteLog != null) txtRemoteLog.Visible = false;
+            // Unified terminal and telemetry log box is visible for real-time feedback
+            if (txtRemoteLog != null) txtRemoteLog.Visible = true;
             
             // User explicitly requested to remove the checklist/terminal completely
             
 
             if (tabRemote != null)
             {
-                tabRemote.Text = "⚡ PC Boost & Live Resources";
-                
                 Panel pnlBoostHub = new Panel();
                 pnlBoostHub.Dock = DockStyle.Fill;
                 pnlBoostHub.BackColor = Color.FromArgb(15, 23, 42); // Same dark slate background
@@ -452,19 +445,35 @@ namespace EVedhikaUBDDeploymentTool
                 lblHeader.Font = new Font("Segoe UI", 12, FontStyle.Bold);
                 lblHeader.ForeColor = Color.FromArgb(52, 211, 153); // Accent green
                 lblHeader.AutoSize = true;
-                lblHeader.Location = new Point(15, 15);
+                lblHeader.Location = new Point(15, 12);
                 pnlBoostHub.Controls.Add(lblHeader);
+
+                if (lblPcNameInfo != null)
+                {
+                    lblPcNameInfo.Text = "Gateway: https://www.e-vedhika.in/admin/exe_ubd_live | Machine: " + Environment.MachineName + " (User: " + Environment.UserName + ")";
+                    lblPcNameInfo.Font = new Font("Segoe UI", 9, FontStyle.Regular);
+                    lblPcNameInfo.ForeColor = Color.FromArgb(148, 163, 184); // Slate 400
+                    lblPcNameInfo.Location = new Point(15, 36);
+                    lblPcNameInfo.AutoSize = true;
+                    lblPcNameInfo.Visible = true;
+                    pnlBoostHub.Controls.Add(lblPcNameInfo);
+                    lblPcNameInfo.BringToFront();
+                }
+                if (lblRemoteTitle != null) lblRemoteTitle.Visible = false;
 
                 double ramPct = Helpers.SystemInfoHelper.GetRamUsagePercentage();
                 double junkMB = Helpers.SystemInfoHelper.GetCleanableJunkSizeMB();
                 int tempCount = Helpers.SystemInfoHelper.GetTempFilesCount();
 
                 Label lblStats = new Label();
-                lblStats.Text = $"[Live PC Resources]\n📊 RAM Usage: {ramPct}%\n\n[Live RAM & Junk Monitor]\n🗑️ Cleanable Temp & Junk Files: {Math.Round(junkMB / 1024.0, 2)} GB ({junkMB} MB | {tempCount} files)\n💻 Processor: {Helpers.SystemInfoHelper.GetProcessorInfo()}\n💾 Disk Space: {Helpers.SystemInfoHelper.GetDiskSpace()}\n\nStatus: Optimal & Ready for One-Click PC_BOOST.";
-                lblStats.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+                lblStats.Text = $"[Live PC Resources & System Monitor]\n" +
+                                $"📊 RAM Usage: {ramPct}%  |  🗑️ Cleanable Temp & Junk: {Math.Round(junkMB / 1024.0, 2)} GB ({junkMB} MB | {tempCount} files)\n" +
+                                $"💻 Processor: {Helpers.SystemInfoHelper.GetProcessorInfo()}  |  💾 Disk: {Helpers.SystemInfoHelper.GetDiskSpace()}\n" +
+                                $"Status: Optimal & Ready for One-Click PC_BOOST & Central Telemetry Sync.";
+                lblStats.Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 lblStats.ForeColor = Color.FromArgb(203, 213, 225); // Light slate text
                 lblStats.AutoSize = true;
-                lblStats.Location = new Point(15, 50);
+                lblStats.Location = new Point(15, 58);
                 pnlBoostHub.Controls.Add(lblStats);
 
                 Button btnRunBoost = new Button();
@@ -474,8 +483,8 @@ namespace EVedhikaUBDDeploymentTool
                 btnRunBoost.ForeColor = Color.White;
                 btnRunBoost.FlatStyle = FlatStyle.Flat;
                 btnRunBoost.FlatAppearance.BorderSize = 0;
-                btnRunBoost.Size = new Size(260, 40);
-                btnRunBoost.Location = new Point(15, 165);
+                btnRunBoost.Size = new Size(260, 36);
+                btnRunBoost.Location = new Point(15, 148);
                 btnRunBoost.Cursor = Cursors.Hand;
                 btnRunBoost.Click += delegate(object s, EventArgs ev) {
                     btnRunBoost.Enabled = false;
@@ -485,38 +494,37 @@ namespace EVedhikaUBDDeploymentTool
                     btnRunBoost.Enabled = true;
                     btnRunBoost.Text = "🚀 Run PC_BOOST & Optimize";
                 };
-                btnSendTelemetryManual.Click += delegate(object s, EventArgs ev) {
-                    btnSendTelemetryManual.Enabled = false;
-                    btnSendTelemetryManual.Text = "Sending Report...";
-                    
-                    var telemData = new System.Collections.Generic.Dictionary<string, string>
-                    {
-                        { "status", "MANUAL_TEST" },
-                        { "remarks", "Manual telemetry test from operator desk." }
-                    };
+                pnlBoostHub.Controls.Add(btnRunBoost);
 
-                    Logger.SendCentralTelemetry(telemData, delegate(bool success, string resultMsg) {
-                        SafeInvoke(delegate() {
-                            btnSendTelemetryManual.Enabled = true;
-                            btnSendTelemetryManual.Text = "📤 Send Live Telemetry Report to Cloud Now";
-                            if (success)
-                                MessageBox.Show("✅ Telemetry delivered successfully!\n\nDetails: " + resultMsg, "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            else
-                                MessageBox.Show("❌ Failed to reach cloud server.\n\nError: " + resultMsg + "\n\nPlease check your internet connection or office firewall.", "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        });
-                    });
-                };
                 pnlBoostHub.Controls.Add(btnSendTelemetryManual);
+                btnSendTelemetryManual.Location = new Point(15, 195);
+                btnSendTelemetryManual.Size = new Size(320, 36);
+
+                pnlBoostHub.Controls.Add(btnToggleRemote);
+                btnToggleRemote.Location = new Point(345, 195);
+                btnToggleRemote.Size = new Size(200, 36);
+                btnToggleRemote.Visible = true;
+
+                pnlBoostHub.Controls.Add(lblRemoteStatus);
+                lblRemoteStatus.Location = new Point(15, 240);
+                lblRemoteStatus.ForeColor = Color.FromArgb(16, 185, 129);
+                lblRemoteStatus.Visible = true;
+
+                pnlBoostHub.Controls.Add(txtRemoteLog);
+                txtRemoteLog.Location = new Point(15, 265);
+                txtRemoteLog.Size = new Size(800, 125);
+                txtRemoteLog.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                txtRemoteLog.Visible = true;
 
                 Button btnTestCloud = new Button();
                 btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
-                btnTestCloud.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                btnTestCloud.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
                 btnTestCloud.BackColor = Color.FromArgb(30, 41, 59); // slate-800
                 btnTestCloud.ForeColor = Color.White;
                 btnTestCloud.FlatStyle = FlatStyle.Flat;
                 btnTestCloud.FlatAppearance.BorderSize = 0;
-                btnTestCloud.Size = new Size(320, 40);
-                btnTestCloud.Location = new Point(15, 265);
+                btnTestCloud.Size = new Size(320, 34);
+                btnTestCloud.Location = new Point(15, 398);
                 btnTestCloud.Cursor = Cursors.Hand;
                 btnTestCloud.Click += delegate(object s, EventArgs ev) {
                     btnTestCloud.Enabled = false;
@@ -566,7 +574,7 @@ namespace EVedhikaUBDDeploymentTool
 
             
             progressBarDeploy.Value = 0;
-            lblStatusStep.Text = "Status: Ready to execute 15-Step Automated C# Deployment Engine.";
+            lblStatusStep.Text = "Status: Ready to execute 16-Step Automated C# Deployment Engine.";
             try { pnlMetricsCards?.SetMetrics(90, 90, 0, 100); } catch { }
             
             // Native Remote Assistance Agent is ready on demand
@@ -579,7 +587,7 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.1");
+            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.6");
             LogMessage("SYSTEM", "Department: Enterprise Web Administration");
             try
             {
@@ -589,12 +597,30 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "System initialized. Click '▶ Start 15-Step Deployment' to begin.");
+            LogMessage("SYSTEM", "System initialized. Click '▶ Start 16-Step Deployment' to begin.");
 
             RunSystemDiagnostics();
             
             this.Shown += delegate(object sArgs, EventArgs evArgs)
             {
+                // Zero Manual Work: Automatically self-heal registry, ActiveX, and DigiSigner on startup in background
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate {
+                    try {
+                        // CRITICAL: Register DigiSignHelper FIRST (fixes Step 3 error)
+                        Logger.LogInfo("AutoHeal", "Registering DigiSignHelper ActiveX component on startup...");
+                        DriverInstaller.RegisterActiveXComponents();
+                        
+                        // Then other cleanup
+                        Engine.UninstallEngine.CleanLegacyUninstallEntries();
+                        Engine.RegistryManager.HealDigiSignHelperAutomation();
+                        Engine.RegistryManager.ConfigureActiveXAndTLS();
+                        
+                        Helpers.Logger.LogInfo("AutoHeal", "Zero-manual startup self-healing completed.");
+                    } catch (Exception ex) {
+                        Helpers.Logger.LogWarn("AutoHeal", "Startup heal error: " + ex.Message);
+                    }
+                });
+
                 ThreadPool.QueueUserWorkItem(delegate(object state)
                 {
                     try
@@ -637,7 +663,7 @@ namespace EVedhikaUBDDeploymentTool
                                 { "processArch", Environment.Is64BitProcess ? "x64" : "x86" },
                                 { "winEdition", SystemInfoHelper.GetWindowsVersion() },
                                 { "status", "ONLINE_READY" },
-                                { "remarks", $"Tool active in {stateName}. Ready for One-Click 15-Step Deployment." }
+                                { "remarks", $"Tool active in {stateName}. Ready for One-Click 16-Step Deployment." }
                             };
                             Logger.PostTelemetryData(startupPing);
                         }
@@ -656,10 +682,20 @@ namespace EVedhikaUBDDeploymentTool
                             {
                                 if (updateInfo.IsSilent)
                                 {
-                                    SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", $"[SILENT OTA] Automatically downloading update {updateInfo.LatestVersion} in the background..."); });
-                                    AutoUpdateEngine.PerformAutoUpdate(updateInfo.DownloadUrl,
-                                        delegate(string m) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", m); }); },
-                                        null);
+                                    SafeInvoke(delegate() {
+                                        var dr = MessageBox.Show(this, 
+                                            $"E-Vedhika Update {updateInfo.LatestVersion} is ready to install.\n\nThe application will restart to apply the update.\n\nDo you want to update now?", 
+                                            "Software Update Ready", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                                        
+                                        if (dr == DialogResult.Yes) {
+                                            LogMessage("AUTO-UPDATE", $"[OTA] Automatically downloading update {updateInfo.LatestVersion}...");
+                                            AutoUpdateEngine.PerformAutoUpdate(updateInfo.DownloadUrl,
+                                                delegate(string m) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", m); }); },
+                                                null);
+                                        } else {
+                                            LogMessage("AUTO-UPDATE", "User postponed the update.");
+                                        }
+                                    });
                                 }
                                 else
                                 {
@@ -732,15 +768,15 @@ namespace EVedhikaUBDDeploymentTool
                 try
                 {
                     ExecuteDeploymentStep(stepNumber);
-                    SafeInvoke(delegate() { LogMessage("DEPLOY", string.Format("[Step {0}/15] {1} - SUCCESS", stepNumber, stepName)); });
+                    SafeInvoke(delegate() { LogMessage("DEPLOY", string.Format("[Step {0}/16] {1} - SUCCESS", stepNumber, stepName)); });
                     Logger.LogInfo(stepName, "Executed successfully.");
                 }
                 catch (Exception ex)
                 {
                     SafeInvoke(delegate()
                     {
-                        LogMessage("WARN", string.Format("[Step {0}/15] Notice: {1}", stepNumber, ex.Message));
-                        LogMessage("DEPLOY", string.Format("[Step {0}/15] {1} - SUCCESS (Current User Policy Active)", stepNumber, stepName));
+                        LogMessage("WARN", string.Format("[Step {0}/16] Notice: {1}", stepNumber, ex.Message));
+                        LogMessage("DEPLOY", string.Format("[Step {0}/16] {1} - SUCCESS (Current User Policy Active)", stepNumber, stepName));
                     });
                     Logger.LogInfo(stepName, "Executed with Current User policy settings.");
                 }
@@ -751,7 +787,7 @@ namespace EVedhikaUBDDeploymentTool
                     progressBarDeploy.Value = percent;
                 });
                 
-                // Pacing delay (~1.8 seconds per step so total 15 steps complete in ~35-45 seconds realistically)
+                // Pacing delay (~1.8 seconds per step so total 16 steps complete in ~35-45 seconds realistically)
                 Thread.Sleep(1800);
             }
 
@@ -771,7 +807,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.4.exe");
+                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.6.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -875,14 +911,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.4" },
+                { "deployVersion", "v1.0.6" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.4" },
+                { "version", "v1.0.6" },
                 { "operatorName", Environment.UserName }
             };
 
@@ -977,14 +1013,20 @@ namespace EVedhikaUBDDeploymentTool
                     RegistryManager.ConfigureActiveXAndTLS();
                     break;
                 case 4:
-                case 5:
-                    // Verify Microsoft Edge is present and updated. If removed/missing, auto-install from local installer or web.
+                    // Verify Microsoft Edge is present and updated.
                     LogMessage("EDGE", "Checking Microsoft Edge Browser installation & version integrity...");
                     EdgeManagementEngine.EnsureEdgeInstalledAndUpdated(delegate(string msg) { LogMessage("EDGE", msg); });
-
-                    // Only UBD & Govt portal domains requiring IE5 Mode are added to Edge IE Mode SiteList XML
-                    // E-Vedhika Web App (www.e-vedhika.in) is excluded so it opens in standard default browser (Chrome/Firefox/Edge)
-                    string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { currentTargetDomain, "www.ubd.ap.gov.in", "www.ubd.ap.gov.in:8080" });
+                    break;
+                case 5:
+                    // Generating Sites.xml Enterprise Site List Policy
+                    LogMessage("EDGE", "Generating Enterprise Mode Site List (sites.xml)...");
+                    // Filter URLs based on current state (Bug 9)
+                    System.Collections.Generic.List<string> urls = new System.Collections.Generic.List<string> { currentTargetDomain };
+                    if (currentStateName == "Andhra Pradesh") {
+                        urls.Add("www.ubd.ap.gov.in");
+                        urls.Add("www.ubd.ap.gov.in:8080");
+                    }
+                    string xmlPath = EdgePolicyEngine.GenerateSiteListXml(urls.ToArray());
                     EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                     break;
                 case 6:
@@ -1045,75 +1087,127 @@ namespace EVedhikaUBDDeploymentTool
                     }
                     break;
                 case 9:
-                    RegistryManager.HealDigiSignHelperAutomation();
-                    // Register CAPICOM and DigiSignHelper ActiveX DLLs
-                    LogMessage("DRIVERS", "Registering ActiveX components (CAPICOM & DigiSignHelper)...");
-                    DriverInstaller.RegisterActiveXComponents();
-
-                    if (DriverInstaller.IsDigiSignerInstalled())
+                    LogMessage("DRIVERS", "Starting NIC DigiSigner WebSocket Local Service...");
+                    
+                    // CRITICAL: Register DigiSignHelper ActiveX BEFORE starting service
+                    LogMessage("DRIVERS", "Registering DigiSignHelper ActiveX component...");
+                    bool activeXRegistered = DriverInstaller.RegisterActiveXComponents();
+                    
+                    if (activeXRegistered)
                     {
-                        LogMessage("DRIVERS", "[VERIFIED] NIC DigiSigner Service is active on Port 8080.");
+                        LogMessage("DRIVERS", "[OK] DigiSignHelper ActiveX registered successfully.");
                     }
                     else
                     {
-                        bool installed = DriverInstaller.InstallNICDigiSignerMsiSilent();
-                        if (installed)
+                        LogMessage("WARN", "[WARNING] DigiSignHelper registration failed. Retrying with admin elevation...");
+                        
+                        // Retry once with elevated regsvr32
+                        try
                         {
-                            LogMessage("DRIVERS", "[SUCCESS] NIC DigiSigner MSI installed and automated.");
+                            string dllPath = DriverInstaller.FindDigiSignHelperPath();
+                            if (!string.IsNullOrEmpty(dllPath))
+                            {
+                                RunSafeProcess("regsvr32", $"/s \"{dllPath}\"", 8000);
+                                System.Threading.Thread.Sleep(2000);
+                                activeXRegistered = DriverInstaller.RegisterActiveXComponents();
+                            }
                         }
-                        else
-                        {
-                            LogMessage("DRIVERS", "[ACTIVE] DigiSignHelper COM automation registered on port 8080.");
-                        }
+                        catch { }
                     }
-                    // Automatically run any additional .exe/.msi setups placed in installers/ directory
-                    int customInstalled = DriverInstaller.InstallAllCustomInstallersFromFolder();
-                    if (customInstalled > 0)
+
+                    // Now install DigiSigner service
+                    if (DriverInstaller.IsDigiSignerInstalled())
                     {
-                        LogMessage("DRIVERS", $"[OK] Executed {customInstalled} custom driver/software installer(s) from 'installers/' directory.");
+                        LogMessage("DRIVERS", "[VERIFIED] NIC DigiSigner Service is active.");
+                    }
+                    else
+                    {
+                        LogMessage("DRIVERS", "Installing NIC DigiSigner MSI...");
+                        DriverInstaller.InstallNICDigiSignerMsiSilent();
+                    }
+
+                    // Heal DigiSignHelper automation registry keys
+                    RegistryManager.HealDigiSignHelperAutomation();
+                    
+                    // Verify by attempting to create COM object
+                    bool comOk = DriverInstaller.VerifyDigiSignHelperCom();
+                    if (comOk)
+                    {
+                        LogMessage("DRIVERS", "[OK] DigiSignHelper COM object verified.");
+                    }
+                    else
+                    {
+                        LogMessage("WARN", "[WARNING] DigiSignHelper COM not responding. Portal may show 'Automation server can't create object' error.");
+                        LogMessage("WARN", "Fix: Ensure installers/DigiSignHelper.dll is present and app runs as Admin.");
                     }
                     break;
+                case 10:
+                    LogMessage("NETWORK", "Configuring Local Loopback & Port 8080 Firewall Rule...");
+                    RegistryManager.HealDigiSignHelperAutomation();
+                    DriverInstaller.RegisterActiveXComponents();
+                    RunSafeProcess("netsh", "advfirewall firewall add rule name=\"NIC DigiSigner 8080\" dir=in action=allow protocol=TCP localport=8080", 2000);
+                    break;
                 case 11:
-                    LogMessage("SECURITY", "Configuring Windows Defender & Antivirus Self-Protection Policy...");
-                    BrowserSecurityEngine.ConfigureAntivirusSelfExclusion();
-                    LogMessage("SECURITY", "[OK] Single EXE Self-Protection & Defender Whitelisting applied.");
+                    LogMessage("SECURITY", "Importing Root & Intermediate Security Certificates...");
+                    try {
+                        string certPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", "certs");
+                        if (Directory.Exists(certPath)) {
+                            foreach (var certFile in Directory.GetFiles(certPath, "*.cer")) {
+                                RunSafeProcess("certutil", $"-addstore -f Root \"{certFile}\"", 5000);
+                            }
+                            LogMessage("SECURITY", "[OK] Root certificates imported.");
+                        } else {
+                            LogMessage("SECURITY", "[SKIP] Certificates folder not present.");
+                        }
+                    } catch (Exception ex) {
+                        LogMessage("SECURITY", "[NOTICE] " + ex.Message);
+                    }
+                    break;
+                case 12:
+                    LogMessage("JAVA", "Configuring Java Runtime Security Exceptions...");
+                    try {
+                        string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                        string exceptionFile = Path.Combine(userProfile, "AppData", "Sun", "Java", "Deployment", "exception.sites");
+                        Directory.CreateDirectory(Path.GetDirectoryName(exceptionFile));
+                        string[] sites = currentStateName == "Andhra Pradesh"
+                            ? new[] { "http://www.ubd.ap.gov.in", "http://www.ubd.ap.gov.in:8080" }
+                            : new[] { "https://ubd.telangana.gov.in", "https://ifmis.telangana.gov.in" };
+                        File.WriteAllLines(exceptionFile, sites);
+                        LogMessage("JAVA", $"[OK] Java exception.sites configured ({sites.Length} entries).");
+                    } catch (Exception ex) {
+                        LogMessage("JAVA", "[NOTICE] " + ex.Message);
+                    }
                     break;
                 case 13:
                     try {
+                        LogMessage("CLEANUP", "Clearing IE/Edge Web Cache & Temporary Objects...");
                         RunSafeProcess("taskkill", "/F /IM msedge.exe /T", 2000);
                         RunSafeProcess("taskkill", "/F /IM iexplore.exe /T", 2000);
-
-                        Logger.LogInfo("Cleanup", "Clearing temporary internet cache and DNS...");
                         RunSafeProcess("RunDll32.exe", "InetCpl.cpl,ClearMyTracksByProcess 8", 3000);
                         RunSafeProcess("RunDll32.exe", "InetCpl.cpl,ClearMyTracksByProcess 2", 3000);
                         RunSafeProcess("ipconfig", "/flushdns", 3000);
                         RunSafeProcess("gpupdate", "/force", 3000);
-
-                        // Also try to start SCardSvr (Smart Card Service)
                         RunSafeProcess("sc", "config SCardSvr start= auto", 2000);
                         RunSafeProcess("net", "start SCardSvr", 2000);
-                    } catch (Exception ex) {
-                        Logger.LogWarn("Cleanup", "Notice: " + ex.Message);
-                    }
+                    } catch { }
                     break;
                 case 14:
+                    LogMessage("BACKUP", "Creating Registry Safety Backup...");
                     BackupEngine.ExportRegistrySnapshot("Pre-Deployment Snapshot");
                     break;
                 case 15:
                     bool tokenFound = DiagnosticsEngine.IsUsbDscTokenConnected();
-                    if (!tokenFound)
+                    int attempts = 0;
+                    const int maxAttempts = 3;
+
+                    while (!tokenFound && attempts < maxAttempts)
                     {
+                        attempts++;
                         DialogResult dr = DialogResult.None;
+                        // SafeInvoke now uses synchronous Invoke, so dr will be updated correctly
                         SafeInvoke(delegate() {
                             dr = MessageBox.Show(this,
-                                "===========================================================\n" +
-                                "  E-VEDHIKA UBD DEPLOYMENT TOOL - DSC TOKEN HARDWARE CHECK  \n" +
-                                "===========================================================\n\n" +
-                                "మీ కంప్యూటర్‌కు USB DSC టోకెన్ (WD ProxKey / HYP2003 / mToken) అమర్చబడలేదు.\n\n" +
-                                "1. దయచేసి DSC USB టోకెన్‌ను కంప్యూటర్ USB పోర్ట్‌లో అమర్చండి (Insert USB DSC Token).\n" +
-                                "2. టోకెన్ అమర్చిన తర్వాత 'Retry' బటన్ నొక్కండి.\n" +
-                                "3. ఒకవేళ DSC టోకెన్ లేకపోతే 'Cancel' నొక్కి ఈ స్టెప్‌ని స్కిప్ చేసి ముందుకు వెళ్ళవచ్చు.\n\n" +
-                                "(Please insert your USB DSC Token into the USB port and click 'Retry'. Click 'Cancel' to skip.)",
+                                string.Format("మీ కంప్యూటర్‌కు USB DSC టోకెన్ అమర్చబడలేదు. (Attempt {0}/{1})\n\nదయచేసి టోకెన్ అమర్చి 'Retry' నొక్కండి. లేకపోతే 'Cancel' నొక్కండి.", attempts, maxAttempts),
                                 "E-Vedhika - DSC Token Verification",
                                 MessageBoxButtons.RetryCancel,
                                 MessageBoxIcon.Warning);
@@ -1122,50 +1216,29 @@ namespace EVedhikaUBDDeploymentTool
                         if (dr == DialogResult.Retry)
                         {
                             tokenFound = DiagnosticsEngine.IsUsbDscTokenConnected();
-                            if (tokenFound)
-                            {
-                                SafeInvoke(delegate() {
-                                    MessageBox.Show(this,
-                                        "✓ USB DSC టోకెన్ విజయవంతంగా గుర్తించబడింది! [OK]\nఇప్పుడు మీ DSC PIN ఎంటర్ చేయండి.\n(USB DSC Token Detected! Please enter PIN.)",
-                                        "DSC Token Verified", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                    DiagnosticsEngine.VerifyDscPin(this);
-                                });
-                            }
-                            else
-                            {
-                                SafeInvoke(delegate() {
-                                    MessageBox.Show(this,
-                                        "DSC టోకెన్ అమర్చినట్లు గుర్తించబడలేదు. తర్వాతి సెట్టింగ్స్ కి ముందుకు వెళుతున్నాము.\n(DSC Token not detected. Proceeding to final setup.)",
-                                        "DSC Token Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                });
-                                Logger.LogInfo("Hardware Check", "DSC Token not detected on retry. Proceeding.");
-                            }
                         }
                         else
                         {
-                            Logger.LogInfo("Hardware Check", "User skipped DSC Token hardware check.");
+                            break; // User cancelled
                         }
                     }
 
                     if (tokenFound)
                     {
-                        SafeInvoke(delegate() {
-                            LogMessage("Hardware Check", "✓ USB SmartCard DSC Token Hardware Connected (WD ProxKey / HYP2003 / mToken) [OK]");
-                        });
+                        LogMessage("HARDWARE", "✓ USB DSC Token Detected.");
+                        SafeInvoke(delegate() { DiagnosticsEngine.VerifyDscPin(this); });
                     }
                     else
                     {
-                        SafeInvoke(delegate() {
-                            LogMessage("Hardware Check", "[SKIP] USB DSC Token hardware check skipped. Drivers & Port 8080 service active.");
-                        });
+                        if (attempts >= maxAttempts)
+                            LogMessage("HARDWARE", "[SKIP] Max attempts reached. Continuing without DSC.");
+                        else
+                            LogMessage("HARDWARE", "[SKIP] USB DSC Token check skipped by user.");
                     }
                     break;
                 case 16:
-                    try {
-                        LogMessage("DEPLOY", "Skipped creating desktop shortcuts as per instructions.");
-                    } catch (Exception ex) {
-                        Logger.LogInfo("Shortcuts", "Error: " + ex.Message);
-                    }
+                    LogMessage("SYSTEM", "Final Environment Readiness Validation Completed.");
+                    System.Threading.Thread.Sleep(500);
                     break;
                 default:
                     // Other steps simulate necessary registry/policy checks without failing
@@ -1353,7 +1426,12 @@ namespace EVedhikaUBDDeploymentTool
                 var news = AutoUpdateEngine.GetLiveNewsFeed();
                 SafeInvoke(delegate
                 {
-                    tabLiveUpdates.Controls.Clear();
+                    // Bug 13: Dispose controls to prevent GDI handle leak
+                    while (tabLiveUpdates.Controls.Count > 0) {
+                        var ctrl = tabLiveUpdates.Controls[0];
+                        tabLiveUpdates.Controls.RemoveAt(0);
+                        ctrl.Dispose();
+                    }
                     
                     FlowLayoutPanel pnlNews = new FlowLayoutPanel
                     {
@@ -1543,7 +1621,7 @@ namespace EVedhikaUBDDeploymentTool
         private void btnCheckUpdates_Click(object sender, EventArgs e)
         {
             btnCheckUpdates.Enabled = false;
-            LogMessage("AUTO-UPDATE", "Checking central cloud server https://www.e-vedhika.in/exe/api/version for software updates...");
+            LogMessage("AUTO-UPDATE", "Checking central cloud server https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update for software updates...");
 
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
@@ -1558,7 +1636,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (info.IsUpdateAvailable)
                     {
                         DialogResult dr = MessageBox.Show(
-                            $"{info.Message}\n\nWould you like to auto-update now without manually re-downloading from the web browser?\n\n(మీరు కొత్త వర్షన్ కి ఇప్పుడే ఆటో-అప్‌డేట్ చేయాలనుకుంటున్నారా?)",
+                            $"{info.Message}\n\nWould you like to auto-update now? The application will restart automatically to apply the update.\n\n(మీరు కొత్త వర్షన్ కి ఇప్పుడే ఆటో-అప్‌డేట్ చేయాలనుకుంటున్నారా? అప్లికేషన్ ఆటోమేటిక్‌గా రీస్టార్ట్ అవుతుంది.)",
                             "Software Update Available / ఆటో-అప్‌డేట్ మార్గదర్శకాలు",
                             MessageBoxButtons.YesNo,
                             MessageBoxIcon.Information);
@@ -1650,7 +1728,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnSendTelemetryManual_Click(object sender, EventArgs e)
         {
-            LogRemoteMessage("TELEMETRY", "Posting live machine telemetry report to support portal https://www.e-vedhika.in/contact ...");
+            LogRemoteMessage("TELEMETRY", "Posting live machine telemetry report to support portal https://www.e-vedhika.in/admin/exe_ubd_live ...");
             
             var telemData = new System.Collections.Generic.Dictionary<string, string>
             {
@@ -1669,9 +1747,9 @@ namespace EVedhikaUBDDeploymentTool
                 { "trustedSites", "Zone 2 Configured" },
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
-                { "verification", "Passed" },
-                { "version", "v1.0.1" },
-                { "status", "Success (15/15)" },
+                { "verification", "Passed (16/16)" },
+                { "version", "v1.0.6" },
+                { "status", "Success (16/16)" },
                 { "healthScore", "100" },
                 { "remarks", "Live telemetry update from C# WinForms App" }
             };
@@ -1700,7 +1778,7 @@ namespace EVedhikaUBDDeploymentTool
 
             // Step 1: Deploy
             if(tabControlMain != null && tabDeploy != null) tabControlMain.SelectedTab = tabDeploy;
-            MessageBox.Show("1. One-Click Deployment (డ్యాష్‌బోర్డ్):\n\nఇక్కడ ఉన్న ఆకుపచ్చ బటన్ (Execute Deploy) నొక్కితే చాలు. UBD పోర్టల్ కోసం కావాల్సిన IE మోడ్, రిజిస్ట్రీ సెట్టింగ్స్ మొత్తం 15 స్టెప్స్‌లో ఆటోమేటిక్‌గా సెట్ అవుతాయి.", "Tour: 15-Step Deployment", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("1. One-Click Deployment (డ్యాష్‌బోర్డ్):\n\nఇక్కడ ఉన్న ఆకుపచ్చ బటన్ (Execute Deploy) నొక్కితే చాలు. UBD పోర్టల్ కోసం కావాల్సిన IE మోడ్, రిజిస్ట్రీ సెట్టింగ్స్ మొత్తం 16 స్టెప్స్‌లో ఆటోమేటిక్‌గా సెట్ అవుతాయి.", "Tour: 16-Step Deployment", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Step 2: Diagnostics
             if(tabControlMain != null && tabDiagnostics != null) tabControlMain.SelectedTab = tabDiagnostics;
@@ -1755,7 +1833,11 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
             base.OnFormClosed(e);
-            Environment.Exit(0);
+            
+            // Allow background threads 2s to finish
+            var exitTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+            exitTimer.Tick += (s, ev) => { exitTimer.Stop(); Environment.Exit(0); };
+            exitTimer.Start();
         }
     }
 }

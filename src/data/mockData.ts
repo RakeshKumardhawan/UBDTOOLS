@@ -132,6 +132,13 @@ export const defaultDeploymentSteps: DeploymentStep[] = [
     title: 'Generate Deployment Audit Report',
     description: 'Compile detailed logs and registry validation summary.',
     status: 'pending',
+  },
+  {
+    id: 16,
+    module: 'Cloud Telemetry',
+    title: 'Transmit Central Cloud Telemetry & Live Verification Report',
+    description: 'Post full 16/16 execution status to central cloud server (www.e-vedhika.in) and Telegram notification bot.',
+    status: 'pending',
   }
 ];
 

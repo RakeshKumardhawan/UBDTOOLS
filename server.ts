@@ -45,6 +45,23 @@ async function startServer() {
   };
 
   // In-memory Telemetry Storage & Remote Desktop Queue Store
+  const liveAnnouncements = [
+    {
+      id: 1,
+      title: 'IMPORTANT: v1.0.6 Update Released',
+      content: 'Unified 16-Step C# Deployment Engine & Live Telemetry Synchronized. Please update for full Class 3 Token support.',
+      date: '2026-10-06',
+      importance: 'High'
+    },
+    {
+      id: 2,
+      title: 'UBD Portal Security Guidelines',
+      content: 'Ensure Edge IE Mode and Zone 2 Trusted Sites are configured before signing documents with USB DSC Token.',
+      date: '2026-10-04',
+      importance: 'Normal'
+    }
+  ];
+
   const telemetryLogsStore: any[] = [
     {
       id: 'TEL-001',
@@ -395,16 +412,16 @@ async function startServer() {
   let currentVersionConfig = {
     name: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     appName: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
-    executableName: 'EVedhika_Setup_v1.0.4.exe',
-    currentVersion: 'v1.0.4',
-    latestVersion: 'v1.0.4',
-    versionCode: 104,
+    executableName: 'EVedhika_Setup_v1.0.6.exe',
+    currentVersion: 'v1.0.6',
+    latestVersion: 'v1.0.6',
+    versionCode: 106,
     releaseDate: '2026-10-06',
-    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.4.exe',
+    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.6.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'Critical Windows 7 & 8 Launch Fix (.NET 4.8 Architecture).',
+    releaseNotes: 'Unified v1.0.6 release with 16-step deployment, prerequisite auto-detection, and live crash telemetry.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live' // Global relay endpoint for third-party integrations
   };
@@ -741,7 +758,7 @@ async function startServer() {
           `🏢 <b>Office:</b> ${newRecord.officeLocation}\n` +
           `💻 <b>PC:</b> <code>${newRecord.pcName}</code>\n` +
           `👤 <b>User:</b> ${newRecord.userName}\n` +
-          `⚡ <b>Status:</b> ${newRecord.status} (${newRecord.verification || '15/15'})\n` +
+          `⚡ <b>Status:</b> ${newRecord.status} (${newRecord.verification || '16/16'})\n` +
           `💯 <b>Health Score:</b> ${newRecord.healthScore}%\n` +
           `🌐 <b>OS:</b> ${newRecord.osVersion}\n` +
           `🔑 <b>DSC Status:</b> ${newRecord.dscStatus}\n` +
@@ -1097,6 +1114,97 @@ Be crisp, authoritative, professional, and directly tailored to Enterprise porta
         success: false,
         error: error.message || 'Failed to analyze system diagnostics via Gemini AI.',
       });
+    }
+  });
+
+  // ====================================================================
+  // CENTRAL UNIFIED CLOUD GATEWAY: /admin/exe_ubd_live
+  // Handles ALL C# Tool requests: Telemetry, News, Updates & Remote
+  // ====================================================================
+  app.all('/admin/exe_ubd_live', (req, res) => {
+    const action = (req.query.action || req.body?.action || 'telemetry').toString().toLowerCase();
+
+    if (action === 'check_update' || action === 'version') {
+      return res.json(currentVersionConfig);
+    }
+
+    if (action === 'get_news' || action === 'news') {
+      return res.json({ news: liveAnnouncements });
+    }
+
+    // Remote Actions Gateway
+    if (action === 'remote_queue') {
+       const { pcName, userName, office, district, anyDeskId, issue } = req.body;
+       const newItem = {
+         id: `REM-${Math.floor(200 + Math.random() * 800)}`,
+         pcName: pcName || 'SECRETARY-DESK',
+         userName: userName || 'User',
+         office: office || 'GP Office',
+         district: district || 'Telangana',
+         anyDeskId: anyDeskId || 'N/A',
+         issue: issue || 'Live Remote Support Requested',
+         requestedTime: 'Just now',
+         queueStatus: 'waiting',
+         queueNumber: remoteQueueStore.filter(q => q.queueStatus === 'waiting' && q.isOnline !== false).length + 1,
+         isOnline: true
+       };
+       remoteQueueStore.unshift(newItem);
+       return res.json({ success: true, item: newItem });
+    }
+
+    if (action === 'remote_stream') {
+       const { pcName, image, timestamp } = req.body;
+       if (pcName && image) {
+         remoteScreenFramesStore[pcName] = { image, timestamp: timestamp || Date.now() };
+       }
+       return res.json({ success: true });
+    }
+
+    if (action === 'remote_commands') {
+       const pcName = (req.query.pcName || req.body?.pcName)?.toString();
+       if (!pcName) return res.json([]);
+       const commands = pendingRemoteCommandsStore[pcName] || [];
+       pendingRemoteCommandsStore[pcName] = []; // Clear after delivery
+       return res.json(commands);
+    }
+
+    // Default: Handle as Telemetry Report
+    // Extracting shared telemetry processing logic
+    try {
+      const body = req.body;
+      const targetDom = body.targetDomain || (String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in');
+      const stateVal = body.state || (targetDom.includes('ap.gov.in') || String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana');
+      
+      let pcId = body.pcId;
+      if (!pcId) {
+        const rawSeed = `${body.pcName || 'PC'}_${body.userName || 'USER'}_${body.officeLocation || 'LOC'}`;
+        let hash = 0;
+        for (let i = 0; i < rawSeed.length; i++) { hash = (hash << 5) - hash + rawSeed.charCodeAt(i); hash |= 0; }
+        pcId = `EVD-${stateVal === 'Andhra Pradesh' ? 'AP' : 'TS'}-${Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').slice(0, 4)}-${Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').slice(4)}`;
+      }
+
+      const newRecord = {
+        id: body.id || `TEL-${Date.now()}`,
+        pcId: pcId,
+        slNo: telemetryLogsStore.length + 1,
+        date: body.date || new Date().toISOString().slice(0, 10),
+        time: body.time || new Date().toLocaleTimeString(),
+        pcName: body.pcName || 'Unknown-PC',
+        userName: body.userName || 'User',
+        officeLocation: body.officeLocation || body.office || 'Mandal Office',
+        state: stateVal,
+        livePresence: 'ONLINE',
+        lastSeenEpoch: Date.now(),
+        status: body.status || 'SUCCESS',
+        remarks: body.remarks || 'Unified gateway report received.',
+        ...body
+      };
+
+      telemetryLogsStore.unshift(newRecord);
+      saveTelemetryLogs();
+      return res.json({ success: true, message: 'Central Telemetry Recorded via Unified Gateway', pcId: pcId });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
     }
   });
 

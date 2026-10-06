@@ -103,7 +103,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDeploy.Padding = new System.Windows.Forms.Padding(12);
             this.tabDeploy.Size = new System.Drawing.Size(876, 444);
             this.tabDeploy.TabIndex = 0;
-            this.tabDeploy.Text = "🚀 15-Step Deployment";
+            this.tabDeploy.Text = "🚀 16-Step Deployment";
             this.tabDeploy.UseVisualStyleBackColor = false;
             // 
             // pnlMetricsCards
@@ -125,7 +125,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnStartDeploy.Name = "btnStartDeploy";
             this.btnStartDeploy.Size = new System.Drawing.Size(250, 38);
             this.btnStartDeploy.TabIndex = 1;
-            this.btnStartDeploy.Text = "▶ Start 15-Step Deployment";
+            this.btnStartDeploy.Text = "▶ Start 16-Step Deployment";
             this.btnStartDeploy.UseVisualStyleBackColor = false;
             this.btnStartDeploy.Click += new System.EventHandler(this.btnStartDeploy_Click);
             // 
@@ -154,13 +154,19 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // tabRemote
             // 
+            this.tabRemote.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.tabRemote.Controls.Add(this.lblRemoteTitle);
+            this.tabRemote.Controls.Add(this.lblRemoteStatus);
+            this.tabRemote.Controls.Add(this.lblPcNameInfo);
+            this.tabRemote.Controls.Add(this.btnToggleRemote);
+            this.tabRemote.Controls.Add(this.btnSendTelemetryManual);
+            this.tabRemote.Controls.Add(this.txtRemoteLog);
             this.tabRemote.Location = new System.Drawing.Point(4, 26);
             this.tabRemote.Name = "tabRemote";
             this.tabRemote.Padding = new System.Windows.Forms.Padding(12);
             this.tabRemote.Size = new System.Drawing.Size(876, 444);
             this.tabRemote.TabIndex = 5;
-            this.tabRemote.Text = "📡 Native Remote Engine";
-            this.tabRemote.UseVisualStyleBackColor = true;
+            this.tabRemote.Text = "⚡ PC Boost & Live Resources";
             // 
             // lblRemoteTitle
             // 
@@ -186,11 +192,12 @@ namespace EVedhikaUBDDeploymentTool
             // lblPcNameInfo
             // 
             this.lblPcNameInfo.AutoSize = true;
+            this.lblPcNameInfo.ForeColor = System.Drawing.Color.LightGray;
             this.lblPcNameInfo.Location = new System.Drawing.Point(16, 65);
             this.lblPcNameInfo.Name = "lblPcNameInfo";
             this.lblPcNameInfo.Size = new System.Drawing.Size(380, 17);
             this.lblPcNameInfo.TabIndex = 2;
-            this.lblPcNameInfo.Text = "Endpoint: https://www.e-vedhika.in/contact";
+            this.lblPcNameInfo.Text = "Endpoint: https://www.e-vedhika.in/admin/exe_ubd_live";
             // 
             // btnToggleRemote
             // 
@@ -225,9 +232,9 @@ namespace EVedhikaUBDDeploymentTool
             this.txtRemoteLog.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtRemoteLog.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.txtRemoteLog.BackColor = System.Drawing.Color.FromArgb(2, 6, 23);
             this.txtRemoteLog.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtRemoteLog.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(211)))), ((int)(((byte)(153)))));
+            this.txtRemoteLog.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(56)))), ((int)(((byte)(189)))), ((int)(((byte)(248)))));
             this.txtRemoteLog.Location = new System.Drawing.Point(18, 142);
             this.txtRemoteLog.Multiline = true;
             this.txtRemoteLog.Name = "txtRemoteLog";
@@ -256,6 +263,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnRunDiagnostics
             // 
+            this.btnRunDiagnostics.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnRunDiagnostics.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
             this.btnRunDiagnostics.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRunDiagnostics.ForeColor = System.Drawing.Color.White;
@@ -269,6 +277,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnActivateWindows
             // 
+            this.btnActivateWindows.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnActivateWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(152)))), ((int)(((byte)(0)))));
             this.btnActivateWindows.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnActivateWindows.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -283,6 +292,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnPCBoost
             // 
+            this.btnPCBoost.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnPCBoost.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(16)))), ((int)(((byte)(185)))), ((int)(((byte)(129)))));
             this.btnPCBoost.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnPCBoost.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -297,6 +307,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnRepairEdge
             // 
+            this.btnRepairEdge.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnRepairEdge.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
             this.btnRepairEdge.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRepairEdge.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -311,6 +322,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnFixPrinter
             // 
+            this.btnFixPrinter.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnFixPrinter.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
             this.btnFixPrinter.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnFixPrinter.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -325,6 +337,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnDeepRepair
             // 
+            this.btnDeepRepair.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnDeepRepair.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(239)))), ((int)(((byte)(68)))), ((int)(((byte)(68)))));
             this.btnDeepRepair.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDeepRepair.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -339,6 +352,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnSyncTime
             // 
+            this.btnSyncTime.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnSyncTime.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(158)))), ((int)(((byte)(11)))));
             this.btnSyncTime.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSyncTime.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -358,8 +372,9 @@ namespace EVedhikaUBDDeploymentTool
             this.txtDiagnosticOutput.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtDiagnosticOutput.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(250)))), ((int)(((byte)(252)))));
+            this.txtDiagnosticOutput.BackColor = System.Drawing.Color.FromArgb(2, 6, 23);
             this.txtDiagnosticOutput.Font = new System.Drawing.Font("Consolas", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtDiagnosticOutput.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(56)))), ((int)(((byte)(189)))), ((int)(((byte)(248)))));
             this.txtDiagnosticOutput.Location = new System.Drawing.Point(15, 110);
             this.txtDiagnosticOutput.Multiline = true;
             this.txtDiagnosticOutput.Name = "txtDiagnosticOutput";
@@ -586,7 +601,7 @@ namespace EVedhikaUBDDeploymentTool
             this.panelHeader.Dock = System.Windows.Forms.DockStyle.Top;
             this.panelHeader.Location = new System.Drawing.Point(0, 0);
             this.panelHeader.Name = "panelHeader";
-            this.panelHeader.Size = new System.Drawing.Size(1060, 72);
+            this.panelHeader.Size = new System.Drawing.Size(1060, 85);
             this.panelHeader.TabIndex = 1;
             // 
             // lblHeaderTitle
@@ -598,7 +613,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.1)";
+            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.6)";
             // 
             // lblHeaderSubtitle
             // 
@@ -651,7 +666,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
             this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.4 | Status: Ready";
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | Status: Ready";
             // 
             // MainForm
             // 

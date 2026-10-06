@@ -1,5 +1,5 @@
 #define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.4"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "E-Vedhika"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
@@ -58,8 +58,8 @@ begin
   end
   else
   begin
-    // For Windows 8, 10, 11 etc, we assume compatibility
-    Result := Version.Major >= 6;
+    // For Windows 8 (6.2), 8.1 (6.3), 10 (10.0), 11 (10.0) etc
+    Result := (Version.Major > 6) or ((Version.Major = 6) and (Version.Minor > 1));
   end;
 end;
 
@@ -86,17 +86,27 @@ begin
     Result := False;
     Exit;
   end;
-  // Check for .NET Framework 4.8 (Release value 528040 or higher) in HKLM
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) or
+
+  // Windows 10 (Build >= 10240) and Windows 11 already include .NET 4.6/4.8 natively
+  if GetWindowsVersion >= $0A000000 then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  // Check 64-bit and 32-bit registry hives for .NET Framework 4.8 (Release value 528040 or higher)
+  if RegQueryDWordValue(HKLM64, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) or
+     RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) or
      RegQueryDWordValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) then
   begin
-    Result := v < 528040;
-  end
-  else
-  begin
-    // Default to False on modern Windows 10/11 to avoid redundant installation popups
-    Result := False;
+    if v >= 528040 then
+    begin
+      Result := False;
+      Exit;
+    end;
   end;
+
+  Result := True;
 end;
 
 function NeedsVCRedist: Boolean;

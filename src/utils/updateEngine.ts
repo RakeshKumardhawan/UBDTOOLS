@@ -19,6 +19,17 @@ export interface UpdateCheckResult {
 
 export const VERSION_HISTORY = [
   {
+    version: 'v1.0.6',
+    date: 'October 2026',
+    changes: [
+      'Unified 16-Step C# Deployment Engine & Live Telemetry Synchronized',
+      'Prerequisite Auto-Detection: Skips .NET 4.8, VC++, and DigiSigner if already installed',
+      'Instant Live Error Telemetry & Telegram Alert Dispatch on exception',
+      'Cleaned up legacy Add/Remove Programs Control Panel entries & shortcut duplicates',
+      'Edge IE Mode & Zone 2 ActiveX Policies automatically enforced',
+    ]
+  },
+  {
     version: 'v1.0.4',
     date: 'October 2026',
     changes: [
@@ -68,7 +79,7 @@ export const VERSION_HISTORY = [
   }
 ];
 
-export const CURRENT_APP_VERSION = 'v1.0.4';
+export const CURRENT_APP_VERSION = 'v1.0.6';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 /**

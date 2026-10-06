@@ -86,15 +86,16 @@ namespace EVedhikaUBDDeploymentTool
                 // Configure TLS 1.2 for modern web API telemetry calls (.NET 4.8 compatibility)
                 try
                 {
-                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11 | System.Net.SecurityProtocolType.Tls;
-                    System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate(object sender, System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors sslPolicyErrors) { return true; };
+                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+                    // Removed global SSL validation bypass to prevent MITM attacks. 
+                    // Individual WebClient calls in Logger.cs handle their own validation if absolutely necessary for legacy servers.
                 }
                 catch { }
 
                 // Check if launched from Windows Control Panel "Uninstall" command
                 if (args != null && args.Length > 0)
                 {
-                    string arg = args[0].ToLowerInvariant();
+                    string arg = args[0].Trim().ToLowerInvariant();
                     if (arg == "--uninstall" || arg == "/uninstall" || arg == "-uninstall")
                     {
                         bool silent = args.Length > 1 && (args[1].ToLowerInvariant() == "--silent" || args[1].ToLowerInvariant() == "/silent");

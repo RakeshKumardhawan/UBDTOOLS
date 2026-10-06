@@ -82,18 +82,6 @@ namespace EVedhikaUBDDeploymentTool
                     lblTargetInfo.Text = "Target: www.ubd.ap.gov.in:8080/UBDNEW (IE5 Quirks Mode + DSC Token)";
                     lblTargetInfo.ForeColor = Color.FromArgb(52, 211, 153); // emerald-400
                 }
-                else if (idx == 2)
-                {
-                    SelectedState = "Telangana";
-                    lblTargetInfo.Text = "Target: egramswaraj.gov.in (IE11 Edge Mode + NIC DigiSigner)";
-                    lblTargetInfo.ForeColor = Color.FromArgb(251, 191, 36); // amber-400
-                }
-                else if (idx == 3)
-                {
-                    SelectedState = "Telangana";
-                    lblTargetInfo.Text = "Target: ifmis.telangana.gov.in (IE11 Mode + Treasury Token)";
-                    lblTargetInfo.ForeColor = Color.FromArgb(167, 139, 250); // purple-400
-                }
                 else
                 {
                     SelectedState = "Telangana";

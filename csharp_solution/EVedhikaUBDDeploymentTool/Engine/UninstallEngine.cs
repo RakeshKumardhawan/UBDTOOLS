@@ -16,9 +16,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // Delete legacy custom key from HKCU and HKLM
-                try { Registry.CurrentUser.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
-                try { Registry.LocalMachine.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
+                // Delete legacy custom keys from HKCU and HKLM
+                string[] legacyKeys = new string[]
+                {
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhika_UBD_Deployment_Tool",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.1",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.4"
+                };
+
+                foreach (var kPath in legacyKeys)
+                {
+                    try { Registry.CurrentUser.DeleteSubKeyTree(kPath, false); } catch { }
+                    try { Registry.LocalMachine.DeleteSubKeyTree(kPath, false); } catch { }
+                }
             }
             catch { }
         }
@@ -65,7 +76,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (keyLM != null)
                     {
                         keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.4", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.6", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\"{0}\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\"{0}\" --uninstall --silent", exePath), RegistryValueKind.String);

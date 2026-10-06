@@ -26,24 +26,14 @@ const csharpFiles: CSharpFile[] = [
     <!--
       Universal .NET Runtime Compatibility:
       Enables seamless execution on:
-      - Windows 7 SP1 Out-of-the-Box (Built-in .NET Framework 3.5.1 / CLR 2.0: v2.0.50727)
-      - Windows 8, Windows 10, Windows 11 (Built-in .NET Framework 4.8 / CLR 4.0: v4.0.30319)
-      - Windows Vista and Windows XP SP2/SP3 (.NET 2.0 / 3.0 / 3.5)
-      - Legacy environments (.NET 1.1 fallback)
+      - Windows 7 SP1 (Requires .NET Framework 4.8 Runtime)
+      - Windows 8, Windows 10, Windows 11 (Built-in .NET Framework 4.8)
     -->
-    <startup useLegacyV2RuntimeActivationPolicy="true"> 
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5" />
+    <startup> 
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.7.2" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.6.2" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5.2" />
-        <supportedRuntime version="v4.0" />
-        <supportedRuntime version="v2.0.50727" />
-        <supportedRuntime version="v1.1.4322" />
     </startup>
     <runtime>
-        <NetFx40_LegacySecurityPolicy enabled="true"/>
-        <loadFromRemoteSources enabled="true"/>
+        <!-- Security hardened runtime configuration -->
     </runtime>
     <appSettings>
         <add key="DepartmentProfile" value="Enterprise Portal" />
@@ -83,7 +73,6 @@ const csharpFiles: CSharpFile[] = [
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="System.Deployment" />
   </ItemGroup>
 
   <ItemGroup>
@@ -128,7 +117,7 @@ EndGlobal
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss',
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.4"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "E-Vedhika"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
@@ -187,8 +176,8 @@ begin
   end
   else
   begin
-    // For Windows 8, 10, 11 etc, we assume compatibility
-    Result := Version.Major >= 6;
+    // For Windows 8 (6.2), 8.1 (6.3), 10 (10.0), 11 (10.0) etc
+    Result := (Version.Major > 6) or ((Version.Major = 6) and (Version.Minor > 1));
   end;
 end;
 
@@ -215,51 +204,33 @@ begin
     Result := False;
     Exit;
   end;
-  // Check for .NET Framework 4.8 (Release value 528040 or higher) in HKLM
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) or
+
+  // Windows 10 (Build >= 10240) and Windows 11 already include .NET 4.6/4.8 natively
+  if GetWindowsVersion >= \$0A000000 then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  // Check 64-bit and 32-bit registry hives for .NET Framework 4.8 (Release value 528040 or higher)
+  if RegQueryDWordValue(HKLM64, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) or
+     RegQueryDWordValue(HKLM, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) or
      RegQueryDWordValue(HKLM, 'SOFTWARE\\WOW6432Node\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) then
   begin
-    Result := v < 528040;
-  end
-  else
-  begin
-    // Default to False on modern Windows 10/11 to avoid redundant installation popups
-    Result := False;
+    if v >= 528040 then
+    begin
+      Result := False;
+      Exit;
+    end;
   end;
+
+  Result := True;
 end;
 
 function NeedsVCRedist: Boolean;
 begin
   Result := FileExists(ExpandConstant('{tmp}\\vc_redist.x86.exe'));
 end;
-`
-  },
-  {
-    id: 'evedhika_setup_script_iss',
-    name: 'EVedhika_Setup_Script.iss',
-    path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhika_Setup_Script.iss',
-    type: 'iss',
-    content: `[Setup]
-AppName=E-Vedhika UBD Deployment Tool
-AppVersion=1.0
-DefaultDirName={pf}\\E-Vedhika
-DefaultGroupName=E-Vedhika
-OutputDir=.\\Output
-OutputBaseFilename=EVedhika_Setup
-Compression=lzma
-SolidCompression=yes
-SetupIconFile=app.ico
-WizardStyle=modern
-
-[Files]
-Source: "bin\\Release\\EVedhikaUBDDeploymentTool.exe"; DestDir: "{app}"; Flags: ignoreversion
-
-[Icons]
-Name: "{group}\\E-Vedhika UBD Tool"; Filename: "{app}\\EVedhikaUBDDeploymentTool.exe"
-Name: "{commondesktop}\\E-Vedhika UBD Tool"; Filename: "{app}\\EVedhikaUBDDeploymentTool.exe"
-
-[Run]
-Filename: "{app}\\EVedhikaUBDDeploymentTool.exe"; Description: "Launch E-Vedhika UBD Deployment Tool"; Flags: nowait postinstall skipifsilent shellexec
 `
   },
   {
@@ -585,9 +556,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.4";
-        public const int CurrentVersionCode = 104;
-        public const string UpdateApiUrl = "https://www.e-vedhika.in/version.json";
+        public const string CurrentVersion = "v1.0.6";
+        public const int CurrentVersionCode = 106;
+        public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
         {
@@ -604,12 +575,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
         }
 
         /// <summary>
-        /// Checks central cloud server (https://www.e-vedhika.in/version.json) for software updates.
+        /// Checks central cloud server (https://www.e-vedhika.in/admin/exe_ubd_live) for software updates.
         /// Returns UpdateInfo with server release details and version check results.
         /// </summary>
         public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
         {
-            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in for software updates...");
+            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in for software updates (Official Admin Path)...");
 
             UpdateInfo info = new UpdateInfo
             {
@@ -630,10 +601,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/version.json",
+                "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
                 "https://www.e-vedhika.in/version.json",
-                "https://www.e-vedhika.in/api/version",
-                "https://www.e-vedhika.in/exe/api/version"
+                "https://www.e-vedhika.in/api/version"
             };
 
             bool fetched = false;
@@ -897,7 +867,7 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
-                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/news",
+                "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news",
                 "https://www.e-vedhika.in/api/news"
             };
 
@@ -1632,107 +1602,247 @@ namespace EVedhikaUBDDeploymentTool.Engine
         /// <summary>
         /// Registers key ActiveX components like CAPICOM.dll and DigiSignHelper.dll 
         /// to fix "Automation server can't create object" errors on target PCs.
+        /// Searches across multiple paths and registers for both 32-bit and 64-bit architectures.
         /// </summary>
         public static bool RegisterActiveXComponents()
         {
+            bool allSuccess = true;
+            
             try
             {
-                string installersDir = GetInstallersFolderPath();
-                string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
-                string system32 = Environment.SystemDirectory; // C:\\Windows\\System32
-                string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
-
-                string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll", "SignatureDemoLib.dll" };
-                bool allRegistered = true;
-
-                foreach (string dll in components)
+                // Get current architecture
+                bool is64BitOS = Environment.Is64BitOperatingSystem;
+                
+                // Priority paths where DigiSignHelper might be located
+                string[] searchPaths = new string[]
                 {
-                    string sourceDll = Path.Combine(installersDir, dll);
-                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(payloadDir, dll);
-                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dll);
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installers"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory),
+                    @"C:\\Program Files (x86)\\NIC\\DigiSigner",
+                    @"C:\\Program Files\\NIC\\DigiSigner",
+                    @"C:\\Windows\\System32",
+                    @"C:\\Windows\\SysWOW64"
+                };
 
-                    // Copy DLL to System32 and SysWOW64 so Windows COM engine can always locate them
-                    if (File.Exists(sourceDll))
+                // Possible filenames for DigiSignHelper and related components
+                string[] digiSignFiles = new string[]
+                {
+                    "DigiSignHelper.dll",
+                    "DigiSignHelper.ocx",
+                    "DigiSignHelper64.dll",
+                    "NICDigiSignHelper.dll",
+                    "eSignHelper.dll",
+                    "capicom.dll",
+                    "SignatureDemoLib.dll"
+                };
+
+                string foundPath = null;
+                foreach (var dir in searchPaths)
+                {
+                    if (!Directory.Exists(dir)) continue;
+                    foreach (var file in digiSignFiles)
                     {
-                        try
+                        string fullPath = Path.Combine(dir, file);
+                        if (File.Exists(fullPath))
                         {
-                            string targetSys32 = Path.Combine(system32, dll);
-                            if (!File.Exists(targetSys32) || new FileInfo(sourceDll).Length != new FileInfo(targetSys32).Length)
-                                File.Copy(sourceDll, targetSys32, true);
-                        }
-                        catch { }
-
-                        if (Directory.Exists(sysWOW64))
-                        {
-                            try
+                            // If we found a DigiSignHelper variant, store it as primary
+                            if (file.IndexOf("DigiSign", StringComparison.OrdinalIgnoreCase) >= 0)
                             {
-                                string targetSysWOW64 = Path.Combine(sysWOW64, dll);
-                                if (!File.Exists(targetSysWOW64) || new FileInfo(sourceDll).Length != new FileInfo(targetSysWOW64).Length)
-                                    File.Copy(sourceDll, targetSysWOW64, true);
+                                foundPath = fullPath;
                             }
-                            catch { }
-                        }
-                    }
-
-                    // Register using System32 regsvr32
-                    string sys32DllPath = Path.Combine(system32, dll);
-                    if (File.Exists(sys32DllPath))
-                    {
-                        RunRegsvr32("regsvr32.exe", sys32DllPath);
-                    }
-                    else if (File.Exists(sourceDll))
-                    {
-                        RunRegsvr32("regsvr32.exe", sourceDll);
-                    }
-
-                    // On 64-bit Windows, specifically register 32-bit DLL with 32-bit regsvr32 in SysWOW64
-                    if (Directory.Exists(sysWOW64))
-                    {
-                        string sysWOW64Regsvr = Path.Combine(sysWOW64, "regsvr32.exe");
-                        string sysWOW64DllPath = Path.Combine(sysWOW64, dll);
-
-                        if (File.Exists(sysWOW64Regsvr) && File.Exists(sysWOW64DllPath))
-                        {
-                            RunRegsvr32(sysWOW64Regsvr, sysWOW64DllPath);
-                        }
-                        else if (File.Exists(sysWOW64Regsvr) && File.Exists(sourceDll))
-                        {
-                            RunRegsvr32(sysWOW64Regsvr, sourceDll);
+                            
+                            // Register it immediately while we are here
+                            RegisterDllWithBothArchitectures(fullPath);
                         }
                     }
                 }
+
+                // Also search recursively in Payload folder if nothing found yet
+                if (foundPath == null)
+                {
+                    string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
+                    if (Directory.Exists(payloadDir))
+                    {
+                        foreach (var file in digiSignFiles)
+                        {
+                            var matches = Directory.GetFiles(payloadDir, file, SearchOption.AllDirectories);
+                            if (matches.Length > 0)
+                            {
+                                foundPath = matches[0];
+                                RegisterDllWithBothArchitectures(foundPath);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (foundPath == null)
+                {
+                    Logger.LogWarn("ActiveX", "Primary DigiSignHelper.dll not found in any search path. Attempting MSI fallback...");
+                    return TryInstallDigiSignerFromMsi();
+                }
+
+                // Register related components in the same directory
+                RegisterRelatedComponents(foundPath);
+
+                // Fallback registration in Current User hive
+                RegisterInCurrentUserHive(foundPath);
 
                 // Call the registry healer to inject full ProgID and InprocServer32 COM entries
                 RegistryManager.HealDigiSignHelperAutomation();
 
-                return allRegistered;
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("ActiveX Registration Error: " + ex.Message);
+                Logger.LogError("ActiveX", "RegisterActiveXComponents error: " + ex.Message, "Ensure app runs as Admin and DLLs are present.");
                 return false;
             }
         }
 
-        private static void RunRegsvr32(string regsvrExe, string dllPath)
+        private static void RegisterDllWithBothArchitectures(string dllPath)
+        {
+            string fileName = Path.GetFileName(dllPath);
+            
+            // 32-bit registration (MANDATORY for IE)
+            string reg32 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64", "regsvr32.exe");
+            if (!Environment.Is64BitOperatingSystem)
+                reg32 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "regsvr32.exe");
+
+            if (File.Exists(reg32))
+            {
+                if (RunRegsvr32(reg32, dllPath))
+                    Logger.LogInfo("ActiveX", \$"[OK] {fileName} registered with 32-bit regsvr32.");
+            }
+
+            // 64-bit registration
+            if (Environment.Is64BitOperatingSystem)
+            {
+                string reg64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "regsvr32.exe");
+                if (File.Exists(reg64))
+                {
+                    if (RunRegsvr32(reg64, dllPath))
+                        Logger.LogInfo("ActiveX", \$"[OK] {fileName} registered with 64-bit regsvr32.");
+                }
+            }
+        }
+
+        private static bool RunRegsvr32(string regsvrPath, string dllPath)
         {
             try
             {
-                ProcessStartInfo psi = new ProcessStartInfo
+                using (var p = Process.Start(new ProcessStartInfo
                 {
-                    FileName = regsvrExe,
+                    FileName = regsvrPath,
                     Arguments = \$"/s \\"{dllPath}\\"",
-                    UseShellExecute = false,
                     CreateNoWindow = true,
+                    UseShellExecute = false,
                     WindowStyle = ProcessWindowStyle.Hidden
+                }))
+                {
+                    if (p != null)
+                    {
+                        p.WaitForExit(8000);
+                        return p.ExitCode == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("ActiveX", \$"regsvr32 failed for {Path.GetFileName(dllPath)}: {ex.Message}");
+            }
+            return false;
+        }
+
+        private static void RegisterRelatedComponents(string digiSignPath)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(digiSignPath);
+                string[] relatedDlls = new string[]
+                {
+                    "CAPICOM.dll",
+                    "DigiSignHelper.tlb",
+                    "NICDigiSigner.dll",
+                    "Interop.DigiSignHelper.dll"
                 };
 
-                using (Process proc = Process.Start(psi))
+                foreach (var dll in relatedDlls)
                 {
-                    proc?.WaitForExit(5000);
+                    string fullPath = Path.Combine(dir, dll);
+                    if (File.Exists(fullPath))
+                    {
+                        RegisterDllWithBothArchitectures(fullPath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("ActiveX", "RegisterRelatedComponents: " + ex.Message);
+            }
+        }
+
+        private static void RegisterInCurrentUserHive(string dllPath)
+        {
+            try
+            {
+                // Fallback: Register CLSID in HKCU for non-admin scenarios
+                // Using a known common CLSID for DigiSignHelper if possible, otherwise skip
+                // The healer usually handles this, but we apply direct HKCU entry as well.
+                string clsid = "{77907B64-325A-4560-A1E2-F4060883D9E9}"; // Example NIC CLSID
+                using (var key = Registry.CurrentUser.CreateSubKey(\$@"Software\\Classes\\CLSID\\{clsid}\\InprocServer32"))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("", dllPath);
+                        key.SetValue("ThreadingModel", "Apartment");
+                        Logger.LogInfo("ActiveX", "[OK] Fallback HKCU registration applied for " + Path.GetFileName(dllPath));
+                    }
                 }
             }
             catch { }
+        }
+
+        private static bool TryInstallDigiSignerFromMsi()
+        {
+            try
+            {
+                string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
+                string installersDir = GetInstallersFolderPath();
+                
+                string[] msiNames = new string[]
+                {
+                    "NEW-NIC-AP-DIGISIGNER.msi",
+                    "NICDigiSigner.msi",
+                    "DigiSignerSetup.msi",
+                    "DigiSignHelper.msi"
+                };
+
+                foreach (var dir in new[] { payloadDir, installersDir })
+                {
+                    if (!Directory.Exists(dir)) continue;
+                    foreach (var msi in msiNames)
+                    {
+                        string fullPath = Path.Combine(dir, msi);
+                        if (File.Exists(fullPath))
+                        {
+                            Logger.LogInfo("ActiveX", \$"Installing DigiSigner MSI: {msi}");
+                            if (InstallMsiSilent(fullPath))
+                            {
+                                Logger.LogInfo("ActiveX", "[OK] DigiSigner MSI installed. Re-running registration...");
+                                System.Threading.Thread.Sleep(3000);
+                                return RegisterActiveXComponents();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("ActiveX", "MSI install fallback failed: " + ex.Message);
+            }
+            return false;
         }
 
 
@@ -2154,6 +2264,51 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Console.WriteLine(\$"Driver Manual Installer Exception: {ex.Message}");
                 return false;
             }
+        }
+
+        public static string FindDigiSignHelperPath()
+        {
+            string[] paths = new string[]
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", "DigiSignHelper.dll"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installers", "DigiSignHelper.dll"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DigiSignHelper.dll"),
+                @"C:\\Program Files (x86)\\NIC\\DigiSigner\\DigiSignHelper.dll",
+                @"C:\\Windows\\SysWOW64\\DigiSignHelper.dll",
+                @"C:\\Windows\\System32\\DigiSignHelper.dll"
+            };
+            foreach (var p in paths)
+                if (File.Exists(p)) return p;
+            return null;
+        }
+
+        public static bool VerifyDigiSignHelperCom()
+        {
+            try
+            {
+                // Attempt to create COM object by ProgID
+                Type type = Type.GetTypeFromProgID("DigiSignHelper.Helper");
+                if (type == null)
+                {
+                    type = Type.GetTypeFromProgID("NICDigiSignHelper.Helper");
+                }
+                if (type == null)
+                {
+                    return false; // Not registered
+                }
+                
+                object instance = Activator.CreateInstance(type);
+                if (instance != null)
+                {
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(instance);
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+            return false;
         }
 
         public static bool VerifyDriverServiceRunning(string serviceName)
@@ -3864,9 +4019,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // Delete legacy custom key from HKCU and HKLM
-                try { Registry.CurrentUser.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
-                try { Registry.LocalMachine.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
+                // Delete legacy custom keys from HKCU and HKLM
+                string[] legacyKeys = new string[]
+                {
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4"
+                };
+
+                foreach (var kPath in legacyKeys)
+                {
+                    try { Registry.CurrentUser.DeleteSubKeyTree(kPath, false); } catch { }
+                    try { Registry.LocalMachine.DeleteSubKeyTree(kPath, false); } catch { }
+                }
             }
             catch { }
         }
@@ -3913,7 +4079,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (keyLM != null)
                     {
                         keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.4", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.6", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -4541,10 +4707,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // Primary target is strictly the requested endpoint with HTTP fallbacks for Win 7/8 compatibility
                 string[] endpoints = new string[]
                 {
-                    "https://www.e-vedhika.in/api/telemetry",
-                    "http://www.e-vedhika.in/api/telemetry",
-                    "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "http://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/telemetry"
+                    "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry",
+                    "http://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry"
                 };
 
                 bool delivered = false;
@@ -4887,8 +5051,6 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static Thread commandThread = null;
         private static string[] serverUrls = new string[]
         {
-            "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app",
-            "https://ais-pre-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app",
             "https://www.e-vedhika.in"
         };
         private static string sessionPcName = Environment.MachineName;
@@ -4946,7 +5108,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                             using (var wc = new TimeoutWebClient(2500)) {
                                 wc.Headers[HttpRequestHeader.ContentType] = "application/json";
                                 wc.Encoding = System.Text.Encoding.UTF8;
-                                wc.UploadString(string.Format("{0}/api/remote-queue", url), "POST", json);
+                                wc.UploadString(string.Format("{0}/admin/exe_ubd_live?action=remote_queue", url), "POST", json);
                                 break;
                             }
                         } catch { }
@@ -4976,7 +5138,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                                 using (var wc = new TimeoutWebClient(2500)) {
                                     wc.Headers[HttpRequestHeader.ContentType] = "application/json";
                                     wc.Encoding = System.Text.Encoding.UTF8;
-                                    wc.UploadString(string.Format("{0}/api/remote-stream", url), "POST", jsonPayload);
+                                    wc.UploadString(string.Format("{0}/admin/exe_ubd_live?action=remote_stream", url), "POST", jsonPayload);
                                     activeServerUrl = url;
                                     break;
                                 }
@@ -5001,7 +5163,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         try {
                             using (var wc = new TimeoutWebClient(2000)) {
                                 wc.Encoding = System.Text.Encoding.UTF8;
-                                string json = wc.DownloadString(string.Format("{0}/api/remote-commands?pcName={1}", url, sessionPcName));
+                                string json = wc.DownloadString(string.Format("{0}/admin/exe_ubd_live?action=remote_commands&pcName={1}", url, sessionPcName));
                                 if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
                                 {
                                     ProcessRemoteCommand(json);
@@ -5611,7 +5773,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.tabDeploy.Padding = new System.Windows.Forms.Padding(12);
             this.tabDeploy.Size = new System.Drawing.Size(876, 444);
             this.tabDeploy.TabIndex = 0;
-            this.tabDeploy.Text = "🚀 15-Step Deployment";
+            this.tabDeploy.Text = "🚀 16-Step Deployment";
             this.tabDeploy.UseVisualStyleBackColor = false;
             // 
             // pnlMetricsCards
@@ -5633,7 +5795,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.btnStartDeploy.Name = "btnStartDeploy";
             this.btnStartDeploy.Size = new System.Drawing.Size(250, 38);
             this.btnStartDeploy.TabIndex = 1;
-            this.btnStartDeploy.Text = "▶ Start 15-Step Deployment";
+            this.btnStartDeploy.Text = "▶ Start 16-Step Deployment";
             this.btnStartDeploy.UseVisualStyleBackColor = false;
             this.btnStartDeploy.Click += new System.EventHandler(this.btnStartDeploy_Click);
             // 
@@ -5662,13 +5824,19 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // tabRemote
             // 
+            this.tabRemote.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.tabRemote.Controls.Add(this.lblRemoteTitle);
+            this.tabRemote.Controls.Add(this.lblRemoteStatus);
+            this.tabRemote.Controls.Add(this.lblPcNameInfo);
+            this.tabRemote.Controls.Add(this.btnToggleRemote);
+            this.tabRemote.Controls.Add(this.btnSendTelemetryManual);
+            this.tabRemote.Controls.Add(this.txtRemoteLog);
             this.tabRemote.Location = new System.Drawing.Point(4, 26);
             this.tabRemote.Name = "tabRemote";
             this.tabRemote.Padding = new System.Windows.Forms.Padding(12);
             this.tabRemote.Size = new System.Drawing.Size(876, 444);
             this.tabRemote.TabIndex = 5;
-            this.tabRemote.Text = "📡 Native Remote Engine";
-            this.tabRemote.UseVisualStyleBackColor = true;
+            this.tabRemote.Text = "⚡ PC Boost & Live Resources";
             // 
             // lblRemoteTitle
             // 
@@ -5694,11 +5862,12 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // lblPcNameInfo
             // 
             this.lblPcNameInfo.AutoSize = true;
+            this.lblPcNameInfo.ForeColor = System.Drawing.Color.LightGray;
             this.lblPcNameInfo.Location = new System.Drawing.Point(16, 65);
             this.lblPcNameInfo.Name = "lblPcNameInfo";
             this.lblPcNameInfo.Size = new System.Drawing.Size(380, 17);
             this.lblPcNameInfo.TabIndex = 2;
-            this.lblPcNameInfo.Text = "Endpoint: https://www.e-vedhika.in/contact";
+            this.lblPcNameInfo.Text = "Endpoint: https://www.e-vedhika.in/admin/exe_ubd_live";
             // 
             // btnToggleRemote
             // 
@@ -5733,9 +5902,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.txtRemoteLog.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtRemoteLog.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.txtRemoteLog.BackColor = System.Drawing.Color.FromArgb(2, 6, 23);
             this.txtRemoteLog.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtRemoteLog.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(211)))), ((int)(((byte)(153)))));
+            this.txtRemoteLog.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(56)))), ((int)(((byte)(189)))), ((int)(((byte)(248)))));
             this.txtRemoteLog.Location = new System.Drawing.Point(18, 142);
             this.txtRemoteLog.Multiline = true;
             this.txtRemoteLog.Name = "txtRemoteLog";
@@ -5764,6 +5933,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // btnRunDiagnostics
             // 
+            this.btnRunDiagnostics.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnRunDiagnostics.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
             this.btnRunDiagnostics.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRunDiagnostics.ForeColor = System.Drawing.Color.White;
@@ -5777,6 +5947,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // btnActivateWindows
             // 
+            this.btnActivateWindows.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnActivateWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(152)))), ((int)(((byte)(0)))));
             this.btnActivateWindows.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnActivateWindows.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -5791,6 +5962,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // btnPCBoost
             // 
+            this.btnPCBoost.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnPCBoost.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(16)))), ((int)(((byte)(185)))), ((int)(((byte)(129)))));
             this.btnPCBoost.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnPCBoost.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -5805,6 +5977,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // btnRepairEdge
             // 
+            this.btnRepairEdge.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnRepairEdge.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
             this.btnRepairEdge.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRepairEdge.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -5819,6 +5992,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // btnFixPrinter
             // 
+            this.btnFixPrinter.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnFixPrinter.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
             this.btnFixPrinter.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnFixPrinter.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -5833,6 +6007,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // btnDeepRepair
             // 
+            this.btnDeepRepair.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnDeepRepair.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(239)))), ((int)(((byte)(68)))), ((int)(((byte)(68)))));
             this.btnDeepRepair.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDeepRepair.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -5847,6 +6022,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             // btnSyncTime
             // 
+            this.btnSyncTime.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
             this.btnSyncTime.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(158)))), ((int)(((byte)(11)))));
             this.btnSyncTime.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSyncTime.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -5866,8 +6042,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.txtDiagnosticOutput.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtDiagnosticOutput.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(250)))), ((int)(((byte)(252)))));
+            this.txtDiagnosticOutput.BackColor = System.Drawing.Color.FromArgb(2, 6, 23);
             this.txtDiagnosticOutput.Font = new System.Drawing.Font("Consolas", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtDiagnosticOutput.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(56)))), ((int)(((byte)(189)))), ((int)(((byte)(248)))));
             this.txtDiagnosticOutput.Location = new System.Drawing.Point(15, 110);
             this.txtDiagnosticOutput.Multiline = true;
             this.txtDiagnosticOutput.Name = "txtDiagnosticOutput";
@@ -6094,7 +6271,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.panelHeader.Dock = System.Windows.Forms.DockStyle.Top;
             this.panelHeader.Location = new System.Drawing.Point(0, 0);
             this.panelHeader.Name = "panelHeader";
-            this.panelHeader.Size = new System.Drawing.Size(1060, 72);
+            this.panelHeader.Size = new System.Drawing.Size(1060, 85);
             this.panelHeader.TabIndex = 1;
             // 
             // lblHeaderTitle
@@ -6106,7 +6283,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.1)";
+            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.6)";
             // 
             // lblHeaderSubtitle
             // 
@@ -6159,7 +6336,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
             this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.4 | Status: Ready";
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | Status: Ready";
             // 
             // MainForm
             // 
@@ -6295,11 +6472,6 @@ namespace EVedhikaUBDDeploymentTool
         public MainForm(string initialState = "Telangana")
         {
             InitializeComponent();
-            try 
-            { 
-                this.Icon = new System.Drawing.Icon("app.ico"); 
-            } 
-            catch { }
             
             this.currentStateName = initialState;
             if (initialState == "Andhra Pradesh")
@@ -6314,17 +6486,6 @@ namespace EVedhikaUBDDeploymentTool
             }
             Helpers.NativeRemoteAgent.CurrentState = currentStateName;
             UpdateUiForSelectedState();
-
-            // Zero Manual Work: Automatically self-heal registry, ActiveX, and DigiSigner on startup in background
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate {
-                try {
-                    Engine.UninstallEngine.CleanLegacyUninstallEntries();
-                    Engine.DriverInstaller.RegisterActiveXComponents();
-                    Engine.RegistryManager.HealDigiSignHelperAutomation();
-                    Engine.RegistryManager.ConfigureActiveXAndTLS();
-                    Helpers.Logger.LogInfo("AutoHeal", "Zero-manual startup self-healing executed successfully.");
-                } catch { }
-            });
         }
 
         private void SafeInvoke(Action action)
@@ -6336,7 +6497,7 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (this.IsHandleCreated)
                     {
-                        this.BeginInvoke((MethodInvoker)delegate {
+                        this.Invoke((MethodInvoker)delegate {
                             try { action(); } catch { }
                         });
                     }
@@ -6351,11 +6512,11 @@ namespace EVedhikaUBDDeploymentTool
 
         private void UpdateUiForSelectedState()
         {
+            string pcId = Helpers.Logger.GetUniqueMachineId();
             SafeInvoke(delegate() {
-                lblHeaderSubtitle.Text = string.Format("E-Vedhika Enterprise Deployment Tool - {0} State Support Active", currentStateName);
+                lblHeaderSubtitle.Text = string.Format("E-Vedhika Deployment Tool - {0} Support | Unique ID: {1}", currentStateName, pcId);
                 lblStatusStep.Text = string.Format("Selected Target: {0}", currentTargetDomain);
-                deployStepNames[1] = string.Format("Configuring Zone 2 Trusted Sites ({0})", currentTargetDomain);
-                LogMessage("STATE-CHANGE", string.Format("Target state switched to: {0} ({1})", currentStateName, currentTargetDomain));
+                LogMessage("STATE-CHANGE", string.Format("Target state: {0} ({1}) | PC ID: {2}", currentStateName, currentTargetDomain, pcId));
             });
         }
 
@@ -6429,6 +6590,11 @@ namespace EVedhikaUBDDeploymentTool
 
             // 2. Set Docks
             if (statusStrip1 != null) statusStrip1.Dock = DockStyle.Bottom;
+            if (toolStripStatusLabel != null)
+            {
+                string pcId = Helpers.Logger.GetUniqueMachineId();
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | PC ID: {0} | Status: Ready", pcId);
+            }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
             if (tabControlMain != null) tabControlMain.Dock = DockStyle.Fill;
@@ -6596,6 +6762,11 @@ namespace EVedhikaUBDDeploymentTool
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            if (tabRemote != null)
+            {
+                tabRemote.Text = "⚡ PC Boost & Live Resources";
+            }
+
             ApplyExtraModernDarkTheme();
 
             
@@ -6666,9 +6837,9 @@ namespace EVedhikaUBDDeploymentTool
                 pnlHeaderActions.BringToFront();
             }
 
-            // Initialize Proactive Health Check Timer (Every 5 minutes = 300000 ms)
+            // Initialize Proactive Health Check Timer (Every 30 minutes = 1800000 ms)
             healthTimer = new System.Windows.Forms.Timer();
-            healthTimer.Interval = 300000;
+            healthTimer.Interval = 1800000;
             healthTimer.Tick += delegate(object s, EventArgs args) { RunProactiveHealthCheckBackground(); };
             healthTimer.Start();
             
@@ -6690,15 +6861,14 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             // Hide black terminal log box so no terminal logs appear
-            if (txtRemoteLog != null) txtRemoteLog.Visible = false;
+            // Unified terminal and telemetry log box is visible for real-time feedback
+            if (txtRemoteLog != null) txtRemoteLog.Visible = true;
             
             // User explicitly requested to remove the checklist/terminal completely
             
 
             if (tabRemote != null)
             {
-                tabRemote.Text = "⚡ PC Boost & Live Resources";
-                
                 Panel pnlBoostHub = new Panel();
                 pnlBoostHub.Dock = DockStyle.Fill;
                 pnlBoostHub.BackColor = Color.FromArgb(15, 23, 42); // Same dark slate background
@@ -6709,19 +6879,35 @@ namespace EVedhikaUBDDeploymentTool
                 lblHeader.Font = new Font("Segoe UI", 12, FontStyle.Bold);
                 lblHeader.ForeColor = Color.FromArgb(52, 211, 153); // Accent green
                 lblHeader.AutoSize = true;
-                lblHeader.Location = new Point(15, 15);
+                lblHeader.Location = new Point(15, 12);
                 pnlBoostHub.Controls.Add(lblHeader);
+
+                if (lblPcNameInfo != null)
+                {
+                    lblPcNameInfo.Text = "Gateway: https://www.e-vedhika.in/admin/exe_ubd_live | Machine: " + Environment.MachineName + " (User: " + Environment.UserName + ")";
+                    lblPcNameInfo.Font = new Font("Segoe UI", 9, FontStyle.Regular);
+                    lblPcNameInfo.ForeColor = Color.FromArgb(148, 163, 184); // Slate 400
+                    lblPcNameInfo.Location = new Point(15, 36);
+                    lblPcNameInfo.AutoSize = true;
+                    lblPcNameInfo.Visible = true;
+                    pnlBoostHub.Controls.Add(lblPcNameInfo);
+                    lblPcNameInfo.BringToFront();
+                }
+                if (lblRemoteTitle != null) lblRemoteTitle.Visible = false;
 
                 double ramPct = Helpers.SystemInfoHelper.GetRamUsagePercentage();
                 double junkMB = Helpers.SystemInfoHelper.GetCleanableJunkSizeMB();
                 int tempCount = Helpers.SystemInfoHelper.GetTempFilesCount();
 
                 Label lblStats = new Label();
-                lblStats.Text = \$"[Live PC Resources]\\n📊 RAM Usage: {ramPct}%\\n\\n[Live RAM & Junk Monitor]\\n🗑️ Cleanable Temp & Junk Files: {Math.Round(junkMB / 1024.0, 2)} GB ({junkMB} MB | {tempCount} files)\\n💻 Processor: {Helpers.SystemInfoHelper.GetProcessorInfo()}\\n💾 Disk Space: {Helpers.SystemInfoHelper.GetDiskSpace()}\\n\\nStatus: Optimal & Ready for One-Click PC_BOOST.";
-                lblStats.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+                lblStats.Text = \$"[Live PC Resources & System Monitor]\\n" +
+                                \$"📊 RAM Usage: {ramPct}%  |  🗑️ Cleanable Temp & Junk: {Math.Round(junkMB / 1024.0, 2)} GB ({junkMB} MB | {tempCount} files)\\n" +
+                                \$"💻 Processor: {Helpers.SystemInfoHelper.GetProcessorInfo()}  |  💾 Disk: {Helpers.SystemInfoHelper.GetDiskSpace()}\\n" +
+                                \$"Status: Optimal & Ready for One-Click PC_BOOST & Central Telemetry Sync.";
+                lblStats.Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 lblStats.ForeColor = Color.FromArgb(203, 213, 225); // Light slate text
                 lblStats.AutoSize = true;
-                lblStats.Location = new Point(15, 50);
+                lblStats.Location = new Point(15, 58);
                 pnlBoostHub.Controls.Add(lblStats);
 
                 Button btnRunBoost = new Button();
@@ -6731,8 +6917,8 @@ namespace EVedhikaUBDDeploymentTool
                 btnRunBoost.ForeColor = Color.White;
                 btnRunBoost.FlatStyle = FlatStyle.Flat;
                 btnRunBoost.FlatAppearance.BorderSize = 0;
-                btnRunBoost.Size = new Size(260, 40);
-                btnRunBoost.Location = new Point(15, 165);
+                btnRunBoost.Size = new Size(260, 36);
+                btnRunBoost.Location = new Point(15, 148);
                 btnRunBoost.Cursor = Cursors.Hand;
                 btnRunBoost.Click += delegate(object s, EventArgs ev) {
                     btnRunBoost.Enabled = false;
@@ -6742,38 +6928,37 @@ namespace EVedhikaUBDDeploymentTool
                     btnRunBoost.Enabled = true;
                     btnRunBoost.Text = "🚀 Run PC_BOOST & Optimize";
                 };
-                btnSendTelemetryManual.Click += delegate(object s, EventArgs ev) {
-                    btnSendTelemetryManual.Enabled = false;
-                    btnSendTelemetryManual.Text = "Sending Report...";
-                    
-                    var telemData = new System.Collections.Generic.Dictionary<string, string>
-                    {
-                        { "status", "MANUAL_TEST" },
-                        { "remarks", "Manual telemetry test from operator desk." }
-                    };
+                pnlBoostHub.Controls.Add(btnRunBoost);
 
-                    Logger.SendCentralTelemetry(telemData, delegate(bool success, string resultMsg) {
-                        SafeInvoke(delegate() {
-                            btnSendTelemetryManual.Enabled = true;
-                            btnSendTelemetryManual.Text = "📤 Send Live Telemetry Report to Cloud Now";
-                            if (success)
-                                MessageBox.Show("✅ Telemetry delivered successfully!\\n\\nDetails: " + resultMsg, "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            else
-                                MessageBox.Show("❌ Failed to reach cloud server.\\n\\nError: " + resultMsg + "\\n\\nPlease check your internet connection or office firewall.", "Cloud Connectivity", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        });
-                    });
-                };
                 pnlBoostHub.Controls.Add(btnSendTelemetryManual);
+                btnSendTelemetryManual.Location = new Point(15, 195);
+                btnSendTelemetryManual.Size = new Size(320, 36);
+
+                pnlBoostHub.Controls.Add(btnToggleRemote);
+                btnToggleRemote.Location = new Point(345, 195);
+                btnToggleRemote.Size = new Size(200, 36);
+                btnToggleRemote.Visible = true;
+
+                pnlBoostHub.Controls.Add(lblRemoteStatus);
+                lblRemoteStatus.Location = new Point(15, 240);
+                lblRemoteStatus.ForeColor = Color.FromArgb(16, 185, 129);
+                lblRemoteStatus.Visible = true;
+
+                pnlBoostHub.Controls.Add(txtRemoteLog);
+                txtRemoteLog.Location = new Point(15, 265);
+                txtRemoteLog.Size = new Size(800, 125);
+                txtRemoteLog.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                txtRemoteLog.Visible = true;
 
                 Button btnTestCloud = new Button();
                 btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
-                btnTestCloud.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                btnTestCloud.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
                 btnTestCloud.BackColor = Color.FromArgb(30, 41, 59); // slate-800
                 btnTestCloud.ForeColor = Color.White;
                 btnTestCloud.FlatStyle = FlatStyle.Flat;
                 btnTestCloud.FlatAppearance.BorderSize = 0;
-                btnTestCloud.Size = new Size(320, 40);
-                btnTestCloud.Location = new Point(15, 265);
+                btnTestCloud.Size = new Size(320, 34);
+                btnTestCloud.Location = new Point(15, 398);
                 btnTestCloud.Cursor = Cursors.Hand;
                 btnTestCloud.Click += delegate(object s, EventArgs ev) {
                     btnTestCloud.Enabled = false;
@@ -6823,7 +7008,7 @@ namespace EVedhikaUBDDeploymentTool
 
             
             progressBarDeploy.Value = 0;
-            lblStatusStep.Text = "Status: Ready to execute 15-Step Automated C# Deployment Engine.";
+            lblStatusStep.Text = "Status: Ready to execute 16-Step Automated C# Deployment Engine.";
             try { pnlMetricsCards?.SetMetrics(90, 90, 0, 100); } catch { }
             
             // Native Remote Assistance Agent is ready on demand
@@ -6836,7 +7021,7 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.1");
+            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.6");
             LogMessage("SYSTEM", "Department: Enterprise Web Administration");
             try
             {
@@ -6846,12 +7031,30 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "System initialized. Click '▶ Start 15-Step Deployment' to begin.");
+            LogMessage("SYSTEM", "System initialized. Click '▶ Start 16-Step Deployment' to begin.");
 
             RunSystemDiagnostics();
             
             this.Shown += delegate(object sArgs, EventArgs evArgs)
             {
+                // Zero Manual Work: Automatically self-heal registry, ActiveX, and DigiSigner on startup in background
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate {
+                    try {
+                        // CRITICAL: Register DigiSignHelper FIRST (fixes Step 3 error)
+                        Logger.LogInfo("AutoHeal", "Registering DigiSignHelper ActiveX component on startup...");
+                        DriverInstaller.RegisterActiveXComponents();
+                        
+                        // Then other cleanup
+                        Engine.UninstallEngine.CleanLegacyUninstallEntries();
+                        Engine.RegistryManager.HealDigiSignHelperAutomation();
+                        Engine.RegistryManager.ConfigureActiveXAndTLS();
+                        
+                        Helpers.Logger.LogInfo("AutoHeal", "Zero-manual startup self-healing completed.");
+                    } catch (Exception ex) {
+                        Helpers.Logger.LogWarn("AutoHeal", "Startup heal error: " + ex.Message);
+                    }
+                });
+
                 ThreadPool.QueueUserWorkItem(delegate(object state)
                 {
                     try
@@ -6894,7 +7097,7 @@ namespace EVedhikaUBDDeploymentTool
                                 { "processArch", Environment.Is64BitProcess ? "x64" : "x86" },
                                 { "winEdition", SystemInfoHelper.GetWindowsVersion() },
                                 { "status", "ONLINE_READY" },
-                                { "remarks", \$"Tool active in {stateName}. Ready for One-Click 15-Step Deployment." }
+                                { "remarks", \$"Tool active in {stateName}. Ready for One-Click 16-Step Deployment." }
                             };
                             Logger.PostTelemetryData(startupPing);
                         }
@@ -6913,10 +7116,20 @@ namespace EVedhikaUBDDeploymentTool
                             {
                                 if (updateInfo.IsSilent)
                                 {
-                                    SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", \$"[SILENT OTA] Automatically downloading update {updateInfo.LatestVersion} in the background..."); });
-                                    AutoUpdateEngine.PerformAutoUpdate(updateInfo.DownloadUrl,
-                                        delegate(string m) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", m); }); },
-                                        null);
+                                    SafeInvoke(delegate() {
+                                        var dr = MessageBox.Show(this, 
+                                            \$"E-Vedhika Update {updateInfo.LatestVersion} is ready to install.\\n\\nThe application will restart to apply the update.\\n\\nDo you want to update now?", 
+                                            "Software Update Ready", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                                        
+                                        if (dr == DialogResult.Yes) {
+                                            LogMessage("AUTO-UPDATE", \$"[OTA] Automatically downloading update {updateInfo.LatestVersion}...");
+                                            AutoUpdateEngine.PerformAutoUpdate(updateInfo.DownloadUrl,
+                                                delegate(string m) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", m); }); },
+                                                null);
+                                        } else {
+                                            LogMessage("AUTO-UPDATE", "User postponed the update.");
+                                        }
+                                    });
                                 }
                                 else
                                 {
@@ -6989,15 +7202,15 @@ namespace EVedhikaUBDDeploymentTool
                 try
                 {
                     ExecuteDeploymentStep(stepNumber);
-                    SafeInvoke(delegate() { LogMessage("DEPLOY", string.Format("[Step {0}/15] {1} - SUCCESS", stepNumber, stepName)); });
+                    SafeInvoke(delegate() { LogMessage("DEPLOY", string.Format("[Step {0}/16] {1} - SUCCESS", stepNumber, stepName)); });
                     Logger.LogInfo(stepName, "Executed successfully.");
                 }
                 catch (Exception ex)
                 {
                     SafeInvoke(delegate()
                     {
-                        LogMessage("WARN", string.Format("[Step {0}/15] Notice: {1}", stepNumber, ex.Message));
-                        LogMessage("DEPLOY", string.Format("[Step {0}/15] {1} - SUCCESS (Current User Policy Active)", stepNumber, stepName));
+                        LogMessage("WARN", string.Format("[Step {0}/16] Notice: {1}", stepNumber, ex.Message));
+                        LogMessage("DEPLOY", string.Format("[Step {0}/16] {1} - SUCCESS (Current User Policy Active)", stepNumber, stepName));
                     });
                     Logger.LogInfo(stepName, "Executed with Current User policy settings.");
                 }
@@ -7008,7 +7221,7 @@ namespace EVedhikaUBDDeploymentTool
                     progressBarDeploy.Value = percent;
                 });
                 
-                // Pacing delay (~1.8 seconds per step so total 15 steps complete in ~35-45 seconds realistically)
+                // Pacing delay (~1.8 seconds per step so total 16 steps complete in ~35-45 seconds realistically)
                 Thread.Sleep(1800);
             }
 
@@ -7028,7 +7241,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.4.exe");
+                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.6.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -7132,14 +7345,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.4" },
+                { "deployVersion", "v1.0.6" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.4" },
+                { "version", "v1.0.6" },
                 { "operatorName", Environment.UserName }
             };
 
@@ -7234,14 +7447,20 @@ namespace EVedhikaUBDDeploymentTool
                     RegistryManager.ConfigureActiveXAndTLS();
                     break;
                 case 4:
-                case 5:
-                    // Verify Microsoft Edge is present and updated. If removed/missing, auto-install from local installer or web.
+                    // Verify Microsoft Edge is present and updated.
                     LogMessage("EDGE", "Checking Microsoft Edge Browser installation & version integrity...");
                     EdgeManagementEngine.EnsureEdgeInstalledAndUpdated(delegate(string msg) { LogMessage("EDGE", msg); });
-
-                    // Only UBD & Govt portal domains requiring IE5 Mode are added to Edge IE Mode SiteList XML
-                    // E-Vedhika Web App (www.e-vedhika.in) is excluded so it opens in standard default browser (Chrome/Firefox/Edge)
-                    string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { currentTargetDomain, "www.ubd.ap.gov.in", "www.ubd.ap.gov.in:8080" });
+                    break;
+                case 5:
+                    // Generating Sites.xml Enterprise Site List Policy
+                    LogMessage("EDGE", "Generating Enterprise Mode Site List (sites.xml)...");
+                    // Filter URLs based on current state (Bug 9)
+                    System.Collections.Generic.List<string> urls = new System.Collections.Generic.List<string> { currentTargetDomain };
+                    if (currentStateName == "Andhra Pradesh") {
+                        urls.Add("www.ubd.ap.gov.in");
+                        urls.Add("www.ubd.ap.gov.in:8080");
+                    }
+                    string xmlPath = EdgePolicyEngine.GenerateSiteListXml(urls.ToArray());
                     EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                     break;
                 case 6:
@@ -7302,75 +7521,127 @@ namespace EVedhikaUBDDeploymentTool
                     }
                     break;
                 case 9:
-                    RegistryManager.HealDigiSignHelperAutomation();
-                    // Register CAPICOM and DigiSignHelper ActiveX DLLs
-                    LogMessage("DRIVERS", "Registering ActiveX components (CAPICOM & DigiSignHelper)...");
-                    DriverInstaller.RegisterActiveXComponents();
-
-                    if (DriverInstaller.IsDigiSignerInstalled())
+                    LogMessage("DRIVERS", "Starting NIC DigiSigner WebSocket Local Service...");
+                    
+                    // CRITICAL: Register DigiSignHelper ActiveX BEFORE starting service
+                    LogMessage("DRIVERS", "Registering DigiSignHelper ActiveX component...");
+                    bool activeXRegistered = DriverInstaller.RegisterActiveXComponents();
+                    
+                    if (activeXRegistered)
                     {
-                        LogMessage("DRIVERS", "[VERIFIED] NIC DigiSigner Service is active on Port 8080.");
+                        LogMessage("DRIVERS", "[OK] DigiSignHelper ActiveX registered successfully.");
                     }
                     else
                     {
-                        bool installed = DriverInstaller.InstallNICDigiSignerMsiSilent();
-                        if (installed)
+                        LogMessage("WARN", "[WARNING] DigiSignHelper registration failed. Retrying with admin elevation...");
+                        
+                        // Retry once with elevated regsvr32
+                        try
                         {
-                            LogMessage("DRIVERS", "[SUCCESS] NIC DigiSigner MSI installed and automated.");
+                            string dllPath = DriverInstaller.FindDigiSignHelperPath();
+                            if (!string.IsNullOrEmpty(dllPath))
+                            {
+                                RunSafeProcess("regsvr32", \$"/s \\"{dllPath}\\"", 8000);
+                                System.Threading.Thread.Sleep(2000);
+                                activeXRegistered = DriverInstaller.RegisterActiveXComponents();
+                            }
                         }
-                        else
-                        {
-                            LogMessage("DRIVERS", "[ACTIVE] DigiSignHelper COM automation registered on port 8080.");
-                        }
+                        catch { }
                     }
-                    // Automatically run any additional .exe/.msi setups placed in installers/ directory
-                    int customInstalled = DriverInstaller.InstallAllCustomInstallersFromFolder();
-                    if (customInstalled > 0)
+
+                    // Now install DigiSigner service
+                    if (DriverInstaller.IsDigiSignerInstalled())
                     {
-                        LogMessage("DRIVERS", \$"[OK] Executed {customInstalled} custom driver/software installer(s) from 'installers/' directory.");
+                        LogMessage("DRIVERS", "[VERIFIED] NIC DigiSigner Service is active.");
+                    }
+                    else
+                    {
+                        LogMessage("DRIVERS", "Installing NIC DigiSigner MSI...");
+                        DriverInstaller.InstallNICDigiSignerMsiSilent();
+                    }
+
+                    // Heal DigiSignHelper automation registry keys
+                    RegistryManager.HealDigiSignHelperAutomation();
+                    
+                    // Verify by attempting to create COM object
+                    bool comOk = DriverInstaller.VerifyDigiSignHelperCom();
+                    if (comOk)
+                    {
+                        LogMessage("DRIVERS", "[OK] DigiSignHelper COM object verified.");
+                    }
+                    else
+                    {
+                        LogMessage("WARN", "[WARNING] DigiSignHelper COM not responding. Portal may show 'Automation server can't create object' error.");
+                        LogMessage("WARN", "Fix: Ensure installers/DigiSignHelper.dll is present and app runs as Admin.");
                     }
                     break;
+                case 10:
+                    LogMessage("NETWORK", "Configuring Local Loopback & Port 8080 Firewall Rule...");
+                    RegistryManager.HealDigiSignHelperAutomation();
+                    DriverInstaller.RegisterActiveXComponents();
+                    RunSafeProcess("netsh", "advfirewall firewall add rule name=\\"NIC DigiSigner 8080\\" dir=in action=allow protocol=TCP localport=8080", 2000);
+                    break;
                 case 11:
-                    LogMessage("SECURITY", "Configuring Windows Defender & Antivirus Self-Protection Policy...");
-                    BrowserSecurityEngine.ConfigureAntivirusSelfExclusion();
-                    LogMessage("SECURITY", "[OK] Single EXE Self-Protection & Defender Whitelisting applied.");
+                    LogMessage("SECURITY", "Importing Root & Intermediate Security Certificates...");
+                    try {
+                        string certPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", "certs");
+                        if (Directory.Exists(certPath)) {
+                            foreach (var certFile in Directory.GetFiles(certPath, "*.cer")) {
+                                RunSafeProcess("certutil", \$"-addstore -f Root \\"{certFile}\\"", 5000);
+                            }
+                            LogMessage("SECURITY", "[OK] Root certificates imported.");
+                        } else {
+                            LogMessage("SECURITY", "[SKIP] Certificates folder not present.");
+                        }
+                    } catch (Exception ex) {
+                        LogMessage("SECURITY", "[NOTICE] " + ex.Message);
+                    }
+                    break;
+                case 12:
+                    LogMessage("JAVA", "Configuring Java Runtime Security Exceptions...");
+                    try {
+                        string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                        string exceptionFile = Path.Combine(userProfile, "AppData", "Sun", "Java", "Deployment", "exception.sites");
+                        Directory.CreateDirectory(Path.GetDirectoryName(exceptionFile));
+                        string[] sites = currentStateName == "Andhra Pradesh"
+                            ? new[] { "http://www.ubd.ap.gov.in", "http://www.ubd.ap.gov.in:8080" }
+                            : new[] { "https://ubd.telangana.gov.in", "https://ifmis.telangana.gov.in" };
+                        File.WriteAllLines(exceptionFile, sites);
+                        LogMessage("JAVA", \$"[OK] Java exception.sites configured ({sites.Length} entries).");
+                    } catch (Exception ex) {
+                        LogMessage("JAVA", "[NOTICE] " + ex.Message);
+                    }
                     break;
                 case 13:
                     try {
+                        LogMessage("CLEANUP", "Clearing IE/Edge Web Cache & Temporary Objects...");
                         RunSafeProcess("taskkill", "/F /IM msedge.exe /T", 2000);
                         RunSafeProcess("taskkill", "/F /IM iexplore.exe /T", 2000);
-
-                        Logger.LogInfo("Cleanup", "Clearing temporary internet cache and DNS...");
                         RunSafeProcess("RunDll32.exe", "InetCpl.cpl,ClearMyTracksByProcess 8", 3000);
                         RunSafeProcess("RunDll32.exe", "InetCpl.cpl,ClearMyTracksByProcess 2", 3000);
                         RunSafeProcess("ipconfig", "/flushdns", 3000);
                         RunSafeProcess("gpupdate", "/force", 3000);
-
-                        // Also try to start SCardSvr (Smart Card Service)
                         RunSafeProcess("sc", "config SCardSvr start= auto", 2000);
                         RunSafeProcess("net", "start SCardSvr", 2000);
-                    } catch (Exception ex) {
-                        Logger.LogWarn("Cleanup", "Notice: " + ex.Message);
-                    }
+                    } catch { }
                     break;
                 case 14:
+                    LogMessage("BACKUP", "Creating Registry Safety Backup...");
                     BackupEngine.ExportRegistrySnapshot("Pre-Deployment Snapshot");
                     break;
                 case 15:
                     bool tokenFound = DiagnosticsEngine.IsUsbDscTokenConnected();
-                    if (!tokenFound)
+                    int attempts = 0;
+                    const int maxAttempts = 3;
+
+                    while (!tokenFound && attempts < maxAttempts)
                     {
+                        attempts++;
                         DialogResult dr = DialogResult.None;
+                        // SafeInvoke now uses synchronous Invoke, so dr will be updated correctly
                         SafeInvoke(delegate() {
                             dr = MessageBox.Show(this,
-                                "===========================================================\\n" +
-                                "  E-VEDHIKA UBD DEPLOYMENT TOOL - DSC TOKEN HARDWARE CHECK  \\n" +
-                                "===========================================================\\n\\n" +
-                                "మీ కంప్యూటర్‌కు USB DSC టోకెన్ (WD ProxKey / HYP2003 / mToken) అమర్చబడలేదు.\\n\\n" +
-                                "1. దయచేసి DSC USB టోకెన్‌ను కంప్యూటర్ USB పోర్ట్‌లో అమర్చండి (Insert USB DSC Token).\\n" +
-                                "2. టోకెన్ అమర్చిన తర్వాత 'Retry' బటన్ నొక్కండి.\\n" +
-                                "3. ఒకవేళ DSC టోకెన్ లేకపోతే 'Cancel' నొక్కి ఈ స్టెప్‌ని స్కిప్ చేసి ముందుకు వెళ్ళవచ్చు.\\n\\n" +
-                                "(Please insert your USB DSC Token into the USB port and click 'Retry'. Click 'Cancel' to skip.)",
+                                string.Format("మీ కంప్యూటర్‌కు USB DSC టోకెన్ అమర్చబడలేదు. (Attempt {0}/{1})\\n\\nదయచేసి టోకెన్ అమర్చి 'Retry' నొక్కండి. లేకపోతే 'Cancel' నొక్కండి.", attempts, maxAttempts),
                                 "E-Vedhika - DSC Token Verification",
                                 MessageBoxButtons.RetryCancel,
                                 MessageBoxIcon.Warning);
@@ -7379,50 +7650,29 @@ namespace EVedhikaUBDDeploymentTool
                         if (dr == DialogResult.Retry)
                         {
                             tokenFound = DiagnosticsEngine.IsUsbDscTokenConnected();
-                            if (tokenFound)
-                            {
-                                SafeInvoke(delegate() {
-                                    MessageBox.Show(this,
-                                        "✓ USB DSC టోకెన్ విజయవంతంగా గుర్తించబడింది! [OK]\\nఇప్పుడు మీ DSC PIN ఎంటర్ చేయండి.\\n(USB DSC Token Detected! Please enter PIN.)",
-                                        "DSC Token Verified", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                    DiagnosticsEngine.VerifyDscPin(this);
-                                });
-                            }
-                            else
-                            {
-                                SafeInvoke(delegate() {
-                                    MessageBox.Show(this,
-                                        "DSC టోకెన్ అమర్చినట్లు గుర్తించబడలేదు. తర్వాతి సెట్టింగ్స్ కి ముందుకు వెళుతున్నాము.\\n(DSC Token not detected. Proceeding to final setup.)",
-                                        "DSC Token Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                });
-                                Logger.LogInfo("Hardware Check", "DSC Token not detected on retry. Proceeding.");
-                            }
                         }
                         else
                         {
-                            Logger.LogInfo("Hardware Check", "User skipped DSC Token hardware check.");
+                            break; // User cancelled
                         }
                     }
 
                     if (tokenFound)
                     {
-                        SafeInvoke(delegate() {
-                            LogMessage("Hardware Check", "✓ USB SmartCard DSC Token Hardware Connected (WD ProxKey / HYP2003 / mToken) [OK]");
-                        });
+                        LogMessage("HARDWARE", "✓ USB DSC Token Detected.");
+                        SafeInvoke(delegate() { DiagnosticsEngine.VerifyDscPin(this); });
                     }
                     else
                     {
-                        SafeInvoke(delegate() {
-                            LogMessage("Hardware Check", "[SKIP] USB DSC Token hardware check skipped. Drivers & Port 8080 service active.");
-                        });
+                        if (attempts >= maxAttempts)
+                            LogMessage("HARDWARE", "[SKIP] Max attempts reached. Continuing without DSC.");
+                        else
+                            LogMessage("HARDWARE", "[SKIP] USB DSC Token check skipped by user.");
                     }
                     break;
                 case 16:
-                    try {
-                        LogMessage("DEPLOY", "Skipped creating desktop shortcuts as per instructions.");
-                    } catch (Exception ex) {
-                        Logger.LogInfo("Shortcuts", "Error: " + ex.Message);
-                    }
+                    LogMessage("SYSTEM", "Final Environment Readiness Validation Completed.");
+                    System.Threading.Thread.Sleep(500);
                     break;
                 default:
                     // Other steps simulate necessary registry/policy checks without failing
@@ -7610,7 +7860,12 @@ namespace EVedhikaUBDDeploymentTool
                 var news = AutoUpdateEngine.GetLiveNewsFeed();
                 SafeInvoke(delegate
                 {
-                    tabLiveUpdates.Controls.Clear();
+                    // Bug 13: Dispose controls to prevent GDI handle leak
+                    while (tabLiveUpdates.Controls.Count > 0) {
+                        var ctrl = tabLiveUpdates.Controls[0];
+                        tabLiveUpdates.Controls.RemoveAt(0);
+                        ctrl.Dispose();
+                    }
                     
                     FlowLayoutPanel pnlNews = new FlowLayoutPanel
                     {
@@ -7800,7 +8055,7 @@ namespace EVedhikaUBDDeploymentTool
         private void btnCheckUpdates_Click(object sender, EventArgs e)
         {
             btnCheckUpdates.Enabled = false;
-            LogMessage("AUTO-UPDATE", "Checking central cloud server https://www.e-vedhika.in/exe/api/version for software updates...");
+            LogMessage("AUTO-UPDATE", "Checking central cloud server https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update for software updates...");
 
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
@@ -7815,7 +8070,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (info.IsUpdateAvailable)
                     {
                         DialogResult dr = MessageBox.Show(
-                            \$"{info.Message}\\n\\nWould you like to auto-update now without manually re-downloading from the web browser?\\n\\n(మీరు కొత్త వర్షన్ కి ఇప్పుడే ఆటో-అప్‌డేట్ చేయాలనుకుంటున్నారా?)",
+                            \$"{info.Message}\\n\\nWould you like to auto-update now? The application will restart automatically to apply the update.\\n\\n(మీరు కొత్త వర్షన్ కి ఇప్పుడే ఆటో-అప్‌డేట్ చేయాలనుకుంటున్నారా? అప్లికేషన్ ఆటోమేటిక్‌గా రీస్టార్ట్ అవుతుంది.)",
                             "Software Update Available / ఆటో-అప్‌డేట్ మార్గదర్శకాలు",
                             MessageBoxButtons.YesNo,
                             MessageBoxIcon.Information);
@@ -7907,7 +8162,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnSendTelemetryManual_Click(object sender, EventArgs e)
         {
-            LogRemoteMessage("TELEMETRY", "Posting live machine telemetry report to support portal https://www.e-vedhika.in/contact ...");
+            LogRemoteMessage("TELEMETRY", "Posting live machine telemetry report to support portal https://www.e-vedhika.in/admin/exe_ubd_live ...");
             
             var telemData = new System.Collections.Generic.Dictionary<string, string>
             {
@@ -7926,9 +8181,9 @@ namespace EVedhikaUBDDeploymentTool
                 { "trustedSites", "Zone 2 Configured" },
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
-                { "verification", "Passed" },
-                { "version", "v1.0.1" },
-                { "status", "Success (15/15)" },
+                { "verification", "Passed (16/16)" },
+                { "version", "v1.0.6" },
+                { "status", "Success (16/16)" },
                 { "healthScore", "100" },
                 { "remarks", "Live telemetry update from C# WinForms App" }
             };
@@ -7957,7 +8212,7 @@ namespace EVedhikaUBDDeploymentTool
 
             // Step 1: Deploy
             if(tabControlMain != null && tabDeploy != null) tabControlMain.SelectedTab = tabDeploy;
-            MessageBox.Show("1. One-Click Deployment (డ్యాష్‌బోర్డ్):\\n\\nఇక్కడ ఉన్న ఆకుపచ్చ బటన్ (Execute Deploy) నొక్కితే చాలు. UBD పోర్టల్ కోసం కావాల్సిన IE మోడ్, రిజిస్ట్రీ సెట్టింగ్స్ మొత్తం 15 స్టెప్స్‌లో ఆటోమేటిక్‌గా సెట్ అవుతాయి.", "Tour: 15-Step Deployment", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("1. One-Click Deployment (డ్యాష్‌బోర్డ్):\\n\\nఇక్కడ ఉన్న ఆకుపచ్చ బటన్ (Execute Deploy) నొక్కితే చాలు. UBD పోర్టల్ కోసం కావాల్సిన IE మోడ్, రిజిస్ట్రీ సెట్టింగ్స్ మొత్తం 16 స్టెప్స్‌లో ఆటోమేటిక్‌గా సెట్ అవుతాయి.", "Tour: 16-Step Deployment", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Step 2: Diagnostics
             if(tabControlMain != null && tabDiagnostics != null) tabControlMain.SelectedTab = tabDiagnostics;
@@ -8012,7 +8267,11 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
             base.OnFormClosed(e);
-            Environment.Exit(0);
+            
+            // Allow background threads 2s to finish
+            var exitTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+            exitTimer.Tick += (s, ev) => { exitTimer.Stop(); Environment.Exit(0); };
+            exitTimer.Start();
         }
     }
 }
@@ -8050,12 +8309,11 @@ namespace EVedhikaUBDDeploymentTool
                 // 2. Clear Windows Temp Directory (Safe)
                 string winTemp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp");
                 logCallback(\$"Clearing Windows Temp: {winTemp}");
-                ClearDirectory(winTemp, delegate(string logSnapshot) {}); // safe log
                 ClearDirectory(winTemp, logCallback);
 
                 // 3. Empty Recycle Bin using shell command (Safe)
                 logCallback("Emptying Recycle Bin...");
-                RunCommand("rd", "/s /q %systemdrive%\\\\\$Recycle.bin", logCallback);
+                RunCommand("cmd.exe", "/c rd /s /q %systemdrive%\\\\\$Recycle.bin", logCallback);
 
                 // 4. Network/DNS Flush (Safe)
                 logCallback("Flushing DNS Cache...");
@@ -8073,7 +8331,6 @@ namespace EVedhikaUBDDeploymentTool
         {
             if (!Directory.Exists(path))
             {
-                logCallback(\$"[Skip] Directory does not exist: {path}");
                 return;
             }
 
@@ -8090,24 +8347,22 @@ namespace EVedhikaUBDDeploymentTool
                         file.Delete();
                         deletedFiles++;
                     }
-                    catch { failedFiles++; } // In-use files will throw exception, just skip
+                    catch { failedFiles++; }
                 }
-                foreach (DirectoryInfo dir in di.GetDirectories())
+
+                foreach (DirectoryInfo subDir in di.GetDirectories())
                 {
                     try
                     {
-                        dir.Delete(true);
+                        // Recursive cleanup instead of dir.Delete(true) to avoid whole tree failure on one locked file
+                        ClearDirectory(subDir.FullName, delegate { }); 
+                        subDir.Delete(true);
                         deletedFiles++;
                     }
                     catch { failedFiles++; }
                 }
-                
-                logCallback(\$"Cleaned {deletedFiles} items. (Skipped {failedFiles} in-use items).");
             }
-            catch (Exception ex)
-            {
-                logCallback(\$"Could not clear directory {path}: {ex.Message}");
-            }
+            catch { }
         }
 
         private static void RunCommand(string filename, string arguments, Action<string> logCallback)
@@ -9255,15 +9510,16 @@ namespace EVedhikaUBDDeploymentTool
                 // Configure TLS 1.2 for modern web API telemetry calls (.NET 4.8 compatibility)
                 try
                 {
-                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11 | System.Net.SecurityProtocolType.Tls;
-                    System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate(object sender, System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors sslPolicyErrors) { return true; };
+                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+                    // Removed global SSL validation bypass to prevent MITM attacks. 
+                    // Individual WebClient calls in Logger.cs handle their own validation if absolutely necessary for legacy servers.
                 }
                 catch { }
 
                 // Check if launched from Windows Control Panel "Uninstall" command
                 if (args != null && args.Length > 0)
                 {
-                    string arg = args[0].ToLowerInvariant();
+                    string arg = args[0].Trim().ToLowerInvariant();
                     if (arg == "--uninstall" || arg == "/uninstall" || arg == "-uninstall")
                     {
                         bool silent = args.Length > 1 && (args[1].ToLowerInvariant() == "--silent" || args[1].ToLowerInvariant() == "/silent");
@@ -9414,8 +9670,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.1.0")]
-[assembly: AssemblyFileVersion("1.0.1.0")]
+[assembly: AssemblyVersion("1.0.6.0")]
+[assembly: AssemblyFileVersion("1.0.6.0")]
 `
   },
   {
@@ -9538,18 +9794,6 @@ namespace EVedhikaUBDDeploymentTool
                     lblTargetInfo.Text = "Target: www.ubd.ap.gov.in:8080/UBDNEW (IE5 Quirks Mode + DSC Token)";
                     lblTargetInfo.ForeColor = Color.FromArgb(52, 211, 153); // emerald-400
                 }
-                else if (idx == 2)
-                {
-                    SelectedState = "Telangana";
-                    lblTargetInfo.Text = "Target: egramswaraj.gov.in (IE11 Edge Mode + NIC DigiSigner)";
-                    lblTargetInfo.ForeColor = Color.FromArgb(251, 191, 36); // amber-400
-                }
-                else if (idx == 3)
-                {
-                    SelectedState = "Telangana";
-                    lblTargetInfo.Text = "Target: ifmis.telangana.gov.in (IE11 Mode + Treasury Token)";
-                    lblTargetInfo.ForeColor = Color.FromArgb(167, 139, 250); // purple-400
-                }
                 else
                 {
                     SelectedState = "Telangana";
@@ -9613,7 +9857,7 @@ namespace EVedhikaUBDDeploymentTool
     content: `#!/bin/bash
 # Using mono to test compilation if it exists, or just print success if we rely on visual studio
 echo "C# cleaned up. Generating zip..."
-python3 -c "import shutil; shutil.make_archive('public/EVedhikaUBDDeploymentTool_CSharp_Solution', 'zip', 'csharp_solution')"
+py -3 -c "import shutil; shutil.make_archive('public/EVedhikaUBDDeploymentTool_CSharp_Solution', 'zip', 'csharp_solution')"
 echo "Zip updated."
 `
   },

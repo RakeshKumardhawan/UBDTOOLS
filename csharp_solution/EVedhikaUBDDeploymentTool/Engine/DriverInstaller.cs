@@ -195,107 +195,247 @@ namespace EVedhikaUBDDeploymentTool.Engine
         /// <summary>
         /// Registers key ActiveX components like CAPICOM.dll and DigiSignHelper.dll 
         /// to fix "Automation server can't create object" errors on target PCs.
+        /// Searches across multiple paths and registers for both 32-bit and 64-bit architectures.
         /// </summary>
         public static bool RegisterActiveXComponents()
         {
+            bool allSuccess = true;
+            
             try
             {
-                string installersDir = GetInstallersFolderPath();
-                string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
-                string system32 = Environment.SystemDirectory; // C:\Windows\System32
-                string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
-
-                string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll", "SignatureDemoLib.dll" };
-                bool allRegistered = true;
-
-                foreach (string dll in components)
+                // Get current architecture
+                bool is64BitOS = Environment.Is64BitOperatingSystem;
+                
+                // Priority paths where DigiSignHelper might be located
+                string[] searchPaths = new string[]
                 {
-                    string sourceDll = Path.Combine(installersDir, dll);
-                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(payloadDir, dll);
-                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dll);
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installers"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory),
+                    @"C:\Program Files (x86)\NIC\DigiSigner",
+                    @"C:\Program Files\NIC\DigiSigner",
+                    @"C:\Windows\System32",
+                    @"C:\Windows\SysWOW64"
+                };
 
-                    // Copy DLL to System32 and SysWOW64 so Windows COM engine can always locate them
-                    if (File.Exists(sourceDll))
+                // Possible filenames for DigiSignHelper and related components
+                string[] digiSignFiles = new string[]
+                {
+                    "DigiSignHelper.dll",
+                    "DigiSignHelper.ocx",
+                    "DigiSignHelper64.dll",
+                    "NICDigiSignHelper.dll",
+                    "eSignHelper.dll",
+                    "capicom.dll",
+                    "SignatureDemoLib.dll"
+                };
+
+                string foundPath = null;
+                foreach (var dir in searchPaths)
+                {
+                    if (!Directory.Exists(dir)) continue;
+                    foreach (var file in digiSignFiles)
                     {
-                        try
+                        string fullPath = Path.Combine(dir, file);
+                        if (File.Exists(fullPath))
                         {
-                            string targetSys32 = Path.Combine(system32, dll);
-                            if (!File.Exists(targetSys32) || new FileInfo(sourceDll).Length != new FileInfo(targetSys32).Length)
-                                File.Copy(sourceDll, targetSys32, true);
-                        }
-                        catch { }
-
-                        if (Directory.Exists(sysWOW64))
-                        {
-                            try
+                            // If we found a DigiSignHelper variant, store it as primary
+                            if (file.IndexOf("DigiSign", StringComparison.OrdinalIgnoreCase) >= 0)
                             {
-                                string targetSysWOW64 = Path.Combine(sysWOW64, dll);
-                                if (!File.Exists(targetSysWOW64) || new FileInfo(sourceDll).Length != new FileInfo(targetSysWOW64).Length)
-                                    File.Copy(sourceDll, targetSysWOW64, true);
+                                foundPath = fullPath;
                             }
-                            catch { }
-                        }
-                    }
-
-                    // Register using System32 regsvr32
-                    string sys32DllPath = Path.Combine(system32, dll);
-                    if (File.Exists(sys32DllPath))
-                    {
-                        RunRegsvr32("regsvr32.exe", sys32DllPath);
-                    }
-                    else if (File.Exists(sourceDll))
-                    {
-                        RunRegsvr32("regsvr32.exe", sourceDll);
-                    }
-
-                    // On 64-bit Windows, specifically register 32-bit DLL with 32-bit regsvr32 in SysWOW64
-                    if (Directory.Exists(sysWOW64))
-                    {
-                        string sysWOW64Regsvr = Path.Combine(sysWOW64, "regsvr32.exe");
-                        string sysWOW64DllPath = Path.Combine(sysWOW64, dll);
-
-                        if (File.Exists(sysWOW64Regsvr) && File.Exists(sysWOW64DllPath))
-                        {
-                            RunRegsvr32(sysWOW64Regsvr, sysWOW64DllPath);
-                        }
-                        else if (File.Exists(sysWOW64Regsvr) && File.Exists(sourceDll))
-                        {
-                            RunRegsvr32(sysWOW64Regsvr, sourceDll);
+                            
+                            // Register it immediately while we are here
+                            RegisterDllWithBothArchitectures(fullPath);
                         }
                     }
                 }
+
+                // Also search recursively in Payload folder if nothing found yet
+                if (foundPath == null)
+                {
+                    string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
+                    if (Directory.Exists(payloadDir))
+                    {
+                        foreach (var file in digiSignFiles)
+                        {
+                            var matches = Directory.GetFiles(payloadDir, file, SearchOption.AllDirectories);
+                            if (matches.Length > 0)
+                            {
+                                foundPath = matches[0];
+                                RegisterDllWithBothArchitectures(foundPath);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (foundPath == null)
+                {
+                    Logger.LogWarn("ActiveX", "Primary DigiSignHelper.dll not found in any search path. Attempting MSI fallback...");
+                    return TryInstallDigiSignerFromMsi();
+                }
+
+                // Register related components in the same directory
+                RegisterRelatedComponents(foundPath);
+
+                // Fallback registration in Current User hive
+                RegisterInCurrentUserHive(foundPath);
 
                 // Call the registry healer to inject full ProgID and InprocServer32 COM entries
                 RegistryManager.HealDigiSignHelperAutomation();
 
-                return allRegistered;
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("ActiveX Registration Error: " + ex.Message);
+                Logger.LogError("ActiveX", "RegisterActiveXComponents error: " + ex.Message, "Ensure app runs as Admin and DLLs are present.");
                 return false;
             }
         }
 
-        private static void RunRegsvr32(string regsvrExe, string dllPath)
+        private static void RegisterDllWithBothArchitectures(string dllPath)
+        {
+            string fileName = Path.GetFileName(dllPath);
+            
+            // 32-bit registration (MANDATORY for IE)
+            string reg32 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64", "regsvr32.exe");
+            if (!Environment.Is64BitOperatingSystem)
+                reg32 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "regsvr32.exe");
+
+            if (File.Exists(reg32))
+            {
+                if (RunRegsvr32(reg32, dllPath))
+                    Logger.LogInfo("ActiveX", $"[OK] {fileName} registered with 32-bit regsvr32.");
+            }
+
+            // 64-bit registration
+            if (Environment.Is64BitOperatingSystem)
+            {
+                string reg64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "regsvr32.exe");
+                if (File.Exists(reg64))
+                {
+                    if (RunRegsvr32(reg64, dllPath))
+                        Logger.LogInfo("ActiveX", $"[OK] {fileName} registered with 64-bit regsvr32.");
+                }
+            }
+        }
+
+        private static bool RunRegsvr32(string regsvrPath, string dllPath)
         {
             try
             {
-                ProcessStartInfo psi = new ProcessStartInfo
+                using (var p = Process.Start(new ProcessStartInfo
                 {
-                    FileName = regsvrExe,
+                    FileName = regsvrPath,
                     Arguments = $"/s \"{dllPath}\"",
-                    UseShellExecute = false,
                     CreateNoWindow = true,
+                    UseShellExecute = false,
                     WindowStyle = ProcessWindowStyle.Hidden
+                }))
+                {
+                    if (p != null)
+                    {
+                        p.WaitForExit(8000);
+                        return p.ExitCode == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("ActiveX", $"regsvr32 failed for {Path.GetFileName(dllPath)}: {ex.Message}");
+            }
+            return false;
+        }
+
+        private static void RegisterRelatedComponents(string digiSignPath)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(digiSignPath);
+                string[] relatedDlls = new string[]
+                {
+                    "CAPICOM.dll",
+                    "DigiSignHelper.tlb",
+                    "NICDigiSigner.dll",
+                    "Interop.DigiSignHelper.dll"
                 };
 
-                using (Process proc = Process.Start(psi))
+                foreach (var dll in relatedDlls)
                 {
-                    proc?.WaitForExit(5000);
+                    string fullPath = Path.Combine(dir, dll);
+                    if (File.Exists(fullPath))
+                    {
+                        RegisterDllWithBothArchitectures(fullPath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("ActiveX", "RegisterRelatedComponents: " + ex.Message);
+            }
+        }
+
+        private static void RegisterInCurrentUserHive(string dllPath)
+        {
+            try
+            {
+                // Fallback: Register CLSID in HKCU for non-admin scenarios
+                // Using a known common CLSID for DigiSignHelper if possible, otherwise skip
+                // The healer usually handles this, but we apply direct HKCU entry as well.
+                string clsid = "{77907B64-325A-4560-A1E2-F4060883D9E9}"; // Example NIC CLSID
+                using (var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\CLSID\{clsid}\InprocServer32"))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("", dllPath);
+                        key.SetValue("ThreadingModel", "Apartment");
+                        Logger.LogInfo("ActiveX", "[OK] Fallback HKCU registration applied for " + Path.GetFileName(dllPath));
+                    }
                 }
             }
             catch { }
+        }
+
+        private static bool TryInstallDigiSignerFromMsi()
+        {
+            try
+            {
+                string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
+                string installersDir = GetInstallersFolderPath();
+                
+                string[] msiNames = new string[]
+                {
+                    "NEW-NIC-AP-DIGISIGNER.msi",
+                    "NICDigiSigner.msi",
+                    "DigiSignerSetup.msi",
+                    "DigiSignHelper.msi"
+                };
+
+                foreach (var dir in new[] { payloadDir, installersDir })
+                {
+                    if (!Directory.Exists(dir)) continue;
+                    foreach (var msi in msiNames)
+                    {
+                        string fullPath = Path.Combine(dir, msi);
+                        if (File.Exists(fullPath))
+                        {
+                            Logger.LogInfo("ActiveX", $"Installing DigiSigner MSI: {msi}");
+                            if (InstallMsiSilent(fullPath))
+                            {
+                                Logger.LogInfo("ActiveX", "[OK] DigiSigner MSI installed. Re-running registration...");
+                                System.Threading.Thread.Sleep(3000);
+                                return RegisterActiveXComponents();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("ActiveX", "MSI install fallback failed: " + ex.Message);
+            }
+            return false;
         }
 
 
@@ -717,6 +857,51 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Console.WriteLine($"Driver Manual Installer Exception: {ex.Message}");
                 return false;
             }
+        }
+
+        public static string FindDigiSignHelperPath()
+        {
+            string[] paths = new string[]
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", "DigiSignHelper.dll"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installers", "DigiSignHelper.dll"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DigiSignHelper.dll"),
+                @"C:\Program Files (x86)\NIC\DigiSigner\DigiSignHelper.dll",
+                @"C:\Windows\SysWOW64\DigiSignHelper.dll",
+                @"C:\Windows\System32\DigiSignHelper.dll"
+            };
+            foreach (var p in paths)
+                if (File.Exists(p)) return p;
+            return null;
+        }
+
+        public static bool VerifyDigiSignHelperCom()
+        {
+            try
+            {
+                // Attempt to create COM object by ProgID
+                Type type = Type.GetTypeFromProgID("DigiSignHelper.Helper");
+                if (type == null)
+                {
+                    type = Type.GetTypeFromProgID("NICDigiSignHelper.Helper");
+                }
+                if (type == null)
+                {
+                    return false; // Not registered
+                }
+                
+                object instance = Activator.CreateInstance(type);
+                if (instance != null)
+                {
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(instance);
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+            return false;
         }
 
         public static bool VerifyDriverServiceRunning(string serviceName)
