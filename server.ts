@@ -431,6 +431,7 @@ async function startServer() {
       ...currentVersionConfig
     });
   };
+  app.get('/api/ping', (req, res) => res.json({ success: true, timestamp: new Date().toISOString() }));
   app.get('/api/version', handleGetVersion);
   app.get('/exe/api/version', handleGetVersion);
   app.get('/version.json', handleGetVersion);
@@ -718,7 +719,15 @@ async function startServer() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newRecord)
-        }).catch(err => console.warn(`Relay failed to ${currentVersionConfig.telemetryRelayUrl}:`, err.message));
+        })
+        .then(async r => {
+          if (r.ok) console.log(`[RELAY SUCCESS] Forwarded to ${currentVersionConfig.telemetryRelayUrl}`);
+          else {
+            const errTxt = await r.text().catch(() => 'No response body');
+            console.warn(`[RELAY WARNING] Target ${currentVersionConfig.telemetryRelayUrl} returned ${r.status}: ${errTxt}`);
+          }
+        })
+        .catch(err => console.warn(`[RELAY FAILED] Relay to ${currentVersionConfig.telemetryRelayUrl}:`, err.message));
       }
 
       // Auto-forward Telemetry Report to Telegram if configured

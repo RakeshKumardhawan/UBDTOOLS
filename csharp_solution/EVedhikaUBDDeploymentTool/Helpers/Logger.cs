@@ -111,11 +111,13 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
                 catch { }
 
-                // Primary target is strictly the requested endpoint
+                // Primary target is strictly the requested endpoint with HTTP fallbacks for Win 7/8 compatibility
                 string[] endpoints = new string[]
                 {
+                    "https://www.e-vedhika.in/api/telemetry",
+                    "http://www.e-vedhika.in/api/telemetry",
                     "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://www.e-vedhika.in/api/telemetry"
+                    "http://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry"
                 };
 
                 bool delivered = false;
@@ -136,6 +138,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
                             string response = wc.UploadString(url, "POST", jsonPayload);
                             delivered = true;
+                            try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEMETRY] SUCCESS to {url}\r\n"); } catch { }
                             onComplete?.Invoke(true, $"Delivered to {url}");
                             break; // Stop after first successful delivery
                         }
@@ -143,6 +146,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     catch (Exception ex)
                     {
                         lastError = ex.Message;
+                        try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEMETRY] FAILED to {url}: {ex.Message}\r\n"); } catch { }
                         // Continue trying next endpoint
                     }
                 }
