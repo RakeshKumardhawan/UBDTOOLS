@@ -431,7 +431,10 @@ async function startServer() {
       ...currentVersionConfig
     });
   };
-  app.get('/api/ping', (req, res) => res.json({ success: true, timestamp: new Date().toISOString() }));
+  const handlePing = (req: any, res: any) => res.status(200).json({ success: true, timestamp: new Date().toISOString() });
+  app.all('/api/ping', handlePing);
+  app.get('/api/telemetry/ping', handlePing);
+  app.head('/api/telemetry', handlePing);
   app.get('/api/version', handleGetVersion);
   app.get('/exe/api/version', handleGetVersion);
   app.get('/version.json', handleGetVersion);

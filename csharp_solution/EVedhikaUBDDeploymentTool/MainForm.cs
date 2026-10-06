@@ -523,19 +523,30 @@ namespace EVedhikaUBDDeploymentTool
                     btnTestCloud.Text = "Testing Connectivity...";
                     
                     ThreadPool.QueueUserWorkItem(delegate {
-                        string testUrl = "https://www.e-vedhika.in/api/telemetry";
+                        string[] testUrls = new string[] {
+                            "https://www.e-vedhika.in/api/ping",
+                            "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/ping",
+                            "https://www.e-vedhika.in/api/telemetry"
+                        };
                         bool reachable = false;
                         string msg = "";
-                        try {
-                            var request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(testUrl);
-                            request.Method = "HEAD";
-                            request.Timeout = 5000;
-                            request.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                            request.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-                            using (var response = (System.Net.HttpWebResponse)request.GetResponse()) {
-                                reachable = (response.StatusCode == System.Net.HttpStatusCode.OK || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed);
-                            }
-                        } catch (Exception ex) { msg = ex.Message; }
+                        foreach (var testUrl in testUrls)
+                        {
+                            try {
+                                var request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(testUrl);
+                                request.Method = "GET";
+                                request.Timeout = 5000;
+                                request.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                                request.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                                using (var response = (System.Net.HttpWebResponse)request.GetResponse()) {
+                                    if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                                    {
+                                        reachable = true;
+                                        break;
+                                    }
+                                }
+                            } catch (Exception ex) { msg = ex.Message; }
+                        }
                         
                         SafeInvoke(delegate() {
                             btnTestCloud.Enabled = true;

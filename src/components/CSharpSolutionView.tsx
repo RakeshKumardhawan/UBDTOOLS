@@ -165,7 +165,7 @@ Name: "{group}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"
 Name: "{commondesktop}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"
 
 [Run]
-Filename: "{tmp}\\ndp48-x86-x64-allos-enu.exe"; Parameters: "/passive /norestart /showrmui"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
+Filename: "{tmp}\\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
 Filename: "{tmp}\\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing System Components (Fixing missing DLLs for Windows 7)..."; Check: NeedsVCRedist
 Filename: "{app}\\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
@@ -215,11 +215,17 @@ begin
     Result := False;
     Exit;
   end;
-  // Check for .NET Framework 4.8 (Release value 528040 or higher)
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) then
-    Result := v < 528040
+  // Check for .NET Framework 4.8 (Release value 528040 or higher) in HKLM
+  if RegQueryDWordValue(HKLM, 'SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) or
+     RegQueryDWordValue(HKLM, 'SOFTWARE\\WOW6432Node\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full', 'Release', v) then
+  begin
+    Result := v < 528040;
+  end
   else
-    Result := True;
+  begin
+    // Default to False on modern Windows 10/11 to avoid redundant installation popups
+    Result := False;
+  end;
 end;
 
 function NeedsVCRedist: Boolean;
@@ -624,7 +630,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/version.json",
+                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/version.json",
                 "https://www.e-vedhika.in/version.json",
                 "https://www.e-vedhika.in/api/version",
                 "https://www.e-vedhika.in/exe/api/version"
@@ -891,7 +897,7 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
-                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/news",
+                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/news",
                 "https://www.e-vedhika.in/api/news"
             };
 
@@ -6774,19 +6780,30 @@ namespace EVedhikaUBDDeploymentTool
                     btnTestCloud.Text = "Testing Connectivity...";
                     
                     ThreadPool.QueueUserWorkItem(delegate {
-                        string testUrl = "https://www.e-vedhika.in/api/telemetry";
+                        string[] testUrls = new string[] {
+                            "https://www.e-vedhika.in/api/ping",
+                            "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/ping",
+                            "https://www.e-vedhika.in/api/telemetry"
+                        };
                         bool reachable = false;
                         string msg = "";
-                        try {
-                            var request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(testUrl);
-                            request.Method = "HEAD";
-                            request.Timeout = 5000;
-                            request.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                            request.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-                            using (var response = (System.Net.HttpWebResponse)request.GetResponse()) {
-                                reachable = (response.StatusCode == System.Net.HttpStatusCode.OK || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed);
-                            }
-                        } catch (Exception ex) { msg = ex.Message; }
+                        foreach (var testUrl in testUrls)
+                        {
+                            try {
+                                var request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(testUrl);
+                                request.Method = "GET";
+                                request.Timeout = 5000;
+                                request.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                                request.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                                using (var response = (System.Net.HttpWebResponse)request.GetResponse()) {
+                                    if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                                    {
+                                        reachable = true;
+                                        break;
+                                    }
+                                }
+                            } catch (Exception ex) { msg = ex.Message; }
+                        }
                         
                         SafeInvoke(delegate() {
                             btnTestCloud.Enabled = true;

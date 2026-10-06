@@ -53,7 +53,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/version.json",
+                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/version.json",
                 "https://www.e-vedhika.in/version.json",
                 "https://www.e-vedhika.in/api/version",
                 "https://www.e-vedhika.in/exe/api/version"
@@ -320,7 +320,7 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
-                "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/news",
+                "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/news",
                 "https://www.e-vedhika.in/api/news"
             };
 

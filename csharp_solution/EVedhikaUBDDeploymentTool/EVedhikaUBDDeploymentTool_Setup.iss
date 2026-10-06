@@ -36,7 +36,7 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{tmp}\ndp48-x86-x64-allos-enu.exe"; Parameters: "/passive /norestart /showrmui"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
+Filename: "{tmp}\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
 Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing System Components (Fixing missing DLLs for Windows 7)..."; Check: NeedsVCRedist
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
@@ -86,11 +86,17 @@ begin
     Result := False;
     Exit;
   end;
-  // Check for .NET Framework 4.8 (Release value 528040 or higher)
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) then
-    Result := v < 528040
+  // Check for .NET Framework 4.8 (Release value 528040 or higher) in HKLM
+  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) or
+     RegQueryDWordValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) then
+  begin
+    Result := v < 528040;
+  end
   else
-    Result := True;
+  begin
+    // Default to False on modern Windows 10/11 to avoid redundant installation popups
+    Result := False;
+  end;
 end;
 
 function NeedsVCRedist: Boolean;
