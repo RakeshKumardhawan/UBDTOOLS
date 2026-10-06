@@ -1,3 +1,7 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
 namespace EVedhikaUBDDeploymentTool
 {
     partial class MainForm
@@ -263,7 +267,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnRunDiagnostics
             // 
-            this.btnRunDiagnostics.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
+            this.btnRunDiagnostics.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
             this.btnRunDiagnostics.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
             this.btnRunDiagnostics.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRunDiagnostics.ForeColor = System.Drawing.Color.White;
@@ -277,7 +281,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnActivateWindows
             // 
-            this.btnActivateWindows.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
+            this.btnActivateWindows.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
             this.btnActivateWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(152)))), ((int)(((byte)(0)))));
             this.btnActivateWindows.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnActivateWindows.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -292,7 +296,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnPCBoost
             // 
-            this.btnPCBoost.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
+            this.btnPCBoost.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
             this.btnPCBoost.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(16)))), ((int)(((byte)(185)))), ((int)(((byte)(129)))));
             this.btnPCBoost.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnPCBoost.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -307,7 +311,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnRepairEdge
             // 
-            this.btnRepairEdge.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
+            this.btnRepairEdge.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
             this.btnRepairEdge.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
             this.btnRepairEdge.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRepairEdge.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -322,7 +326,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnFixPrinter
             // 
-            this.btnFixPrinter.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
+            this.btnFixPrinter.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
             this.btnFixPrinter.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(99)))), ((int)(((byte)(102)))), ((int)(((byte)(241)))));
             this.btnFixPrinter.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnFixPrinter.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -337,7 +341,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnDeepRepair
             // 
-            this.btnDeepRepair.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
+            this.btnDeepRepair.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
             this.btnDeepRepair.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(239)))), ((int)(((byte)(68)))), ((int)(((byte)(68)))));
             this.btnDeepRepair.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDeepRepair.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -352,7 +356,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // btnSyncTime
             // 
-            this.btnSyncTime.Anchor = (AnchorStyles.Top | AnchorStyles.Left);
+            this.btnSyncTime.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
             this.btnSyncTime.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(158)))), ((int)(((byte)(11)))));
             this.btnSyncTime.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSyncTime.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);

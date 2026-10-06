@@ -199,8 +199,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
         /// </summary>
         public static bool RegisterActiveXComponents()
         {
-            bool allSuccess = true;
-            
             try
             {
                 // Get current architecture
