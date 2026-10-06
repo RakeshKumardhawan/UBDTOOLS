@@ -183,7 +183,23 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
 
-            // Swallow non-fatal startup and thread exception popups to ensure smooth startup experience
+            // Instantly transmit error telemetry report to central dashboard & Telegram
+            try
+            {
+                var errorTelemetry = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "date", DateTime.Now.ToString("yyyy-MM-dd") },
+                    { "time", DateTime.Now.ToString("HH:mm:ss") },
+                    { "pcName", Environment.MachineName },
+                    { "userName", Environment.UserName },
+                    { "officeLocation", $"{Environment.MachineName} ({source})" },
+                    { "status", "ERROR_CRASH" },
+                    { "remarks", $"Exception in {source}: {ex.Message}" },
+                    { "errorDetails", errDetails.Length > 500 ? errDetails.Substring(0, 500) : errDetails }
+                };
+                Logger.SendCentralTelemetry(errorTelemetry);
+            }
+            catch { }
         }
     }
 }

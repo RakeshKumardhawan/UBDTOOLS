@@ -22,7 +22,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         edgeKeyHKCU.SetValue("InternetExplorerIntegrationSiteList", siteListXmlPath, RegistryValueKind.String);
                         edgeKeyHKCU.SetValue("InternetExplorerIntegrationReloadInIEModeAllowed", 1, RegistryValueKind.DWord);
                         edgeKeyHKCU.SetValue("InternetExplorerIntegrationSiteListRefreshInterval", 1, RegistryValueKind.DWord);
-                        edgeKeyHKCU.SetValue("EnterpriseModeSiteList", "file:///" + siteListXmlPath.Replace("\\", "/"), RegistryValueKind.String);
+                        try { edgeKeyHKCU.DeleteValue("EnterpriseModeSiteList", false); } catch { }
                     }
                 }
 
@@ -37,7 +37,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             edgeKeyHKLM.SetValue("InternetExplorerIntegrationSiteList", siteListXmlPath, RegistryValueKind.String);
                             edgeKeyHKLM.SetValue("InternetExplorerIntegrationReloadInIEModeAllowed", 1, RegistryValueKind.DWord);
                             edgeKeyHKLM.SetValue("InternetExplorerIntegrationSiteListRefreshInterval", 1, RegistryValueKind.DWord);
-                            edgeKeyHKLM.SetValue("EnterpriseModeSiteList", "file:///" + siteListXmlPath.Replace("\\", "/"), RegistryValueKind.String);
+                            try { edgeKeyHKLM.DeleteValue("EnterpriseModeSiteList", false); } catch { }
                         }
                     }
                 }
@@ -45,6 +45,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     // Non-admin fallback: HKCU policy is already active
                 }
+
+                // 3. Set legacy IE11 EnterpriseModeSiteList key under Internet Explorer policies (NOT under Edge)
+                try
+                {
+                    using (RegistryKey ieKey = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Policies\Microsoft\Internet Explorer\Main\EnterpriseMode"))
+                    {
+                        if (ieKey != null)
+                        {
+                            ieKey.SetValue("Enable", "1", RegistryValueKind.String);
+                            ieKey.SetValue("SiteList", siteListXmlPath, RegistryValueKind.String);
+                        }
+                    }
+                }
+                catch { }
 
                 // 3. Enforce IE5 Browser Emulation
                 ConfigureIE5BrowserEmulation();

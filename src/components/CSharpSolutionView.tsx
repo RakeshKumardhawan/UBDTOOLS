@@ -2754,7 +2754,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         edgeKeyHKCU.SetValue("InternetExplorerIntegrationSiteList", siteListXmlPath, RegistryValueKind.String);
                         edgeKeyHKCU.SetValue("InternetExplorerIntegrationReloadInIEModeAllowed", 1, RegistryValueKind.DWord);
                         edgeKeyHKCU.SetValue("InternetExplorerIntegrationSiteListRefreshInterval", 1, RegistryValueKind.DWord);
-                        edgeKeyHKCU.SetValue("EnterpriseModeSiteList", "file:///" + siteListXmlPath.Replace("\\\\", "/"), RegistryValueKind.String);
+                        try { edgeKeyHKCU.DeleteValue("EnterpriseModeSiteList", false); } catch { }
                     }
                 }
 
@@ -2769,7 +2769,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             edgeKeyHKLM.SetValue("InternetExplorerIntegrationSiteList", siteListXmlPath, RegistryValueKind.String);
                             edgeKeyHKLM.SetValue("InternetExplorerIntegrationReloadInIEModeAllowed", 1, RegistryValueKind.DWord);
                             edgeKeyHKLM.SetValue("InternetExplorerIntegrationSiteListRefreshInterval", 1, RegistryValueKind.DWord);
-                            edgeKeyHKLM.SetValue("EnterpriseModeSiteList", "file:///" + siteListXmlPath.Replace("\\\\", "/"), RegistryValueKind.String);
+                            try { edgeKeyHKLM.DeleteValue("EnterpriseModeSiteList", false); } catch { }
                         }
                     }
                 }
@@ -2777,6 +2777,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     // Non-admin fallback: HKCU policy is already active
                 }
+
+                // 3. Set legacy IE11 EnterpriseModeSiteList key under Internet Explorer policies (NOT under Edge)
+                try
+                {
+                    using (RegistryKey ieKey = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\\Policies\\Microsoft\\Internet Explorer\\Main\\EnterpriseMode"))
+                    {
+                        if (ieKey != null)
+                        {
+                            ieKey.SetValue("Enable", "1", RegistryValueKind.String);
+                            ieKey.SetValue("SiteList", siteListXmlPath, RegistryValueKind.String);
+                        }
+                    }
+                }
+                catch { }
 
                 // 3. Enforce IE5 Browser Emulation
                 ConfigureIE5BrowserEmulation();
@@ -4512,8 +4526,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     "https://www.e-vedhika.in/api/telemetry",
                     "http://www.e-vedhika.in/api/telemetry",
-                    "https://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "http://ais-dev-hvdtmpi52imtja77sq27tg-585783354343.asia-southeast1.run.app/api/telemetry"
+                    "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "http://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/telemetry"
                 };
 
                 bool delivered = false;
@@ -9309,7 +9323,23 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
 
-            // Swallow non-fatal startup and thread exception popups to ensure smooth startup experience
+            // Instantly transmit error telemetry report to central dashboard & Telegram
+            try
+            {
+                var errorTelemetry = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "date", DateTime.Now.ToString("yyyy-MM-dd") },
+                    { "time", DateTime.Now.ToString("HH:mm:ss") },
+                    { "pcName", Environment.MachineName },
+                    { "userName", Environment.UserName },
+                    { "officeLocation", \$"{Environment.MachineName} ({source})" },
+                    { "status", "ERROR_CRASH" },
+                    { "remarks", \$"Exception in {source}: {ex.Message}" },
+                    { "errorDetails", errDetails.Length > 500 ? errDetails.Substring(0, 500) : errDetails }
+                };
+                Logger.SendCentralTelemetry(errorTelemetry);
+            }
+            catch { }
         }
     }
 }

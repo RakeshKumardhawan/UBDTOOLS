@@ -266,6 +266,20 @@ export const errorCodeDatabase: ErrorCodeInfo[] = [
       'Scroll down to "Downloads" -> set "File download" to "Enable" and "Automatic prompting for file downloads" to "Enable".',
       'Click OK and Apply.'
     ]
+  },
+  {
+    code: 'UBD-1008',
+    title: 'Could Not Create DigiSignHelper (Error -2146827859)',
+    category: 'DigiSigner',
+    cause: 'ActiveX control initialization blocked by Zone 2 registry policy (Value 1201) or NIC DigiSigner component (NEW-NIC-AP-DIGISIGNER.msi) is missing/unregistered.',
+    impact: 'Token Number Registration fails at Step 3 with popup "Automation server can\'t create object (Error -2146827859)".',
+    autoFixAction: 'Apply Zone 2 ActiveX Unsigned Registry Fix (1201=0) & Register NIC DigiSigner DLL',
+    manualSteps: [
+      'Run E-Vedhika One-Click Deployment Tool as Administrator.',
+      'Click "One-Click Deploy & Repair" to set Zone 2 ActiveX policy (1201=0) and deploy IE5 Quirks Mode for ubd.telangana.gov.in.',
+      'Install NEW-NIC-AP-DIGISIGNER.msi from Drivers & Installers section.',
+      'Restart Microsoft Edge browser.'
+    ]
   }
 ];
 
