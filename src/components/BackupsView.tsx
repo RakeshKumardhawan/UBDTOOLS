@@ -71,7 +71,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
     latestVersion: 'v1.0.4',
     versionCode: 104,
     downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.4.exe',
-    releaseNotes: 'Class 3 Token Support & Auto-Reporting Fix',
+    releaseNotes: 'Critical Windows 7 & 8 Launch Fix (.NET 4.8 Architecture).',
     executableName: 'EVedhika_Setup_v1.0.4.exe',
     telemetryRelayUrl: ''
   });

@@ -399,12 +399,12 @@ async function startServer() {
     currentVersion: 'v1.0.4',
     latestVersion: 'v1.0.4',
     versionCode: 104,
-    releaseDate: '2026-10-05',
+    releaseDate: '2026-10-06',
     downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.4.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'Class 3 Token Support, Windows 7 & 8 DLL Repair, and Dual Telemetry Delivery.',
+    releaseNotes: 'Critical Windows 7 & 8 Launch Fix (.NET 4.8 Architecture).',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live' // Global relay endpoint for third-party integrations
   };

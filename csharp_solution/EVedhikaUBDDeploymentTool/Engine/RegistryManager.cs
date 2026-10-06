@@ -313,21 +313,73 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                string[] progIds = new string[] { "DigiSignHelper.DigiSigner", "SignatureDemoLib.DigiSignHelper", "NIC.DigiSigner", "CAPICOM.SignedData.1", "CAPICOM.Store.1" };
+                // 1. Comprehensive list of ProgIDs invoked by Government Portal JavaScript (DigiSignHelper, DigiSigner, CAPICOM)
+                string[] progIds = new string[] { 
+                    "DigiSignHelper",
+                    "DigiSignHelper.1",
+                    "DigiSignHelper.DigiSigner",
+                    "DigiSigner",
+                    "DigiSigner.1",
+                    "DigiSigner.DigiSignHelper",
+                    "DigiSignerHelper",
+                    "DigiSignerHelper.1",
+                    "SignatureDemoLib.DigiSignHelper",
+                    "NIC.DigiSigner",
+                    "CAPICOM.SignedData",
+                    "CAPICOM.SignedData.1",
+                    "CAPICOM.SignedData.2",
+                    "CAPICOM.Store",
+                    "CAPICOM.Store.1",
+                    "CAPICOM.Store.2",
+                    "CAPICOM.Signer",
+                    "CAPICOM.Signer.1"
+                };
+
                 string targetClsid = "{76767676-7676-7676-7676-767676767676}";
+
+                // Determine actual DLL path for InprocServer32
+                string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
+                string system32 = Environment.SystemDirectory;
+                string dllPath = Path.Combine(sysWOW64, "DigiSignHelper.dll");
+                if (!File.Exists(dllPath)) dllPath = Path.Combine(system32, "DigiSignHelper.dll");
+                if (!File.Exists(dllPath)) dllPath = Path.Combine(sysWOW64, "capicom.dll");
+                if (!File.Exists(dllPath)) dllPath = Path.Combine(system32, "capicom.dll");
+
+                // Write ProgIDs to both 32-bit and 64-bit Registry hives
+                string[] progIdRoots = new string[] {
+                    @"Software\Classes",
+                    @"Software\WOW6432Node\Classes"
+                };
 
                 foreach (var progId in progIds)
                 {
                     try
                     {
-                        using (RegistryKey key = Registry.ClassesRoot.CreateSubKey(progId))
+                        Registry.ClassesRoot.CreateSubKey(progId)?.SetValue("", "NIC DigiSigner Helper Object");
+                        Registry.ClassesRoot.CreateSubKey($@"{progId}\CLSID")?.SetValue("", targetClsid);
+
+                        foreach (var rootPath in progIdRoots)
                         {
-                            if (key != null)
+                            using (RegistryKey baseKey = Registry.LocalMachine.CreateSubKey(rootPath))
                             {
-                                key.SetValue("", "NIC DigiSigner Helper Object");
-                                using (RegistryKey clsidKey = key.CreateSubKey("CLSID"))
+                                using (RegistryKey progKey = baseKey?.CreateSubKey(progId))
                                 {
-                                    clsidKey.SetValue("", targetClsid);
+                                    if (progKey != null)
+                                    {
+                                        progKey.SetValue("", "NIC DigiSigner Helper Object");
+                                        progKey.CreateSubKey("CLSID")?.SetValue("", targetClsid);
+                                    }
+                                }
+                            }
+                            using (RegistryKey baseKey = Registry.CurrentUser.CreateSubKey(rootPath))
+                            {
+                                using (RegistryKey progKey = baseKey?.CreateSubKey(progId))
+                                {
+                                    if (progKey != null)
+                                    {
+                                        progKey.SetValue("", "NIC DigiSigner Helper Object");
+                                        progKey.CreateSubKey("CLSID")?.SetValue("", targetClsid);
+                                    }
                                 }
                             }
                         }
@@ -335,6 +387,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     catch { }
                 }
 
+                // 2. Comprehensive CLSIDs for DigiSigner, CAPICOM and SignatureDemoLib
                 string[] clsids = new string[] 
                 { 
                     "{76767676-7676-7676-7676-767676767676}",
@@ -342,23 +395,69 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     "{B8601633-0100-47F1-9457-495204431B32}",
                     "{7DD95801-9882-11CF-9FA9-00AA006C42C4}",
                     "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}",
-                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}"
+                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}",
+                    "{15E2085E-94D1-4551-9E1D-444453456789}",
+                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}",
+                    "{BD0D437A-F76E-4545-9244-6720D911718F}"
+                };
+
+                string[] clsidRoots = new string[] {
+                    @"CLSID",
+                    @"Software\Classes\CLSID",
+                    @"Software\WOW6432Node\Classes\CLSID"
                 };
 
                 foreach (var clsid in clsids)
                 {
                     try
                     {
-                        string clsidPath = $@"CLSID\{clsid}";
-                        using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(clsidPath))
+                        foreach (var rootPath in clsidRoots)
                         {
-                            if (clsidBase != null)
+                            using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey($@"{rootPath}\{clsid}"))
                             {
-                                clsidBase.SetValue("", "NIC DigiSigner Helper Object");
-                                using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                if (clsidBase != null)
                                 {
-                                    catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
-                                    catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+                                    clsidBase.SetValue("", "NIC DigiSigner Helper Object");
+                                    clsidBase.CreateSubKey("ProgID")?.SetValue("", "DigiSignHelper");
+                                    
+                                    using (RegistryKey inproc = clsidBase.CreateSubKey("InprocServer32"))
+                                    {
+                                        if (inproc != null)
+                                        {
+                                            inproc.SetValue("", dllPath);
+                                            inproc.SetValue("ThreadingModel", "Apartment");
+                                        }
+                                    }
+
+                                    using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                    {
+                                        catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
+                                        catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+                                    }
+                                }
+                            }
+
+                            using (RegistryKey clsidBase = Registry.LocalMachine.CreateSubKey($@"{rootPath}\{clsid}"))
+                            {
+                                if (clsidBase != null)
+                                {
+                                    clsidBase.SetValue("", "NIC DigiSigner Helper Object");
+                                    clsidBase.CreateSubKey("ProgID")?.SetValue("", "DigiSignHelper");
+                                    
+                                    using (RegistryKey inproc = clsidBase.CreateSubKey("InprocServer32"))
+                                    {
+                                        if (inproc != null)
+                                        {
+                                            inproc.SetValue("", dllPath);
+                                            inproc.SetValue("ThreadingModel", "Apartment");
+                                        }
+                                    }
+
+                                    using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
+                                    {
+                                        catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
+                                        catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+                                    }
                                 }
                             }
                         }
@@ -366,34 +465,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     catch { }
                 }
 
-                string[] capicomClsids = new string[]
-                {
-                    "{15E2085E-94D1-4551-9E1D-444453456789}",
-                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}",
-                    "{BD0D437A-F76E-4545-9244-6720D911718F}"
-                };
-
-                foreach (var clsid in capicomClsids)
-                {
-                    try
-                    {
-                        using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey($@"CLSID\{clsid}"))
-                        {
-                            if (clsidBase != null)
-                            {
-                                using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
-                                {
-                                    catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
-                                    catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
-                                }
-                            }
-                        }
-                    }
-                    catch { }
-                }
-
+                // 3. Force-Enable ActiveX Controls across All IE Zones (0, 1, 2, 3, 4) in HKCU & HKLM
                 RegistryKey[] rootKeys = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
-                string[] zones = new string[] { "1", "2" };
+                string[] zones = new string[] { "0", "1", "2", "3", "4" };
 
                 foreach (var root in rootKeys)
                 {
@@ -406,12 +480,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 if (key != null)
                                 {
-                                    key.SetValue("1201", 0, RegistryValueKind.DWord);
-                                    key.SetValue("1405", 0, RegistryValueKind.DWord);
-                                    key.SetValue("1200", 0, RegistryValueKind.DWord);
-                                    key.SetValue("2708", 0, RegistryValueKind.DWord);
-                                    key.SetValue("1001", 0, RegistryValueKind.DWord);
-                                    key.SetValue("1004", 0, RegistryValueKind.DWord);
+                                    key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
+                                    key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX not marked safe
+                                    key.SetValue("1208", 0, RegistryValueKind.DWord); // Allow previous unused ActiveX controls
+                                    key.SetValue("1209", 0, RegistryValueKind.DWord); // Allow scriptlets
+                                    key.SetValue("1400", 0, RegistryValueKind.DWord); // ActiveX prompt/enable
+                                    key.SetValue("1402", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
+                                    key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX not marked safe
+                                    key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary/script behaviors
+                                    key.SetValue("2201", 0, RegistryValueKind.DWord); // ActiveX opt-in
+                                    key.SetValue("2708", 0, RegistryValueKind.DWord); // Deny IE ActiveX filtering
+                                    key.SetValue("1001", 0, RegistryValueKind.DWord); // Download signed ActiveX
+                                    key.SetValue("1004", 0, RegistryValueKind.DWord); // Download unsigned ActiveX
                                 }
                             }
                         }
@@ -419,12 +499,38 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                 }
 
-                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Force Policy Bypass) applied.");
+                // 4. Force FeatureControl policies to prevent browser ActiveX suppression
+                string[] featureControlKeys = new string[] {
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_ACTIVEX_REPROMPT_WARNING",
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_SAFE_BINDING",
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_LOCALMACHINE_LOCKDOWN",
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_RESTRICT_ACTIVEX_INSTALL"
+                };
+
+                foreach (var root in rootKeys)
+                {
+                    foreach (var fKeyPath in featureControlKeys)
+                    {
+                        try
+                        {
+                            using (RegistryKey key = root.CreateSubKey(fKeyPath))
+                            {
+                                key?.SetValue("msedge.exe", 0, RegistryValueKind.DWord);
+                                key?.SetValue("iexplore.exe", 0, RegistryValueKind.DWord);
+                                key?.SetValue("*", 0, RegistryValueKind.DWord);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Full ProgID/InprocServer32/Policy Force) applied successfully.");
             }
             catch (Exception ex)
             {
                 Logger.LogWarn("Registry", "ActiveX heal notice: " + ex.Message);
             }
         }
+
     }
 }

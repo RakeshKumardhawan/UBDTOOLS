@@ -22,6 +22,10 @@ export const VERSION_HISTORY = [
     version: 'v1.0.4',
     date: 'October 2026',
     changes: [
+      'Added legacy Windows 7 & 8 support via .NET 4.8 Architecture',
+      'Bundled Universal CRT auto-repair in setup package',
+      'Enabled detailed startup logging for diagnostic readiness',
+      'Enforced TLS 1.2 secure handshake for government networks',
       'Added support for Longmai mToken (Class 3) - FIPS 140-3 Level 3',
       'Fixed telemetry report delivery issues for corporate firewalls',
       'Integrated live Website Posts / News Feed into C# Dashboard',

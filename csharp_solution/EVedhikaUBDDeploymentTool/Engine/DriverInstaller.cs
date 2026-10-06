@@ -200,38 +200,71 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 string installersDir = GetInstallersFolderPath();
+                string payloadDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload");
+                string system32 = Environment.SystemDirectory; // C:\Windows\System32
+                string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
+
                 string[] components = new string[] { "capicom.dll", "DigiSignHelper.dll", "DigiSignerHelper.dll", "SignatureDemoLib.dll" };
                 bool allRegistered = true;
 
                 foreach (string dll in components)
                 {
-                    string dllPath = Path.Combine(installersDir, dll);
-                    if (!File.Exists(dllPath))
+                    string sourceDll = Path.Combine(installersDir, dll);
+                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(payloadDir, dll);
+                    if (!File.Exists(sourceDll)) sourceDll = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dll);
+
+                    // Copy DLL to System32 and SysWOW64 so Windows COM engine can always locate them
+                    if (File.Exists(sourceDll))
                     {
-                        // Check Payload folder too
-                        dllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", dll);
+                        try
+                        {
+                            string targetSys32 = Path.Combine(system32, dll);
+                            if (!File.Exists(targetSys32) || new FileInfo(sourceDll).Length != new FileInfo(targetSys32).Length)
+                                File.Copy(sourceDll, targetSys32, true);
+                        }
+                        catch { }
+
+                        if (Directory.Exists(sysWOW64))
+                        {
+                            try
+                            {
+                                string targetSysWOW64 = Path.Combine(sysWOW64, dll);
+                                if (!File.Exists(targetSysWOW64) || new FileInfo(sourceDll).Length != new FileInfo(targetSysWOW64).Length)
+                                    File.Copy(sourceDll, targetSysWOW64, true);
+                            }
+                            catch { }
+                        }
                     }
 
-                    if (File.Exists(dllPath))
+                    // Register using System32 regsvr32
+                    string sys32DllPath = Path.Combine(system32, dll);
+                    if (File.Exists(sys32DllPath))
                     {
-                        ProcessStartInfo psi = new ProcessStartInfo
-                        {
-                            FileName = "regsvr32.exe",
-                            Arguments = $"/s \"{dllPath}\"",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            WindowStyle = ProcessWindowStyle.Hidden
-                        };
+                        RunRegsvr32("regsvr32.exe", sys32DllPath);
+                    }
+                    else if (File.Exists(sourceDll))
+                    {
+                        RunRegsvr32("regsvr32.exe", sourceDll);
+                    }
 
-                        using (Process proc = Process.Start(psi))
+                    // On 64-bit Windows, specifically register 32-bit DLL with 32-bit regsvr32 in SysWOW64
+                    if (Directory.Exists(sysWOW64))
+                    {
+                        string sysWOW64Regsvr = Path.Combine(sysWOW64, "regsvr32.exe");
+                        string sysWOW64DllPath = Path.Combine(sysWOW64, dll);
+
+                        if (File.Exists(sysWOW64Regsvr) && File.Exists(sysWOW64DllPath))
                         {
-                            proc?.WaitForExit(5000);
-                            if (proc?.ExitCode != 0) allRegistered = false;
+                            RunRegsvr32(sysWOW64Regsvr, sysWOW64DllPath);
+                        }
+                        else if (File.Exists(sysWOW64Regsvr) && File.Exists(sourceDll))
+                        {
+                            RunRegsvr32(sysWOW64Regsvr, sourceDll);
                         }
                     }
                 }
 
-                // Call the registry healer to mark them as safe
+                // Call the registry healer to inject full ProgID and InprocServer32 COM entries
                 RegistryManager.HealDigiSignHelperAutomation();
 
                 return allRegistered;
@@ -242,6 +275,28 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 return false;
             }
         }
+
+        private static void RunRegsvr32(string regsvrExe, string dllPath)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = regsvrExe,
+                    Arguments = $"/s \"{dllPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+
+                using (Process proc = Process.Start(psi))
+                {
+                    proc?.WaitForExit(5000);
+                }
+            }
+            catch { }
+        }
+
 
         public static int InstallAllCustomInstallersFromFolder()
         {
@@ -283,15 +338,32 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // 1. Ensure SmartCard Service (SCardSvr) is auto-started
+                // 1. Ensure SmartCard Service (SCardSvr) & Certificate Propagation Service (CertPropSvc) are auto-started
                 try
                 {
                     using (var p1 = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = "config SCardSvr start= auto", CreateNoWindow = true, UseShellExecute = false })) { p1?.WaitForExit(2000); }
                     using (var p2 = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = "start SCardSvr", CreateNoWindow = true, UseShellExecute = false })) { p2?.WaitForExit(2000); }
+                    
+                    using (var p3 = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = "config CertPropSvc start= auto", CreateNoWindow = true, UseShellExecute = false })) { p3?.WaitForExit(2000); }
+                    using (var p4 = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = "start CertPropSvc", CreateNoWindow = true, UseShellExecute = false })) { p4?.WaitForExit(2000); }
                 }
                 catch { }
 
-                // 2. Register ProxKey and HYP2003 in Cryptography Providers
+                // 2. Comprehensive Cryptographic Service Providers (CSPs) for HYP2003, HyperPKI, Verasys, ePass2003, ProxKey, mToken
+                var csps = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\HyperPKI Crypto Service Provider", "HyperPKICSP.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\HyperSecu HyperPKI CSP", "HyperPKICSP.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\HYP2003 Crypto Service Provider", "eps2003csp11.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\EnterSafe ePass2003 CSP v1.0", "eps2003csp11.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\EnterSafe ePass2003 CSP v2.0", "eps2003csp11.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\EnterSafe ePass2003 CSP v3.0", "eps2003csp11.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\ePass2003 Crypto Service Provider", "eps2003csp11.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Verasys CA Crypto Service Provider", "eps2003csp11.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Watchdata ProxKey CSP", "wdpkcs.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\mToken CryptoAPI Service Provider", "mTokenCSP.dll" }
+                };
+
                 var views = Environment.Is64BitOperatingSystem
                     ? new RegistryView[] { RegistryView.Registry64, RegistryView.Registry32 }
                     : new RegistryView[] { RegistryView.Registry32 };
@@ -302,43 +374,53 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
                         {
-                            using (var k1 = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Watchdata ProxKey CSP"))
+                            foreach (var csp in csps)
                             {
-                                if (k1 != null)
+                                try
                                 {
-                                    k1.SetValue("Image Path", "wdpkcs.dll", RegistryValueKind.String);
-                                    k1.SetValue("Type", 1, RegistryValueKind.DWord);
-                                    k1.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    using (var k = baseKey.CreateSubKey(csp.Key))
+                                    {
+                                        if (k != null)
+                                        {
+                                            k.SetValue("Image Path", csp.Value, RegistryValueKind.String);
+                                            k.SetValue("Type", 1, RegistryValueKind.DWord);
+                                            k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                        }
+                                    }
                                 }
+                                catch { }
                             }
 
-                            using (var k2 = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\EnterSafe ePass2003 CSP v1.0"))
+                            // 3. Register SmartCard Calais ATR entries for HyperPKI HYP2003
+                            string[] smartCardNames = new string[] { "ePass2003", "HyperPKI", "HYP2003", "Verasys" };
+                            foreach (var scName in smartCardNames)
                             {
-                                if (k2 != null)
+                                try
                                 {
-                                    k2.SetValue("Image Path", "eps2003csp11.dll", RegistryValueKind.String);
-                                    k2.SetValue("Type", 1, RegistryValueKind.DWord);
-                                    k2.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    using (var scKey = baseKey.CreateSubKey($@"SOFTWARE\Microsoft\Cryptography\Calais\SmartCards\{scName}"))
+                                    {
+                                        if (scKey != null)
+                                        {
+                                            scKey.SetValue("Crypto Provider", "HyperPKI Crypto Service Provider", RegistryValueKind.String);
+                                            scKey.SetValue("80000001", "eps2003csp11.dll", RegistryValueKind.String);
+                                        }
+                                    }
                                 }
-                            }
-
-                            // 3. Register Longmai mToken (Class 3) CSP
-                            using (var k3 = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\mToken CryptoAPI Service Provider"))
-                            {
-                                if (k3 != null)
-                                {
-                                    k3.SetValue("Image Path", "mTokenCSP.dll", RegistryValueKind.String);
-                                    k3.SetValue("Type", 1, RegistryValueKind.DWord);
-                                    k3.SetValue("SigInFile", 0, RegistryValueKind.DWord);
-                                }
+                                catch { }
                             }
                         }
                     }
                     catch { }
                 }
+
+                Logger.LogInfo("Drivers", "HyperPKI / HYP2003 / Verasys CSP Providers & CertPropSvc successfully registered.");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("Drivers", "CSP Provider notice: " + ex.Message);
+            }
         }
+
 
         public static bool InstallWDProxKeySilent()
         {

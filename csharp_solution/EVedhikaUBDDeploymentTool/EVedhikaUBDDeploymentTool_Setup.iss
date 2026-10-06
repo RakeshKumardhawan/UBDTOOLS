@@ -24,21 +24,19 @@ CloseApplications=yes
 CloseApplicationsFilter=*.exe
 
 [Files]
-; Copy all build outputs - supports both Release and Debug builds
-Source: "bin\Release\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Copy all build outputs for .NET Framework 4.8
+Source: "bin\Release\net48\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\*"; DestDir: "{app}\Payload"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
 Source: "installers\vc_redist.x86.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "installers\ndp48-x86-x64-allos-enu.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "installers\*"; DestDir: "{app}\Installers"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
-
-[Registry]
-Root: HKA; Subkey: "Software\E-Vedhika"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekeyifempty
-Root: HKA; Subkey: "Software\E-Vedhika"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"; Flags: uninsdeletekeyifempty
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
+Filename: "{tmp}\ndp48-x86-x64-allos-enu.exe"; Parameters: "/passive /norestart /showrmui"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
 Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing System Components (Fixing missing DLLs for Windows 7)..."; Check: NeedsVCRedist
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
@@ -47,13 +45,50 @@ Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
 Type: files; Name: "{group}\{#MyAppName}.lnk"
 
 [Code]
-function NeedsVCRedist: Boolean;
+function IsWin7SP1OrHigher: Boolean;
+var
+  Version: TWindowsVersion;
 begin
-  // Always try to install to ensure "Zero Dependency" on unpatched systems
-  Result := True;
+  GetWindowsVersionEx(Version);
+  // Windows 7 is Major 6, Minor 1
+  if (Version.Major = 6) and (Version.Minor = 1) then
+  begin
+    // Check for Service Pack 1 (ServicePackMajor should be 1)
+    Result := Version.ServicePackMajor >= 1;
+  end
+  else
+  begin
+    // For Windows 8, 10, 11 etc, we assume compatibility
+    Result := Version.Major >= 6;
+  end;
 end;
 
 function InitializeSetup: Boolean;
+begin
+  Result := True;
+  if not IsWin7SP1OrHigher then
+  begin
+    if MsgBox('⚠️ Windows 7 Service Pack 1 (SP1) is required for this tool.' + #13#10#13#10 +
+              'మీ పీసీలో Windows 7 SP1 అప్‌డేట్ లేదు. దయచేసి SP1 ఇన్‌స్టాల్ చేసి మళ్లీ ప్రయత్నించండి.' + #13#10#13#10 +
+              'Do you want to continue anyway?', mbConfirmation, MB_YESNO) = IDNO then
+    begin
+      Result := False;
+    end;
+  end;
+end;
+
+function NeedsDotNet48: Boolean;
+var
+  v: Cardinal;
+begin
+  // Check for .NET Framework 4.8 (Release value 528040 or higher)
+  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) then
+    Result := v < 528040
+  else
+    Result := True;
+end;
+
+function NeedsVCRedist: Boolean;
 begin
   Result := True;
 end;

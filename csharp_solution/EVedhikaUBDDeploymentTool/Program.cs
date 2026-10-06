@@ -17,18 +17,28 @@ namespace EVedhikaUBDDeploymentTool
         [STAThread]
         static void Main(string[] args)
         {
+            // Immediate startup log to verify process launch on Win 7/8
+            try {
+                string startupLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup.log");
+                string logMsg = string.Format("[{0}] Process started\nOS: {1}\nRuntime: {2}\nDir: {3}\n-------------------\n", 
+                    DateTime.Now, Environment.OSVersion, Environment.Version, AppDomain.CurrentDomain.BaseDirectory);
+                File.AppendAllText(startupLog, logMsg);
+            } catch { }
+
             // Global Exception Handlers to catch runtime errors and log crash details safely
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             
             Application.ThreadException += delegate(object sender, System.Threading.ThreadExceptionEventArgs e)
             {
                 LogCrashAndShowRecoveryDialog("UI Thread Error", e.Exception);
+                MessageBox.Show("A critical interface error occurred. Please check EVedhika_CrashLog.txt in the application folder.\n\n(సాఫ్ట్‌వేర్‌లో చిన్న సమస్య వచ్చింది. దయచేసి అప్లికేషన్ ఫోల్డర్‌లోని CrashLog ఫైల్‌ను చెక్ చేయండి.)", "Critical Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
 
             AppDomain.CurrentDomain.UnhandledException += delegate(object sender, UnhandledExceptionEventArgs e)
             {
                 Exception ex = e.ExceptionObject as Exception;
                 LogCrashAndShowRecoveryDialog("AppDomain Background Error", ex);
+                MessageBox.Show("The application encountered an unexpected environment error and must close.\n\n(సిస్టమ్ ఎర్రర్ వల్ల అప్లికేషన్ ఆగిపోయింది. దయచేసి సాఫ్ట్‌వేర్ రీ-ఇన్‌స్టాల్ చేయండి.)", "Fatal System Error", MessageBoxButtons.OK, MessageBoxIcon.Stop);
             };
 
             try

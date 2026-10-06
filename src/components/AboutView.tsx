@@ -26,7 +26,7 @@ export const AboutView: React.FC = () => {
             <EVedhikaLogo size={56} className="w-14 h-14 drop-shadow-md" />
             <div>
               <h1 className="text-2xl font-extrabold text-white tracking-tight">E-Vedhika UBD Deployment Tool</h1>
-              <p className="text-sm text-sky-300 font-medium mt-0.5">Enterprise Version 1.0.4 (Class 3 Token Support)</p>
+              <p className="text-sm text-sky-300 font-medium mt-0.5">Enterprise Version 1.0.4 (Critical Launch Fix)</p>
             </div>
           </div>
 

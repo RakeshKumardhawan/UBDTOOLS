@@ -61,6 +61,7 @@ namespace EVedhikaUBDDeploymentTool
             // Zero Manual Work: Automatically self-heal registry, ActiveX, and DigiSigner on startup in background
             System.Threading.ThreadPool.QueueUserWorkItem(delegate {
                 try {
+                    Engine.DriverInstaller.RegisterActiveXComponents();
                     Engine.RegistryManager.HealDigiSignHelperAutomation();
                     Engine.RegistryManager.ConfigureActiveXAndTLS();
                     Helpers.Logger.LogInfo("AutoHeal", "Zero-manual startup self-healing executed successfully.");
