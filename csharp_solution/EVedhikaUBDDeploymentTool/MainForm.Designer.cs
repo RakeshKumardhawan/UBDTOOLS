@@ -48,6 +48,9 @@ namespace EVedhikaUBDDeploymentTool
             this.btnInstallHYP2003 = new System.Windows.Forms.Button();
             this.btnInstallProxKey = new System.Windows.Forms.Button();
             this.btnInstallMToken = new System.Windows.Forms.Button();
+            this.btnRegisterActiveXManual = new System.Windows.Forms.Button();
+            this.btnScanDscTokens = new System.Windows.Forms.Button();
+            this.txtTokenScanOutput = new System.Windows.Forms.TextBox();
             this.lblDriversInfo = new System.Windows.Forms.Label();
             this.tabAiTrouble = new System.Windows.Forms.TabPage();
             this.tabLiveUpdates = new System.Windows.Forms.TabPage();
@@ -249,6 +252,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // tabDiagnostics
             // 
+            this.tabDiagnostics.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
             this.tabDiagnostics.Controls.Add(this.btnRunDiagnostics);
             this.tabDiagnostics.Controls.Add(this.btnActivateWindows);
             this.tabDiagnostics.Controls.Add(this.btnPCBoost);
@@ -263,7 +267,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDiagnostics.Size = new System.Drawing.Size(876, 444);
             this.tabDiagnostics.TabIndex = 1;
             this.tabDiagnostics.Text = "🔍 Diagnostics";
-            this.tabDiagnostics.UseVisualStyleBackColor = true;
+            this.tabDiagnostics.UseVisualStyleBackColor = false;
             // 
             // btnRunDiagnostics
             // 
@@ -388,6 +392,10 @@ namespace EVedhikaUBDDeploymentTool
             // 
             // tabDrivers
             // 
+            this.tabDrivers.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.tabDrivers.Controls.Add(this.txtTokenScanOutput);
+            this.tabDrivers.Controls.Add(this.btnScanDscTokens);
+            this.tabDrivers.Controls.Add(this.btnRegisterActiveXManual);
             this.tabDrivers.Controls.Add(this.btnInstallMToken);
             this.tabDrivers.Controls.Add(this.btnInstallHYP2003);
             this.tabDrivers.Controls.Add(this.btnInstallProxKey);
@@ -398,55 +406,105 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDrivers.Size = new System.Drawing.Size(876, 444);
             this.tabDrivers.TabIndex = 2;
             this.tabDrivers.Text = "🔌 Drivers & Token";
-            this.tabDrivers.UseVisualStyleBackColor = true;
-            // 
-            // btnInstallMToken
-            // 
-            this.btnInstallMToken.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
-            this.btnInstallMToken.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnInstallMToken.ForeColor = System.Drawing.Color.White;
-            this.btnInstallMToken.Location = new System.Drawing.Point(450, 60);
-            this.btnInstallMToken.Name = "btnInstallMToken";
-            this.btnInstallMToken.Size = new System.Drawing.Size(200, 36);
-            this.btnInstallMToken.TabIndex = 3;
-            this.btnInstallMToken.Text = "Install Class 3 mToken";
-            this.btnInstallMToken.UseVisualStyleBackColor = false;
-            this.btnInstallMToken.Click += new System.EventHandler(this.btnInstallMToken_Click);
-            // 
-            // btnInstallHYP2003
-            // 
-            this.btnInstallHYP2003.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
-            this.btnInstallHYP2003.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnInstallHYP2003.ForeColor = System.Drawing.Color.White;
-            this.btnInstallHYP2003.Location = new System.Drawing.Point(235, 60);
-            this.btnInstallHYP2003.Name = "btnInstallHYP2003";
-            this.btnInstallHYP2003.Size = new System.Drawing.Size(200, 36);
-            this.btnInstallHYP2003.TabIndex = 2;
-            this.btnInstallHYP2003.Text = "Install HYP2003 Driver";
-            this.btnInstallHYP2003.UseVisualStyleBackColor = false;
-            this.btnInstallHYP2003.Click += new System.EventHandler(this.btnInstallHYP2003_Click);
+            this.tabDrivers.UseVisualStyleBackColor = false;
             // 
             // btnInstallProxKey
             // 
             this.btnInstallProxKey.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(132)))), ((int)(((byte)(199)))));
             this.btnInstallProxKey.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnInstallProxKey.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnInstallProxKey.ForeColor = System.Drawing.Color.White;
-            this.btnInstallProxKey.Location = new System.Drawing.Point(20, 60);
+            this.btnInstallProxKey.Location = new System.Drawing.Point(18, 50);
             this.btnInstallProxKey.Name = "btnInstallProxKey";
-            this.btnInstallProxKey.Size = new System.Drawing.Size(200, 36);
+            this.btnInstallProxKey.Size = new System.Drawing.Size(200, 38);
             this.btnInstallProxKey.TabIndex = 1;
-            this.btnInstallProxKey.Text = "Install ProxKey Driver";
+            this.btnInstallProxKey.Text = "🔑 Install ProxKey Driver";
             this.btnInstallProxKey.UseVisualStyleBackColor = false;
             this.btnInstallProxKey.Click += new System.EventHandler(this.btnInstallProxKey_Click);
+            // 
+            // btnInstallHYP2003
+            // 
+            this.btnInstallHYP2003.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(79)))), ((int)(((byte)(70)))), ((int)(((byte)(229)))));
+            this.btnInstallHYP2003.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnInstallHYP2003.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnInstallHYP2003.ForeColor = System.Drawing.Color.White;
+            this.btnInstallHYP2003.Location = new System.Drawing.Point(228, 50);
+            this.btnInstallHYP2003.Name = "btnInstallHYP2003";
+            this.btnInstallHYP2003.Size = new System.Drawing.Size(200, 38);
+            this.btnInstallHYP2003.TabIndex = 2;
+            this.btnInstallHYP2003.Text = "🛡️ Install HYP2003 Driver";
+            this.btnInstallHYP2003.UseVisualStyleBackColor = false;
+            this.btnInstallHYP2003.Click += new System.EventHandler(this.btnInstallHYP2003_Click);
+            // 
+            // btnInstallMToken
+            // 
+            this.btnInstallMToken.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(13)))), ((int)(((byte)(148)))), ((int)(((byte)(136)))));
+            this.btnInstallMToken.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnInstallMToken.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnInstallMToken.ForeColor = System.Drawing.Color.White;
+            this.btnInstallMToken.Location = new System.Drawing.Point(438, 50);
+            this.btnInstallMToken.Name = "btnInstallMToken";
+            this.btnInstallMToken.Size = new System.Drawing.Size(200, 38);
+            this.btnInstallMToken.TabIndex = 3;
+            this.btnInstallMToken.Text = "💎 Install Class 3 mToken";
+            this.btnInstallMToken.UseVisualStyleBackColor = false;
+            this.btnInstallMToken.Click += new System.EventHandler(this.btnInstallMToken_Click);
+            // 
+            // btnRegisterActiveXManual
+            // 
+            this.btnRegisterActiveXManual.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(16)))), ((int)(((byte)(185)))), ((int)(((byte)(129)))));
+            this.btnRegisterActiveXManual.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnRegisterActiveXManual.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnRegisterActiveXManual.ForeColor = System.Drawing.Color.White;
+            this.btnRegisterActiveXManual.Location = new System.Drawing.Point(648, 50);
+            this.btnRegisterActiveXManual.Name = "btnRegisterActiveXManual";
+            this.btnRegisterActiveXManual.Size = new System.Drawing.Size(210, 38);
+            this.btnRegisterActiveXManual.TabIndex = 4;
+            this.btnRegisterActiveXManual.Text = "⚡ Register DigiSignHelper";
+            this.btnRegisterActiveXManual.UseVisualStyleBackColor = false;
+            this.btnRegisterActiveXManual.Click += new System.EventHandler(this.btnRegisterActiveXManual_Click);
+            // 
+            // btnScanDscTokens
+            // 
+            this.btnScanDscTokens.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.btnScanDscTokens.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnScanDscTokens.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            this.btnScanDscTokens.ForeColor = System.Drawing.Color.White;
+            this.btnScanDscTokens.Location = new System.Drawing.Point(18, 100);
+            this.btnScanDscTokens.Name = "btnScanDscTokens";
+            this.btnScanDscTokens.Size = new System.Drawing.Size(320, 36);
+            this.btnScanDscTokens.TabIndex = 5;
+            this.btnScanDscTokens.Text = "🔍 Scan Connected USB DSC Tokens";
+            this.btnScanDscTokens.UseVisualStyleBackColor = false;
+            this.btnScanDscTokens.Click += new System.EventHandler(this.btnScanDscTokens_Click);
+            // 
+            // txtTokenScanOutput
+            // 
+            this.txtTokenScanOutput.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtTokenScanOutput.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(2)))), ((int)(((byte)(6)))), ((int)(((byte)(23)))));
+            this.txtTokenScanOutput.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtTokenScanOutput.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(56)))), ((int)(((byte)(189)))), ((int)(((byte)(248)))));
+            this.txtTokenScanOutput.Location = new System.Drawing.Point(18, 145);
+            this.txtTokenScanOutput.Multiline = true;
+            this.txtTokenScanOutput.Name = "txtTokenScanOutput";
+            this.txtTokenScanOutput.ReadOnly = true;
+            this.txtTokenScanOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.txtTokenScanOutput.Size = new System.Drawing.Size(840, 280);
+            this.txtTokenScanOutput.TabIndex = 6;
+            this.txtTokenScanOutput.Text = "Ready to scan. Plug in your USB DSC Token (ProxKey, ePass2003, or Longmai mToken) and click \'Scan Connected USB DSC Tokens\'.";
             // 
             // lblDriversInfo
             // 
             this.lblDriversInfo.AutoSize = true;
-            this.lblDriversInfo.Location = new System.Drawing.Point(17, 20);
+            this.lblDriversInfo.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.lblDriversInfo.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(211)))), ((int)(((byte)(153)))));
+            this.lblDriversInfo.Location = new System.Drawing.Point(16, 15);
             this.lblDriversInfo.Name = "lblDriversInfo";
-            this.lblDriversInfo.Size = new System.Drawing.Size(430, 17);
+            this.lblDriversInfo.Size = new System.Drawing.Size(530, 19);
             this.lblDriversInfo.TabIndex = 0;
-            this.lblDriversInfo.Text = "Silent USB DSC Token Drivers & PKCS#11 Cryptographic Token Managers";
+            this.lblDriversInfo.Text = "🔌 USB Digital Signature Certificate (DSC) & PKCS#11 Cryptographic Token Center";
             // 
             // tabLiveUpdates
             // 
@@ -745,6 +803,9 @@ namespace EVedhikaUBDDeploymentTool
         private System.Windows.Forms.Button btnInstallProxKey;
         private System.Windows.Forms.Button btnInstallHYP2003;
         private System.Windows.Forms.Button btnInstallMToken;
+        private System.Windows.Forms.Button btnRegisterActiveXManual;
+        private System.Windows.Forms.Button btnScanDscTokens;
+        private System.Windows.Forms.TextBox txtTokenScanOutput;
         private System.Windows.Forms.Label lblAskAi;
         private System.Windows.Forms.TextBox txtAiQuery;
         private System.Windows.Forms.Button btnAskAi;

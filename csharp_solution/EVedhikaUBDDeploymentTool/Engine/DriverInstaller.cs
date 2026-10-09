@@ -470,14 +470,15 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         /// <summary>
         /// Registers Watchdata ProxKey & HYP2003 CSP cryptographic providers in Windows CryptoAPI
-        /// across both 64-bit and 32-bit (WOW6432Node) hives, and starts the SmartCard service (SCardSvr).
-        /// This ensures tokens work seamlessly on all 32-bit and 64-bit Windows machines.
+        /// across both 64-bit and 32-bit (WOW6432Node) hives, starts SmartCard & CertPropSvc services,
+        /// and fixes MachineKeys security permissions.
+        /// This ensures all Class 3, Level 3 (FIPS 140-3) and legacy DSC tokens work seamlessly on all 32-bit and 64-bit Windows machines.
         /// </summary>
         public static void RegisterSmartCardAndCspProviders()
         {
             try
             {
-                // 1. Ensure SmartCard Service (SCardSvr) & Certificate Propagation Service (CertPropSvc) are auto-started
+                // 1. Ensure SmartCard Services (SCardSvr, CertPropSvc, ScDeviceEnum) are auto-started
                 try
                 {
                     using (var p1 = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = "config SCardSvr start= auto", CreateNoWindow = true, UseShellExecute = false })) { p1?.WaitForExit(2000); }
@@ -485,12 +486,38 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     
                     using (var p3 = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = "config CertPropSvc start= auto", CreateNoWindow = true, UseShellExecute = false })) { p3?.WaitForExit(2000); }
                     using (var p4 = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = "start CertPropSvc", CreateNoWindow = true, UseShellExecute = false })) { p4?.WaitForExit(2000); }
+
+                    using (var p5 = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = "config ScDeviceEnum start= auto", CreateNoWindow = true, UseShellExecute = false })) { p5?.WaitForExit(2000); }
+                    using (var p6 = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = "start ScDeviceEnum", CreateNoWindow = true, UseShellExecute = false })) { p6?.WaitForExit(2000); }
                 }
                 catch { }
 
-                // 2. Comprehensive Cryptographic Service Providers (CSPs) for HYP2003, HyperPKI, Verasys, ePass2003, ProxKey, mToken
+                // 2. Fix MachineKeys permissions to prevent NTE_FAIL (-2146893792 / 0x80090020) in CryptoAPI FetchCertDetails()
+                try
+                {
+                    string progData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                    string machineKeys = Path.Combine(progData, @"Microsoft\Crypto\RSA\MachineKeys");
+                    if (Directory.Exists(machineKeys))
+                    {
+                        using (var pAcl = Process.Start(new ProcessStartInfo { 
+                            FileName = "icacls", 
+                            Arguments = $"\"{machineKeys}\" /grant \"*S-1-1-0:(OI)(CI)F\" /grant \"*S-1-5-32-545:(OI)(CI)F\" /t /c /q", 
+                            CreateNoWindow = true, 
+                            UseShellExecute = false 
+                        })) { pAcl?.WaitForExit(2500); }
+                    }
+                }
+                catch { }
+
+                // 3. Comprehensive Cryptographic Service Providers (CSPs) for HYP2003, Watchdata ProxKey, ePass2003, mToken
+                // NOTE: Watchdata ProxKey CryptoAPI CSP is wdscsp.dll (NOT wdpkcs.dll which is only PKCS#11)
                 var csps = new System.Collections.Generic.Dictionary<string, string>
                 {
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Watchdata ProxKey CSP", "wdscsp.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Watchdata India CSP v1.0", "wdscsp.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\WD ProxKey CSP", "wdscsp.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Watchdata CSP", "wdscsp.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\PROXKey CSP", "wdscsp.dll" },
                     { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\HyperPKI Crypto Service Provider", "HyperPKICSP.dll" },
                     { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\HyperSecu HyperPKI CSP", "HyperPKICSP.dll" },
                     { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\HYP2003 Crypto Service Provider", "eps2003csp11.dll" },
@@ -499,8 +526,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\EnterSafe ePass2003 CSP v3.0", "eps2003csp11.dll" },
                     { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\ePass2003 Crypto Service Provider", "eps2003csp11.dll" },
                     { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Verasys CA Crypto Service Provider", "eps2003csp11.dll" },
-                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Watchdata ProxKey CSP", "wdpkcs.dll" },
-                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\mToken CryptoAPI Service Provider", "mTokenCSP.dll" }
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\mToken CryptoAPI Service Provider", "mTokenCSP.dll" },
+                    { @"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\mToken Crypto Service Provider", "mTokenCSP.dll" }
                 };
 
                 var views = Environment.Is64BitOperatingSystem
@@ -530,9 +557,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 catch { }
                             }
 
-                            // 3. Register SmartCard Calais ATR entries for HyperPKI HYP2003
-                            string[] smartCardNames = new string[] { "ePass2003", "HyperPKI", "HYP2003", "Verasys" };
-                            foreach (var scName in smartCardNames)
+                            // 4. Register SmartCard Calais ATR entries for HyperPKI HYP2003 & Watchdata ProxKey
+                            string[] hypCardNames = new string[] { "ePass2003", "HyperPKI", "HYP2003", "Verasys" };
+                            foreach (var scName in hypCardNames)
                             {
                                 try
                                 {
@@ -547,12 +574,29 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 }
                                 catch { }
                             }
+
+                            string[] proxCardNames = new string[] { "Watchdata ProxKey", "PROXKey", "WD ProxKey", "Watchdata" };
+                            foreach (var pkName in proxCardNames)
+                            {
+                                try
+                                {
+                                    using (var scKey = baseKey.CreateSubKey($@"SOFTWARE\Microsoft\Cryptography\Calais\SmartCards\{pkName}"))
+                                    {
+                                        if (scKey != null)
+                                        {
+                                            scKey.SetValue("Crypto Provider", "Watchdata ProxKey CSP", RegistryValueKind.String);
+                                            scKey.SetValue("80000001", "wdscsp.dll", RegistryValueKind.String);
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
                         }
                     }
                     catch { }
                 }
 
-                Logger.LogInfo("Drivers", "HyperPKI / HYP2003 / Verasys CSP Providers & CertPropSvc successfully registered.");
+                Logger.LogInfo("Drivers", "Watchdata ProxKey, HYP2003 & mToken CSP Providers, Calais SmartCards & CertPropSvc successfully registered.");
             }
             catch (Exception ex)
             {

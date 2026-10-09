@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* GitHub Repository Link */}
         <a
-          href="https://github.com/Rakeshkumardhawan123/UBDTOOLS"
+          href="https://github.com/Rakeshkumardhawan/UBDTOOLS"
           target="_blank"
           rel="noopener noreferrer"
           className="pill text-cyan-400 border-cyan-500/40 hover:border-cyan-400 hover:bg-cyan-500/10 transition-colors inline-flex items-center gap-1.5 font-mono text-[0.65rem]"

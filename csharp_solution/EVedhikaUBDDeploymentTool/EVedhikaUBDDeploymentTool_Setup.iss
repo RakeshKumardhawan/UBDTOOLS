@@ -95,9 +95,20 @@ begin
   end;
 
   // Check 64-bit and 32-bit registry hives for .NET Framework 4.8 (Release value 528040 or higher)
-  if RegQueryDWordValue(HKLM64, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) or
-     RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) or
-     RegQueryDWordValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) then
+  if IsWin64 then
+  begin
+    if RegQueryDWordValue(HKLM64, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) then
+    begin
+      if v >= 528040 then
+      begin
+        Result := False;
+        Exit;
+      end;
+    end;
+  end;
+
+  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v) or
+     (IsWin64 and RegQueryDWordValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', v)) then
   begin
     if v >= 528040 then
     begin
