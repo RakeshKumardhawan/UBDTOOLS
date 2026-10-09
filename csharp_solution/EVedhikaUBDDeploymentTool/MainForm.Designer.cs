@@ -57,6 +57,8 @@ namespace EVedhikaUBDDeploymentTool
             this.lblAiStatus = new System.Windows.Forms.Label();
             this.txtAiResponse = new System.Windows.Forms.TextBox();
             this.btnAskAi = new System.Windows.Forms.Button();
+            this.btnReportGitHubIssue = new System.Windows.Forms.Button();
+            this.btnReportUbdIssueDiag = new System.Windows.Forms.Button();
             this.txtAiQuery = new System.Windows.Forms.TextBox();
             this.lblAskAi = new System.Windows.Forms.Label();
             this.tabBackup = new System.Windows.Forms.TabPage();
@@ -260,6 +262,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDiagnostics.Controls.Add(this.btnFixPrinter);
             this.tabDiagnostics.Controls.Add(this.btnDeepRepair);
             this.tabDiagnostics.Controls.Add(this.btnSyncTime);
+            this.tabDiagnostics.Controls.Add(this.btnReportUbdIssueDiag);
             this.tabDiagnostics.Controls.Add(this.txtDiagnosticOutput);
             this.tabDiagnostics.Location = new System.Drawing.Point(4, 26);
             this.tabDiagnostics.Name = "tabDiagnostics";
@@ -372,6 +375,21 @@ namespace EVedhikaUBDDeploymentTool
             this.btnSyncTime.Text = "🌐 Time && Date Fixer";
             this.btnSyncTime.UseVisualStyleBackColor = false;
             this.btnSyncTime.Click += new System.EventHandler(this.btnSyncTime_Click);
+            // 
+            // btnReportUbdIssueDiag
+            // 
+            this.btnReportUbdIssueDiag.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnReportUbdIssueDiag.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(225)))), ((int)(((byte)(29)))), ((int)(((byte)(72)))));
+            this.btnReportUbdIssueDiag.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnReportUbdIssueDiag.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnReportUbdIssueDiag.ForeColor = System.Drawing.Color.White;
+            this.btnReportUbdIssueDiag.Location = new System.Drawing.Point(600, 60);
+            this.btnReportUbdIssueDiag.Name = "btnReportUbdIssueDiag";
+            this.btnReportUbdIssueDiag.Size = new System.Drawing.Size(240, 36);
+            this.btnReportUbdIssueDiag.TabIndex = 8;
+            this.btnReportUbdIssueDiag.Text = "🚨 Report Issue (GitHub / AI)";
+            this.btnReportUbdIssueDiag.UseVisualStyleBackColor = false;
+            this.btnReportUbdIssueDiag.Click += new System.EventHandler(this.btnReportGitHubIssue_Click);
             // 
             // 
             // 
@@ -521,6 +539,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabAiTrouble.Controls.Add(this.lblAiStatus);
             this.tabAiTrouble.Controls.Add(this.txtAiResponse);
             this.tabAiTrouble.Controls.Add(this.btnAskAi);
+            this.tabAiTrouble.Controls.Add(this.btnReportGitHubIssue);
             this.tabAiTrouble.Controls.Add(this.txtAiQuery);
             this.tabAiTrouble.Controls.Add(this.lblAskAi);
             this.tabAiTrouble.Location = new System.Drawing.Point(4, 26);
@@ -568,6 +587,20 @@ namespace EVedhikaUBDDeploymentTool
             this.btnAskAi.Text = "Analyze Problem";
             this.btnAskAi.UseVisualStyleBackColor = false;
             this.btnAskAi.Click += new System.EventHandler(this.btnAskAi_Click);
+            // 
+            // btnReportGitHubIssue
+            // 
+            this.btnReportGitHubIssue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(225)))), ((int)(((byte)(29)))), ((int)(((byte)(72)))));
+            this.btnReportGitHubIssue.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnReportGitHubIssue.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            this.btnReportGitHubIssue.ForeColor = System.Drawing.Color.White;
+            this.btnReportGitHubIssue.Location = new System.Drawing.Point(190, 75);
+            this.btnReportGitHubIssue.Name = "btnReportGitHubIssue";
+            this.btnReportGitHubIssue.Size = new System.Drawing.Size(320, 32);
+            this.btnReportGitHubIssue.TabIndex = 5;
+            this.btnReportGitHubIssue.Text = "🚨 Report Issue to GitHub & AI Studio";
+            this.btnReportGitHubIssue.UseVisualStyleBackColor = false;
+            this.btnReportGitHubIssue.Click += new System.EventHandler(this.btnReportGitHubIssue_Click);
             // 
             // txtAiQuery
             // 
@@ -809,6 +842,8 @@ namespace EVedhikaUBDDeploymentTool
         private System.Windows.Forms.Label lblAskAi;
         private System.Windows.Forms.TextBox txtAiQuery;
         private System.Windows.Forms.Button btnAskAi;
+        private System.Windows.Forms.Button btnReportGitHubIssue;
+        private System.Windows.Forms.Button btnReportUbdIssueDiag;
         private System.Windows.Forms.TextBox txtAiResponse;
         private System.Windows.Forms.Label lblAiStatus;
         private System.Windows.Forms.Button btnBackup;

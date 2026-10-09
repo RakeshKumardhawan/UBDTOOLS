@@ -780,6 +780,181 @@ async function startServer() {
     }
   });
 
+  // API Route: Report UBD Issue / Crash directly to Google AI Studio & Sync to GitHub (Rakeshkumardhawan/UBDTOOLS)
+  app.post('/api/report-issue', async (req, res) => {
+    try {
+      const body = req.body || {};
+      const pcName = body.pcName || 'Unknown-PC';
+      const officeLocation = body.officeLocation || 'Gram Panchayat Office';
+      const issueTitle = body.issueTitle || body.errorTitle || 'UBD Portal / Digital Signature Error';
+      const issueDescription = body.issueDescription || body.remarks || 'User reported an issue on UBD website.';
+      const dscStatus = body.dscStatus || 'Not Detected';
+      const osVersion = body.osVersion || 'Windows 10/11';
+      const edgeIeMode = body.edgeIeMode || 'IE5 Quirks Mode';
+      const logs = body.logs || '';
+
+      const issueId = `UBD-ERR-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+
+      // 1. Google AI Studio Instant Diagnosis using Gemini
+      let aiAnalysis = '';
+      try {
+        const ai = getAiClient();
+        if (ai) {
+          const prompt = `Analyze this Telangana/AP UBD Government Portal error reported from client computer:
+Office Location: ${officeLocation}
+Computer Name: ${pcName}
+Operating System: ${osVersion}
+DSC Token Status: ${dscStatus}
+Edge IE Mode: ${edgeIeMode}
+Reported Issue: ${issueTitle}
+Details: ${issueDescription}
+Technical Logs:
+${logs || 'No raw logs.'}
+
+Provide a concise technical analysis:
+1. Root Cause Analysis (ఎందుకు ఈ సమస్య వచ్చింది)
+2. Immediate Fix for Computer Operator (తక్షణ పరిష్కార మార్గాలు)
+3. Telugu Summary (గ్రామ పంచాయతీ సిబ్బంది కోసం తెలుగులో సూచన)`;
+
+          const aiResp = await ai.models.generateContent({
+            model: 'gemini-3.8-flash',
+            contents: prompt,
+          });
+          aiAnalysis = aiResp.text || '';
+        }
+      } catch (aiErr: any) {
+        console.warn('[AI STUDIO] Issue analysis fallback:', aiErr?.message);
+        aiAnalysis = `Root Cause: Potential ActiveX / PKCS#11 DSC Token configuration mismatch on UBD portal.\nFix: Re-run One-Click Deployment, re-register DigiSignHelper ActiveX, and ensure ProxKey/HYP2003 driver is installed.\nసిబ్బందికి సూచన: టూల్‌లో One-Click Deployment రన్ చేసి, Drivers ట్యాబ్‌లో DSC డ్రైవర్ ఇన్‌స్టాల్ చేయండి.`;
+      }
+
+      // 2. Prepare GitHub Issue New URL Template
+      const githubRepo = 'https://github.com/Rakeshkumardhawan/UBDTOOLS';
+      const ghTitle = `[UBD-ISSUE] ${issueTitle} (${pcName} - ${officeLocation})`;
+      const ghBody = `### 🖥️ Machine Environment & Office Details
+- **Office Location**: ${officeLocation}
+- **PC / Machine Name**: \`${pcName}\`
+- **User Account**: \`${body.userName || 'Operator'}\`
+- **Windows OS**: ${osVersion}
+- **DSC Token Status**: ${dscStatus}
+- **Edge IE Mode**: ${edgeIeMode}
+
+### ⚠️ UBD Website / Error Description
+${issueDescription}
+
+### 📋 Diagnostic & Error Log
+\`\`\`
+${logs || 'No logs captured.'}
+\`\`\`
+
+### 🤖 Google AI Studio Diagnostic Report
+${aiAnalysis || 'Analysis in progress.'}
+
+---
+*Reported automatically via E-Vedhika Deployment Tool to Google AI Studio & GitHub Issues*`;
+
+      const githubIssueUrl = `${githubRepo}/issues/new?title=${encodeURIComponent(ghTitle)}&body=${encodeURIComponent(ghBody)}`;
+
+      // 3. Store in central telemetry log so it appears live in AI Studio Dashboard
+      const issueRecord = {
+        id: issueId,
+        isUbdIssue: true,
+        issueTitle,
+        issueDescription,
+        aiAnalysis,
+        githubIssueUrl,
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toLocaleTimeString(),
+        pcName,
+        userName: body.userName || 'Operator',
+        officeLocation,
+        status: 'UBD ISSUE AUTO-REPORTED',
+        healthScore: 65,
+        verification: 'Auto Bug Logged',
+        remarks: `[UBD-ISSUE] ${issueTitle}: ${issueDescription}`,
+        ...body
+      };
+
+      telemetryLogsStore.unshift(issueRecord);
+      saveTelemetryLogs();
+
+      // Save permanently to ubd_issues.json
+      try {
+        const UBD_ISSUES_FILE = path.join(process.cwd(), 'ubd_issues.json');
+        let savedIssues: any[] = [];
+        if (fs.existsSync(UBD_ISSUES_FILE)) {
+          savedIssues = JSON.parse(fs.readFileSync(UBD_ISSUES_FILE, 'utf8'));
+        }
+        savedIssues.unshift(issueRecord);
+        fs.writeFileSync(UBD_ISSUES_FILE, JSON.stringify(savedIssues, null, 2), 'utf8');
+      } catch (saveErr: any) {
+        console.warn('Could not save ubd_issues.json:', saveErr?.message);
+      }
+
+      // 4. Autonomous Direct GitHub Issue Creation via GitHub REST API (Zero permission/manual click needed)
+      const ghToken = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || process.env.GH_TOKEN;
+      let directGithubCreated = false;
+      let createdIssueNumber: number | null = null;
+      if (ghToken) {
+        try {
+          const ghRes = await fetch('https://api.github.com/repos/Rakeshkumardhawan/UBDTOOLS/issues', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': `Bearer ${ghToken}`,
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'EVedhika-UBD-Deployment-Tool'
+            },
+            body: JSON.stringify({
+              title: ghTitle,
+              body: ghBody,
+              labels: ['bug', 'automated-telemetry', 'ubd-website']
+            })
+          });
+          if (ghRes.ok) {
+            const ghData: any = await ghRes.json();
+            directGithubCreated = true;
+            createdIssueNumber = ghData.number;
+            issueRecord.githubIssueUrl = ghData.html_url;
+            console.log(`[GITHUB REST API] Automatically created Issue #${ghData.number}: ${ghData.html_url}`);
+          } else {
+            console.warn(`[GITHUB REST API RESPONSE] ${ghRes.status}: ${await ghRes.text()}`);
+          }
+        } catch (ghPostErr: any) {
+          console.warn('[GITHUB API ERROR] Automatic post error:', ghPostErr?.message);
+        }
+      }
+
+      // 5. Send Telegram Alert if configured
+      if (telegramConfig.autoNotifyOnTelemetry && telegramConfig.botToken && telegramConfig.chatId) {
+        const teleAlert = `🚨 <b>NEW UBD BUG REPORT (100% AUTOMATED)</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━\n` +
+          `🏢 <b>Office:</b> ${officeLocation}\n` +
+          `💻 <b>PC:</b> <code>${pcName}</code>\n` +
+          `⚠️ <b>Issue:</b> ${issueTitle}\n` +
+          `📝 <b>Details:</b> ${issueDescription}\n` +
+          `🔑 <b>DSC Status:</b> ${dscStatus}\n` +
+          (directGithubCreated ? `🎯 <b>GitHub Issue:</b> Created Issue #${createdIssueNumber}!\n` : '') +
+          `🔗 <b>GitHub Repo:</b> <a href="${githubRepo}/issues">Rakeshkumardhawan/UBDTOOLS</a>\n` +
+          `🕒 <b>Time:</b> ${new Date().toLocaleTimeString()}`;
+        sendTelegramMessage(teleAlert).catch(() => {});
+      }
+
+      console.log(`[UBD ISSUE AUTO-LOGGED TO AI STUDIO] ${pcName} -> ${issueTitle}`);
+
+      return res.json({
+        success: true,
+        message: 'UBD Issue received by Google AI Studio and processed autonomously!',
+        issueId,
+        directGithubCreated,
+        githubIssueUrl: issueRecord.githubIssueUrl,
+        aiAnalysis,
+        record: issueRecord
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // API Route: Reload Telemetry from Disk
   app.post('/api/telemetry/reload', (req, res) => {
     try {

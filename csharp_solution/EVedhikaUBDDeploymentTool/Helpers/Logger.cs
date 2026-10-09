@@ -111,9 +111,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
                 catch { }
 
-                // Primary target is strictly the requested endpoint with HTTP fallbacks for Win 7/8 compatibility
+                // Primary targets: Central e-vedhika API, live Google AI Studio cloud telemetry, and fallback relays
                 string[] endpoints = new string[]
                 {
+                    "https://www.e-vedhika.in/api/telemetry",
+                    "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry",
                     "http://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry"
                 };

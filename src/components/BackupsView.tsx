@@ -54,7 +54,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   isRestoring,
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
-  const [selectedTab, setSelectedTab] = useState<'telemetry' | 'telegram' | 'remote_queue' | 'snapshots'>('telemetry');
+  const [selectedTab, setSelectedTab] = useState<'telemetry' | 'issues' | 'telegram' | 'remote_queue' | 'snapshots'>('telemetry');
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<'all' | 'ap' | 'ts'>('all');
@@ -212,6 +212,36 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
     fetchLiveCloudData();
   };
 
+  const sendSampleUbdIssueReport = async () => {
+    try {
+      const sample = {
+        pcName: `GP-PC-${Math.floor(100 + Math.random() * 800)}`,
+        userName: 'Secretary_GramaPanchayat',
+        officeLocation: Math.random() > 0.5 ? 'Vijayawada, Andhra Pradesh' : 'Nalgonda, Telangana',
+        issueTitle: 'UBD Portal DSC Token Signature Failure (ActiveX Error)',
+        issueDescription: 'During document digital signing on ubd.telangana.gov.in, the portal failed with "Automation server cannot create object" and DSC token certificate was not prompted.',
+        dscStatus: 'ProxKey Connected (Class 3)',
+        osVersion: 'Windows 11 Pro 64-Bit',
+        edgeIeMode: 'IE5 Quirks Mode',
+        logs: '[2026-10-09] [ERROR] ActiveX DigiSignHelper execution failed on Port 8080.\n[2026-10-09] [INFO] Token detected but certificate handshake timed out.'
+      };
+
+      const res = await fetch('/api/report-issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sample)
+      });
+
+      if (res.ok) {
+        showSuccess('UBD Issue reported to Google AI Studio & formatted for GitHub!');
+        fetchLiveCloudData();
+        setSelectedTab('issues');
+      }
+    } catch (err: any) {
+      showError('Failed to simulate issue report: ' + err.message);
+    }
+  };
+
   const handleClearLogs = async () => {
     if (confirm('Clear all logs?')) {
       await fetch('/api/telemetry/clear-all', { method: 'POST' });
@@ -265,9 +295,18 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Real-time Telemetry & Support</p>
           </div>
         </div>
-        <div className="flex items-center p-1 bg-slate-100 rounded-xl border font-bold text-[11px]">
+        <div className="flex items-center p-1 bg-slate-100 rounded-xl border font-bold text-[11px] overflow-x-auto">
           <button onClick={() => setSelectedTab('telemetry')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'telemetry' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>
             <FileText className="w-3.5 h-3.5" /> Telemetry
+          </button>
+          <button onClick={() => setSelectedTab('issues')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'issues' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500'}`}>
+            <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+            <span>UBD Issues & GitHub</span>
+            {centralTelemetryLogs.filter(l => l.isUbdIssue || String(l.status).includes('ISSUE')).length > 0 && (
+              <span className="px-1.5 py-0.2 bg-white text-rose-600 rounded-full text-[9px] font-black">
+                {centralTelemetryLogs.filter(l => l.isUbdIssue || String(l.status).includes('ISSUE')).length}
+              </span>
+            )}
           </button>
           <button onClick={() => setSelectedTab('remote_queue')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'remote_queue' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>
             <Laptop className="w-3.5 h-3.5" /> Remote Support
@@ -544,6 +583,153 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {selectedTab === 'issues' && (
+        <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+          {/* Header Card */}
+          <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-slate-950 rounded-3xl border border-rose-900/40 p-8 text-white shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Live Incident Telemetry & GitHub Issues Sync
+                </div>
+                <h3 className="text-2xl font-black text-white tracking-tight">🚨 UBD Website Problem Reports & GitHub Sync</h3>
+                <p className="text-xs text-rose-200/80 max-w-2xl font-medium leading-relaxed">
+                  ఏ గ్రామ పంచాయతీ / మండల సిస్టమ్‌లో అయినా UBD వెబ్‌సైట్ లేదా DSC టోకెన్ లోపం వచ్చినప్పుడు, ఈ రిపోర్ట్ ఆటోమేటిక్‌గా 
+                  మన <b>Google AI Studio</b> కి చేరి, నేరుగా <b>https://github.com/Rakeshkumardhawan/UBDTOOLS</b> లో Issue లాగా రికార్డ్ అవుతుంది.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="https://github.com/Rakeshkumardhawan/UBDTOOLS/issues"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-900/30 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                >
+                  <Github className="w-4 h-4" />
+                  <span>Open GitHub Issues</span>
+                  <ExternalLink className="w-3 h-3 opacity-70" />
+                </a>
+                <button
+                  onClick={sendSampleUbdIssueReport}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-rose-200 border border-rose-800/50 rounded-xl text-xs font-black flex items-center gap-2 transition-all active:scale-95"
+                >
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>Simulate Test UBD Issue</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Issues List */}
+          {centralTelemetryLogs.filter(l => l.isUbdIssue || String(l.status).includes('ISSUE')).length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-16 text-center shadow-sm">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-black text-slate-800 mb-1">No Active UBD Website Issues!</h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mb-6">
+                All client systems are reporting successful execution (16/16 parameters verified). When any Panchayat PC reports an error on the UBD portal, it will display here with AI diagnosis.
+              </p>
+              <button
+                onClick={sendSampleUbdIssueReport}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+              >
+                Simulate a Sample UBD Error Report
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {centralTelemetryLogs
+                .filter(l => l.isUbdIssue || String(l.status).includes('ISSUE'))
+                .map((issue, idx) => (
+                  <div key={idx} className="bg-white rounded-3xl border border-rose-200 shadow-xl overflow-hidden hover:border-rose-400 transition-all">
+                    {/* Top Bar */}
+                    <div className="p-6 bg-slate-50 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-rose-100 text-rose-700 rounded-2xl">
+                          <AlertCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] bg-rose-600 text-white font-black px-2 py-0.5 rounded-full uppercase">
+                              UBD ERROR
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400 font-bold">{issue.id || `ISSUE-${idx}`}</span>
+                          </div>
+                          <h4 className="text-base font-black text-slate-900 mt-1">
+                            {issue.issueTitle || issue.remarks || 'UBD Portal Error Encountered'}
+                          </h4>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-xs font-bold text-slate-700">{issue.officeLocation || 'Unknown Office'}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{issue.date} • {issue.time}</div>
+                        </div>
+                        <a
+                          href={issue.githubIssueUrl || `https://github.com/Rakeshkumardhawan/UBDTOOLS/issues/new?title=${encodeURIComponent(`[UBD-ISSUE] ${issue.issueTitle || 'Error'} on ${issue.pcName}`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                        >
+                          <Github className="w-3.5 h-3.5" />
+                          <span>Sync to GitHub</span>
+                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <div className="p-6 space-y-5">
+                      {/* Environment Badges */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase">Computer / Operator</div>
+                          <div className="font-black text-slate-800 truncate">{issue.pcName} ({issue.userName})</div>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase">OS & Platform</div>
+                          <div className="font-black text-slate-800 truncate">{issue.osVersion || 'Win11 (64-Bit)'}</div>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase">DSC Token Status</div>
+                          <div className="font-black text-rose-600 truncate">{issue.dscStatus || 'Not Detected'}</div>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase">Edge IE Mode</div>
+                          <div className="font-black text-slate-800 truncate">{issue.edgeIeMode || 'IE5 Quirks Mode'}</div>
+                        </div>
+                      </div>
+
+                      {/* Issue Description */}
+                      <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-100 text-xs text-rose-900 leading-relaxed font-medium">
+                        <div className="font-black text-rose-800 uppercase text-[10px] tracking-wider mb-1">Error Description:</div>
+                        {issue.issueDescription || issue.remarks || 'No extended error message provided.'}
+                      </div>
+
+                      {/* Google AI Studio Gemini Diagnosis */}
+                      {issue.aiAnalysis && (
+                        <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-2">
+                          <div className="flex items-center gap-2 text-indigo-700 font-black text-xs">
+                            <Bot className="w-4 h-4 text-indigo-600" />
+                            <span>Google AI Studio - Gemini Diagnostic & Solution:</span>
+                          </div>
+                          <div className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed pl-6 border-l-2 border-indigo-300">
+                            {issue.aiAnalysis}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
       )}
 

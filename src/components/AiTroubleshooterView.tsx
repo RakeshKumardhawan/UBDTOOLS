@@ -10,7 +10,9 @@ import {
   HelpCircle, 
   Code, 
   Terminal,
-  RefreshCw
+  RefreshCw,
+  Github,
+  ExternalLink
 } from 'lucide-react';
 import { EnvironmentStatus, DepartmentProfile, LogEntry } from '../types';
 
@@ -184,13 +186,26 @@ How can I help you today? You can ask in Telugu or English about portal login is
               </div>
 
               {msg.sender === 'ai' && (
-                <button
-                  onClick={() => copyMessage(msg.id, msg.text)}
-                  className="mt-2 text-[10px] text-slate-500 hover:text-purple-700 flex items-center gap-1 font-semibold cursor-pointer"
-                >
-                  {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedId === msg.id ? 'Copied to Clipboard' : 'Copy Solution'}</span>
-                </button>
+                <div className="mt-3 flex items-center gap-3 pt-2 border-t border-slate-100 flex-wrap">
+                  <button
+                    onClick={() => copyMessage(msg.id, msg.text)}
+                    className="text-[10px] text-slate-500 hover:text-purple-700 flex items-center gap-1 font-semibold cursor-pointer"
+                  >
+                    {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedId === msg.id ? 'Copied' : 'Copy Solution'}</span>
+                  </button>
+
+                  <a
+                    href={`https://github.com/Rakeshkumardhawan/UBDTOOLS/issues/new?title=${encodeURIComponent('[UBD-ISSUE] Portal Error Diagnostic Report')}&body=${encodeURIComponent(`### 🤖 Google AI Studio Diagnostic Report\n\n${msg.text}\n\n---\n*Reported via E-Vedhika AI Troubleshooter*`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-rose-600 hover:text-rose-800 flex items-center gap-1 font-bold cursor-pointer bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200"
+                  >
+                    <Github className="w-3 h-3" />
+                    <span>Report to GitHub Issues</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
               )}
             </div>
 

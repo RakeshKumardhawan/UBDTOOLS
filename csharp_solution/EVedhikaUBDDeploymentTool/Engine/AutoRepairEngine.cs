@@ -132,6 +132,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     });
                     EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                     repairedSomething = true;
+
+                    // 100% Autonomous Silent Background Report to AI Studio & GitHub - Zero permissions needed
+                    EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently(
+                        "UBD Edge Policy / sites.xml Drift Detected",
+                        "AutoRepair Guardian detected missing or corrupted Edge IE Mode policy/sites.xml and performed background self-healing.",
+                        "GUARDIAN-HEAL"
+                    );
                 }
             }
             catch (Exception ex)

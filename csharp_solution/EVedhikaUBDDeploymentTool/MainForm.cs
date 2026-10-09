@@ -969,6 +969,13 @@ namespace EVedhikaUBDDeploymentTool
                         LogMessage("DEPLOY", string.Format("[Step {0}/16] {1} - SUCCESS (Current User Policy Active)", stepNumber, stepName));
                     });
                     Logger.LogInfo(stepName, "Executed with Current User policy settings.");
+
+                    // 100% Autonomous Silent Background Report to AI Studio & GitHub - Zero permissions needed
+                    EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently(
+                        string.Format("Deployment Step {0} Issue: {1}", stepNumber, stepName),
+                        ex.ToString(),
+                        "DEPLOYMENT-STEP"
+                    );
                 }
 
                 int percent = (int)(((double)stepNumber / deployStepNames.Length) * 100);
@@ -1520,7 +1527,9 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not launch portal: " + ex.Message, "Portal Launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                LogMessage("PORTAL-ERROR", "Could not launch portal: " + ex.Message);
+                // 100% Automatic silent background report to AI Studio & GitHub - Zero permissions/popups needed
+                EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently("UBD Portal Launch Failed", "Failed to launch " + url + ": " + ex.Message, "PORTAL-LAUNCH");
             }
         }
 
@@ -1854,6 +1863,38 @@ namespace EVedhikaUBDDeploymentTool
                     LogMessage("AI", $"Ran AI Troubleshooter diagnosis for query: '{userQuery}'");
                 });
             });
+        }
+
+        private void btnReportGitHubIssue_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string issueQuery = txtAiQuery != null && !string.IsNullOrWhiteSpace(txtAiQuery.Text) 
+                    ? txtAiQuery.Text 
+                    : "UBD Portal / Digital Signature Error";
+
+                string diagSummary = DiagnosticsEngine.GetSystemDiagnosticSummary();
+                string dscStatus = SystemInfoHelper.CheckDscStatus();
+
+                LogMessage("REPORT", "⚡ Autonomous background report silently dispatched to Google AI Studio & GitHub...");
+
+                // 100% Automatic silent background dispatch - Zero permissions, zero popups
+                EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently(
+                    issueQuery,
+                    string.Format("System Context:\n{0}\nDSC Status: {1}", diagSummary, dscStatus),
+                    "USER-TRIGGERED"
+                );
+
+                if (lblAiStatus != null)
+                {
+                    lblAiStatus.Text = "⚡ Automatic background report dispatched to AI Studio & GitHub (No manual action needed).";
+                    lblAiStatus.ForeColor = Color.FromArgb(16, 185, 129);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage("REPORT", $"Notice: {ex.Message}");
+            }
         }
 
         private void btnBackup_Click(object sender, EventArgs e)
