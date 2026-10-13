@@ -68,11 +68,11 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [otaConfig, setOtaConfig] = useState({
-    latestVersion: 'v1.0.4',
-    versionCode: 104,
-    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.4.exe',
-    releaseNotes: 'Critical Windows 7 & 8 Launch Fix (.NET 4.8 Architecture).',
-    executableName: 'EVedhika_Setup_v1.0.4.exe',
+    latestVersion: 'v1.0.7',
+    versionCode: 107,
+    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.7.exe',
+    releaseNotes: 'v1.0.7 Release: Direct Telegram & Cloud Telemetry, Windows 7/8/10/11 Full Compatibility.',
+    executableName: 'EVedhika_Setup_v1.0.7.exe',
     telemetryRelayUrl: ''
   });
   const [isUpdatingRelay, setIsUpdatingRelay] = useState(false);
@@ -164,11 +164,11 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
       if (!res.ok) throw new Error('GitHub Sync Failed');
       const data = await res.json();
       
-      // Enforce v1.0.4
-      data.latestVersion = 'v1.0.4';
-      data.currentVersion = 'v1.0.4';
-      data.versionCode = 104;
-      data.executableName = 'EVedhika_Setup_v1.0.4.exe';
+      // Enforce v1.0.7
+      data.latestVersion = 'v1.0.7';
+      data.currentVersion = 'v1.0.7';
+      data.versionCode = 107;
+      data.executableName = 'EVedhika_Setup_v1.0.7.exe';
 
       // Update local state
       setOtaConfig(data);

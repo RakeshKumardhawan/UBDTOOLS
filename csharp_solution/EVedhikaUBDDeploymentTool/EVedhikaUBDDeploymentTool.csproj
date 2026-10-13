@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
     <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>

@@ -21,6 +21,9 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
     - name: Restore NuGet Packages
       run: dotnet restore csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.sln
 
@@ -30,9 +33,9 @@ jobs:
         curl.exe -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/vc_redist.x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
         curl.exe -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/ndp48-x86-x64-allos-enu.exe "https://go.microsoft.com/fwlink/?linkid=2088631"
 
-    - name: Build and Publish Executable
+    - name: Build Executable
       run: |
-        dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48
+        dotnet build csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48
 
     - name: Install Inno Setup
       run: choco install innosetup --no-progress -y

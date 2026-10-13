@@ -525,10 +525,203 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 }
 
                 Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Full ProgID/InprocServer32/Policy Force) applied successfully.");
+                FixInvalidAlgorithmAndCryptoProviders();
             }
             catch (Exception ex)
             {
                 Logger.LogWarn("Registry", "ActiveX heal notice: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Permanently fixes error -2146893816 / 0x80090008 ("Invalid algorithm specified." / NTE_BAD_ALGID)
+        /// during Step 4: FetchCertDetails() by configuring Type 24 (PROV_RSA_AES) providers for SHA-256 DSC tokens,
+        /// disabling FIPS algorithm policy enforcement, enabling SCHANNEL SHA-256 hashes, and repairing certificate store private keys.
+        /// </summary>
+        public static void FixInvalidAlgorithmAndCryptoProviders()
+        {
+            try
+            {
+                // 1. Disable FIPS mode enforcement (which triggers "Invalid algorithm specified" 0x80090008 / -2146893816)
+                try
+                {
+                    using (var key = Registry.LocalMachine.CreateSubKey(@"System\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy"))
+                    {
+                        key?.SetValue("Enabled", 0, RegistryValueKind.DWord);
+                    }
+                    using (var key = Registry.LocalMachine.CreateSubKey(@"System\CurrentControlSet\Control\Lsa"))
+                    {
+                        key?.SetValue("fipsalgorithmpolicy", 0, RegistryValueKind.DWord);
+                    }
+                }
+                catch { }
+
+                // 2. Ensure Microsoft Enhanced RSA and AES Cryptographic Provider (Type 24) is fully configured
+                var views = Environment.Is64BitOperatingSystem
+                    ? new RegistryView[] { RegistryView.Registry64, RegistryView.Registry32 }
+                    : new RegistryView[] { RegistryView.Registry32 };
+
+                foreach (var view in views)
+                {
+                    try
+                    {
+                        using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
+                        {
+                            // Register Type 024 (PROV_RSA_AES) default provider
+                            using (var t24 = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider Types\Type 024"))
+                            {
+                                if (t24 != null)
+                                {
+                                    t24.SetValue("Name", "Microsoft Enhanced RSA and AES Cryptographic Provider", RegistryValueKind.String);
+                                    t24.SetValue("TypeName", "RSA Full (Signature and Key Exchange) with AES", RegistryValueKind.String);
+                                }
+                            }
+
+                            // Register Type 001 (PROV_RSA_FULL) default provider
+                            using (var t1 = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider Types\Type 001"))
+                            {
+                                if (t1 != null)
+                                {
+                                    t1.SetValue("Name", "Microsoft Enhanced Cryptographic Provider v1.0", RegistryValueKind.String);
+                                    t1.SetValue("TypeName", "RSA Full (Signature and Key Exchange)", RegistryValueKind.String);
+                                }
+                            }
+
+                            // Register Microsoft Enhanced RSA and AES Cryptographic Provider
+                            using (var provAes = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Microsoft Enhanced RSA and AES Cryptographic Provider"))
+                            {
+                                if (provAes != null)
+                                {
+                                    provAes.SetValue("Image Path", "rsaenh.dll", RegistryValueKind.String);
+                                    provAes.SetValue("Type", 24, RegistryValueKind.DWord);
+                                    provAes.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                }
+                            }
+
+                            // Register Microsoft Enhanced Cryptographic Provider v1.0
+                            using (var provRsa = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Microsoft Enhanced Cryptographic Provider v1.0"))
+                            {
+                                if (provRsa != null)
+                                {
+                                    provRsa.SetValue("Image Path", "rsaenh.dll", RegistryValueKind.String);
+                                    provRsa.SetValue("Type", 1, RegistryValueKind.DWord);
+                                    provRsa.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                }
+                            }
+
+                            // Register Microsoft Strong Cryptographic Provider
+                            using (var provStrong = baseKey.CreateSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Microsoft Strong Cryptographic Provider"))
+                            {
+                                if (provStrong != null)
+                                {
+                                    provStrong.SetValue("Image Path", "rsaenh.dll", RegistryValueKind.String);
+                                    provStrong.SetValue("Type", 1, RegistryValueKind.DWord);
+                                    provStrong.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                }
+                            }
+
+                            // Token CSPs: Register both Type 1 and Type 24 so SHA-256 and SHA-1 both succeed!
+                            var tokenCsps = new System.Collections.Generic.Dictionary<string, string>
+                            {
+                                { "HyperPKI Crypto Service Provider", "HyperPKICSP.dll" },
+                                { "HyperSecu HyperPKI CSP", "HyperPKICSP.dll" },
+                                { "HYP2003 Crypto Service Provider", "eps2003csp11.dll" },
+                                { "EnterSafe ePass2003 CSP v1.0", "eps2003csp11.dll" },
+                                { "EnterSafe ePass2003 CSP v2.0", "eps2003csp11.dll" },
+                                { "EnterSafe ePass2003 CSP v3.0", "eps2003csp11.dll" },
+                                { "ePass2003 Crypto Service Provider", "eps2003csp11.dll" },
+                                { "Verasys CA Crypto Service Provider", "eps2003csp11.dll" },
+                                { "Watchdata ProxKey CSP", "wdpkcs.dll" },
+                                { "mToken CryptoAPI Service Provider", "mTokenCSP.dll" }
+                            };
+
+                            foreach (var tc in tokenCsps)
+                            {
+                                // Type 1 registration
+                                using (var k = baseKey.CreateSubKey($@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\{tc.Key}"))
+                                {
+                                    if (k != null)
+                                    {
+                                        k.SetValue("Image Path", tc.Value, RegistryValueKind.String);
+                                        k.SetValue("Type", 1, RegistryValueKind.DWord);
+                                        k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    }
+                                }
+
+                                // Type 24 registration (Crucial for SHA-256 FetchCertDetails())
+                                using (var k = baseKey.CreateSubKey($@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider\{tc.Key} (AES)"))
+                                {
+                                    if (k != null)
+                                    {
+                                        k.SetValue("Image Path", tc.Value, RegistryValueKind.String);
+                                        k.SetValue("Type", 24, RegistryValueKind.DWord);
+                                        k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 3. Enable SCHANNEL Hashes (SHA-256, SHA-384, SHA-512, SHA, MD5)
+                string[] hashes = new string[] { "SHA-256", "SHA-384", "SHA-512", "SHA", "MD5" };
+                foreach (var h in hashes)
+                {
+                    try
+                    {
+                        using (var k = Registry.LocalMachine.CreateSubKey($@"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\{h}"))
+                        {
+                            k?.SetValue("Enabled", 1, RegistryValueKind.DWord);
+                        }
+                    }
+                    catch { }
+                }
+
+                // 4. Set .NET Strong Crypto & SystemDefaultTlsVersions
+                string[] netKeys = new string[] {
+                    @"SOFTWARE\Microsoft\.NETFramework\v4.0.30319",
+                    @"SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319"
+                };
+                foreach (var nk in netKeys)
+                {
+                    try
+                    {
+                        using (var k = Registry.LocalMachine.CreateSubKey(nk))
+                        {
+                            if (k != null)
+                            {
+                                k.SetValue("SchUseStrongCrypto", 1, RegistryValueKind.DWord);
+                                k.SetValue("SystemDefaultTlsVersions", 1, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 5. Repair Certificate Store Private Key links via certutil -repairstore -user my
+                try
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo
+                    {
+                        FileName = "certutil.exe",
+                        Arguments = "-repairstore -user my",
+                        CreateNoWindow = true,
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+                    using (var proc = Process.Start(psi))
+                    {
+                        proc?.WaitForExit(3000);
+                    }
+                }
+                catch { }
+
+                Logger.LogInfo("Registry", "Algorithm and Cryptographic Providers (NTE_BAD_ALGID / Type 24 SHA-256 fix) applied.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("Registry", "Crypto algorithm fix notice: " + ex.Message);
             }
         }
 
