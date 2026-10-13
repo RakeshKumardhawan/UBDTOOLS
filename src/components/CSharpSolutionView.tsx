@@ -53,6 +53,7 @@ const csharpFiles: CSharpFile[] = [
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
     <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>
@@ -117,7 +118,7 @@ EndGlobal
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss',
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.6"
+#define MyAppVersion "1.0.7"
 #define MyAppPublisher "E-Vedhika"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
@@ -574,8 +575,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.6";
-        public const int CurrentVersionCode = 106;
+        public const string CurrentVersion = "v1.0.7";
+        public const int CurrentVersionCode = 107;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
@@ -3909,10 +3910,203 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 }
 
                 Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Full ProgID/InprocServer32/Policy Force) applied successfully.");
+                FixInvalidAlgorithmAndCryptoProviders();
             }
             catch (Exception ex)
             {
                 Logger.LogWarn("Registry", "ActiveX heal notice: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Permanently fixes error -2146893816 / 0x80090008 ("Invalid algorithm specified." / NTE_BAD_ALGID)
+        /// during Step 4: FetchCertDetails() by configuring Type 24 (PROV_RSA_AES) providers for SHA-256 DSC tokens,
+        /// disabling FIPS algorithm policy enforcement, enabling SCHANNEL SHA-256 hashes, and repairing certificate store private keys.
+        /// </summary>
+        public static void FixInvalidAlgorithmAndCryptoProviders()
+        {
+            try
+            {
+                // 1. Disable FIPS mode enforcement (which triggers "Invalid algorithm specified" 0x80090008 / -2146893816)
+                try
+                {
+                    using (var key = Registry.LocalMachine.CreateSubKey(@"System\\CurrentControlSet\\Control\\Lsa\\FipsAlgorithmPolicy"))
+                    {
+                        key?.SetValue("Enabled", 0, RegistryValueKind.DWord);
+                    }
+                    using (var key = Registry.LocalMachine.CreateSubKey(@"System\\CurrentControlSet\\Control\\Lsa"))
+                    {
+                        key?.SetValue("fipsalgorithmpolicy", 0, RegistryValueKind.DWord);
+                    }
+                }
+                catch { }
+
+                // 2. Ensure Microsoft Enhanced RSA and AES Cryptographic Provider (Type 24) is fully configured
+                var views = Environment.Is64BitOperatingSystem
+                    ? new RegistryView[] { RegistryView.Registry64, RegistryView.Registry32 }
+                    : new RegistryView[] { RegistryView.Registry32 };
+
+                foreach (var view in views)
+                {
+                    try
+                    {
+                        using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
+                        {
+                            // Register Type 024 (PROV_RSA_AES) default provider
+                            using (var t24 = baseKey.CreateSubKey(@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider Types\\Type 024"))
+                            {
+                                if (t24 != null)
+                                {
+                                    t24.SetValue("Name", "Microsoft Enhanced RSA and AES Cryptographic Provider", RegistryValueKind.String);
+                                    t24.SetValue("TypeName", "RSA Full (Signature and Key Exchange) with AES", RegistryValueKind.String);
+                                }
+                            }
+
+                            // Register Type 001 (PROV_RSA_FULL) default provider
+                            using (var t1 = baseKey.CreateSubKey(@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider Types\\Type 001"))
+                            {
+                                if (t1 != null)
+                                {
+                                    t1.SetValue("Name", "Microsoft Enhanced Cryptographic Provider v1.0", RegistryValueKind.String);
+                                    t1.SetValue("TypeName", "RSA Full (Signature and Key Exchange)", RegistryValueKind.String);
+                                }
+                            }
+
+                            // Register Microsoft Enhanced RSA and AES Cryptographic Provider
+                            using (var provAes = baseKey.CreateSubKey(@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\Microsoft Enhanced RSA and AES Cryptographic Provider"))
+                            {
+                                if (provAes != null)
+                                {
+                                    provAes.SetValue("Image Path", "rsaenh.dll", RegistryValueKind.String);
+                                    provAes.SetValue("Type", 24, RegistryValueKind.DWord);
+                                    provAes.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                }
+                            }
+
+                            // Register Microsoft Enhanced Cryptographic Provider v1.0
+                            using (var provRsa = baseKey.CreateSubKey(@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\Microsoft Enhanced Cryptographic Provider v1.0"))
+                            {
+                                if (provRsa != null)
+                                {
+                                    provRsa.SetValue("Image Path", "rsaenh.dll", RegistryValueKind.String);
+                                    provRsa.SetValue("Type", 1, RegistryValueKind.DWord);
+                                    provRsa.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                }
+                            }
+
+                            // Register Microsoft Strong Cryptographic Provider
+                            using (var provStrong = baseKey.CreateSubKey(@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\Microsoft Strong Cryptographic Provider"))
+                            {
+                                if (provStrong != null)
+                                {
+                                    provStrong.SetValue("Image Path", "rsaenh.dll", RegistryValueKind.String);
+                                    provStrong.SetValue("Type", 1, RegistryValueKind.DWord);
+                                    provStrong.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                }
+                            }
+
+                            // Token CSPs: Register both Type 1 and Type 24 so SHA-256 and SHA-1 both succeed!
+                            var tokenCsps = new System.Collections.Generic.Dictionary<string, string>
+                            {
+                                { "HyperPKI Crypto Service Provider", "HyperPKICSP.dll" },
+                                { "HyperSecu HyperPKI CSP", "HyperPKICSP.dll" },
+                                { "HYP2003 Crypto Service Provider", "eps2003csp11.dll" },
+                                { "EnterSafe ePass2003 CSP v1.0", "eps2003csp11.dll" },
+                                { "EnterSafe ePass2003 CSP v2.0", "eps2003csp11.dll" },
+                                { "EnterSafe ePass2003 CSP v3.0", "eps2003csp11.dll" },
+                                { "ePass2003 Crypto Service Provider", "eps2003csp11.dll" },
+                                { "Verasys CA Crypto Service Provider", "eps2003csp11.dll" },
+                                { "Watchdata ProxKey CSP", "wdpkcs.dll" },
+                                { "mToken CryptoAPI Service Provider", "mTokenCSP.dll" }
+                            };
+
+                            foreach (var tc in tokenCsps)
+                            {
+                                // Type 1 registration
+                                using (var k = baseKey.CreateSubKey(\$@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\{tc.Key}"))
+                                {
+                                    if (k != null)
+                                    {
+                                        k.SetValue("Image Path", tc.Value, RegistryValueKind.String);
+                                        k.SetValue("Type", 1, RegistryValueKind.DWord);
+                                        k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    }
+                                }
+
+                                // Type 24 registration (Crucial for SHA-256 FetchCertDetails())
+                                using (var k = baseKey.CreateSubKey(\$@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\{tc.Key} (AES)"))
+                                {
+                                    if (k != null)
+                                    {
+                                        k.SetValue("Image Path", tc.Value, RegistryValueKind.String);
+                                        k.SetValue("Type", 24, RegistryValueKind.DWord);
+                                        k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 3. Enable SCHANNEL Hashes (SHA-256, SHA-384, SHA-512, SHA, MD5)
+                string[] hashes = new string[] { "SHA-256", "SHA-384", "SHA-512", "SHA", "MD5" };
+                foreach (var h in hashes)
+                {
+                    try
+                    {
+                        using (var k = Registry.LocalMachine.CreateSubKey(\$@"SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Hashes\\{h}"))
+                        {
+                            k?.SetValue("Enabled", 1, RegistryValueKind.DWord);
+                        }
+                    }
+                    catch { }
+                }
+
+                // 4. Set .NET Strong Crypto & SystemDefaultTlsVersions
+                string[] netKeys = new string[] {
+                    @"SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319",
+                    @"SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319"
+                };
+                foreach (var nk in netKeys)
+                {
+                    try
+                    {
+                        using (var k = Registry.LocalMachine.CreateSubKey(nk))
+                        {
+                            if (k != null)
+                            {
+                                k.SetValue("SchUseStrongCrypto", 1, RegistryValueKind.DWord);
+                                k.SetValue("SystemDefaultTlsVersions", 1, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 5. Repair Certificate Store Private Key links via certutil -repairstore -user my
+                try
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo
+                    {
+                        FileName = "certutil.exe",
+                        Arguments = "-repairstore -user my",
+                        CreateNoWindow = true,
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+                    using (var proc = Process.Start(psi))
+                    {
+                        proc?.WaitForExit(3000);
+                    }
+                }
+                catch { }
+
+                Logger.LogInfo("Registry", "Algorithm and Cryptographic Providers (NTE_BAD_ALGID / Type 24 SHA-256 fix) applied.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("Registry", "Crypto algorithm fix notice: " + ex.Message);
             }
         }
 
@@ -4173,7 +4367,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (keyLM != null)
                     {
                         keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.6", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.7", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -5593,24 +5787,37 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         }
 
 
-                        public static string GetLiveLocation()
+        private static string _cachedLocation = null;
+
+        public static string GetLiveLocation()
         {
+            if (!string.IsNullOrEmpty(_cachedLocation) && _cachedLocation != "Unknown Location")
+                return _cachedLocation;
+
             try
             {
-                using (System.Net.WebClient client = new System.Net.WebClient())
+                var req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create("https://get.geojs.io/v1/ip/geo.json");
+                req.Timeout = 2500;
+                req.ReadWriteTimeout = 2500;
+                req.UserAgent = "EVedhika/1.0";
+                req.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                req.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+
+                using (var resp = req.GetResponse())
+                using (var stream = resp.GetResponseStream())
+                using (var reader = new System.IO.StreamReader(stream))
                 {
-                    client.Headers.Add("User-Agent", "EVedhika/1.0");
-                    string response = client.DownloadString("https://get.geojs.io/v1/ip/geo.json");
-                    System.Text.RegularExpressions.Match cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"city\\":\\"([^\\"]+)\\"");
-                    System.Text.RegularExpressions.Match regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"region\\":\\"([^\\"]+)\\"");
-                    
+                    string response = reader.ReadToEnd();
+                    var cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"city\\":\\"([^\\"]+)\\"");
+                    var regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"region\\":\\"([^\\"]+)\\"");
+
                     string city = cityMatch.Success ? cityMatch.Groups[1].Value : "Unknown City";
                     string region = regionMatch.Success ? regionMatch.Groups[1].Value : "Unknown Region";
-                    
+
                     if (city != "Unknown City")
                     {
-                        if (region != "Unknown Region") return city + ", " + region;
-                        return city;
+                        _cachedLocation = region != "Unknown Region" ? city + ", " + region : city;
+                        return _cachedLocation;
                     }
                 }
             }
@@ -6634,7 +6841,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.6)";
+            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.7)";
             // 
             // lblHeaderSubtitle
             // 
@@ -6687,7 +6894,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
             this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | Status: Ready";
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | Status: Ready";
             // 
             // MainForm
             // 
@@ -7009,7 +7216,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | PC ID: {0} | Status: Ready", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | PC ID: {0} | Status: Ready", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -7567,7 +7774,7 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.6");
+            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.7");
             LogMessage("SYSTEM", "Department: Enterprise Web Administration");
             try
             {
@@ -7794,7 +8001,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.6.exe");
+                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.7.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -7898,14 +8105,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.6" },
+                { "deployVersion", "v1.0.7" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.6" },
+                { "version", "v1.0.7" },
                 { "operatorName", Environment.UserName }
             };
 
@@ -8848,7 +9055,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.6" },
+                { "version", "v1.0.7" },
                 { "status", "Success (16/16)" },
                 { "healthScore", "100" },
                 { "remarks", "Live telemetry update from C# WinForms App" }
@@ -10341,8 +10548,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.6.0")]
-[assembly: AssemblyFileVersion("1.0.6.0")]
+[assembly: AssemblyVersion("1.0.7.0")]
+[assembly: AssemblyFileVersion("1.0.7.0")]
 `
   },
   {

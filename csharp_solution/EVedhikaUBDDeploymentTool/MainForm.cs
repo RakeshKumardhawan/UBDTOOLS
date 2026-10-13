@@ -219,7 +219,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | PC ID: {0} | Status: Ready", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | PC ID: {0} | Status: Ready", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -777,7 +777,7 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.6");
+            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.7");
             LogMessage("SYSTEM", "Department: Enterprise Web Administration");
             try
             {
@@ -1004,7 +1004,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.6.exe");
+                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.7.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -1108,14 +1108,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.6" },
+                { "deployVersion", "v1.0.7" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.6" },
+                { "version", "v1.0.7" },
                 { "operatorName", Environment.UserName }
             };
 
@@ -2058,7 +2058,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.6" },
+                { "version", "v1.0.7" },
                 { "status", "Success (16/16)" },
                 { "healthScore", "100" },
                 { "remarks", "Live telemetry update from C# WinForms App" }

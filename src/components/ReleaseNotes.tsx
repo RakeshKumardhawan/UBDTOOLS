@@ -176,7 +176,7 @@ export const ReleaseNotes: React.FC = () => {
             <div className="space-y-1">
               <h4 className="text-xs font-bold text-amber-900">Update Notice</h4>
               <p className="text-[11px] text-amber-800 leading-relaxed">
-                Version **v1.0.2** includes a critical fix for the "Automation server can't create object" error. If you are using v1.0.1 or older, please update immediately to ensure DSC token compatibility.
+                Version **v1.0.7** is the brand new official release featuring Direct Telegram & Central Cloud Telemetry, immediate installation reporting, zero-manual auto-repair, and full Windows 7 SP1, 8, 10, and 11 compatibility.
               </p>
             </div>
           </div>

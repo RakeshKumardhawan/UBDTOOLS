@@ -48,9 +48,9 @@ async function startServer() {
   const liveAnnouncements = [
     {
       id: 1,
-      title: 'IMPORTANT: v1.0.6 Update Released',
-      content: 'Unified 16-Step C# Deployment Engine & Live Telemetry Synchronized. Please update for full Class 3 Token support.',
-      date: '2026-10-06',
+      title: 'IMPORTANT: v1.0.7 Update Released',
+      content: 'Brand new v1.0.7 release with Direct Telegram & Cloud Telemetry, immediate installation reporting, zero-manual auto-repair, and full Windows 7/8/10/11 compatibility.',
+      date: '2026-10-13',
       importance: 'High'
     },
     {
@@ -412,16 +412,16 @@ async function startServer() {
   let currentVersionConfig = {
     name: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     appName: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
-    executableName: 'EVedhika_Setup_v1.0.6.exe',
-    currentVersion: 'v1.0.6',
-    latestVersion: 'v1.0.6',
-    versionCode: 106,
-    releaseDate: '2026-10-06',
-    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.6.exe',
+    executableName: 'EVedhika_Setup_v1.0.7.exe',
+    currentVersion: 'v1.0.7',
+    latestVersion: 'v1.0.7',
+    versionCode: 107,
+    releaseDate: '2026-10-13',
+    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.7.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'Unified v1.0.6 release with 16-step deployment, prerequisite auto-detection, and live crash telemetry.',
+    releaseNotes: 'v1.0.7 Release: Direct Telegram & Cloud Telemetry, Windows 7/8/10/11 Full Compatibility, and Automated Deployment.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live' // Global relay endpoint for third-party integrations
   };

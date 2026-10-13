@@ -1,5 +1,5 @@
 #define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.6"
+#define MyAppVersion "1.0.7"
 #define MyAppPublisher "E-Vedhika"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 

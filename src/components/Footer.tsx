@@ -36,7 +36,7 @@ export const Footer: React.FC<FooterProps> = ({ onToggleConsole }) => {
           </button>
         )}
         <span className="label text-[0.55rem] sm:text-[0.6rem] text-emerald-400">ID: PC_IDENTIFIED</span>
-        <span className="label text-[0.55rem] sm:text-[0.6rem]">V1.0.6</span>
+        <span className="label text-[0.55rem] sm:text-[0.6rem] text-accent font-bold">V1.0.7</span>
         <span className="label text-[0.55rem] sm:text-[0.6rem]">UPTIME: {formatUptime(uptime)}</span>
       </div>
     </footer>

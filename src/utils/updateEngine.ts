@@ -19,6 +19,18 @@ export interface UpdateCheckResult {
 
 export const VERSION_HISTORY = [
   {
+    version: 'v1.0.7',
+    date: 'October 2026',
+    changes: [
+      'Brand New Official Release: Direct Telegram & Cloud Telemetry dual-delivery dispatch',
+      'Immediate startup & installation telemetry ping across AP and Telangana',
+      'Optimized location check with 2.5s timeout & fallback caching',
+      'Comprehensive Windows 7 SP1, 8, 10, and 11 full compatibility',
+      'Longmai mToken, WD ProxKey, and HYP2003 DSC drivers support',
+      'Automated background guardian and zero-manual auto-repair',
+    ]
+  },
+  {
     version: 'v1.0.6',
     date: 'October 2026',
     changes: [
@@ -79,7 +91,7 @@ export const VERSION_HISTORY = [
   }
 ];
 
-export const CURRENT_APP_VERSION = 'v1.0.6';
+export const CURRENT_APP_VERSION = 'v1.0.7';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 /**

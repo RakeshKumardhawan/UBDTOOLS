@@ -32,7 +32,8 @@ import {
   Github,
   Link2,
   Copy,
-  Settings
+  Settings,
+  Bot
 } from 'lucide-react';
 import { BackupSnapshot } from '../types';
 import { TelegramNotificationCard } from './TelegramNotificationCard';

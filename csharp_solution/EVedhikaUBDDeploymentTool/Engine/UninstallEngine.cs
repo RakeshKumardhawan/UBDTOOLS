@@ -76,7 +76,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (keyLM != null)
                     {
                         keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.6", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.7", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\"{0}\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\"{0}\" --uninstall --silent", exePath), RegistryValueKind.String);

@@ -8,8 +8,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.6";
-        public const int CurrentVersionCode = 106;
+        public const string CurrentVersion = "v1.0.7";
+        public const int CurrentVersionCode = 107;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
