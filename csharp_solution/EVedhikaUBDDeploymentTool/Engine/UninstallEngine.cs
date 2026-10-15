@@ -150,6 +150,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[3/7 WARN] Edge Policy removal: {0}", ex.Message));
             }
 
+            // 4. Remove UBD Trusted Sites (ZoneMap Domains)
+            try
+            {
                 // Unlock any Deny Delete ACLs before removing keys
                 UnlockDomainACL(@"telangana.gov.in\ubd");
                 UnlockDomainACL(@"telangana.gov.in");

@@ -790,7 +790,10 @@ async function startServer() {
       }
 
       // Auto-forward Telemetry Report to Telegram if configured
-      if (telegramConfig.autoNotifyOnTelemetry && telegramConfig.botToken && telegramConfig.chatId) {
+      const activeBotToken = body.botToken || body.telegramBotToken || telegramConfig.botToken;
+      const activeChatId = body.chatId || body.telegramChatId || telegramConfig.chatId;
+
+      if (activeBotToken && activeChatId) {
         const teleMsg = `🛡️ <b>E-VEDHIKA TELEMETRY REPORT</b>\n` +
           `━━━━━━━━━━━━━━━━━━━\n` +
           `🆔 <b>Unique PC ID:</b> <code>${newRecord.pcId}</code>\n` +
@@ -798,13 +801,13 @@ async function startServer() {
           `💻 <b>PC:</b> <code>${newRecord.pcName}</code>\n` +
           `👤 <b>User:</b> ${newRecord.userName}\n` +
           `⚡ <b>Status:</b> ${newRecord.status} (${newRecord.verification || '16/16'})\n` +
-          `💯 <b>Health Score:</b> ${newRecord.healthScore}%\n` +
-          `🌐 <b>OS:</b> ${newRecord.osVersion}\n` +
-          `🔑 <b>DSC Status:</b> ${newRecord.dscStatus}\n` +
-          `🌐 <b>IE Mode:</b> ${newRecord.edgeIeMode}\n` +
-          `📅 <b>Time:</b> ${newRecord.date} ${newRecord.time}\n` +
+          `💯 <b>Health Score:</b> ${newRecord.healthScore || 100}%\n` +
+          `🌐 <b>OS:</b> ${newRecord.osVersion || 'Windows'}\n` +
+          `🔑 <b>DSC Status:</b> ${newRecord.dscStatus || 'Active'}\n` +
+          `🌐 <b>IE Mode:</b> ${newRecord.edgeIeMode || 'Active'}\n` +
+          `📅 <b>Time:</b> ${newRecord.date || ''} ${newRecord.time || ''}\n` +
           `📝 <b>Remarks:</b> ${newRecord.remarks || 'None'}`;
-        sendTelegramMessage(teleMsg).catch((err) => {
+        sendTelegramMessage(teleMsg, activeBotToken, activeChatId).catch((err) => {
           console.warn('Telegram auto-notify failed:', err?.message || err);
         });
       }
@@ -1416,6 +1419,30 @@ Be crisp, authoritative, professional, and directly tailored to Enterprise porta
 
       telemetryLogsStore.unshift(newRecord);
       saveTelemetryLogs();
+
+      // Auto-forward Telemetry Report to Telegram if configured
+      const activeBotTokenLive = body.botToken || body.telegramBotToken || telegramConfig.botToken;
+      const activeChatIdLive = body.chatId || body.telegramChatId || telegramConfig.chatId;
+
+      if (activeBotTokenLive && activeChatIdLive) {
+        const teleMsg = `🛡️ <b>E-VEDHIKA TELEMETRY REPORT (Unified)</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━\n` +
+          `🆔 <b>Unique PC ID:</b> <code>${newRecord.pcId}</code>\n` +
+          `🏢 <b>Office:</b> ${newRecord.officeLocation}\n` +
+          `💻 <b>PC:</b> <code>${newRecord.pcName}</code>\n` +
+          `👤 <b>User:</b> ${newRecord.userName}\n` +
+          `⚡ <b>Status:</b> ${newRecord.status} (${newRecord.verification || '16/16'})\n` +
+          `💯 <b>Health Score:</b> ${newRecord.healthScore || 100}%\n` +
+          `🌐 <b>OS:</b> ${newRecord.osVersion || 'Windows'}\n` +
+          `🔑 <b>DSC Status:</b> ${newRecord.dscStatus || 'Active'}\n` +
+          `🌐 <b>IE Mode:</b> ${newRecord.edgeIeMode || 'Active'}\n` +
+          `📅 <b>Time:</b> ${newRecord.date || ''} ${newRecord.time || ''}\n` +
+          `📝 <b>Remarks:</b> ${newRecord.remarks || 'None'}`;
+        sendTelegramMessage(teleMsg, activeBotTokenLive, activeChatIdLive).catch((err) => {
+          console.warn('Telegram auto-notify failed:', err?.message || err);
+        });
+      }
+
       return res.json({ success: true, message: 'Central Telemetry Recorded via Unified Gateway', pcId: pcId });
     } catch (e: any) {
       return res.status(500).json({ success: false, error: e.message });

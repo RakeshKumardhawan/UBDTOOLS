@@ -22,6 +22,7 @@ import { HelpView } from './components/HelpView';
 import { AboutView } from './components/AboutView';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
+import { SendDeploymentSummaryToTelegram } from './utils/telegram';
 
 import { 
   NavigationTab, 
@@ -225,6 +226,13 @@ function MainAppContent() {
         showSuccess('All 15 Deployment Steps executed successfully! System ready.', 'Deployment Completed');
         addLog('DeployEngine', 'All 15 Deployment Steps completed successfully! System is fully ready.', 'success');
         setDidJustCompleteDeploy(true);
+        SendDeploymentSummaryToTelegram({
+          stepsPassed: 15,
+          totalSteps: 15,
+          profileName: selectedProfile.name,
+          status: 'SUCCESS',
+          remarks: '15/15 Deployment steps executed and verified with zero manual clicks!'
+        });
         return;
       }
 

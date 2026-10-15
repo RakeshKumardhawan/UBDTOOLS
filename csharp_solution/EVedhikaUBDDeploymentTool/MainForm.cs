@@ -925,6 +925,17 @@ namespace EVedhikaUBDDeploymentTool
                     {
                         SafeInvoke(delegate() { LogMessage("UBD_AUDIT", msg); });
                     });
+
+                    // Zero Manual Work: Automatically trigger 16-Step Deployment execution 2 seconds after startup
+                    Thread.Sleep(2000);
+                    SafeInvoke(delegate()
+                    {
+                        if (btnStartDeploy != null && btnStartDeploy.Enabled)
+                        {
+                            LogMessage("AUTO-RUN", "Zero Manual Clicks Required: Initiating 16-Step Deployment automatically...");
+                            btnStartDeploy_Click(this, EventArgs.Empty);
+                        }
+                    });
                 }
                 catch { }
             });
@@ -949,6 +960,37 @@ namespace EVedhikaUBDDeploymentTool
 
         private void RunDeploymentWorkflow()
         {
+            // Message 1: Send RUN_STARTED Telegram & Cloud Telemetry alert instantly
+            try
+            {
+                string stateTagStart = currentTargetDomain.Contains("ap.gov.in") ? "Andhra Pradesh" : "Telangana";
+                string locStart = SystemInfoHelper.GetLiveLocation();
+                string officeStart = (string.IsNullOrEmpty(locStart) || locStart == "Unknown Location")
+                    ? $"{stateTagStart} Grama Panchayat Office"
+                    : $"{locStart} ({stateTagStart})";
+
+                var startData = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "date", DateTime.Now.ToString("yyyy-MM-dd") },
+                    { "time", DateTime.Now.ToString("HH:mm:ss") },
+                    { "pcName", Environment.MachineName },
+                    { "userName", Environment.UserName },
+                    { "officeLocation", officeStart },
+                    { "state", stateTagStart },
+                    { "targetDomain", currentTargetDomain },
+                    { "winEdition", SystemInfoHelper.GetWindowsVersion() },
+                    { "osVersion", SystemInfoHelper.GetWindowsVersion() },
+                    { "dscStatus", SystemInfoHelper.CheckDscStatus() },
+                    { "edgeIeMode", SystemInfoHelper.CheckEdgeIeMode() },
+                    { "status", "RUN_STARTED" },
+                    { "verification", "0/16 In Progress" },
+                    { "healthScore", "75" },
+                    { "remarks", "🚀 Zero-Touch Automated 16-Step Deployment Started in Background (0 Manual Clicks Required)..." }
+                };
+                Logger.PostTelemetryData(startData);
+            }
+            catch { }
+
             for (int i = 0; i < deployStepNames.Length; i++)
             {
                 int stepNumber = i + 1;
