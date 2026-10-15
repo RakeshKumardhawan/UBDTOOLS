@@ -439,6 +439,12 @@ namespace EVedhikaUBDDeploymentTool
             btnCustomLevel.Margin = new Padding(8, 0, 0, 0);
             btnCustomLevel.Click += delegate(object s, EventArgs ev) {
                 try {
+                    // 1-Click Zero Manual: Ensure Custom Level (0), core sites, MachineKeys & SmartCard CSPs are active
+                    DriverInstaller.RegisterSmartCardAndCspProviders();
+                    RegistryManager.FixInvalidAlgorithmAndCryptoProviders();
+                    RegistryManager.ConfigureActiveXAndTLS();
+                    RegistryManager.ConfigureTrustedSites(currentTargetDomain);
+
                     try {
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
                             FileName = "rundll32.exe",
@@ -481,9 +487,9 @@ namespace EVedhikaUBDDeploymentTool
                 pnlHeaderActions.BringToFront();
             }
 
-            // Initialize Proactive Health Check Timer (Every 30 minutes = 1800000 ms)
+            // Initialize Proactive Health Check & Zero-Manual Auto-Heal Timer (Every 60 seconds)
             healthTimer = new System.Windows.Forms.Timer();
-            healthTimer.Interval = 1800000;
+            healthTimer.Interval = 60000;
             healthTimer.Tick += delegate(object s, EventArgs args) { RunProactiveHealthCheckBackground(); };
             healthTimer.Start();
             
@@ -2123,11 +2129,13 @@ namespace EVedhikaUBDDeploymentTool
                     {
                         LogMessage("PREDICTIVE ALERT [WARNING]", $"{alert.Title}: {alert.Description}");
                     }
-                    else
-                    {
-                        LogMessage("HEALTH [OK]", $"{alert.Title}: {alert.Description}");
-                    }
                 }
+
+                // Zero-Manual Auto-Heal: Silently protect core government sites, Custom Level, MachineKeys & Smart Card CryptoAPI
+                DriverInstaller.RegisterSmartCardAndCspProviders();
+                RegistryManager.FixInvalidAlgorithmAndCryptoProviders();
+                RegistryManager.ConfigureTrustedSites(currentTargetDomain);
+                RegistryManager.ConfigureActiveXAndTLS();
             }
             catch (Exception ex)
             {

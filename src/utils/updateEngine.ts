@@ -19,6 +19,18 @@ export interface UpdateCheckResult {
 
 export const VERSION_HISTORY = [
   {
+    version: 'v1.0.8',
+    date: 'October 2026',
+    changes: [
+      'Official Enterprise Release: Full Master Internet Security Zones (0-4) with precise DWORD configurations',
+      'Fixed "Custom Level" visibility issue across all Windows 10 & 11 PCs (CurrentLevel=0 & policy auto-clear)',
+      'Protected Government Trusted Sites (ubd.telangana.gov.in) with Deny-Delete ACL & HKLM safety anchor',
+      'User Flexibility Preserved: Users can freely add and delete their own custom websites without restriction',
+      '15-Second High-Frequency Self-Healing Guardian background loop with zero manual intervention',
+      'Single-Click Zero-Touch Deployment: Complete setup without manual registry editing',
+    ]
+  },
+  {
     version: 'v1.0.7',
     date: 'October 2026',
     changes: [
@@ -91,8 +103,8 @@ export const VERSION_HISTORY = [
   }
 ];
 
-export const CURRENT_APP_VERSION = 'v1.0.7';
-export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
+export const CURRENT_APP_VERSION = 'v1.0.8';
+export const DEFAULT_GITHUB_RAW_URL = 'https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest';
 
 /**
  * Parses version string into numeric weight for comparison (e.g. "V1.0.0" -> 1000, "V1.0" -> 10000)

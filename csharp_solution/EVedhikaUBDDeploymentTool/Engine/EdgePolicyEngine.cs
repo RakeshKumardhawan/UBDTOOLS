@@ -112,24 +112,58 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         public static string GenerateSiteListXml(string[] domains)
         {
+            var uniqueSites = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+
+            // Always ensure the core UBD Telangana and AP URLs are included
+            uniqueSites.Add("https://ubd.telangana.gov.in/");
+            uniqueSites.Add("https://ubd.telangana.gov.in/login.do");
+            uniqueSites.Add("ubd.telangana.gov.in");
+            uniqueSites.Add("http://www.ubd.ap.gov.in:8080/UBDNEW/");
+            uniqueSites.Add("www.ubd.ap.gov.in");
+            uniqueSites.Add("ubd.ap.gov.in");
+
+            if (domains != null)
+            {
+                foreach (var d in domains)
+                {
+                    if (!string.IsNullOrWhiteSpace(d))
+                    {
+                        uniqueSites.Add(d.Trim());
+                        if (!d.StartsWith("http://", System.StringComparison.OrdinalIgnoreCase) &&
+                            !d.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            uniqueSites.Add("https://" + d.Trim() + "/");
+                        }
+                    }
+                }
+            }
+
             string xmlContent = @"<site-list version=""2"">
   <created-by>
     <tool>E-Vedhika UBD C# Deployment Tool</tool>
   </created-by>";
 
-            foreach (var domain in domains)
+            foreach (var site in uniqueSites)
             {
-                xmlContent += string.Format("\n  <site url=\"{0}\">\n    <compat-mode>IE5</compat-mode>\n    <open-in>IE11</open-in>\n  </site>", domain);
+                string compatMode = (site.Contains("ap.gov.in") && !site.Contains("telangana")) ? "IE7" : "IE5";
+                xmlContent += string.Format("\n  <site url=\"{0}\">\n    <compat-mode>{1}</compat-mode>\n    <open-in>IE11</open-in>\n  </site>", site, compatMode);
             }
 
             xmlContent += "\n</site-list>";
 
             string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "sites.xml");
+            string legacyPath = @"C:\enterprise_compat\sites.xml";
             
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
                 File.WriteAllText(targetPath, xmlContent);
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(legacyPath));
+                    File.WriteAllText(legacyPath, xmlContent);
+                }
+                catch { }
                 return targetPath;
             }
             catch (Exception ex)

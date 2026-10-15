@@ -42,16 +42,31 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 Write-Host "[1/5] Enabling .NET Framework 3.5 (NetFx3)..." -ForegroundColor Green
 Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart -ErrorAction SilentlyContinue
 
-# 3. Configure Zone 2 Trusted Sites & ActiveX
+# 3. Configure Zone 2 Trusted Sites & ActiveX (Enable Custom Level)
 Write-Host "[2/5] Applying Zone 2 Trusted Sites & ActiveX Registry Keys..." -ForegroundColor Green
-$zonePath = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2"
-Set-ItemProperty -Path $zonePath -Name "CurrentLevel" -Value 65536 -Type DWord -Force # Low/Custom
-Set-ItemProperty -Path $zonePath -Name "1200" -Value 0 -Type DWord -Force # Run ActiveX
-Set-ItemProperty -Path $zonePath -Name "1400" -Value 0 -Type DWord -Force # Active Scripting
-Set-ItemProperty -Path $zonePath -Name "1201" -Value 0 -Type DWord -Force # Unsafe ActiveX
-Set-ItemProperty -Path $zonePath -Name "1001" -Value 0 -Type DWord -Force # Signed ActiveX
-Set-ItemProperty -Path $zonePath -Name "1803" -Value 0 -Type DWord -Force # File Download (Enable)
-Set-ItemProperty -Path $zonePath -Name "2200" -Value 0 -Type DWord -Force # Auto Prompt Download (Enable)
+$zonePaths = @(
+    "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2",
+    "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2"
+)
+foreach ($zp in $zonePaths) {
+    if (!(Test-Path $zp)) { New-Item -Path $zp -Force | Out-Null }
+    Set-ItemProperty -Path $zp -Name "CurrentLevel" -Value 0 -Type DWord -Force # 0 = Forces 'Custom' Level in Internet Properties
+    Set-ItemProperty -Path $zp -Name "MinLevel" -Value 65536 -Type DWord -Force # 0x10000
+    Set-ItemProperty -Path $zp -Name "Flags" -Value 71 -Type DWord -Force # 0x47 (71) = Enable Custom Level & Sites button
+    Set-ItemProperty -Path $zp -Name "1200" -Value 0 -Type DWord -Force # Run ActiveX
+    Set-ItemProperty -Path $zp -Name "1400" -Value 0 -Type DWord -Force # Active Scripting
+    Set-ItemProperty -Path $zp -Name "1201" -Value 0 -Type DWord -Force # Unsafe ActiveX
+    Set-ItemProperty -Path $zp -Name "1001" -Value 0 -Type DWord -Force # Signed ActiveX
+    Set-ItemProperty -Path $zp -Name "1803" -Value 0 -Type DWord -Force # File Download (Enable)
+    Set-ItemProperty -Path $zp -Name "1806" -Value 0 -Type DWord -Force # Launching apps/unsafe files
+    Set-ItemProperty -Path $zp -Name "2200" -Value 3 -Type DWord -Force # Auto Prompt Download
+    Set-ItemProperty -Path $zp -Name "2201" -Value 0 -Type DWord -Force # ActiveX prompt
+}
+# Remove restrictions that disable Custom Level button
+Remove-ItemProperty -Path "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" -Name "Security_options" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" -Name "Security_options" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" -Name "Security_HKLM_only" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" -Name "Security_HKLM_only" -ErrorAction SilentlyContinue
 
 # 4. Configure Edge IE Mode Policy & sites.xml
 Write-Host "[3/5] Setting Edge IE Mode Enterprise Site List Policy..." -ForegroundColor Green

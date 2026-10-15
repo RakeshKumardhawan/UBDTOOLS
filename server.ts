@@ -441,8 +441,47 @@ async function startServer() {
   // Force permanent telemetry relay destination
   currentVersionConfig.telemetryRelayUrl = 'https://www.e-vedhika.in/admin/exe_ubd_live';
 
+  // Live Sync with GitHub Releases REST API
+  let lastGitHubSync = 0;
+  async function syncGitHubRelease() {
+    const now = Date.now();
+    if (now - lastGitHubSync < 60000) return; // Cache for 1 minute
+    lastGitHubSync = now;
+
+    try {
+      const response = await fetch('https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest', {
+        headers: { 'User-Agent': 'EVedhika-Server-App/1.0' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.tag_name) {
+          const tagName = data.tag_name;
+          const vCode = parseInt(tagName.replace(/[^0-9]/g, ''), 10) || 108;
+          let exeDownloadUrl = `https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_${tagName}.exe`;
+          if (data.assets && Array.isArray(data.assets)) {
+            const exeAsset = data.assets.find((a: any) => a.name && a.name.endsWith('.exe'));
+            if (exeAsset && exeAsset.browser_download_url) {
+              exeDownloadUrl = exeAsset.browser_download_url;
+            }
+          }
+          currentVersionConfig.latestVersion = tagName;
+          currentVersionConfig.currentVersion = tagName;
+          currentVersionConfig.versionCode = vCode;
+          currentVersionConfig.downloadUrl = exeDownloadUrl;
+          currentVersionConfig.executableName = `EVedhika_Setup_${tagName}.exe`;
+          if (data.body) {
+            currentVersionConfig.releaseNotes = data.body;
+          }
+        }
+      }
+    } catch (e: any) {
+      // Fallback silently to local config
+    }
+  }
+
   // API Route: Check Software Version & Live OTA Auto-Updates
-  const handleGetVersion = (req: any, res: any) => {
+  const handleGetVersion = async (req: any, res: any) => {
+    await syncGitHubRelease();
     return res.json({
       success: true,
       ...currentVersionConfig
@@ -1383,48 +1422,30 @@ Be crisp, authoritative, professional, and directly tailored to Enterprise porta
     }
   });
 
+  // Master Registry script direct download
+  app.get('/api/download/master-zones.reg', (req, res) => {
+    const regFilePath = path.join(process.cwd(), 'public', 'evedhika_master_zones.reg');
+    if (fs.existsSync(regFilePath)) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="evedhika_master_zones.reg"');
+      res.sendFile(regFilePath);
+    } else {
+      res.status(404).send('Master zones reg file not found');
+    }
+  });
+
   // API Route: Generate Standalone Registry & PowerShell Scripts
   app.post('/api/generate-script', (req, res) => {
     const { profile, trustedSites, enableActiveX, installDrivers } = req.body;
 
-    const regContent = `Windows Registry Editor Version 5.00
+    let regContent = '';
+    const masterRegPath = path.join(process.cwd(), 'public', 'evedhika_master_zones.reg');
+    if (fs.existsSync(masterRegPath)) {
+      regContent = fs.readFileSync(masterRegPath, 'utf8');
+    } else {
+      regContent = `Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2]\r\n"CurrentLevel"=dword:00010000\r\n"Flags"=dword:00000047\r\n"1200"=dword:00000000\r\n"1400"=dword:00000000\r\n`;
+    }
 
-; ====================================================================
-; E-Vedhika One-Click Deployment Tool - Registry Configuration Script
-; Developed by Rakesh Dhawan
-; Generated Date: ${new Date().toISOString()}
-; Target Profile: ${profile || 'E-Vedhika One-Click Deployment Tool'}
-; ====================================================================
-
-; 1. Add UBD Portal to Trusted Sites (Zone 2)
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\telangana.gov.in\\ubd]
-"https"=dword:00000002
-
-; 2. Enable ActiveX Controls & Unsigned Controls for Zone 2 (Trusted Sites)
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2]
-"1200"=dword:00000000 ; Run ActiveX controls and plug-ins
-"1201"=dword:00000000 ; Initialize and script ActiveX controls not marked as safe
-"1400"=dword:00000000 ; Active scripting
-"1406"=dword:00000000 ; Access data sources across domains
-"1609"=dword:00000000 ; Display mixed content
-"1803"=dword:00000000 ; File download (Enable - Fixes Security Alert Download Error)
-"2200"=dword:00000000 ; Automatic prompting for file downloads
-"2201"=dword:00000000 ; ActiveX controls without prompt
-
-; 3. Microsoft Edge IE Mode Enterprise Site List Policy
-[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge]
-"InternetExplorerIntegrationLevel"=dword:00000001
-"InternetExplorerIntegrationSiteList"="C:\\enterprise_compat\\sites.xml"
-"InternetExplorerIntegrationReloadInIEModeAllowed"=dword:00000001
-
-; 4. Disable TLS 1.0/1.1 enforcement warnings & force TLS 1.2
-[HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Client]
-"DisabledByDefault"=dword:00000000
-"Enabled"=dword:00000001
-; 5. IE Cache Settings
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings]
-"SyncMode5"=dword:00000003
-`;
 
     const ps1Content = `# ====================================================================
 # E-Vedhika One-Click Deployment Tool - Standalone Deployment Script

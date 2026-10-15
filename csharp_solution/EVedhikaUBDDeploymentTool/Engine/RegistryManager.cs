@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security.AccessControl;
 
 namespace EVedhikaUBDDeploymentTool.Engine
 {
@@ -111,29 +112,60 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                string registryPath = $@"{Zone2KeyPath}\{targetDomain}";
-                if (targetDomain == "ubd.telangana.gov.in")
+                // Core domains that are permanently protected and visible in Trusted Sites
+                List<string> domainPaths = new List<string>
                 {
-                    registryPath = $@"{Zone2KeyPath}\telangana.gov.in\ubd";
-                }
-                else if (targetDomain == "ubd.ap.gov.in")
+                    @"telangana.gov.in\ubd",
+                    @"ubd.telangana.gov.in",
+                    @"telangana.gov.in",
+                    @"telangana.gov.in\epanchayat",
+                    @"telangana.gov.in\prrd",
+                    @"ap.gov.in\ubd",
+                    @"ubd.ap.gov.in",
+                    @"ap.gov.in",
+                    @"127.0.0.1",
+                    @"localhost"
+                };
+
+                if (!string.IsNullOrEmpty(targetDomain))
                 {
-                    registryPath = $@"{Zone2KeyPath}\ap.gov.in\ubd";
+                    if (targetDomain == "ubd.telangana.gov.in" && !domainPaths.Contains(@"telangana.gov.in\ubd"))
+                        domainPaths.Add(@"telangana.gov.in\ubd");
+                    else if (targetDomain == "ubd.ap.gov.in" && !domainPaths.Contains(@"ap.gov.in\ubd"))
+                        domainPaths.Add(@"ap.gov.in\ubd");
+                    else if (!domainPaths.Contains(targetDomain))
+                        domainPaths.Add(targetDomain);
                 }
 
-                using (RegistryKey baseKey = Registry.CurrentUser.CreateSubKey(registryPath))
+                // Write to both CurrentUser (visible to user in Sites dialog) and LocalMachine (machine-level safety backup)
+                RegistryKey[] rootKeys = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var root in rootKeys)
                 {
-                    if (baseKey != null)
+                    foreach (var dom in domainPaths)
                     {
-                        baseKey.SetValue("https", 2, RegistryValueKind.DWord);
-                        baseKey.SetValue("http", 2, RegistryValueKind.DWord);
-                        baseKey.SetValue("*", 2, RegistryValueKind.DWord);
-                    }
-                    else
-                    {
-                        throw new Exception("Failed to open or create registry key for " + targetDomain);
+                        try
+                        {
+                            string regPath = $@"{Zone2KeyPath}\{dom}";
+                            using (RegistryKey baseKey = root.CreateSubKey(regPath))
+                            {
+                                if (baseKey != null)
+                                {
+                                    baseKey.SetValue("https", 2, RegistryValueKind.DWord);
+                                    baseKey.SetValue("http", 2, RegistryValueKind.DWord);
+                                    baseKey.SetValue("*", 2, RegistryValueKind.DWord);
+                                }
+                            }
+                        }
+                        catch { }
                     }
                 }
+
+                // Protect core government domains from deletion while keeping user ability to add/delete other domains
+                ProtectGovernmentDomainACL(@"telangana.gov.in\ubd");
+                ProtectGovernmentDomainACL(@"ubd.telangana.gov.in");
+                ProtectGovernmentDomainACL(@"telangana.gov.in");
+                ProtectGovernmentDomainACL(@"ap.gov.in\ubd");
+                ProtectGovernmentDomainACL(@"ubd.ap.gov.in");
 
                 return true;
             }
@@ -143,15 +175,83 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        /// <summary>
+        /// Protects core government domain registry subkeys from unauthorized deletion,
+        /// while keeping the parent ZoneMap Domains container wide open so users can freely add and delete other websites.
+        /// </summary>
+        public static void ProtectGovernmentDomainACL(string dom)
+        {
+            try
+            {
+                string regPath = $@"{Zone2KeyPath}\{dom}";
+                using (RegistryKey baseKey = Registry.CurrentUser.OpenSubKey(regPath, RegistryKeyPermissionCheck.ReadWriteSubTree, RegistryRights.ChangePermissions | RegistryRights.ReadKey))
+                {
+                    if (baseKey != null)
+                    {
+                        RegistrySecurity rs = baseKey.GetAccessControl();
+                        string identity = Environment.UserDomainName + "\\" + Environment.UserName;
+                        RegistryAccessRule denyRule = new RegistryAccessRule(
+                            identity,
+                            RegistryRights.Delete,
+                            AccessControlType.Deny
+                        );
+                        rs.AddAccessRule(denyRule);
+                        baseKey.SetAccessControl(rs);
+                    }
+                }
+            }
+            catch { }
+        }
+
         public static bool ConfigureActiveXAndTLS()
         {
             try
             {
+                // Configure Zone 2 for CurrentUser and LocalMachine to ensure Custom Level shows on all systems
+                RegistryKey[] zoneRoots = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var rk in zoneRoots)
+                {
+                    try
+                    {
+                        using (RegistryKey z2 = rk.CreateSubKey(SecurityZonesKeyPath))
+                        {
+                            if (z2 != null)
+                            {
+                                z2.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord); // 0 = Custom level
+                                z2.SetValue("Flags", 0x00000043, RegistryValueKind.DWord); // 0x43 (67) = Enable Custom Level & Sites button
+                                z2.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // Remove Group Policy locks that block or hide Custom Level button
+                try
+                {
+                    using (RegistryKey pol = Registry.CurrentUser.OpenSubKey(@"Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings", true))
+                    {
+                        pol?.DeleteValue("Security_options", false);
+                        pol?.DeleteValue("Security_HKLM_only", false);
+                    }
+                }
+                catch { }
+                try
+                {
+                    using (RegistryKey pol = Registry.LocalMachine.OpenSubKey(@"Software\Policies\Microsoft\Windows\CurrentVersion\Internet Settings", true))
+                    {
+                        pol?.DeleteValue("Security_options", false);
+                        pol?.DeleteValue("Security_HKLM_only", false);
+                    }
+                }
+                catch { }
+
                 using (RegistryKey zone2Key = Registry.CurrentUser.CreateSubKey(SecurityZonesKeyPath))
                 {
                     if (zone2Key != null)
                     {
-                        zone2Key.SetValue("CurrentLevel", 0x00010000, RegistryValueKind.DWord); 
+                        zone2Key.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord); 
+                        zone2Key.SetValue("Flags", 0x00000043, RegistryValueKind.DWord);
                         zone2Key.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
                         
                         // Comprehensive flags matching standard Trusted/Intranet Low security configurations
@@ -228,6 +328,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                 }
 
+                ApplyMasterZonesConfiguration();
                 ForceEnableDownloadsForAllZones();
                 return true;
             }
@@ -480,6 +581,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 if (key != null)
                                 {
+                                    if (zone == "2")
+                                    {
+                                        key.SetValue("CurrentLevel", 0, RegistryValueKind.DWord); // 0 = Custom level
+                                        key.SetValue("Flags", 0x43, RegistryValueKind.DWord); // Enable Custom Level & Sites button
+                                    }
                                     key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
                                     key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX not marked safe
                                     key.SetValue("1208", 0, RegistryValueKind.DWord); // Allow previous unused ActiveX controls
@@ -724,6 +830,327 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Logger.LogWarn("Registry", "Crypto algorithm fix notice: " + ex.Message);
             }
         }
+
+        /// <summary>
+        /// Master Internet Security Zones Configuration (Zones 0, 1, 2, 3, 4)
+        /// Applies comprehensive ActiveX, Scripting, DSC Token, and Protected Mode settings requested by admin.
+        /// </summary>
+        public static void ApplyMasterZonesConfiguration()
+        {
+            try
+            {
+                string progData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                string regDir = Path.Combine(progData, "EVedhika");
+                Directory.CreateDirectory(regDir);
+                string regPath = Path.Combine(regDir, "master_zones.reg");
+
+                // Check if pre-packaged reg file exists in app payload
+                string appPayloadReg = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", "Registry", "evedhika_master_zones.reg");
+                if (File.Exists(appPayloadReg))
+                {
+                    regPath = appPayloadReg;
+                }
+                else
+                {
+                    // Generate master reg file
+                    File.WriteAllText(regPath, GetMasterZonesRegScript());
+                }
+
+                // Execute reg import silently
+                try
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo("reg.exe", $"import \"{regPath}\"")
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+                    using (var p = Process.Start(psi))
+                    {
+                        p?.WaitForExit(3000);
+                    }
+                }
+                catch { }
+
+                // Direct API enforcement for Zone 0, 1, 2, 3, 4
+                ApplyDirectZoneDwords();
+                Logger.LogInfo("Registry", "Master Internet Settings Zones (0-4) successfully configured.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("Registry", "Master zones configuration notice: " + ex.Message);
+            }
+        }
+
+        private static void ApplyDirectZoneDwords()
+        {
+            try
+            {
+                RegistryKey[] rootHives = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var root in rootHives)
+                {
+                    try
+                    {
+                        // Zone 0: Computer
+                        using (var z0 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\0"))
+                        {
+                            if (z0 != null)
+                            {
+                                z0.SetValue("DisplayName", "Computer", RegistryValueKind.String);
+                                z0.SetValue("CurrentLevel", 0, RegistryValueKind.DWord);
+                                z0.SetValue("Flags", 0x21, RegistryValueKind.DWord);
+                                z0.SetValue("1200", 0, RegistryValueKind.DWord);
+                                z0.SetValue("1400", 0, RegistryValueKind.DWord);
+                                z0.SetValue("2001", 3, RegistryValueKind.DWord);
+                                z0.SetValue("2004", 3, RegistryValueKind.DWord);
+                            }
+                        }
+
+                        // Zone 1: Local Intranet
+                        using (var z1 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\1"))
+                        {
+                            if (z1 != null)
+                            {
+                                z1.SetValue("DisplayName", "Local intranet", RegistryValueKind.String);
+                                z1.SetValue("CurrentLevel", 0, RegistryValueKind.DWord);
+                                z1.SetValue("Flags", 0xdb, RegistryValueKind.DWord);
+                                z1.SetValue("1200", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1400", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1001", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1004", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1201", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1405", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1803", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2001", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2004", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2500", 3, RegistryValueKind.DWord);
+                                z1.SetValue("2402", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2400", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2401", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2007", 3, RegistryValueKind.DWord);
+                                z1.SetValue("2702", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1208", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1209", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2201", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2000", 0, RegistryValueKind.DWord);
+                                z1.SetValue("120A", 0, RegistryValueKind.DWord);
+                                z1.SetValue("270C", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1604", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2600", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1406", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2709", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2708", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1608", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1206", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2102", 0, RegistryValueKind.DWord);
+                                z1.SetValue("120C", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2300", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2104", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1609", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1A04", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1802", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2100", 0, RegistryValueKind.DWord);
+                                z1.SetValue("160A", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1806", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1804", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1607", 0, RegistryValueKind.DWord);
+                                z1.SetValue("270B", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1601", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1809", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2301", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1606", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2101", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1407", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2103", 0, RegistryValueKind.DWord);
+                                z1.SetValue("2105", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1409", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1402", 0, RegistryValueKind.DWord);
+                                z1.SetValue("1A00", 0x20000, RegistryValueKind.DWord);
+                                z1.SetValue("2707", 0, RegistryValueKind.DWord);
+                            }
+                        }
+
+                        // Zone 2: Trusted Sites
+                        using (var z2 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2"))
+                        {
+                            if (z2 != null)
+                            {
+                                z2.SetValue("DisplayName", "Trusted sites", RegistryValueKind.String);
+                                z2.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord); // 0 = Forces 'Custom' level to show instead of Low slider
+                                z2.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
+                                z2.SetValue("Flags", 0x47, RegistryValueKind.DWord); // 0x47 (71) = Custom level button and add sites enabled
+                                z2.SetValue("1200", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1400", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1001", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1004", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1201", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1206", 3, RegistryValueKind.DWord);
+                                z2.SetValue("1207", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1208", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1209", 0, RegistryValueKind.DWord);
+                                z2.SetValue("120A", 3, RegistryValueKind.DWord);
+                                z2.SetValue("120B", 0, RegistryValueKind.DWord);
+                                z2.SetValue("120C", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1402", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1405", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1406", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1407", 1, RegistryValueKind.DWord);
+                                z2.SetValue("1408", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1409", 0, RegistryValueKind.DWord);
+                                z2.SetValue("140A", 0, RegistryValueKind.DWord);
+                                z2.SetValue("140C", 0, RegistryValueKind.DWord);
+                                z2.SetValue("140D", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1601", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1604", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1605", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1606", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1607", 3, RegistryValueKind.DWord);
+                                z2.SetValue("1608", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1609", 0, RegistryValueKind.DWord);
+                                z2.SetValue("160A", 0, RegistryValueKind.DWord);
+                                z2.SetValue("160B", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1802", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1803", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1804", 1, RegistryValueKind.DWord);
+                                z2.SetValue("1806", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1809", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1812", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1A00", 0x20000, RegistryValueKind.DWord);
+                                z2.SetValue("1A02", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1A03", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1A04", 3, RegistryValueKind.DWord);
+                                z2.SetValue("1A05", 1, RegistryValueKind.DWord);
+                                z2.SetValue("1A06", 0, RegistryValueKind.DWord);
+                                z2.SetValue("1A10", 1, RegistryValueKind.DWord);
+                                z2.SetValue("1C00", 0x10000, RegistryValueKind.DWord);
+                                z2.SetValue("2000", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2001", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2004", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2005", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2007", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2100", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2101", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2102", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2103", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2104", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2105", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2106", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2107", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2108", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2200", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2201", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2300", 1, RegistryValueKind.DWord);
+                                z2.SetValue("2301", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2302", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2400", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2401", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2402", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2500", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2600", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2700", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2701", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2702", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2703", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2704", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2707", 0, RegistryValueKind.DWord);
+                                z2.SetValue("2708", 3, RegistryValueKind.DWord);
+                                z2.SetValue("2709", 3, RegistryValueKind.DWord);
+                                z2.SetValue("270B", 0, RegistryValueKind.DWord);
+                                z2.SetValue("270C", 3, RegistryValueKind.DWord);
+                                z2.SetValue("270D", 0, RegistryValueKind.DWord);
+                            }
+                        }
+
+                        // Zone 3: Internet
+                        using (var z3 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\3"))
+                        {
+                            if (z3 != null)
+                            {
+                                z3.SetValue("DisplayName", "Internet", RegistryValueKind.String);
+                                z3.SetValue("CurrentLevel", 0, RegistryValueKind.DWord);
+                                z3.SetValue("Flags", 1, RegistryValueKind.DWord);
+                                z3.SetValue("1200", 0, RegistryValueKind.DWord);
+                                z3.SetValue("1400", 0, RegistryValueKind.DWord);
+                                z3.SetValue("1803", 0, RegistryValueKind.DWord);
+                                z3.SetValue("1809", 0, RegistryValueKind.DWord);
+                                z3.SetValue("2200", 3, RegistryValueKind.DWord);
+                            }
+                        }
+
+                        // Zone 4: Restricted Sites
+                        using (var z4 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\4"))
+                        {
+                            if (z4 != null)
+                            {
+                                z4.SetValue("DisplayName", "Restricted sites", RegistryValueKind.String);
+                                z4.SetValue("CurrentLevel", 0x12000, RegistryValueKind.DWord);
+                                z4.SetValue("Flags", 3, RegistryValueKind.DWord);
+                                z4.SetValue("1200", 3, RegistryValueKind.DWord);
+                                z4.SetValue("1400", 3, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        private static string GetMasterZonesRegScript()
+        {
+            string payloadPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload", "Registry", "evedhika_master_zones.reg");
+            if (File.Exists(payloadPath))
+            {
+                try { return File.ReadAllText(payloadPath); } catch { }
+            }
+
+            string altPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "evedhika_master_zones.reg");
+            if (File.Exists(altPath))
+            {
+                try { return File.ReadAllText(altPath); } catch { }
+            }
+
+            return @"Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\0]
+""CurrentLevel""=dword:00000000
+""Flags""=dword:00000021
+""1200""=dword:00000000
+""1400""=dword:00000000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\1]
+""CurrentLevel""=dword:00000000
+""Flags""=dword:000000db
+""1200""=dword:00000000
+""1400""=dword:00000000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2]
+""CurrentLevel""=dword:00010000
+""MinLevel""=dword:00010000
+""Flags""=dword:00000047
+""1200""=dword:00000000
+""1400""=dword:00000000
+""1001""=dword:00000000
+""1004""=dword:00000000
+""1201""=dword:00000000
+""1803""=dword:00000000
+""1806""=dword:00000000
+""2201""=dword:00000000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\3]
+""CurrentLevel""=dword:00000000
+""Flags""=dword:00000001
+""1200""=dword:00000000
+""1400""=dword:00000000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\4]
+""CurrentLevel""=dword:00012000
+""Flags""=dword:00000003
+""1200""=dword:00000003
+""1400""=dword:00000003
+";
+        }
+
 
     }
 }

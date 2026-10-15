@@ -1,13 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<site-list version="1">
-  <site-list>
-    <site url="http://www.ubd.ap.gov.in:8080/UBDNEW/">
-      <compat-mode>IE7</compat-mode>
-      <open-in>IE11</open-in>
-    </site>
-    <site url="https://ubd.telangana.gov.in/">
-      <compat-mode>IE11</compat-mode>
-      <open-in>IE11</open-in>
-    </site>
-  </site-list>
+<site-list version="2">
+  <created-by>
+    <tool>E-Vedhika UBD Deployment Tool</tool>
+  </created-by>
+  <site url="https://ubd.telangana.gov.in/">
+    <compat-mode>IE5</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="https://ubd.telangana.gov.in/login.do">
+    <compat-mode>IE5</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="http://www.ubd.ap.gov.in:8080/UBDNEW/">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="www.ubd.ap.gov.in">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="ubd.ap.gov.in">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
 </site-list>
