@@ -53,7 +53,6 @@ const csharpFiles: CSharpFile[] = [
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
     <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>
@@ -118,7 +117,7 @@ EndGlobal
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss',
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "E-Vedhika"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
@@ -299,29 +298,19 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             _guardianThread = new Thread(delegate()
             {
-                if (logCallback != null) logCallback("[Guardian 24x7] Background Self-Healing Guardian Active. Monitoring system settings & protecting government portals...");
-                int iteration = 0;
+                if (logCallback != null) logCallback("[Guardian 24x7] Background Self-Healing Guardian Active. Monitoring system settings...");
                 while (_isGuardianRunning)
                 {
                     try
                     {
-                        // Quick check every 15s: Ensure government portals are permanently preserved in Trusted Sites
-                        VerifyAndRestoreProtectedGovernmentSites(logCallback);
-
-                        // Full self-healing audit every 10 minutes (40 x 15s)
-                        if (iteration % 40 == 0)
-                        {
-                            PerformSelfHealingAudit(logCallback);
-                        }
+                        PerformSelfHealingAudit(logCallback);
                     }
                     catch (Exception ex)
                     {
                         if (logCallback != null) logCallback(string.Format("[Guardian Audit Exception] {0}", ex.Message));
                     }
-
-                    iteration++;
-                    // Sleep for 15 seconds in small 1-second steps so thread can terminate cleanly on tool exit
-                    for (int i = 0; i < 15 && _isGuardianRunning; i++)
+                    // Sleep for 10 minutes (600,000 ms) in small increments so StopGuardian can exit promptly
+                    for (int i = 0; i < 600 && _isGuardianRunning; i++)
                     {
                         Thread.Sleep(1000);
                     }
@@ -386,7 +375,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (logCallback != null) logCallback("[Audit REPAIR] Re-generating sites.xml and re-enforcing Edge IE Mode Group Policies...");
                     string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { 
-                        "https://ubd.telangana.gov.in/",
                         "ubd.telangana.gov.in", 
                         "ubd.ap.gov.in", 
                         "www.ubd.ap.gov.in", 
@@ -447,16 +435,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (zone2Key != null)
                     {
-                        var valCurrentLevel = zone2Key.GetValue("CurrentLevel"); // 0 = Custom
-                        var valFlags = zone2Key.GetValue("Flags"); // 67 (0x43) = Enable Custom Level
                         var val1001 = zone2Key.GetValue("1001"); // Download signed ActiveX
                         var val1201 = zone2Key.GetValue("1201"); // Script ActiveX not safe
                         var val1405 = zone2Key.GetValue("1405"); // Script ActiveX safe
                         var val1803 = zone2Key.GetValue("1803"); // File Download (0 = Allow)
                         var val2200 = zone2Key.GetValue("2200"); // Automatic prompting for file downloads
-                        if (valCurrentLevel != null && Convert.ToInt32(valCurrentLevel) == 0 &&
-                            valFlags != null && (Convert.ToInt32(valFlags) == 67 || Convert.ToInt32(valFlags) == 71) &&
-                            val1001 != null && Convert.ToInt32(val1001) == 0 &&
+                        if (val1001 != null && Convert.ToInt32(val1001) == 0 &&
                             val1201 != null && Convert.ToInt32(val1201) == 0 &&
                             val1405 != null && Convert.ToInt32(val1405) == 0 &&
                             val1803 != null && Convert.ToInt32(val1803) == 0 &&
@@ -559,38 +543,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
-        /// <summary>
-        /// Real-time protection: Verifies that core government domains remain visible and permanently
-        /// active in Zone 2 Trusted Sites. If a user deleted them, this immediately restores them.
-        /// </summary>
-        public static void VerifyAndRestoreProtectedGovernmentSites(Action<string> logCallback = null)
-        {
-            try
-            {
-                bool missing = false;
-                using (RegistryKey tsKey = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\telangana.gov.in\\ubd"))
-                {
-                    if (tsKey == null || tsKey.GetValue("https") == null) missing = true;
-                }
-
-                if (!missing)
-                {
-                    using (RegistryKey tsDomain = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\ubd.telangana.gov.in"))
-                    {
-                        if (tsDomain == null || tsDomain.GetValue("https") == null) missing = true;
-                    }
-                }
-
-                if (missing)
-                {
-                    if (logCallback != null) logCallback("[Guardian Self-Heal] Detected manual deletion of UBD Trusted Site. Auto-restoring government portal immediately...");
-                    RegistryManager.ConfigureTrustedSites("ubd.telangana.gov.in");
-                    RegistryManager.ConfigureTrustedSites("ubd.ap.gov.in");
-                }
-            }
-            catch { }
-        }
-
         public static void StopGuardian()
         {
             _isGuardianRunning = false;
@@ -622,8 +574,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.8";
-        public const int CurrentVersionCode = 108;
+        public const string CurrentVersion = "v1.0.6";
+        public const int CurrentVersionCode = 106;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
@@ -667,7 +619,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest",
                 "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
                 "https://www.e-vedhika.in/version.json",
                 "https://www.e-vedhika.in/api/version"
@@ -681,48 +632,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-AutoUpdater/1.0";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika_UBD_Deployment_v1.0.1.exe";
                         wc.Encoding = System.Text.Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
-                        // Handle direct GitHub Releases REST API response
-                        if (!string.IsNullOrEmpty(jsonResponse) && jsonResponse.Contains("\\"tag_name\\":"))
-                        {
-                            string tagName = ExtractJsonValue(jsonResponse, "tag_name"); // e.g. "v1.0.8" or "v1.0.9"
-                            string releaseNotes = ExtractJsonValue(jsonResponse, "body");
-                            string downloadUrl = ExtractBrowserDownloadUrl(jsonResponse, tagName);
-
-                            int serverCode = 100;
-                            if (!string.IsNullOrEmpty(tagName))
-                            {
-                                string digitsOnly = System.Text.RegularExpressions.Regex.Replace(tagName, @"[^\\d]", "");
-                                int.TryParse(digitsOnly, out serverCode);
-                            }
-
-                            info.Success = true;
-                            info.LatestVersion = string.IsNullOrEmpty(tagName) ? CurrentVersion : tagName;
-                            info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Latest UBD & Portal release from GitHub." : releaseNotes;
-                            info.DownloadUrl = downloadUrl;
-                            info.IsSilent = false;
-
-                            if (serverCode > CurrentVersionCode || (!string.IsNullOrEmpty(tagName) && !tagName.Equals(CurrentVersion, StringComparison.OrdinalIgnoreCase)))
-                            {
-                                info.IsUpdateAvailable = true;
-                                info.Message = \$"✨ New GitHub Software Release Available: {info.LatestVersion}!\\n\\nRelease Notes: {info.ReleaseNotes}";
-                                logCallback?.Invoke(\$"[AUTO-UPDATE] NEW GITHUB RELEASE DETECTED: {info.LatestVersion} ({info.DownloadUrl})");
-                            }
-                            else
-                            {
-                                info.IsUpdateAvailable = false;
-                                info.Message = \$"✅ You are using the latest version ({CurrentVersion}). Your software is up to date!";
-                                logCallback?.Invoke(\$"[AUTO-UPDATE] Software is up to date ({CurrentVersion}).");
-                            }
-
-                            fetched = true;
-                            break;
-                        }
-
-                        // Handle E-Vedhika Server JSON response
                         if (!string.IsNullOrEmpty(jsonResponse) && jsonResponse.Contains("\\"latestVersion\\":"))
                         {
                             string latestVer = ExtractJsonValue(jsonResponse, "latestVersion");
@@ -810,7 +723,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 using (WebClient wc = new WebClient())
                 {
-                    wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-AutoUpdater/1.0";
                     if (progressCallback != null)
                     {
                         wc.DownloadProgressChanged += delegate(object sender, DownloadProgressChangedEventArgs e)
@@ -1014,37 +926,6 @@ del ""%~f0""
                 catch { }
             }
             return news;
-        }
-
-        private static string ExtractBrowserDownloadUrl(string jsonResponse, string tagName)
-        {
-            try
-            {
-                // 1. Search for browser_download_url in GitHub API assets array
-                int assetIdx = jsonResponse.IndexOf("\\"browser_download_url\\":", StringComparison.OrdinalIgnoreCase);
-                while (assetIdx != -1)
-                {
-                    int start = assetIdx + "\\"browser_download_url\\":".Length;
-                    while (start < jsonResponse.Length && (jsonResponse[start] == ' ' || jsonResponse[start] == '"')) start++;
-                    int end = start;
-                    while (end < jsonResponse.Length && jsonResponse[end] != '"' && jsonResponse[end] != ',' && jsonResponse[end] != '}') end++;
-                    string url = jsonResponse.Substring(start, end - start).Trim('"', ' ');
-                    if (!string.IsNullOrEmpty(url) && (url.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
-                    {
-                        return url;
-                    }
-                    assetIdx = jsonResponse.IndexOf("\\"browser_download_url\\":", end, StringComparison.OrdinalIgnoreCase);
-                }
-
-                // 2. Direct GitHub latest release download URL fallback
-                if (!string.IsNullOrEmpty(tagName))
-                {
-                    return \$"https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/{tagName}/EVedhika_Setup_{tagName}.exe";
-                }
-            }
-            catch { }
-
-            return "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.8.exe";
         }
 
         private static string ExtractJsonValue(string json, string key)
@@ -1749,17 +1630,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 bool is64BitOS = Environment.Is64BitOperatingSystem;
                 
                 // Priority paths where DigiSignHelper might be located
-                string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-                string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
                 string[] searchPaths = new string[]
                 {
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload"),
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installers"),
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory),
-                    Path.Combine(pf86, "NIC", "DigiSigner"),
-                    Path.Combine(pf, "NIC", "DigiSigner"),
-                    Path.Combine(pf86, "DigiSigner"),
-                    Path.Combine(pf, "DigiSigner"),
+                    @"C:\\Program Files (x86)\\NIC\\DigiSigner",
+                    @"C:\\Program Files\\NIC\\DigiSigner",
                     @"C:\\Windows\\System32",
                     @"C:\\Windows\\SysWOW64"
                 };
@@ -1963,12 +1840,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (!Directory.Exists(dir)) continue;
                     foreach (var msi in msiNames)
                     {
-                        // Recursive search for MSI
-                        var files = Directory.GetFiles(dir, msi, SearchOption.AllDirectories);
-                        if (files.Length > 0)
+                        string fullPath = Path.Combine(dir, msi);
+                        if (File.Exists(fullPath))
                         {
-                            string fullPath = files[0];
-                            Logger.LogInfo("ActiveX", \$"Installing DigiSigner MSI: {Path.GetFileName(fullPath)}");
+                            Logger.LogInfo("ActiveX", \$"Installing DigiSigner MSI: {msi}");
                             if (InstallMsiSilent(fullPath))
                             {
                                 Logger.LogInfo("ActiveX", "[OK] DigiSigner MSI installed. Re-running registration...");
@@ -2094,56 +1969,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 try
                                 {
-                                    string existingPath = null;
-                                    try {
-                                        using (var existingKey = baseKey.OpenSubKey(csp.Key)) {
-                                            existingPath = existingKey?.GetValue("Image Path")?.ToString();
-                                        }
-                                    } catch { }
-
-                                    string finalPath = csp.Value;
-                                    bool isExistingFull = !string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\\\") || existingPath.Contains("/"));
-                                    
-                                    string foundPath = null;
-                                    string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
-                                    string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
-                                    if (File.Exists(Path.Combine(sysDir, csp.Value))) foundPath = Path.Combine(sysDir, csp.Value);
-                                    else if (File.Exists(Path.Combine(sys64Dir, csp.Value))) foundPath = Path.Combine(sys64Dir, csp.Value);
-                                    else {
-                                        string[] roots = { 
-                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), 
-                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-                                            @"C:\\Program Files",
-                                            @"C:\\Program Files (x86)"
-                                        };
-                                        bool found = false;
-                                        foreach (var r in roots) {
-                                            if (string.IsNullOrEmpty(r) || !Directory.Exists(r)) continue;
-                                            string[] folders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner", "ProxKey", "Watchdata India", "CryptoAPI" };
-                                            foreach (var f in folders) {
-                                                string t = Path.Combine(r, f);
-                                                if (Directory.Exists(t)) {
-                                                    try {
-                                                        var files = Directory.GetFiles(t, csp.Value, SearchOption.AllDirectories);
-                                                        if (files.Length > 0) { foundPath = files[0]; found = true; break; }
-                                                    } catch { }
-                                                }
-                                            }
-                                            if (found) break;
-                                        }
-                                    }
-
-                                    if (foundPath != null) {
-                                        finalPath = foundPath;
-                                    } else if (isExistingFull) {
-                                        finalPath = existingPath;
-                                    }
-
                                     using (var k = baseKey.CreateSubKey(csp.Key))
                                     {
                                         if (k != null)
                                         {
-                                            k.SetValue("Image Path", finalPath, RegistryValueKind.String);
+                                            k.SetValue("Image Path", csp.Value, RegistryValueKind.String);
                                             k.SetValue("Type", 1, RegistryValueKind.DWord);
                                             k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
                                         }
@@ -4902,7 +4732,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
     content: `using System;
 using System.Diagnostics;
 using System.IO;
-using System.Security.AccessControl;
 using Microsoft.Win32;
 
 namespace EVedhikaUBDDeploymentTool.Engine
@@ -4944,7 +4773,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // First remove all old duplicate legacy entries
+                // First remove all old duplicate legacy v1.0.1 entries
                 CleanLegacyUninstallEntries();
 
                 // If Inno Setup installer key already exists, do not write a duplicate entry!
@@ -4978,7 +4807,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (keyLM != null)
                     {
                         keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.7", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.6", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -5015,14 +4844,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 try { Registry.CurrentUser.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
                 try { Registry.LocalMachine.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
-                if (logCallback != null) logCallback("[1/7] Removed 'E-Vedhika UBD Deployment Tool' from Windows Control Panel.");
+                if (logCallback != null) logCallback("[1/7] Removed 'E-Vedhika UBD Deployment Tool' from Windows Control Panel (Add/Remove Programs).");
             }
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback(string.Format("[1/7 WARN] Control Panel Registry Removal: {0}", ex.Message));
             }
 
-            // 2. Remove Windows Startup Registry Key
+            // 2. Remove Windows Startup Registry Key (HKCU\\...\\Run)
             try
             {
                 using (RegistryKey runKey = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Run", true))
@@ -5030,7 +4859,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (runKey != null && runKey.GetValue("EVedhikaUBDGuardian") != null)
                     {
                         runKey.DeleteValue("EVedhikaUBDGuardian", false);
-                        if (logCallback != null) logCallback("[2/7] Removed 'EVedhikaUBDGuardian' from Windows Startup Registry.");
+                        if (logCallback != null) logCallback("[2/7] Removed 'EVedhikaUBDGuardian' from Windows Startup Registry (HKCU\\\\...\\\\Run).");
                     }
                 }
             }
@@ -5039,32 +4868,30 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[2/7 WARN] Startup Registry removal: {0}", ex.Message));
             }
 
-            // 3. Remove Edge IE Mode Group Policies
+            // 3. Remove Edge IE Mode Group Policies & Registry Settings
             try
             {
                 try { Registry.CurrentUser.DeleteSubKeyTree(@"SOFTWARE\\Policies\\Microsoft\\Edge", false); } catch { }
                 try { Registry.LocalMachine.DeleteSubKeyTree(@"SOFTWARE\\Policies\\Microsoft\\Edge", false); } catch { }
-                if (logCallback != null) logCallback("[3/7] Removed Edge IE Mode Enterprise Site List policies.");
+                if (logCallback != null) logCallback("[3/7] Removed Edge IE Mode Enterprise Site List policies from HKCU & HKLM Registry.");
             }
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback(string.Format("[3/7 WARN] Edge Policy removal: {0}", ex.Message));
             }
 
-            // 4. Remove UBD Trusted Sites
+            // 4. Remove Zone 2 Trusted Sites Domain Mappings
             try
             {
-                UnlockDomainACL(@"telangana.gov.in\\ubd");
-                UnlockDomainACL(@"telangana.gov.in");
-                UnlockDomainACL(@"ubd.telangana.gov.in");
-
                 using (RegistryKey domainsKey = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains", true))
                 {
                     if (domainsKey != null)
                     {
                         try { domainsKey.DeleteSubKeyTree("ubd.telangana.gov.in", false); } catch { }
                         try { domainsKey.DeleteSubKeyTree("telangana.gov.in", false); } catch { }
-                        if (logCallback != null) logCallback("[4/7] Removed UBD Trusted Sites from Zone 2.");
+                        try { domainsKey.DeleteSubKeyTree("ubd.ap.gov.in", false); } catch { }
+                        try { domainsKey.DeleteSubKeyTree("ap.gov.in", false); } catch { }
+                        if (logCallback != null) logCallback("[4/7] Removed UBD Trusted Sites (TS/AP) from Zone 2.");
                     }
                 }
             }
@@ -5090,7 +4917,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[5/7 WARN] Browser Emulation cleanup: {0}", ex.Message));
             }
 
-            // 6. Remove Shortcuts
+            // 6. Remove Desktop & Start Menu Shortcuts
             try
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
@@ -5113,10 +4940,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[6/7 WARN] Shortcut deletion: {0}", ex.Message));
+                if (logCallback != null) logCallback(string.Format("[6/7 WARN] Desktop Shortcut deletion: {0}", ex.Message));
             }
 
-            // 7. Clean ProgramData
+            // 7. Clean ProgramData Files (sites.xml, logs, backups)
             try
             {
                 string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
@@ -5125,34 +4952,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Directory.Delete(appDataDir, true);
                     if (logCallback != null) logCallback(string.Format("[7/7] Deleted Application Data Directory: {0}", appDataDir));
                 }
+                else
+                {
+                    if (logCallback != null) logCallback("[7/7] ProgramData EVedhika folder is already clean.");
+                }
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[7/7 WARN] ProgramData cleanup: {0}", ex.Message));
+                if (logCallback != null) logCallback(string.Format("[7/7 WARN] Application Data Directory cleanup: {0}", ex.Message));
             }
 
-            if (logCallback != null) logCallback("[UNINSTALL SUCCESS] Process completed!");
+            if (logCallback != null) logCallback("==========================================================================");
+            if (logCallback != null) logCallback("[UNINSTALL SUCCESS] All E-Vedhika UBD Deployment Tool configurations cleanly uninstalled & reverted!");
+            if (logCallback != null) logCallback("==========================================================================");
+
             return success;
-        }
-
-        private static void UnlockDomainACL(string dom)
-        {
-            try
-            {
-                string regPath = \$@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\{dom}";
-                using (RegistryKey baseKey = Registry.CurrentUser.OpenSubKey(regPath, RegistryKeyPermissionCheck.ReadWriteSubTree, RegistryRights.ChangePermissions))
-                {
-                    if (baseKey != null)
-                    {
-                        RegistrySecurity rs = baseKey.GetAccessControl();
-                        string identity = Environment.UserDomainName + "\\\\" + Environment.UserName;
-                        RegistryAccessRule denyRule = new RegistryAccessRule(identity, RegistryRights.Delete, AccessControlType.Deny);
-                        rs.RemoveAccessRule(denyRule);
-                        baseKey.SetAccessControl(rs);
-                    }
-                }
-            }
-            catch { }
         }
     }
 }
@@ -6413,37 +6227,24 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         }
 
 
-        private static string _cachedLocation = null;
-
-        public static string GetLiveLocation()
+                        public static string GetLiveLocation()
         {
-            if (!string.IsNullOrEmpty(_cachedLocation) && _cachedLocation != "Unknown Location")
-                return _cachedLocation;
-
             try
             {
-                var req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create("https://get.geojs.io/v1/ip/geo.json");
-                req.Timeout = 2500;
-                req.ReadWriteTimeout = 2500;
-                req.UserAgent = "EVedhika/1.0";
-                req.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                req.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-
-                using (var resp = req.GetResponse())
-                using (var stream = resp.GetResponseStream())
-                using (var reader = new System.IO.StreamReader(stream))
+                using (System.Net.WebClient client = new System.Net.WebClient())
                 {
-                    string response = reader.ReadToEnd();
-                    var cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"city\\":\\"([^\\"]+)\\"");
-                    var regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"region\\":\\"([^\\"]+)\\"");
-
+                    client.Headers.Add("User-Agent", "EVedhika/1.0");
+                    string response = client.DownloadString("https://get.geojs.io/v1/ip/geo.json");
+                    System.Text.RegularExpressions.Match cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"city\\":\\"([^\\"]+)\\"");
+                    System.Text.RegularExpressions.Match regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"region\\":\\"([^\\"]+)\\"");
+                    
                     string city = cityMatch.Success ? cityMatch.Groups[1].Value : "Unknown City";
                     string region = regionMatch.Success ? regionMatch.Groups[1].Value : "Unknown Region";
-
+                    
                     if (city != "Unknown City")
                     {
-                        _cachedLocation = region != "Unknown Region" ? city + ", " + region : city;
-                        return _cachedLocation;
+                        if (region != "Unknown Region") return city + ", " + region;
+                        return city;
                     }
                 }
             }
@@ -7467,7 +7268,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.7)";
+            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.6)";
             // 
             // lblHeaderSubtitle
             // 
@@ -7520,7 +7321,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
             this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | Status: Ready";
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | Status: Ready";
             // 
             // MainForm
             // 
@@ -7842,7 +7643,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | PC ID: {0} | Status: Ready", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.6 | PC ID: {0} | Status: Ready", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -8062,12 +7863,6 @@ namespace EVedhikaUBDDeploymentTool
             btnCustomLevel.Margin = new Padding(8, 0, 0, 0);
             btnCustomLevel.Click += delegate(object s, EventArgs ev) {
                 try {
-                    // 1-Click Zero Manual: Ensure Custom Level (0), core sites, MachineKeys & SmartCard CSPs are active
-                    DriverInstaller.RegisterSmartCardAndCspProviders();
-                    RegistryManager.FixInvalidAlgorithmAndCryptoProviders();
-                    RegistryManager.ConfigureActiveXAndTLS();
-                    RegistryManager.ConfigureTrustedSites(currentTargetDomain);
-
                     try {
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
                             FileName = "rundll32.exe",
@@ -8110,9 +7905,9 @@ namespace EVedhikaUBDDeploymentTool
                 pnlHeaderActions.BringToFront();
             }
 
-            // Initialize Proactive Health Check & Zero-Manual Auto-Heal Timer (Every 60 seconds)
+            // Initialize Proactive Health Check Timer (Every 30 minutes = 1800000 ms)
             healthTimer = new System.Windows.Forms.Timer();
-            healthTimer.Interval = 60000;
+            healthTimer.Interval = 1800000;
             healthTimer.Tick += delegate(object s, EventArgs args) { RunProactiveHealthCheckBackground(); };
             healthTimer.Start();
             
@@ -8406,7 +8201,7 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.7");
+            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.6");
             LogMessage("SYSTEM", "Department: Enterprise Web Administration");
             try
             {
@@ -8548,17 +8343,6 @@ namespace EVedhikaUBDDeploymentTool
                     {
                         SafeInvoke(delegate() { LogMessage("UBD_AUDIT", msg); });
                     });
-
-                    // Zero Manual Work: Automatically trigger 16-Step Deployment execution 2 seconds after startup
-                    Thread.Sleep(2000);
-                    SafeInvoke(delegate()
-                    {
-                        if (btnStartDeploy != null && btnStartDeploy.Enabled)
-                        {
-                            LogMessage("AUTO-RUN", "Zero Manual Clicks Required: Initiating 16-Step Deployment automatically...");
-                            btnStartDeploy_Click(this, EventArgs.Empty);
-                        }
-                    });
                 }
                 catch { }
             });
@@ -8583,37 +8367,6 @@ namespace EVedhikaUBDDeploymentTool
 
         private void RunDeploymentWorkflow()
         {
-            // Message 1: Send RUN_STARTED Telegram & Cloud Telemetry alert instantly
-            try
-            {
-                string stateTagStart = currentTargetDomain.Contains("ap.gov.in") ? "Andhra Pradesh" : "Telangana";
-                string locStart = SystemInfoHelper.GetLiveLocation();
-                string officeStart = (string.IsNullOrEmpty(locStart) || locStart == "Unknown Location")
-                    ? \$"{stateTagStart} Grama Panchayat Office"
-                    : \$"{locStart} ({stateTagStart})";
-
-                var startData = new System.Collections.Generic.Dictionary<string, string>
-                {
-                    { "date", DateTime.Now.ToString("yyyy-MM-dd") },
-                    { "time", DateTime.Now.ToString("HH:mm:ss") },
-                    { "pcName", Environment.MachineName },
-                    { "userName", Environment.UserName },
-                    { "officeLocation", officeStart },
-                    { "state", stateTagStart },
-                    { "targetDomain", currentTargetDomain },
-                    { "winEdition", SystemInfoHelper.GetWindowsVersion() },
-                    { "osVersion", SystemInfoHelper.GetWindowsVersion() },
-                    { "dscStatus", SystemInfoHelper.CheckDscStatus() },
-                    { "edgeIeMode", SystemInfoHelper.CheckEdgeIeMode() },
-                    { "status", "RUN_STARTED" },
-                    { "verification", "0/16 In Progress" },
-                    { "healthScore", "75" },
-                    { "remarks", "🚀 Zero-Touch Automated 16-Step Deployment Started in Background (0 Manual Clicks Required)..." }
-                };
-                Logger.PostTelemetryData(startData);
-            }
-            catch { }
-
             for (int i = 0; i < deployStepNames.Length; i++)
             {
                 int stepNumber = i + 1;
@@ -8675,7 +8428,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.7.exe");
+                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.6.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -8779,14 +8532,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.7" },
+                { "deployVersion", "v1.0.6" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.7" },
+                { "version", "v1.0.6" },
                 { "operatorName", Environment.UserName }
             };
 
@@ -9729,7 +9482,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
                 { "verification", "Passed (16/16)" },
-                { "version", "v1.0.7" },
+                { "version", "v1.0.6" },
                 { "status", "Success (16/16)" },
                 { "healthScore", "100" },
                 { "remarks", "Live telemetry update from C# WinForms App" }
@@ -9794,13 +9547,11 @@ namespace EVedhikaUBDDeploymentTool
                     {
                         LogMessage("PREDICTIVE ALERT [WARNING]", \$"{alert.Title}: {alert.Description}");
                     }
+                    else
+                    {
+                        LogMessage("HEALTH [OK]", \$"{alert.Title}: {alert.Description}");
+                    }
                 }
-
-                // Zero-Manual Auto-Heal: Silently protect core government sites, Custom Level, MachineKeys & Smart Card CryptoAPI
-                DriverInstaller.RegisterSmartCardAndCspProviders();
-                RegistryManager.FixInvalidAlgorithmAndCryptoProviders();
-                RegistryManager.ConfigureTrustedSites(currentTargetDomain);
-                RegistryManager.ConfigureActiveXAndTLS();
             }
             catch (Exception ex)
             {
@@ -11096,30 +10847,17 @@ Currently contains: \`enterprise_mode_site_list.xml\` which includes Andhra Prad
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/Payload/XML/enterprise_mode_site_list.xml',
     type: 'cs',
     content: `<?xml version="1.0" encoding="UTF-8"?>
-<site-list version="2">
-  <created-by>
-    <tool>E-Vedhika UBD Deployment Tool</tool>
-  </created-by>
-  <site url="https://ubd.telangana.gov.in/">
-    <compat-mode>IE5</compat-mode>
-    <open-in>IE11</open-in>
-  </site>
-  <site url="https://ubd.telangana.gov.in/login.do">
-    <compat-mode>IE5</compat-mode>
-    <open-in>IE11</open-in>
-  </site>
-  <site url="http://www.ubd.ap.gov.in:8080/UBDNEW/">
-    <compat-mode>IE7</compat-mode>
-    <open-in>IE11</open-in>
-  </site>
-  <site url="www.ubd.ap.gov.in">
-    <compat-mode>IE7</compat-mode>
-    <open-in>IE11</open-in>
-  </site>
-  <site url="ubd.ap.gov.in">
-    <compat-mode>IE7</compat-mode>
-    <open-in>IE11</open-in>
-  </site>
+<site-list version="1">
+  <site-list>
+    <site url="http://www.ubd.ap.gov.in:8080/UBDNEW/">
+      <compat-mode>IE7</compat-mode>
+      <open-in>IE11</open-in>
+    </site>
+    <site url="https://ubd.telangana.gov.in/">
+      <compat-mode>IE11</compat-mode>
+      <open-in>IE11</open-in>
+    </site>
+  </site-list>
 </site-list>
 `
   },
@@ -11381,8 +11119,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.8.0")]
-[assembly: AssemblyFileVersion("1.0.8.0")]
+[assembly: AssemblyVersion("1.0.6.0")]
+[assembly: AssemblyFileVersion("1.0.6.0")]
 `
   },
   {
