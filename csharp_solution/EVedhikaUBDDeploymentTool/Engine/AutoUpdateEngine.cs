@@ -8,8 +8,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.8";
-        public const int CurrentVersionCode = 108;
+        public const string CurrentVersion = "v1.0.6";
+        public const int CurrentVersionCode = 106;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
@@ -53,7 +53,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest",
                 "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
                 "https://www.e-vedhika.in/version.json",
                 "https://www.e-vedhika.in/api/version"
@@ -67,48 +66,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-AutoUpdater/1.0";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika_UBD_Deployment_v1.0.1.exe";
                         wc.Encoding = System.Text.Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
-                        // Handle direct GitHub Releases REST API response
-                        if (!string.IsNullOrEmpty(jsonResponse) && jsonResponse.Contains("\"tag_name\":"))
-                        {
-                            string tagName = ExtractJsonValue(jsonResponse, "tag_name"); // e.g. "v1.0.8" or "v1.0.9"
-                            string releaseNotes = ExtractJsonValue(jsonResponse, "body");
-                            string downloadUrl = ExtractBrowserDownloadUrl(jsonResponse, tagName);
-
-                            int serverCode = 100;
-                            if (!string.IsNullOrEmpty(tagName))
-                            {
-                                string digitsOnly = System.Text.RegularExpressions.Regex.Replace(tagName, @"[^\d]", "");
-                                int.TryParse(digitsOnly, out serverCode);
-                            }
-
-                            info.Success = true;
-                            info.LatestVersion = string.IsNullOrEmpty(tagName) ? CurrentVersion : tagName;
-                            info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Latest UBD & Portal release from GitHub." : releaseNotes;
-                            info.DownloadUrl = downloadUrl;
-                            info.IsSilent = false;
-
-                            if (serverCode > CurrentVersionCode || (!string.IsNullOrEmpty(tagName) && !tagName.Equals(CurrentVersion, StringComparison.OrdinalIgnoreCase)))
-                            {
-                                info.IsUpdateAvailable = true;
-                                info.Message = $"✨ New GitHub Software Release Available: {info.LatestVersion}!\n\nRelease Notes: {info.ReleaseNotes}";
-                                logCallback?.Invoke($"[AUTO-UPDATE] NEW GITHUB RELEASE DETECTED: {info.LatestVersion} ({info.DownloadUrl})");
-                            }
-                            else
-                            {
-                                info.IsUpdateAvailable = false;
-                                info.Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is up to date!";
-                                logCallback?.Invoke($"[AUTO-UPDATE] Software is up to date ({CurrentVersion}).");
-                            }
-
-                            fetched = true;
-                            break;
-                        }
-
-                        // Handle E-Vedhika Server JSON response
                         if (!string.IsNullOrEmpty(jsonResponse) && jsonResponse.Contains("\"latestVersion\":"))
                         {
                             string latestVer = ExtractJsonValue(jsonResponse, "latestVersion");
@@ -196,7 +157,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 using (WebClient wc = new WebClient())
                 {
-                    wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-AutoUpdater/1.0";
                     if (progressCallback != null)
                     {
                         wc.DownloadProgressChanged += delegate(object sender, DownloadProgressChangedEventArgs e)
@@ -400,37 +360,6 @@ del ""%~f0""
                 catch { }
             }
             return news;
-        }
-
-        private static string ExtractBrowserDownloadUrl(string jsonResponse, string tagName)
-        {
-            try
-            {
-                // 1. Search for browser_download_url in GitHub API assets array
-                int assetIdx = jsonResponse.IndexOf("\"browser_download_url\":", StringComparison.OrdinalIgnoreCase);
-                while (assetIdx != -1)
-                {
-                    int start = assetIdx + "\"browser_download_url\":".Length;
-                    while (start < jsonResponse.Length && (jsonResponse[start] == ' ' || jsonResponse[start] == '"')) start++;
-                    int end = start;
-                    while (end < jsonResponse.Length && jsonResponse[end] != '"' && jsonResponse[end] != ',' && jsonResponse[end] != '}') end++;
-                    string url = jsonResponse.Substring(start, end - start).Trim('"', ' ');
-                    if (!string.IsNullOrEmpty(url) && (url.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
-                    {
-                        return url;
-                    }
-                    assetIdx = jsonResponse.IndexOf("\"browser_download_url\":", end, StringComparison.OrdinalIgnoreCase);
-                }
-
-                // 2. Direct GitHub latest release download URL fallback
-                if (!string.IsNullOrEmpty(tagName))
-                {
-                    return $"https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/{tagName}/EVedhika_Setup_{tagName}.exe";
-                }
-            }
-            catch { }
-
-            return "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.8.exe";
         }
 
         private static string ExtractJsonValue(string json, string key)

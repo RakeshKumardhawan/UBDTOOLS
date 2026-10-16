@@ -47,14 +47,9 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2.5 sm:gap-3">
           <EVedhikaLogo size={32} className="w-7 h-7 sm:w-8 sm:h-8" />
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-syne text-[1.15rem] sm:text-[1.4rem] tracking-[-0.04em] text-accent leading-none">
-                E-VEDHIKA
-              </h1>
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.6rem] sm:text-[0.65rem] font-mono font-bold bg-accent/15 text-accent border border-accent/30 tracking-wide uppercase shadow-xs">
-                v1.0.7
-              </span>
-            </div>
+            <h1 className="font-syne text-[1.15rem] sm:text-[1.4rem] tracking-[-0.04em] text-accent leading-none">
+              E-VEDHIKA
+            </h1>
             <p className="label mt-0.5 text-[0.55rem] sm:text-[0.62rem] hidden xs:block">
               Universal Deployment Framework
             </p>

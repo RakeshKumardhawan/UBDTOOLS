@@ -754,38 +754,44 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 } catch { }
 
                                 string finalPath = tc.Value;
-                                // If existing path is valid and full, use it. Otherwise try to find it.
-                                if (!string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\") || existingPath.Contains("/"))) {
-                                    finalPath = existingPath;
-                                } else {
-                                    // Search for DLL in system and common paths
-                                    string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
-                                    string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
-                                    
-                                    if (File.Exists(Path.Combine(sysDir, tc.Value))) finalPath = Path.Combine(sysDir, tc.Value);
-                                    else if (File.Exists(Path.Combine(sys64Dir, tc.Value))) finalPath = Path.Combine(sys64Dir, tc.Value);
-                                    else {
-                                        // Fallback search in Program Files
-                                        string[] commonRoots = { 
-                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
-                                        };
-                                        bool found = false;
-                                        foreach (var root in commonRoots) {
-                                            if (string.IsNullOrEmpty(root)) continue;
-                                            string[] subFolders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner" };
-                                            foreach (var sub in subFolders) {
-                                                string targetDir = Path.Combine(root, sub);
-                                                if (Directory.Exists(targetDir)) {
-                                                    try {
-                                                        var files = Directory.GetFiles(targetDir, tc.Value, SearchOption.AllDirectories);
-                                                        if (files.Length > 0) { finalPath = files[0]; found = true; break; }
-                                                    } catch { }
-                                                }
+                                bool isExistingFull = !string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\") || existingPath.Contains("/"));
+                                
+                                // Search for DLL in system and common paths
+                                string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                                string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
+                                
+                                string foundPath = null;
+                                if (File.Exists(Path.Combine(sysDir, tc.Value))) foundPath = Path.Combine(sysDir, tc.Value);
+                                else if (File.Exists(Path.Combine(sys64Dir, tc.Value))) foundPath = Path.Combine(sys64Dir, tc.Value);
+                                else {
+                                    string[] commonRoots = { 
+                                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                                        @"C:\Program Files",
+                                        @"C:\Program Files (x86)"
+                                    };
+                                    bool found = false;
+                                    foreach (var root in commonRoots) {
+                                        if (string.IsNullOrEmpty(root) || !Directory.Exists(root)) continue;
+                                        string[] subFolders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner", "ProxKey", "Watchdata India", "CryptoAPI" };
+                                        foreach (var sub in subFolders) {
+                                            string targetDir = Path.Combine(root, sub);
+                                            if (Directory.Exists(targetDir)) {
+                                                try {
+                                                    var files = Directory.GetFiles(targetDir, tc.Value, SearchOption.AllDirectories);
+                                                    if (files.Length > 0) { foundPath = files[0]; found = true; break; }
+                                                } catch { }
                                             }
-                                            if (found) break;
                                         }
+                                        if (found) break;
                                     }
+                                }
+
+                                if (foundPath != null) {
+                                    finalPath = foundPath;
+                                } else if (isExistingFull) {
+                                    // If we didn't find it but there's a full path already, don't break it!
+                                    finalPath = existingPath;
                                 }
 
                                 // Type 1 registration

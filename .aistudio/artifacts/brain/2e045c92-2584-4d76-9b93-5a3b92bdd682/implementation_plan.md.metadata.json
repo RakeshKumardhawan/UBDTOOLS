@@ -1,6 +1,0 @@
-{
-  "summary": "Comprehensive technical diagnosis and automated repair plan for UBD Portal Step 4 FetchCertDetails() Error -2146893792 (0x80090020 / NTE_FAIL), covering MachineKeys permission resolution, SmartCard service auto-start, Cryptographic Service Provider (CSP) registration, and 1-click self-healing deployment.",
-  "updatedAt": "2026-10-15T15:46:27.020039958Z",
-  "requestFeedback": true,
-  "userFacing": true
-}

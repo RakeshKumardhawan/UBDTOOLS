@@ -205,17 +205,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 bool is64BitOS = Environment.Is64BitOperatingSystem;
                 
                 // Priority paths where DigiSignHelper might be located
-                string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-                string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
                 string[] searchPaths = new string[]
                 {
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload"),
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installers"),
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory),
-                    Path.Combine(pf86, "NIC", "DigiSigner"),
-                    Path.Combine(pf, "NIC", "DigiSigner"),
-                    Path.Combine(pf86, "DigiSigner"),
-                    Path.Combine(pf, "DigiSigner"),
+                    @"C:\Program Files (x86)\NIC\DigiSigner",
+                    @"C:\Program Files\NIC\DigiSigner",
                     @"C:\Windows\System32",
                     @"C:\Windows\SysWOW64"
                 };
@@ -419,12 +415,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (!Directory.Exists(dir)) continue;
                     foreach (var msi in msiNames)
                     {
-                        // Recursive search for MSI
-                        var files = Directory.GetFiles(dir, msi, SearchOption.AllDirectories);
-                        if (files.Length > 0)
+                        string fullPath = Path.Combine(dir, msi);
+                        if (File.Exists(fullPath))
                         {
-                            string fullPath = files[0];
-                            Logger.LogInfo("ActiveX", $"Installing DigiSigner MSI: {Path.GetFileName(fullPath)}");
+                            Logger.LogInfo("ActiveX", $"Installing DigiSigner MSI: {msi}");
                             if (InstallMsiSilent(fullPath))
                             {
                                 Logger.LogInfo("ActiveX", "[OK] DigiSigner MSI installed. Re-running registration...");
@@ -550,47 +544,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 try
                                 {
-                                    string existingPath = null;
-                                    try {
-                                        using (var existingKey = baseKey.OpenSubKey(csp.Key)) {
-                                            existingPath = existingKey?.GetValue("Image Path")?.ToString();
-                                        }
-                                    } catch { }
-
-                                    string finalPath = csp.Value;
-                                    if (!string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\") || existingPath.Contains("/"))) {
-                                        finalPath = existingPath;
-                                    } else {
-                                        // Search
-                                        string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
-                                        string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
-                                        if (File.Exists(Path.Combine(sysDir, csp.Value))) finalPath = Path.Combine(sysDir, csp.Value);
-                                        else if (File.Exists(Path.Combine(sys64Dir, csp.Value))) finalPath = Path.Combine(sys64Dir, csp.Value);
-                                        else {
-                                            string[] roots = { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) };
-                                            bool found = false;
-                                            foreach (var r in roots) {
-                                                if (string.IsNullOrEmpty(r)) continue;
-                                                string[] folders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner" };
-                                                foreach (var f in folders) {
-                                                    string t = Path.Combine(r, f);
-                                                    if (Directory.Exists(t)) {
-                                                        try {
-                                                            var files = Directory.GetFiles(t, csp.Value, SearchOption.AllDirectories);
-                                                            if (files.Length > 0) { finalPath = files[0]; found = true; break; }
-                                                        } catch { }
-                                                    }
-                                                }
-                                                if (found) break;
-                                            }
-                                        }
-                                    }
-
                                     using (var k = baseKey.CreateSubKey(csp.Key))
                                     {
                                         if (k != null)
                                         {
-                                            k.SetValue("Image Path", finalPath, RegistryValueKind.String);
+                                            k.SetValue("Image Path", csp.Value, RegistryValueKind.String);
                                             k.SetValue("Type", 1, RegistryValueKind.DWord);
                                             k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
                                         }

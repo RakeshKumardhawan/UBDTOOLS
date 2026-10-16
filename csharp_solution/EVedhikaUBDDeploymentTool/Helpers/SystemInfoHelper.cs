@@ -25,37 +25,24 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         }
 
 
-        private static string _cachedLocation = null;
-
-        public static string GetLiveLocation()
+                        public static string GetLiveLocation()
         {
-            if (!string.IsNullOrEmpty(_cachedLocation) && _cachedLocation != "Unknown Location")
-                return _cachedLocation;
-
             try
             {
-                var req = (System.Net.HttpWebRequest)System.Net.WebRequest.Create("https://get.geojs.io/v1/ip/geo.json");
-                req.Timeout = 2500;
-                req.ReadWriteTimeout = 2500;
-                req.UserAgent = "EVedhika/1.0";
-                req.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                req.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-
-                using (var resp = req.GetResponse())
-                using (var stream = resp.GetResponseStream())
-                using (var reader = new System.IO.StreamReader(stream))
+                using (System.Net.WebClient client = new System.Net.WebClient())
                 {
-                    string response = reader.ReadToEnd();
-                    var cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
-                    var regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\"region\":\"([^\"]+)\"");
-
+                    client.Headers.Add("User-Agent", "EVedhika/1.0");
+                    string response = client.DownloadString("https://get.geojs.io/v1/ip/geo.json");
+                    System.Text.RegularExpressions.Match cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
+                    System.Text.RegularExpressions.Match regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\"region\":\"([^\"]+)\"");
+                    
                     string city = cityMatch.Success ? cityMatch.Groups[1].Value : "Unknown City";
                     string region = regionMatch.Success ? regionMatch.Groups[1].Value : "Unknown Region";
-
+                    
                     if (city != "Unknown City")
                     {
-                        _cachedLocation = region != "Unknown Region" ? city + ", " + region : city;
-                        return _cachedLocation;
+                        if (region != "Unknown Region") return city + ", " + region;
+                        return city;
                     }
                 }
             }

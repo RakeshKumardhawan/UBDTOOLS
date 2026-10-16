@@ -47,29 +47,19 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             _guardianThread = new Thread(delegate()
             {
-                if (logCallback != null) logCallback("[Guardian 24x7] Background Self-Healing Guardian Active. Monitoring system settings & protecting government portals...");
-                int iteration = 0;
+                if (logCallback != null) logCallback("[Guardian 24x7] Background Self-Healing Guardian Active. Monitoring system settings...");
                 while (_isGuardianRunning)
                 {
                     try
                     {
-                        // Quick check every 15s: Ensure government portals are permanently preserved in Trusted Sites
-                        VerifyAndRestoreProtectedGovernmentSites(logCallback);
-
-                        // Full self-healing audit every 10 minutes (40 x 15s)
-                        if (iteration % 40 == 0)
-                        {
-                            PerformSelfHealingAudit(logCallback);
-                        }
+                        PerformSelfHealingAudit(logCallback);
                     }
                     catch (Exception ex)
                     {
                         if (logCallback != null) logCallback(string.Format("[Guardian Audit Exception] {0}", ex.Message));
                     }
-
-                    iteration++;
-                    // Sleep for 15 seconds in small 1-second steps so thread can terminate cleanly on tool exit
-                    for (int i = 0; i < 15 && _isGuardianRunning; i++)
+                    // Sleep for 10 minutes (600,000 ms) in small increments so StopGuardian can exit promptly
+                    for (int i = 0; i < 600 && _isGuardianRunning; i++)
                     {
                         Thread.Sleep(1000);
                     }
@@ -134,7 +124,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (logCallback != null) logCallback("[Audit REPAIR] Re-generating sites.xml and re-enforcing Edge IE Mode Group Policies...");
                     string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { 
-                        "https://ubd.telangana.gov.in/",
                         "ubd.telangana.gov.in", 
                         "ubd.ap.gov.in", 
                         "www.ubd.ap.gov.in", 
@@ -195,16 +184,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (zone2Key != null)
                     {
-                        var valCurrentLevel = zone2Key.GetValue("CurrentLevel"); // 0 = Custom
-                        var valFlags = zone2Key.GetValue("Flags"); // 67 (0x43) = Enable Custom Level
                         var val1001 = zone2Key.GetValue("1001"); // Download signed ActiveX
                         var val1201 = zone2Key.GetValue("1201"); // Script ActiveX not safe
                         var val1405 = zone2Key.GetValue("1405"); // Script ActiveX safe
                         var val1803 = zone2Key.GetValue("1803"); // File Download (0 = Allow)
                         var val2200 = zone2Key.GetValue("2200"); // Automatic prompting for file downloads
-                        if (valCurrentLevel != null && Convert.ToInt32(valCurrentLevel) == 0 &&
-                            valFlags != null && (Convert.ToInt32(valFlags) == 67 || Convert.ToInt32(valFlags) == 71) &&
-                            val1001 != null && Convert.ToInt32(val1001) == 0 &&
+                        if (val1001 != null && Convert.ToInt32(val1001) == 0 &&
                             val1201 != null && Convert.ToInt32(val1201) == 0 &&
                             val1405 != null && Convert.ToInt32(val1405) == 0 &&
                             val1803 != null && Convert.ToInt32(val1803) == 0 &&
@@ -305,38 +290,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 if (logCallback != null) logCallback(string.Format("[Edge Refresh Warning] {0}", ex.Message));
             }
-        }
-
-        /// <summary>
-        /// Real-time protection: Verifies that core government domains remain visible and permanently
-        /// active in Zone 2 Trusted Sites. If a user deleted them, this immediately restores them.
-        /// </summary>
-        public static void VerifyAndRestoreProtectedGovernmentSites(Action<string> logCallback = null)
-        {
-            try
-            {
-                bool missing = false;
-                using (RegistryKey tsKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\telangana.gov.in\ubd"))
-                {
-                    if (tsKey == null || tsKey.GetValue("https") == null) missing = true;
-                }
-
-                if (!missing)
-                {
-                    using (RegistryKey tsDomain = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ubd.telangana.gov.in"))
-                    {
-                        if (tsDomain == null || tsDomain.GetValue("https") == null) missing = true;
-                    }
-                }
-
-                if (missing)
-                {
-                    if (logCallback != null) logCallback("[Guardian Self-Heal] Detected manual deletion of UBD Trusted Site. Auto-restoring government portal immediately...");
-                    RegistryManager.ConfigureTrustedSites("ubd.telangana.gov.in");
-                    RegistryManager.ConfigureTrustedSites("ubd.ap.gov.in");
-                }
-            }
-            catch { }
         }
 
         public static void StopGuardian()

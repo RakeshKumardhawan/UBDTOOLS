@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Security.AccessControl;
 using Microsoft.Win32;
 
 namespace EVedhikaUBDDeploymentTool.Engine
@@ -77,7 +76,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (keyLM != null)
                     {
                         keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.7", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.6", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\"{0}\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\"{0}\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -150,16 +149,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[3/7 WARN] Edge Policy removal: {0}", ex.Message));
             }
 
-            // 4. Remove UBD Trusted Sites (ZoneMap Domains)
+            // 4. Remove Zone 2 Trusted Sites Domain Mappings
             try
             {
-                // Unlock any Deny Delete ACLs before removing keys
-                UnlockDomainACL(@"telangana.gov.in\ubd");
-                UnlockDomainACL(@"telangana.gov.in");
-                UnlockDomainACL(@"ubd.telangana.gov.in");
-                UnlockDomainACL(@"ap.gov.in\ubd");
-                UnlockDomainACL(@"ubd.ap.gov.in");
-
                 using (RegistryKey domainsKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains", true))
                 {
                     if (domainsKey != null)
@@ -169,25 +161,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         try { domainsKey.DeleteSubKeyTree("ubd.ap.gov.in", false); } catch { }
                         try { domainsKey.DeleteSubKeyTree("ap.gov.in", false); } catch { }
                         if (logCallback != null) logCallback("[4/7] Removed UBD Trusted Sites (TS/AP) from Zone 2.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                if (logCallback != null) logCallback(string.Format("[4/7 WARN] Trusted Sites removal: {0}", ex.Message));
-            }
-
-            // Remove from HKLM as well
-            try
-            {
-                using (RegistryKey hklmDomains = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains", true))
-                {
-                    if (hklmDomains != null)
-                    {
-                        try { hklmDomains.DeleteSubKeyTree("ubd.telangana.gov.in", false); } catch { }
-                        try { hklmDomains.DeleteSubKeyTree("telangana.gov.in", false); } catch { }
-                        try { hklmDomains.DeleteSubKeyTree("ubd.ap.gov.in", false); } catch { }
-                        try { hklmDomains.DeleteSubKeyTree("ap.gov.in", false); } catch { }
                     }
                 }
             }
@@ -263,30 +236,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
             if (logCallback != null) logCallback("==========================================================================");
 
             return success;
-        }
-
-        private static void UnlockDomainACL(string dom)
-        {
-            try
-            {
-                string regPath = $@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\{dom}";
-                using (RegistryKey baseKey = Registry.CurrentUser.OpenSubKey(regPath, RegistryKeyPermissionCheck.ReadWriteSubTree, RegistryRights.ChangePermissions))
-                {
-                    if (baseKey != null)
-                    {
-                        RegistrySecurity rs = baseKey.GetAccessControl();
-                        string identity = Environment.UserDomainName + "\\" + Environment.UserName;
-                        RegistryAccessRule denyRule = new RegistryAccessRule(
-                            identity,
-                            RegistryRights.Delete,
-                            AccessControlType.Deny
-                        );
-                        rs.RemoveAccessRule(denyRule);
-                        baseKey.SetAccessControl(rs);
-                    }
-                }
-            }
-            catch { }
         }
     }
 }

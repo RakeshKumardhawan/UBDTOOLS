@@ -2102,32 +2102,41 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                     } catch { }
 
                                     string finalPath = csp.Value;
-                                    if (!string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\\\") || existingPath.Contains("/"))) {
-                                        finalPath = existingPath;
-                                    } else {
-                                        // Search
-                                        string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
-                                        string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
-                                        if (File.Exists(Path.Combine(sysDir, csp.Value))) finalPath = Path.Combine(sysDir, csp.Value);
-                                        else if (File.Exists(Path.Combine(sys64Dir, csp.Value))) finalPath = Path.Combine(sys64Dir, csp.Value);
-                                        else {
-                                            string[] roots = { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) };
-                                            bool found = false;
-                                            foreach (var r in roots) {
-                                                if (string.IsNullOrEmpty(r)) continue;
-                                                string[] folders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner" };
-                                                foreach (var f in folders) {
-                                                    string t = Path.Combine(r, f);
-                                                    if (Directory.Exists(t)) {
-                                                        try {
-                                                            var files = Directory.GetFiles(t, csp.Value, SearchOption.AllDirectories);
-                                                            if (files.Length > 0) { finalPath = files[0]; found = true; break; }
-                                                        } catch { }
-                                                    }
+                                    bool isExistingFull = !string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\\\") || existingPath.Contains("/"));
+                                    
+                                    string foundPath = null;
+                                    string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                                    string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
+                                    if (File.Exists(Path.Combine(sysDir, csp.Value))) foundPath = Path.Combine(sysDir, csp.Value);
+                                    else if (File.Exists(Path.Combine(sys64Dir, csp.Value))) foundPath = Path.Combine(sys64Dir, csp.Value);
+                                    else {
+                                        string[] roots = { 
+                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), 
+                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                                            @"C:\\Program Files",
+                                            @"C:\\Program Files (x86)"
+                                        };
+                                        bool found = false;
+                                        foreach (var r in roots) {
+                                            if (string.IsNullOrEmpty(r) || !Directory.Exists(r)) continue;
+                                            string[] folders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner", "ProxKey", "Watchdata India", "CryptoAPI" };
+                                            foreach (var f in folders) {
+                                                string t = Path.Combine(r, f);
+                                                if (Directory.Exists(t)) {
+                                                    try {
+                                                        var files = Directory.GetFiles(t, csp.Value, SearchOption.AllDirectories);
+                                                        if (files.Length > 0) { foundPath = files[0]; found = true; break; }
+                                                    } catch { }
                                                 }
-                                                if (found) break;
                                             }
+                                            if (found) break;
                                         }
+                                    }
+
+                                    if (foundPath != null) {
+                                        finalPath = foundPath;
+                                    } else if (isExistingFull) {
+                                        finalPath = existingPath;
                                     }
 
                                     using (var k = baseKey.CreateSubKey(csp.Key))
@@ -4329,38 +4338,44 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 } catch { }
 
                                 string finalPath = tc.Value;
-                                // If existing path is valid and full, use it. Otherwise try to find it.
-                                if (!string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\\\") || existingPath.Contains("/"))) {
-                                    finalPath = existingPath;
-                                } else {
-                                    // Search for DLL in system and common paths
-                                    string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
-                                    string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
-                                    
-                                    if (File.Exists(Path.Combine(sysDir, tc.Value))) finalPath = Path.Combine(sysDir, tc.Value);
-                                    else if (File.Exists(Path.Combine(sys64Dir, tc.Value))) finalPath = Path.Combine(sys64Dir, tc.Value);
-                                    else {
-                                        // Fallback search in Program Files
-                                        string[] commonRoots = { 
-                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
-                                        };
-                                        bool found = false;
-                                        foreach (var root in commonRoots) {
-                                            if (string.IsNullOrEmpty(root)) continue;
-                                            string[] subFolders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner" };
-                                            foreach (var sub in subFolders) {
-                                                string targetDir = Path.Combine(root, sub);
-                                                if (Directory.Exists(targetDir)) {
-                                                    try {
-                                                        var files = Directory.GetFiles(targetDir, tc.Value, SearchOption.AllDirectories);
-                                                        if (files.Length > 0) { finalPath = files[0]; found = true; break; }
-                                                    } catch { }
-                                                }
+                                bool isExistingFull = !string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\\\") || existingPath.Contains("/"));
+                                
+                                // Search for DLL in system and common paths
+                                string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                                string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
+                                
+                                string foundPath = null;
+                                if (File.Exists(Path.Combine(sysDir, tc.Value))) foundPath = Path.Combine(sysDir, tc.Value);
+                                else if (File.Exists(Path.Combine(sys64Dir, tc.Value))) foundPath = Path.Combine(sys64Dir, tc.Value);
+                                else {
+                                    string[] commonRoots = { 
+                                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                                        @"C:\\Program Files",
+                                        @"C:\\Program Files (x86)"
+                                    };
+                                    bool found = false;
+                                    foreach (var root in commonRoots) {
+                                        if (string.IsNullOrEmpty(root) || !Directory.Exists(root)) continue;
+                                        string[] subFolders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner", "ProxKey", "Watchdata India", "CryptoAPI" };
+                                        foreach (var sub in subFolders) {
+                                            string targetDir = Path.Combine(root, sub);
+                                            if (Directory.Exists(targetDir)) {
+                                                try {
+                                                    var files = Directory.GetFiles(targetDir, tc.Value, SearchOption.AllDirectories);
+                                                    if (files.Length > 0) { foundPath = files[0]; found = true; break; }
+                                                } catch { }
                                             }
-                                            if (found) break;
                                         }
+                                        if (found) break;
                                     }
+                                }
+
+                                if (foundPath != null) {
+                                    finalPath = foundPath;
+                                } else if (isExistingFull) {
+                                    // If we didn't find it but there's a full path already, don't break it!
+                                    finalPath = existingPath;
                                 }
 
                                 // Type 1 registration
@@ -4929,7 +4944,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // First remove all old duplicate legacy v1.0.1 entries
+                // First remove all old duplicate legacy entries
                 CleanLegacyUninstallEntries();
 
                 // If Inno Setup installer key already exists, do not write a duplicate entry!
@@ -5000,14 +5015,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 try { Registry.CurrentUser.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
                 try { Registry.LocalMachine.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
-                if (logCallback != null) logCallback("[1/7] Removed 'E-Vedhika UBD Deployment Tool' from Windows Control Panel (Add/Remove Programs).");
+                if (logCallback != null) logCallback("[1/7] Removed 'E-Vedhika UBD Deployment Tool' from Windows Control Panel.");
             }
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback(string.Format("[1/7 WARN] Control Panel Registry Removal: {0}", ex.Message));
             }
 
-            // 2. Remove Windows Startup Registry Key (HKCU\\...\\Run)
+            // 2. Remove Windows Startup Registry Key
             try
             {
                 using (RegistryKey runKey = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Run", true))
@@ -5015,7 +5030,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (runKey != null && runKey.GetValue("EVedhikaUBDGuardian") != null)
                     {
                         runKey.DeleteValue("EVedhikaUBDGuardian", false);
-                        if (logCallback != null) logCallback("[2/7] Removed 'EVedhikaUBDGuardian' from Windows Startup Registry (HKCU\\\\...\\\\Run).");
+                        if (logCallback != null) logCallback("[2/7] Removed 'EVedhikaUBDGuardian' from Windows Startup Registry.");
                     }
                 }
             }
@@ -5024,27 +5039,24 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[2/7 WARN] Startup Registry removal: {0}", ex.Message));
             }
 
-            // 3. Remove Edge IE Mode Group Policies & Registry Settings
+            // 3. Remove Edge IE Mode Group Policies
             try
             {
                 try { Registry.CurrentUser.DeleteSubKeyTree(@"SOFTWARE\\Policies\\Microsoft\\Edge", false); } catch { }
                 try { Registry.LocalMachine.DeleteSubKeyTree(@"SOFTWARE\\Policies\\Microsoft\\Edge", false); } catch { }
-                if (logCallback != null) logCallback("[3/7] Removed Edge IE Mode Enterprise Site List policies from HKCU & HKLM Registry.");
+                if (logCallback != null) logCallback("[3/7] Removed Edge IE Mode Enterprise Site List policies.");
             }
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback(string.Format("[3/7 WARN] Edge Policy removal: {0}", ex.Message));
             }
 
-            // 4. Remove UBD Trusted Sites (ZoneMap Domains)
+            // 4. Remove UBD Trusted Sites
             try
             {
-                // Unlock any Deny Delete ACLs before removing keys
                 UnlockDomainACL(@"telangana.gov.in\\ubd");
                 UnlockDomainACL(@"telangana.gov.in");
                 UnlockDomainACL(@"ubd.telangana.gov.in");
-                UnlockDomainACL(@"ap.gov.in\\ubd");
-                UnlockDomainACL(@"ubd.ap.gov.in");
 
                 using (RegistryKey domainsKey = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains", true))
                 {
@@ -5052,28 +5064,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         try { domainsKey.DeleteSubKeyTree("ubd.telangana.gov.in", false); } catch { }
                         try { domainsKey.DeleteSubKeyTree("telangana.gov.in", false); } catch { }
-                        try { domainsKey.DeleteSubKeyTree("ubd.ap.gov.in", false); } catch { }
-                        try { domainsKey.DeleteSubKeyTree("ap.gov.in", false); } catch { }
-                        if (logCallback != null) logCallback("[4/7] Removed UBD Trusted Sites (TS/AP) from Zone 2.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                if (logCallback != null) logCallback(string.Format("[4/7 WARN] Trusted Sites removal: {0}", ex.Message));
-            }
-
-            // Remove from HKLM as well
-            try
-            {
-                using (RegistryKey hklmDomains = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains", true))
-                {
-                    if (hklmDomains != null)
-                    {
-                        try { hklmDomains.DeleteSubKeyTree("ubd.telangana.gov.in", false); } catch { }
-                        try { hklmDomains.DeleteSubKeyTree("telangana.gov.in", false); } catch { }
-                        try { hklmDomains.DeleteSubKeyTree("ubd.ap.gov.in", false); } catch { }
-                        try { hklmDomains.DeleteSubKeyTree("ap.gov.in", false); } catch { }
+                        if (logCallback != null) logCallback("[4/7] Removed UBD Trusted Sites from Zone 2.");
                     }
                 }
             }
@@ -5099,7 +5090,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[5/7 WARN] Browser Emulation cleanup: {0}", ex.Message));
             }
 
-            // 6. Remove Desktop & Start Menu Shortcuts
+            // 6. Remove Shortcuts
             try
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
@@ -5122,10 +5113,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[6/7 WARN] Desktop Shortcut deletion: {0}", ex.Message));
+                if (logCallback != null) logCallback(string.Format("[6/7 WARN] Shortcut deletion: {0}", ex.Message));
             }
 
-            // 7. Clean ProgramData Files (sites.xml, logs, backups)
+            // 7. Clean ProgramData
             try
             {
                 string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
@@ -5134,20 +5125,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Directory.Delete(appDataDir, true);
                     if (logCallback != null) logCallback(string.Format("[7/7] Deleted Application Data Directory: {0}", appDataDir));
                 }
-                else
-                {
-                    if (logCallback != null) logCallback("[7/7] ProgramData EVedhika folder is already clean.");
-                }
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[7/7 WARN] Application Data Directory cleanup: {0}", ex.Message));
+                if (logCallback != null) logCallback(string.Format("[7/7 WARN] ProgramData cleanup: {0}", ex.Message));
             }
 
-            if (logCallback != null) logCallback("==========================================================================");
-            if (logCallback != null) logCallback("[UNINSTALL SUCCESS] All E-Vedhika UBD Deployment Tool configurations cleanly uninstalled & reverted!");
-            if (logCallback != null) logCallback("==========================================================================");
-
+            if (logCallback != null) logCallback("[UNINSTALL SUCCESS] Process completed!");
             return success;
         }
 
@@ -5162,11 +5146,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         RegistrySecurity rs = baseKey.GetAccessControl();
                         string identity = Environment.UserDomainName + "\\\\" + Environment.UserName;
-                        RegistryAccessRule denyRule = new RegistryAccessRule(
-                            identity,
-                            RegistryRights.Delete,
-                            AccessControlType.Deny
-                        );
+                        RegistryAccessRule denyRule = new RegistryAccessRule(identity, RegistryRights.Delete, AccessControlType.Deny);
                         rs.RemoveAccessRule(denyRule);
                         baseKey.SetAccessControl(rs);
                     }
