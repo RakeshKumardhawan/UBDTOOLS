@@ -205,13 +205,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 bool is64BitOS = Environment.Is64BitOperatingSystem;
                 
                 // Priority paths where DigiSignHelper might be located
+                string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+                string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
                 string[] searchPaths = new string[]
                 {
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Payload"),
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installers"),
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory),
-                    @"C:\Program Files (x86)\NIC\DigiSigner",
-                    @"C:\Program Files\NIC\DigiSigner",
+                    Path.Combine(pf86, "NIC", "DigiSigner"),
+                    Path.Combine(pf, "NIC", "DigiSigner"),
+                    Path.Combine(pf86, "DigiSigner"),
+                    Path.Combine(pf, "DigiSigner"),
                     @"C:\Windows\System32",
                     @"C:\Windows\SysWOW64"
                 };
@@ -415,10 +419,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (!Directory.Exists(dir)) continue;
                     foreach (var msi in msiNames)
                     {
-                        string fullPath = Path.Combine(dir, msi);
-                        if (File.Exists(fullPath))
+                        // Recursive search for MSI
+                        var files = Directory.GetFiles(dir, msi, SearchOption.AllDirectories);
+                        if (files.Length > 0)
                         {
-                            Logger.LogInfo("ActiveX", $"Installing DigiSigner MSI: {msi}");
+                            string fullPath = files[0];
+                            Logger.LogInfo("ActiveX", $"Installing DigiSigner MSI: {Path.GetFileName(fullPath)}");
                             if (InstallMsiSilent(fullPath))
                             {
                                 Logger.LogInfo("ActiveX", "[OK] DigiSigner MSI installed. Re-running registration...");

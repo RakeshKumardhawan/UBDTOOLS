@@ -440,25 +440,59 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 // Determine actual DLL path for InprocServer32
                 string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
                 string system32 = Environment.SystemDirectory;
+                string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+                string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
                 string dllPath = "";
 
                 // Search priority
                 string[] searchFiles = { "DigiSignHelper.dll", "capicom.dll", "NICDigiSignHelper.dll", "SignatureDemoLib.dll" };
                 foreach (var file in searchFiles)
                 {
-                    string p1 = Path.Combine(sysWOW64, file);
-                    string p2 = Path.Combine(system32, file);
-                    if (File.Exists(p1)) { dllPath = p1; break; }
-                    if (File.Exists(p2)) { dllPath = p2; break; }
+                    string[] paths = {
+                        Path.Combine(sysWOW64, file),
+                        Path.Combine(system32, file),
+                        Path.Combine(pf86, "NIC", "DigiSigner", file),
+                        Path.Combine(pf, "NIC", "DigiSigner", file),
+                        Path.Combine(pf86, "DigiSigner", file),
+                        Path.Combine(pf, "DigiSigner", file)
+                    };
+                    
+                    foreach (var p in paths)
+                    {
+                        if (File.Exists(p)) { dllPath = p; break; }
+                    }
+                    if (!string.IsNullOrEmpty(dllPath)) break;
                 }
 
+                // If DLL not found in common paths, try to find it from existing registry entry to preserve it
                 if (string.IsNullOrEmpty(dllPath))
                 {
-                    Logger.LogWarn("Registry", "HealDigiSignHelperAutomation: No matching DLL found in system folders. Skipping registry injection.");
+                    try {
+                        using (var key = Registry.ClassesRoot.OpenSubKey(@"DigiSignHelper\CLSID")) {
+                            string existingClsid = key?.GetValue("")?.ToString();
+                            if (!string.IsNullOrEmpty(existingClsid)) {
+                                using (var inproc = Registry.ClassesRoot.OpenSubKey($@"CLSID\{existingClsid}\InprocServer32")) {
+                                    dllPath = inproc?.GetValue("")?.ToString();
+                                }
+                            }
+                        }
+                    } catch { }
+                }
+
+                if (string.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
+                {
+                    Logger.LogWarn("Registry", "HealDigiSignHelperAutomation: No matching DLL found. Skipping registry injection.");
                     return;
                 }
 
+                // Try to detect existing CLSID from the DLL we found
                 string targetClsid = clsids[0]; 
+                try {
+                    using (var key = Registry.ClassesRoot.OpenSubKey(@"DigiSignHelper\CLSID")) {
+                        string existing = key?.GetValue("")?.ToString();
+                        if (!string.IsNullOrEmpty(existing)) targetClsid = existing;
+                    }
+                } catch { }
 
                 // A. Write ProgIDs to Registry
                 string[] progIdRoots = new string[] { @"Software\Classes", @"Software\WOW6432Node\Classes" };
@@ -567,7 +601,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_ACTIVEX_REPROMPT_WARNING",
                     @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_SAFE_BINDING",
                     @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_LOCALMACHINE_LOCKDOWN",
-                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_RESTRICT_ACTIVEX_INSTALL"
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_RESTRICT_ACTIVEX_INSTALL",
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_ACTIVEX_FILTERING"
                 };
 
                 foreach (var root in rootKeys)
@@ -585,6 +620,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         }
                         catch { }
                     }
+                }
+
+                // Specifically ensure ActiveX Filtering is OFF in main IE settings
+                foreach (var root in rootKeys)
+                {
+                    try {
+                        using (var key = root.CreateSubKey(@"Software\Microsoft\Internet Explorer\Main")) {
+                            key?.SetValue("ActiveXFiltering", 0, RegistryValueKind.DWord);
+                        }
+                    } catch { }
                 }
 
                 Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Full ProgID/InprocServer32/Policy Force) applied successfully.");
