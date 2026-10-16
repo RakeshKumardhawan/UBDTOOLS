@@ -3265,19 +3265,15 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             xmlContent += "\\n</site-list>";
 
-            string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "sites.xml");
-            string legacyPath = @"C:\\enterprise_compat\\sites.xml";
+            string targetPath = @"C:\\enterprise_compat\\sites.xml";
             
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
-                File.WriteAllText(targetPath, xmlContent);
-                try
+                if (!Directory.Exists(@"C:\\enterprise_compat"))
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(legacyPath));
-                    File.WriteAllText(legacyPath, xmlContent);
+                    Directory.CreateDirectory(@"C:\\enterprise_compat");
                 }
-                catch { }
+                File.WriteAllText(targetPath, xmlContent);
                 return targetPath;
             }
             catch (Exception ex)
@@ -3694,14 +3690,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 // Core domains that are permanently protected and visible in Trusted Sites
                 List<string> domainPaths = new List<string>
                 {
+                    @"telangana.gov.in",
                     @"telangana.gov.in\\ubd",
                     @"ubd.telangana.gov.in",
-                    @"telangana.gov.in",
-                    @"telangana.gov.in\\epanchayat",
-                    @"telangana.gov.in\\prrd",
+                    @"ap.gov.in",
                     @"ap.gov.in\\ubd",
                     @"ubd.ap.gov.in",
-                    @"ap.gov.in",
+                    @"epanchayat.telangana.gov.in",
+                    @"prrd.telangana.gov.in",
                     @"127.0.0.1",
                     @"localhost"
                 };
@@ -3797,7 +3793,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             if (z2 != null)
                             {
                                 z2.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord); // 0 = Custom level
-                                z2.SetValue("Flags", 0x00000043, RegistryValueKind.DWord); // 0x43 (67) = Enable Custom Level & Sites button
+                                z2.SetValue("Flags", 0x00000047, RegistryValueKind.DWord); // 0x47 = Enable Custom Level, Sites & Add button
                                 z2.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
                             }
                         }
@@ -3830,7 +3826,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (zone2Key != null)
                     {
                         zone2Key.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord); 
-                        zone2Key.SetValue("Flags", 0x00000043, RegistryValueKind.DWord);
+                        zone2Key.SetValue("Flags", 0x00000047, RegistryValueKind.DWord);
                         zone2Key.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
                         
                         // Comprehensive flags matching standard Trusted/Intranet Low security configurations
@@ -3936,8 +3932,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 string[] basePaths = new string[]
                 {
-                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones",
-                    @"Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones"
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones"
                 };
 
                 RegistryKey[] roots = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
@@ -3946,22 +3941,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     foreach (RegistryKey root in roots)
                     {
-                        for (int i = 0; i <= 4; i++)
+                        // Limit to Zone 2 (Trusted Sites) only to avoid breaking Internet Zone security
+                        int i = 2;
+                        try
                         {
-                            try
+                            using (RegistryKey zoneKey = root.CreateSubKey(\$@"{basePath}\\{i}"))
                             {
-                                using (RegistryKey zoneKey = root.CreateSubKey(\$@"{basePath}\\{i}"))
+                                if (zoneKey != null)
                                 {
-                                    if (zoneKey != null)
-                                    {
-                                        zoneKey.SetValue("1803", 0, RegistryValueKind.DWord);
-                                        zoneKey.SetValue("2200", 0, RegistryValueKind.DWord);
-                                        zoneKey.SetValue("2201", 0, RegistryValueKind.DWord);
-                                    }
+                                    zoneKey.SetValue("1803", 0, RegistryValueKind.DWord);
+                                    zoneKey.SetValue("2200", 0, RegistryValueKind.DWord);
+                                    zoneKey.SetValue("2201", 0, RegistryValueKind.DWord);
                                 }
                             }
-                            catch { }
                         }
+                        catch { }
                     }
                 }
             }
@@ -4154,7 +4148,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                     if (zone == "2")
                                     {
                                         key.SetValue("CurrentLevel", 0, RegistryValueKind.DWord); // 0 = Custom level
-                                        key.SetValue("Flags", 0x43, RegistryValueKind.DWord); // Enable Custom Level & Sites button
+                                        key.SetValue("Flags", 0x47, RegistryValueKind.DWord); // 0x47 = Enable Custom Level, Sites & Add button
                                     }
                                     key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
                                     key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX not marked safe
@@ -4602,88 +4596,28 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             if (z2 != null)
                             {
                                 z2.SetValue("DisplayName", "Trusted sites", RegistryValueKind.String);
-                                z2.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord); // 0 = Forces 'Custom' level to show instead of Low slider
                                 z2.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
-                                z2.SetValue("Flags", 0x47, RegistryValueKind.DWord); // 0x47 (71) = Custom level button and add sites enabled
-                                z2.SetValue("1200", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1400", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1001", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1004", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1201", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1206", 3, RegistryValueKind.DWord);
-                                z2.SetValue("1207", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1208", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1209", 0, RegistryValueKind.DWord);
-                                z2.SetValue("120A", 3, RegistryValueKind.DWord);
-                                z2.SetValue("120B", 0, RegistryValueKind.DWord);
-                                z2.SetValue("120C", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1402", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1405", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1406", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1407", 1, RegistryValueKind.DWord);
-                                z2.SetValue("1408", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1409", 0, RegistryValueKind.DWord);
-                                z2.SetValue("140A", 0, RegistryValueKind.DWord);
-                                z2.SetValue("140C", 0, RegistryValueKind.DWord);
-                                z2.SetValue("140D", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1601", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1604", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1605", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1606", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1607", 3, RegistryValueKind.DWord);
-                                z2.SetValue("1608", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1609", 0, RegistryValueKind.DWord);
-                                z2.SetValue("160A", 0, RegistryValueKind.DWord);
-                                z2.SetValue("160B", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1802", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1803", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1804", 1, RegistryValueKind.DWord);
-                                z2.SetValue("1806", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1809", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1812", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1A00", 0x20000, RegistryValueKind.DWord);
-                                z2.SetValue("1A02", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1A03", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1A04", 3, RegistryValueKind.DWord);
-                                z2.SetValue("1A05", 1, RegistryValueKind.DWord);
-                                z2.SetValue("1A06", 0, RegistryValueKind.DWord);
-                                z2.SetValue("1A10", 1, RegistryValueKind.DWord);
-                                z2.SetValue("1C00", 0x10000, RegistryValueKind.DWord);
-                                z2.SetValue("2000", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2001", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2004", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2005", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2007", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2100", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2101", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2102", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2103", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2104", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2105", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2106", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2107", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2108", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2200", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2201", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2300", 1, RegistryValueKind.DWord);
-                                z2.SetValue("2301", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2302", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2400", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2401", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2402", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2500", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2600", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2700", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2701", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2702", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2703", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2704", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2707", 0, RegistryValueKind.DWord);
-                                z2.SetValue("2708", 3, RegistryValueKind.DWord);
-                                z2.SetValue("2709", 3, RegistryValueKind.DWord);
-                                z2.SetValue("270B", 0, RegistryValueKind.DWord);
-                                z2.SetValue("270C", 3, RegistryValueKind.DWord);
-                                z2.SetValue("270D", 0, RegistryValueKind.DWord);
+                                z2.SetValue("Flags", 0x47, RegistryValueKind.DWord);
+
+                                if (root == Registry.LocalMachine)
+                                {
+                                    z2.SetValue("CurrentLevel", 0x00011000, RegistryValueKind.DWord);
+                                    z2.SetValue("1001", 1, RegistryValueKind.DWord);
+                                    z2.SetValue("1004", 3, RegistryValueKind.DWord);
+                                    z2.SetValue("1201", 3, RegistryValueKind.DWord);
+                                    z2.SetValue("1806", 1, RegistryValueKind.DWord);
+                                    z2.SetValue("2201", 3, RegistryValueKind.DWord);
+                                }
+                                else
+                                {
+                                    z2.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord);
+                                    z2.SetValue("1200", 0, RegistryValueKind.DWord);
+                                    z2.SetValue("1400", 0, RegistryValueKind.DWord);
+                                    z2.SetValue("1001", 0, RegistryValueKind.DWord);
+                                    z2.SetValue("1004", 0, RegistryValueKind.DWord);
+                                    z2.SetValue("1201", 0, RegistryValueKind.DWord);
+                                    z2.SetValue("120B", 3, RegistryValueKind.DWord);
+                                }
                             }
                         }
 
@@ -4695,11 +4629,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 z3.SetValue("DisplayName", "Internet", RegistryValueKind.String);
                                 z3.SetValue("CurrentLevel", 0, RegistryValueKind.DWord);
                                 z3.SetValue("Flags", 1, RegistryValueKind.DWord);
+                                
+                                // Apply the 24 permissive zeros requested
+                                string[] zeros = { 
+                                    "1001", "1004", "1201", "1206", "1209", "120A", "120C", 
+                                    "1407", "1607", "1609", "160A", "1804", "1A04", "2102", 
+                                    "2103", "2104", "2105", "2201", "2300", "2400", "2402", 
+                                    "2708", "2709", "270B" 
+                                };
+                                foreach (var z in zeros) z3.SetValue(z, 0, RegistryValueKind.DWord);
+                                
                                 z3.SetValue("1200", 0, RegistryValueKind.DWord);
                                 z3.SetValue("1400", 0, RegistryValueKind.DWord);
-                                z3.SetValue("1803", 0, RegistryValueKind.DWord);
-                                z3.SetValue("1809", 0, RegistryValueKind.DWord);
-                                z3.SetValue("2200", 3, RegistryValueKind.DWord);
                             }
                         }
 
@@ -4738,20 +4679,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             return @"Windows Registry Editor Version 5.00
 
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\0]
-""CurrentLevel""=dword:00000000
-""Flags""=dword:00000021
-""1200""=dword:00000000
-""1400""=dword:00000000
-
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\1]
-""CurrentLevel""=dword:00000000
-""Flags""=dword:000000db
-""1200""=dword:00000000
-""1400""=dword:00000000
-
 [HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2]
-""CurrentLevel""=dword:00010000
+""CurrentLevel""=dword:00000000
 ""MinLevel""=dword:00010000
 ""Flags""=dword:00000047
 ""1200""=dword:00000000
@@ -4763,17 +4692,15 @@ namespace EVedhikaUBDDeploymentTool.Engine
 ""1806""=dword:00000000
 ""2201""=dword:00000000
 
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\3]
-""CurrentLevel""=dword:00000000
-""Flags""=dword:00000001
-""1200""=dword:00000000
-""1400""=dword:00000000
+[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge]
+""InternetExplorerIntegrationLevel""=dword:00000001
+""InternetExplorerIntegrationSiteList""=""C:\\\\enterprise_compat\\\\sites.xml""
+""InternetExplorerIntegrationReloadInIEModeAllowed""=dword:00000001
 
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\4]
-""CurrentLevel""=dword:00012000
-""Flags""=dword:00000003
-""1200""=dword:00000003
-""1400""=dword:00000003
+[HKEY_CURRENT_USER\\SOFTWARE\\Policies\\Microsoft\\Edge]
+""InternetExplorerIntegrationLevel""=dword:00000001
+""InternetExplorerIntegrationSiteList""=""C:\\\\enterprise_compat\\\\sites.xml""
+""InternetExplorerIntegrationReloadInIEModeAllowed""=dword:00000001
 ";
         }
 
@@ -10979,6 +10906,7 @@ Subdirectories:
 ; E-Vedhika Master Internet Security Zones Configuration (Zones 0-4)
 ; Developer: Rakesh Dhawan | E-Vedhika UBD Tool
 ; Configured for Telangana UBD (https://ubd.telangana.gov.in/) & AP UBD
+; Synchronized with Working State Backup (DSK Enabled)
 ; ====================================================================
 
 ; 1. Zone Map Domains (Trusted Sites Zone 2)
@@ -11004,365 +10932,100 @@ Subdirectories:
 
 ; 2. Zone 0: My Computer
 [HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\0]
-"2001"=dword:00000003
-"2004"=dword:00000003
-@=""
 "DisplayName"="Computer"
-"PMDisplayName"="Computer [Protected Mode]"
-"Description"="Your computer"
-"Icon"="shell32.dll#0016"
-"LowIcon"="inetcpl.cpl#005422"
 "CurrentLevel"=dword:00000000
 "Flags"=dword:00000021
 "1200"=dword:00000000
 "1400"=dword:00000000
+"2001"=dword:00000003
+"2004"=dword:00000003
 
 ; 3. Zone 1: Local Intranet
 [HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\1]
-"2001"=dword:00000000
-"2004"=dword:00000000
-@=""
 "DisplayName"="Local intranet"
-"PMDisplayName"="Local intranet [Protected Mode]"
-"Description"="This zone contains all Web sites that are on your organization's intranet."
-"Icon"="shell32.dll#0018"
-"LowIcon"="inetcpl.cpl#005423"
 "CurrentLevel"=dword:00000000
 "Flags"=dword:000000db
 "1200"=dword:00000000
 "1400"=dword:00000000
-"2500"=dword:00000003
-"2402"=dword:00000000
-"2400"=dword:00000000
-"2401"=dword:00000000
-"2007"=dword:00000003
-"2702"=dword:00000000
-"1208"=dword:00000000
-"1209"=dword:00000000
-"2201"=dword:00000000
-"2000"=dword:00000000
-"120A"=dword:00000000
-"1001"=dword:00000000
-"1004"=dword:00000000
-"1201"=dword:00000000
-"270C"=dword:00000000
-"1405"=dword:00000000
 "1803"=dword:00000000
-"1604"=dword:00000000
-"2600"=dword:00000000
-"1406"=dword:00000000
-"2709"=dword:00000000
-"2708"=dword:00000000
-"1608"=dword:00000000
-"1206"=dword:00000000
-"2102"=dword:00000000
-"120C"=dword:00000000
-"2300"=dword:00000000
-"2104"=dword:00000000
-"1609"=dword:00000000
-"1A04"=dword:00000000
-"1802"=dword:00000000
-"2100"=dword:00000000
-"160A"=dword:00000000
-"1806"=dword:00000000
-"1804"=dword:00000000
-"1607"=dword:00000000
-"270B"=dword:00000000
-"1601"=dword:00000000
-"1809"=dword:00000000
-"2301"=dword:00000000
-"1606"=dword:00000000
-"2101"=dword:00000000
-"1407"=dword:00000000
-"2103"=dword:00000000
-"2105"=dword:00000000
-"1409"=dword:00000000
-"1402"=dword:00000000
-"1A00"=dword:00020000
-"2707"=dword:00000000
+"2200"=dword:00000000
+"2201"=dword:00000000
 
 ; 4. Zone 2: Trusted Sites
 [HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2]
-"2001"=dword:00000000
-"2004"=dword:00000000
-@=""
 "DisplayName"="Trusted sites"
-"PMDisplayName"="Trusted sites [Protected Mode]"
-"Description"="This zone contains Web sites that you trust not to damage your computer or data."
-"Icon"="inetcpl.cpl#00004480"
-"LowIcon"="inetcpl.cpl#005424"
 "CurrentLevel"=dword:00000000
+"MinLevel"=dword:00010000
 "Flags"=dword:00000047
 "1200"=dword:00000000
 "1400"=dword:00000000
 "1001"=dword:00000000
 "1004"=dword:00000000
 "1201"=dword:00000000
-"1206"=dword:00000003
-"1207"=dword:00000000
-"1208"=dword:00000000
+"1206"=dword:00000000
+"120A"=dword:00000000
+"120B"=dword:00000003
+"1407"=dword:00000000
+"1607"=dword:00000000
+"1804"=dword:00000000
+"1A04"=dword:00000000
+"2102"=dword:00000000
+"2300"=dword:00000000
+"2708"=dword:00000000
+"2709"=dword:00000000
+"270C"=dword:00000000
+
+; 5. Zone 3: Internet (Permissive per Backup)
+[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\3]
+"DisplayName"="Internet"
+"CurrentLevel"=dword:00000000
+"Flags"=dword:00000001
+"1001"=dword:00000000
+"1004"=dword:00000000
+"1201"=dword:00000000
+"1206"=dword:00000000
 "1209"=dword:00000000
-"120A"=dword:00000003
+"120A"=dword:00000000
 "120C"=dword:00000000
-"1402"=dword:00000000
-"1405"=dword:00000000
-"1406"=dword:00000000
-"1407"=dword:00000001
-"1408"=dword:00000000
-"1409"=dword:00000000
-"140A"=dword:00000000
-"140C"=dword:00000000
-"140D"=dword:00000000
-"1601"=dword:00000000
-"1604"=dword:00000000
-"1605"=dword:00000000
-"1606"=dword:00000000
-"1607"=dword:00000003
-"1608"=dword:00000000
+"1407"=dword:00000000
+"1607"=dword:00000000
 "1609"=dword:00000000
 "160A"=dword:00000000
-"160B"=dword:00000000
-"1802"=dword:00000000
-"1803"=dword:00000000
-"1804"=dword:00000001
-"1809"=dword:00000000
-"1812"=dword:00000000
-"1A00"=dword:00020000
-"1A02"=dword:00000000
-"1A03"=dword:00000000
-"1A04"=dword:00000003
-"1A05"=dword:00000001
-"1A06"=dword:00000000
-"1A10"=dword:00000001
-"1C00"=dword:00010000
-"2000"=dword:00000000
-"2005"=dword:00000000
-"2007"=dword:00000003
-"2100"=dword:00000000
-"2101"=dword:00000000
-"2102"=dword:00000003
+"1804"=dword:00000000
+"1A04"=dword:00000000
+"2102"=dword:00000000
 "2103"=dword:00000000
 "2104"=dword:00000000
 "2105"=dword:00000000
-"2106"=dword:00000000
-"2107"=dword:00000000
-"2108"=dword:00000003
-"2200"=dword:00000003
 "2201"=dword:00000000
-"2300"=dword:00000001
-"2301"=dword:00000000
-"2302"=dword:00000003
+"2300"=dword:00000000
 "2400"=dword:00000000
-"2401"=dword:00000000
 "2402"=dword:00000000
-"2600"=dword:00000000
-"2700"=dword:00000003
-"2701"=dword:00000000
-"2702"=dword:00000000
-"2703"=dword:00000000
-"2704"=dword:00000000
-"2708"=dword:00000003
-"2709"=dword:00000003
+"2708"=dword:00000000
+"2709"=dword:00000000
 "270B"=dword:00000000
-"270C"=dword:00000003
-"270D"=dword:00000000
-"1806"=dword:00000000
-"2500"=dword:00000003
-"2707"=dword:00000000
-"120B"=dword:00000000
-"MinLevel"=dword:00010000
 
-; 5. Zone 3: Internet
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\3]
-"2001"=dword:00000000
-"2004"=dword:00000000
-@=""
-"DisplayName"="Internet"
-"PMDisplayName"="Internet [Protected Mode]"
-"Description"="This zone contains all Web sites you haven't placed in other zones"
-"Icon"="inetcpl.cpl#001313"
-"LowIcon"="inetcpl.cpl#005425"
-"CurrentLevel"=dword:00000000
-"Flags"=dword:00000001
+; 6. Zone 4: Restricted Sites
+[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\4]
+"DisplayName"="Restricted sites"
+"CurrentLevel"=dword:00012000
+"Flags"=dword:00000003
+"1200"=dword:00000003
+"1400"=dword:00000003
+
+; 7. Machine Level Mirroring
+[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2]
+"DisplayName"="Trusted sites"
+"CurrentLevel"=dword:00011000
+"MinLevel"=dword:00010000
+"Flags"=dword:00000047
 "1200"=dword:00000000
 "1400"=dword:00000000
 "1001"=dword:00000001
 "1004"=dword:00000003
 "1201"=dword:00000003
-"1206"=dword:00000003
-"1207"=dword:00000003
-"1208"=dword:00000000
-"1209"=dword:00000003
-"120A"=dword:00000003
-"120C"=dword:00000003
-"1402"=dword:00000000
-"1405"=dword:00000000
-"1406"=dword:00000000
-"1407"=dword:00000001
-"1408"=dword:00000003
-"1409"=dword:00000000
-"140A"=dword:00000000
-"140C"=dword:00000003
-"140D"=dword:00000000
-"1601"=dword:00000000
-"1604"=dword:00000000
-"1605"=dword:00000000
-"1606"=dword:00000000
-"1607"=dword:00000003
-"1608"=dword:00000000
-"1609"=dword:00000001
-"160A"=dword:00000003
-"160B"=dword:00000000
-"1802"=dword:00000000
-"1803"=dword:00000000
-"1804"=dword:00000001
-"1809"=dword:00000000
-"1812"=dword:00000001
-"1A00"=dword:00020000
-"1A02"=dword:00000000
-"1A03"=dword:00000000
-"1A04"=dword:00000003
-"1A05"=dword:00000001
-"1A06"=dword:00000000
-"1A10"=dword:00000001
-"1C00"=dword:00010000
-"2000"=dword:00000000
-"2005"=dword:00000003
-"2007"=dword:00000003
-"2100"=dword:00000000
-"2101"=dword:00000000
-"2102"=dword:00000003
-"2103"=dword:00000003
-"2104"=dword:00000003
-"2105"=dword:00000003
-"2106"=dword:00000000
-"2107"=dword:00000003
-"2200"=dword:00000003
-"2201"=dword:00000003
-"2300"=dword:00000001
-"2301"=dword:00000000
-"2302"=dword:00000003
-"2400"=dword:00000003
-"2401"=dword:00000000
-"2402"=dword:00000003
-"2600"=dword:00000000
-"2700"=dword:00000000
-"2701"=dword:00000000
-"2702"=dword:00000000
-"2703"=dword:00000003
-"2704"=dword:00000000
-"2708"=dword:00000003
-"2709"=dword:00000003
-"270B"=dword:00000003
-"270C"=dword:00000000
-"270D"=dword:00000003
 "1806"=dword:00000001
-"2500"=dword:00000000
-"2707"=dword:00000000
-"120B"=dword:00000003
-
-; 6. Zone 4: Restricted Sites
-[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\4]
-"2001"=dword:00000003
-"2004"=dword:00000003
-@=""
-"DisplayName"="Restricted sites"
-"PMDisplayName"="Restricted sites [Protected Mode]"
-"Description"="This zone contains Web sites that could potentially damage your computer or data."
-"Icon"="inetcpl.cpl#00004481"
-"LowIcon"="inetcpl.cpl#005426"
-"CurrentLevel"=dword:00012000
-"Flags"=dword:00000003
-"1200"=dword:00000003
-"1400"=dword:00000003
-"1C00"=dword:00000000
-"1001"=dword:00000003
-"1004"=dword:00000003
-"1201"=dword:00000003
-"1206"=dword:00000003
-"1207"=dword:00000003
-"1208"=dword:00000003
-"1209"=dword:00000003
-"120A"=dword:00000003
-"120C"=dword:00000003
-"1402"=dword:00000003
-"1405"=dword:00000003
-"1406"=dword:00000003
-"1407"=dword:00000003
-"1408"=dword:00000003
-"1409"=dword:00000000
-"140A"=dword:00000000
-"140C"=dword:00000003
-"140D"=dword:00000000
-"1601"=dword:00000001
-"1604"=dword:00000003
-"1605"=dword:00000000
-"1606"=dword:00000003
-"1607"=dword:00000003
-"1608"=dword:00000003
-"1609"=dword:00000001
-"160A"=dword:00000003
-"160B"=dword:00000000
-"1802"=dword:00000001
-"1803"=dword:00000003
-"1804"=dword:00000003
-"1809"=dword:00000000
-"180B"=dword:00000001
-"1812"=dword:00000001
-"1A00"=dword:00010000
-"1A02"=dword:00000003
-"1A03"=dword:00000003
-"1A04"=dword:00000003
-"1A05"=dword:00000003
-"1A06"=dword:00000003
-"1A10"=dword:00000003
-"2000"=dword:00000003
-"2005"=dword:00000003
-"2007"=dword:00000003
-"2100"=dword:00000003
-"2101"=dword:00000003
-"2102"=dword:00000003
-"2103"=dword:00000003
-"2104"=dword:00000003
-"2105"=dword:00000003
-"2106"=dword:00000003
-"2107"=dword:00000003
-"2200"=dword:00000003
 "2201"=dword:00000003
-"2300"=dword:00000003
-"2301"=dword:00000000
-"2302"=dword:00000003
-"2400"=dword:00000003
-"2401"=dword:00000003
-"2402"=dword:00000003
-"2600"=dword:00000003
-"2700"=dword:00000000
-"2701"=dword:00000003
-"2702"=dword:00000000
-"2703"=dword:00000003
-"2704"=dword:00000003
-"2708"=dword:00000003
-"2709"=dword:00000003
-"270B"=dword:00000003
-"270C"=dword:00000000
-"270D"=dword:00000003
-"2500"=dword:00000000
-"2707"=dword:00000000
-
-; 7. Machine Level Mirroring for Enterprise Consistency
-[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2]
-"CurrentLevel"=dword:00000000
-"MinLevel"=dword:00010000
-"Flags"=dword:00000047
-"1200"=dword:00000000
-"1400"=dword:00000000
-"1001"=dword:00000000
-"1004"=dword:00000000
-"1201"=dword:00000000
-"1803"=dword:00000000
-"1806"=dword:00000000
-"2200"=dword:00000003
-"2201"=dword:00000000
 
 ; 8. Microsoft Edge IE Mode Enterprise Site List Policy
 [HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge]

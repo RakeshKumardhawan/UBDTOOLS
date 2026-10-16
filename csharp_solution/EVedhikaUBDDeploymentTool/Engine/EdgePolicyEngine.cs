@@ -151,19 +151,15 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             xmlContent += "\n</site-list>";
 
-            string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "sites.xml");
-            string legacyPath = @"C:\enterprise_compat\sites.xml";
+            string targetPath = @"C:\enterprise_compat\sites.xml";
             
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
-                File.WriteAllText(targetPath, xmlContent);
-                try
+                if (!Directory.Exists(@"C:\enterprise_compat"))
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(legacyPath));
-                    File.WriteAllText(legacyPath, xmlContent);
+                    Directory.CreateDirectory(@"C:\enterprise_compat");
                 }
-                catch { }
+                File.WriteAllText(targetPath, xmlContent);
                 return targetPath;
             }
             catch (Exception ex)

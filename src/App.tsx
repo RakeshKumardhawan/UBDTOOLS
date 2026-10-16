@@ -18,6 +18,7 @@ import { DownloadsView } from './components/DownloadsView';
 import { BackupsView } from './components/BackupsView';
 import { PCBoostView } from './components/PCBoostView';
 import { SettingsView } from './components/SettingsView';
+import { RegistryAuditor } from './components/RegistryAuditor';
 import { HelpView } from './components/HelpView';
 import { AboutView } from './components/AboutView';
 import { ToastProvider, useToast } from './components/Toast';
@@ -110,7 +111,7 @@ function MainAppContent() {
           setActiveTab('backups');
         } else if ([
           'dashboard', 'deploy', 'csharp', 'repair', 'diagnostics', 'remote',
-          'drivers', 'browser', 'registry', 'dsc', 'ai', 
+          'drivers', 'browser', 'registry', 'auditor', 'dsc', 'ai', 
           'downloads', 'backups', 'pcboost', 'settings', 'help', 'about'
         ].includes(normalized)) {
           setActiveTab(normalized as NavigationTab);
@@ -564,6 +565,7 @@ End of Report
               logs={logs}
             />
           )}
+          {activeTab === 'auditor' && <RegistryAuditor />}
           {activeTab === 'downloads' && (
             <DownloadsView selectedProfile={selectedProfile} />
           )}

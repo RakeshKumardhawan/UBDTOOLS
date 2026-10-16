@@ -32,15 +32,15 @@ async function startServer() {
 
   // Initialize Gemini AI Client
   const getAiClient = () => {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) return null;
     return new GoogleGenAI({
       apiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
-        },
-      },
+        }
+      }
     });
   };
 
@@ -858,11 +858,11 @@ Provide a concise technical analysis:
 2. Immediate Fix for Computer Operator (తక్షణ పరిష్కార మార్గాలు)
 3. Telugu Summary (గ్రామ పంచాయతీ సిబ్బంది కోసం తెలుగులో సూచన)`;
 
-          const aiResp = await ai.models.generateContent({
+          const response = await ai.models.generateContent({
             model: 'gemini-3.8-flash',
-            contents: prompt,
+            contents: prompt
           });
-          aiAnalysis = aiResp.text || '';
+          aiAnalysis = response.text || '';
         }
       } catch (aiErr: any) {
         console.warn('[AI STUDIO] Issue analysis fallback:', aiErr?.message);
@@ -1317,8 +1317,8 @@ Provide a structured response:
 Be crisp, authoritative, professional, and directly tailored to Enterprise portals (UBD, ePanchayat, eGramSwaraj, NIC DigiSigner, ProxKey / HYP2003 DSC tokens).`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: prompt,
+        model: 'gemini-3.8-flash',
+        contents: prompt
       });
 
       res.json({
@@ -1560,4 +1560,7 @@ Write-Host "[6/6] Deployment Complete! Enterprise Web Compat is ready for Enterp
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error('[CRITICAL] Failed to start E-Vedhika UBD Server:', err);
+  process.exit(1);
+});

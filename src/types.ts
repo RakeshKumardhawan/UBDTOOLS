@@ -93,6 +93,7 @@ export type NavigationTab =
   | 'registry'
   | 'dsc'
   | 'ai'
+  | 'auditor'
   | 'downloads'
   | 'backups'
   | 'pcboost'

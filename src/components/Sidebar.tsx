@@ -32,6 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const systemItems = [
     { id: 'browser' as NavigationTab, label: 'BROWSER_IE_MODE' },
     { id: 'registry' as NavigationTab, label: 'REGISTRY_ENGINE' },
+    { id: 'auditor' as NavigationTab, label: 'REGISTRY_AUDITOR', tag: 'NEW' },
     { id: 'dsc' as NavigationTab, label: 'DSC_DIGISIGNER' },
     { id: 'downloads' as NavigationTab, label: 'DOWNLOADS' },
   ];
