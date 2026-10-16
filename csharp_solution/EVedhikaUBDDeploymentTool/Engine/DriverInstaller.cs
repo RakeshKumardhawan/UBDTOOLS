@@ -544,11 +544,47 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 try
                                 {
+                                    string existingPath = null;
+                                    try {
+                                        using (var existingKey = baseKey.OpenSubKey(csp.Key)) {
+                                            existingPath = existingKey?.GetValue("Image Path")?.ToString();
+                                        }
+                                    } catch { }
+
+                                    string finalPath = csp.Value;
+                                    if (!string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\") || existingPath.Contains("/"))) {
+                                        finalPath = existingPath;
+                                    } else {
+                                        // Search
+                                        string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                                        string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
+                                        if (File.Exists(Path.Combine(sysDir, csp.Value))) finalPath = Path.Combine(sysDir, csp.Value);
+                                        else if (File.Exists(Path.Combine(sys64Dir, csp.Value))) finalPath = Path.Combine(sys64Dir, csp.Value);
+                                        else {
+                                            string[] roots = { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) };
+                                            bool found = false;
+                                            foreach (var r in roots) {
+                                                if (string.IsNullOrEmpty(r)) continue;
+                                                string[] folders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner" };
+                                                foreach (var f in folders) {
+                                                    string t = Path.Combine(r, f);
+                                                    if (Directory.Exists(t)) {
+                                                        try {
+                                                            var files = Directory.GetFiles(t, csp.Value, SearchOption.AllDirectories);
+                                                            if (files.Length > 0) { finalPath = files[0]; found = true; break; }
+                                                        } catch { }
+                                                    }
+                                                }
+                                                if (found) break;
+                                            }
+                                        }
+                                    }
+
                                     using (var k = baseKey.CreateSubKey(csp.Key))
                                     {
                                         if (k != null)
                                         {
-                                            k.SetValue("Image Path", csp.Value, RegistryValueKind.String);
+                                            k.SetValue("Image Path", finalPath, RegistryValueKind.String);
                                             k.SetValue("Type", 1, RegistryValueKind.DWord);
                                             k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
                                         }

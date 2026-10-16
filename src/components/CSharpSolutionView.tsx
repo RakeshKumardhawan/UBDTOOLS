@@ -2088,11 +2088,47 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 try
                                 {
+                                    string existingPath = null;
+                                    try {
+                                        using (var existingKey = baseKey.OpenSubKey(csp.Key)) {
+                                            existingPath = existingKey?.GetValue("Image Path")?.ToString();
+                                        }
+                                    } catch { }
+
+                                    string finalPath = csp.Value;
+                                    if (!string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\\\") || existingPath.Contains("/"))) {
+                                        finalPath = existingPath;
+                                    } else {
+                                        // Search
+                                        string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                                        string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
+                                        if (File.Exists(Path.Combine(sysDir, csp.Value))) finalPath = Path.Combine(sysDir, csp.Value);
+                                        else if (File.Exists(Path.Combine(sys64Dir, csp.Value))) finalPath = Path.Combine(sys64Dir, csp.Value);
+                                        else {
+                                            string[] roots = { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) };
+                                            bool found = false;
+                                            foreach (var r in roots) {
+                                                if (string.IsNullOrEmpty(r)) continue;
+                                                string[] folders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner" };
+                                                foreach (var f in folders) {
+                                                    string t = Path.Combine(r, f);
+                                                    if (Directory.Exists(t)) {
+                                                        try {
+                                                            var files = Directory.GetFiles(t, csp.Value, SearchOption.AllDirectories);
+                                                            if (files.Length > 0) { finalPath = files[0]; found = true; break; }
+                                                        } catch { }
+                                                    }
+                                                }
+                                                if (found) break;
+                                            }
+                                        }
+                                    }
+
                                     using (var k = baseKey.CreateSubKey(csp.Key))
                                     {
                                         if (k != null)
                                         {
-                                            k.SetValue("Image Path", csp.Value, RegistryValueKind.String);
+                                            k.SetValue("Image Path", finalPath, RegistryValueKind.String);
                                             k.SetValue("Type", 1, RegistryValueKind.DWord);
                                             k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
                                         }
@@ -3953,42 +3989,52 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 // 1. Comprehensive list of ProgIDs invoked by Government Portal JavaScript (DigiSignHelper, DigiSigner, CAPICOM)
                 string[] progIds = new string[] { 
-                    "DigiSignHelper",
-                    "DigiSignHelper.1",
-                    "DigiSignHelper.DigiSigner",
-                    "DigiSigner",
-                    "DigiSigner.1",
-                    "DigiSigner.DigiSignHelper",
-                    "DigiSignerHelper",
-                    "DigiSignerHelper.1",
-                    "SignatureDemoLib.DigiSignHelper",
-                    "NIC.DigiSigner",
-                    "CAPICOM.SignedData",
-                    "CAPICOM.SignedData.1",
-                    "CAPICOM.SignedData.2",
-                    "CAPICOM.Store",
-                    "CAPICOM.Store.1",
-                    "CAPICOM.Store.2",
-                    "CAPICOM.Signer",
-                    "CAPICOM.Signer.1"
+                    "DigiSignHelper", "DigiSignHelper.1", "DigiSignHelper.DigiSigner",
+                    "DigiSigner", "DigiSigner.1", "DigiSigner.DigiSignHelper",
+                    "DigiSignerHelper", "DigiSignerHelper.1", "SignatureDemoLib.DigiSignHelper",
+                    "NIC.DigiSigner", "CAPICOM.SignedData", "CAPICOM.SignedData.1",
+                    "CAPICOM.SignedData.2", "CAPICOM.Store", "CAPICOM.Store.1",
+                    "CAPICOM.Store.2", "CAPICOM.Signer", "CAPICOM.Signer.1"
                 };
 
-                string targetClsid = "{76767676-7676-7676-7676-767676767676}";
+                // Real Common CLSIDs for DigiSigner and CAPICOM
+                string[] clsids = new string[] 
+                { 
+                    "{32DB2444-A227-463C-868C-D63D6D254924}", // Common DigiSignHelper
+                    "{B8601633-0100-47F1-9457-495204431B32}", // SignatureDemoLib
+                    "{A996E48C-D3DE-4206-89AF-00AA006C42C4}", // CAPICOM.SignedData
+                    "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}", // Another DigiSigner variant
+                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}", // CAPICOM variant
+                    "{15E2085E-94D1-4551-9E1D-444453456789}", // Hybrid variant
+                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}", // Hybrid variant 2
+                    "{BD0D437A-F76E-4545-9244-6720D911718F}"  // NIC variant
+                };
 
                 // Determine actual DLL path for InprocServer32
                 string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
                 string system32 = Environment.SystemDirectory;
-                string dllPath = Path.Combine(sysWOW64, "DigiSignHelper.dll");
-                if (!File.Exists(dllPath)) dllPath = Path.Combine(system32, "DigiSignHelper.dll");
-                if (!File.Exists(dllPath)) dllPath = Path.Combine(sysWOW64, "capicom.dll");
-                if (!File.Exists(dllPath)) dllPath = Path.Combine(system32, "capicom.dll");
+                string dllPath = "";
 
-                // Write ProgIDs to both 32-bit and 64-bit Registry hives
-                string[] progIdRoots = new string[] {
-                    @"Software\\Classes",
-                    @"Software\\WOW6432Node\\Classes"
-                };
+                // Search priority
+                string[] searchFiles = { "DigiSignHelper.dll", "capicom.dll", "NICDigiSignHelper.dll", "SignatureDemoLib.dll" };
+                foreach (var file in searchFiles)
+                {
+                    string p1 = Path.Combine(sysWOW64, file);
+                    string p2 = Path.Combine(system32, file);
+                    if (File.Exists(p1)) { dllPath = p1; break; }
+                    if (File.Exists(p2)) { dllPath = p2; break; }
+                }
 
+                if (string.IsNullOrEmpty(dllPath))
+                {
+                    Logger.LogWarn("Registry", "HealDigiSignHelperAutomation: No matching DLL found in system folders. Skipping registry injection.");
+                    return;
+                }
+
+                string targetClsid = clsids[0]; 
+
+                // A. Write ProgIDs to Registry
+                string[] progIdRoots = new string[] { @"Software\\Classes", @"Software\\WOW6432Node\\Classes" };
                 foreach (var progId in progIds)
                 {
                     try
@@ -4009,73 +4055,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                     }
                                 }
                             }
-                            using (RegistryKey baseKey = Registry.CurrentUser.CreateSubKey(rootPath))
-                            {
-                                using (RegistryKey progKey = baseKey?.CreateSubKey(progId))
-                                {
-                                    if (progKey != null)
-                                    {
-                                        progKey.SetValue("", "NIC DigiSigner Helper Object");
-                                        progKey.CreateSubKey("CLSID")?.SetValue("", targetClsid);
-                                    }
-                                }
-                            }
                         }
                     }
                     catch { }
                 }
 
-                // 2. Comprehensive CLSIDs for DigiSigner, CAPICOM and SignatureDemoLib
-                string[] clsids = new string[] 
-                { 
-                    "{76767676-7676-7676-7676-767676767676}",
-                    "{A1B2C3D4-E5F6-7890-ABCD-EF0123456789}",
-                    "{B8601633-0100-47F1-9457-495204431B32}",
-                    "{7DD95801-9882-11CF-9FA9-00AA006C42C4}",
-                    "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}",
-                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}",
-                    "{15E2085E-94D1-4551-9E1D-444453456789}",
-                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}",
-                    "{BD0D437A-F76E-4545-9244-6720D911718F}"
-                };
-
-                string[] clsidRoots = new string[] {
-                    @"CLSID",
-                    @"Software\\Classes\\CLSID",
-                    @"Software\\WOW6432Node\\Classes\\CLSID"
-                };
-
+                // B. Write CLSIDs to Registry
+                string[] clsidRoots = new string[] { @"CLSID", @"Software\\Classes\\CLSID", @"Software\\WOW6432Node\\Classes\\CLSID" };
                 foreach (var clsid in clsids)
                 {
                     try
                     {
                         foreach (var rootPath in clsidRoots)
                         {
-                            using (RegistryKey clsidBase = Registry.ClassesRoot.CreateSubKey(\$@"{rootPath}\\{clsid}"))
-                            {
-                                if (clsidBase != null)
-                                {
-                                    clsidBase.SetValue("", "NIC DigiSigner Helper Object");
-                                    clsidBase.CreateSubKey("ProgID")?.SetValue("", "DigiSignHelper");
-                                    
-                                    using (RegistryKey inproc = clsidBase.CreateSubKey("InprocServer32"))
-                                    {
-                                        if (inproc != null)
-                                        {
-                                            inproc.SetValue("", dllPath);
-                                            inproc.SetValue("ThreadingModel", "Apartment");
-                                        }
-                                    }
-
-                                    using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
-                                    {
-                                        catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
-                                        catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
-                                    }
-                                }
-                            }
-
-                            using (RegistryKey clsidBase = Registry.LocalMachine.CreateSubKey(\$@"{rootPath}\\{clsid}"))
+                            using (RegistryKey clsidBase = Registry.LocalMachine.CreateSubKey(rootPath + "\\\\" + clsid))
                             {
                                 if (clsidBase != null)
                                 {
@@ -4274,18 +4267,63 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 { "EnterSafe ePass2003 CSP v3.0", "eps2003csp11.dll" },
                                 { "ePass2003 Crypto Service Provider", "eps2003csp11.dll" },
                                 { "Verasys CA Crypto Service Provider", "eps2003csp11.dll" },
-                                { "Watchdata ProxKey CSP", "wdpkcs.dll" },
-                                { "mToken CryptoAPI Service Provider", "mTokenCSP.dll" }
+                                { "Watchdata ProxKey CSP", "wdscsp.dll" },
+                                { "Watchdata India CSP v1.0", "wdscsp.dll" },
+                                { "WD ProxKey CSP", "wdscsp.dll" },
+                                { "mToken CryptoAPI Service Provider", "mTokenCSP.dll" },
+                                { "mToken Crypto Service Provider", "mTokenCSP.dll" }
                             };
 
                             foreach (var tc in tokenCsps)
                             {
+                                string existingPath = null;
+                                try {
+                                    using (var existingKey = baseKey.OpenSubKey(\$@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\{tc.Key}")) {
+                                        existingPath = existingKey?.GetValue("Image Path")?.ToString();
+                                    }
+                                } catch { }
+
+                                string finalPath = tc.Value;
+                                // If existing path is valid and full, use it. Otherwise try to find it.
+                                if (!string.IsNullOrEmpty(existingPath) && (existingPath.Contains("\\\\") || existingPath.Contains("/"))) {
+                                    finalPath = existingPath;
+                                } else {
+                                    // Search for DLL in system and common paths
+                                    string sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                                    string sys64Dir = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
+                                    
+                                    if (File.Exists(Path.Combine(sysDir, tc.Value))) finalPath = Path.Combine(sysDir, tc.Value);
+                                    else if (File.Exists(Path.Combine(sys64Dir, tc.Value))) finalPath = Path.Combine(sys64Dir, tc.Value);
+                                    else {
+                                        // Fallback search in Program Files
+                                        string[] commonRoots = { 
+                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                                            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+                                        };
+                                        bool found = false;
+                                        foreach (var root in commonRoots) {
+                                            if (string.IsNullOrEmpty(root)) continue;
+                                            string[] subFolders = { "WD_PROXKey", "HyperPKI", "ePass2003", "mToken", "Watchdata", "NIC", "DigiSigner" };
+                                            foreach (var sub in subFolders) {
+                                                string targetDir = Path.Combine(root, sub);
+                                                if (Directory.Exists(targetDir)) {
+                                                    try {
+                                                        var files = Directory.GetFiles(targetDir, tc.Value, SearchOption.AllDirectories);
+                                                        if (files.Length > 0) { finalPath = files[0]; found = true; break; }
+                                                    } catch { }
+                                                }
+                                            }
+                                            if (found) break;
+                                        }
+                                    }
+                                }
+
                                 // Type 1 registration
                                 using (var k = baseKey.CreateSubKey(\$@"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\{tc.Key}"))
                                 {
                                     if (k != null)
                                     {
-                                        k.SetValue("Image Path", tc.Value, RegistryValueKind.String);
+                                        k.SetValue("Image Path", finalPath, RegistryValueKind.String);
                                         k.SetValue("Type", 1, RegistryValueKind.DWord);
                                         k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
                                     }
@@ -4296,7 +4334,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 {
                                     if (k != null)
                                     {
-                                        k.SetValue("Image Path", tc.Value, RegistryValueKind.String);
+                                        k.SetValue("Image Path", finalPath, RegistryValueKind.String);
                                         k.SetValue("Type", 24, RegistryValueKind.DWord);
                                         k.SetValue("SigInFile", 0, RegistryValueKind.DWord);
                                     }
