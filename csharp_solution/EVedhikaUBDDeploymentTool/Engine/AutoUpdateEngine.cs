@@ -8,8 +8,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.6";
-        public const int CurrentVersionCode = 106;
+        public const string CurrentVersion = "v1.0.7";
+        public const int CurrentVersionCode = 107;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
@@ -27,12 +27,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
         }
 
         /// <summary>
-        /// Checks central cloud server (https://www.e-vedhika.in/admin/exe_ubd_live) for software updates.
+        /// Checks central cloud server (https://www.e-vedhika.in/admin/exe_ubd_live) and GitHub Releases for software updates.
         /// Returns UpdateInfo with server release details and version check results.
         /// </summary>
         public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
         {
-            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in for software updates (Official Admin Path)...");
+            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in & GitHub Releases for software updates...");
 
             UpdateInfo info = new UpdateInfo
             {
@@ -55,7 +55,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
                 "https://www.e-vedhika.in/version.json",
-                "https://www.e-vedhika.in/api/version"
+                "https://www.e-vedhika.in/api/version",
+                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest"
             };
 
             bool fetched = false;

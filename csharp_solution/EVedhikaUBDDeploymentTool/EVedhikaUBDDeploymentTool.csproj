@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
     <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>

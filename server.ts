@@ -454,30 +454,54 @@ async function startServer() {
       });
       if (response.ok) {
         const data = await response.json();
-        if (data && data.tag_name) {
-          const tagName = data.tag_name;
-          const vCode = parseInt(tagName.replace(/[^0-9]/g, ''), 10) || 108;
-          let exeDownloadUrl = `https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_${tagName}.exe`;
+        if (data) {
+          let highestVer = 'v1.0.7';
+          let highestWeight = 10070;
+          let highestDownloadUrl = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe';
+          let highestExeName = 'EVedhika_Setup_v1.0.7.exe';
+
+          // Scan all assets to find highest versioned installer (e.g. EVedhika_Setup_v1.0.7.exe over v1.0.1.exe)
           if (data.assets && Array.isArray(data.assets)) {
-            const exeAsset = data.assets.find((a: any) => a.name && a.name.endsWith('.exe'));
-            if (exeAsset && exeAsset.browser_download_url) {
-              exeDownloadUrl = exeAsset.browser_download_url;
+            for (const asset of data.assets) {
+              if (asset.name && asset.name.endsWith('.exe')) {
+                const match = asset.name.match(/v?([0-9]+\.[0-9]+\.[0-9]+)/i);
+                if (match) {
+                  const parts = match[1].split('.').map((p: string) => parseInt(p, 10) || 0);
+                  const weight = parts[0] * 10000 + parts[1] * 100 + parts[2];
+                  if (weight >= highestWeight) {
+                    highestWeight = weight;
+                    highestVer = 'v' + match[1];
+                    highestDownloadUrl = asset.browser_download_url;
+                    highestExeName = asset.name;
+                  }
+                }
+              }
             }
           }
-          currentVersionConfig.latestVersion = tagName;
-          currentVersionConfig.currentVersion = tagName;
-          currentVersionConfig.versionCode = vCode;
-          currentVersionConfig.downloadUrl = exeDownloadUrl;
-          currentVersionConfig.executableName = `EVedhika_Setup_${tagName}.exe`;
+
+          currentVersionConfig.latestVersion = highestVer;
+          currentVersionConfig.currentVersion = highestVer;
+          currentVersionConfig.versionCode = highestWeight;
+          currentVersionConfig.downloadUrl = highestDownloadUrl;
+          currentVersionConfig.executableName = highestExeName;
           if (data.body) {
             currentVersionConfig.releaseNotes = data.body;
           }
+          try {
+            fs.writeFileSync(path.join(process.cwd(), 'public', 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
+            fs.writeFileSync(path.join(process.cwd(), 'public', 'api', 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
+          } catch (err) {}
+          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (${highestExeName})`);
         }
       }
     } catch (e: any) {
       // Fallback silently to local config
     }
   }
+
+  // Autonomous 5-minute background timer to poll GitHub Releases
+  syncGitHubRelease();
+  setInterval(syncGitHubRelease, 5 * 60 * 1000);
 
   // API Route: Check Software Version & Live OTA Auto-Updates
   const handleGetVersion = async (req: any, res: any) => {

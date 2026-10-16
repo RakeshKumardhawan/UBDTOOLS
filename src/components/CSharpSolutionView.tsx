@@ -54,6 +54,7 @@ const csharpFiles: CSharpFile[] = [
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
     <RootNamespace>EVedhikaUBDDeploymentTool</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -117,7 +118,7 @@ EndGlobal
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss',
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.6"
+#define MyAppVersion "1.0.7"
 #define MyAppPublisher "E-Vedhika"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
@@ -574,8 +575,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.6";
-        public const int CurrentVersionCode = 106;
+        public const string CurrentVersion = "v1.0.7";
+        public const int CurrentVersionCode = 107;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
@@ -593,12 +594,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
         }
 
         /// <summary>
-        /// Checks central cloud server (https://www.e-vedhika.in/admin/exe_ubd_live) for software updates.
+        /// Checks central cloud server (https://www.e-vedhika.in/admin/exe_ubd_live) and GitHub Releases for software updates.
         /// Returns UpdateInfo with server release details and version check results.
         /// </summary>
         public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
         {
-            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in for software updates (Official Admin Path)...");
+            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in & GitHub Releases for software updates...");
 
             UpdateInfo info = new UpdateInfo
             {
@@ -621,7 +622,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
                 "https://www.e-vedhika.in/version.json",
-                "https://www.e-vedhika.in/api/version"
+                "https://www.e-vedhika.in/api/version",
+                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest"
             };
 
             bool fetched = false;
@@ -11119,8 +11121,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.6.0")]
-[assembly: AssemblyFileVersion("1.0.6.0")]
+[assembly: AssemblyVersion("1.0.7.0")]
+[assembly: AssemblyFileVersion("1.0.7.0")]
 `
   },
   {
@@ -11297,6 +11299,37 @@ namespace EVedhikaUBDDeploymentTool
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/app.ico',
     type: 'cs',
     content: `       (     (                                                                                                                                                                                                                                                                                                        `
+  },
+  {
+    id: 'app_manifest',
+    name: 'app.manifest',
+    path: 'csharp_solution/EVedhikaUBDDeploymentTool/app.manifest',
+    type: 'manifest',
+    content: `<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="1.0.7.0" name="EVedhikaUBDDeploymentTool.app"/>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <!-- UAC Manifest: Automatically prompts Windows for Administrator privileges on launch (One-Click, Zero Manual Work) -->
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 & 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}" />
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}" />
+      <!-- Windows 7 SP1 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}" />
+    </application>
+  </compatibility>
+</assembly>
+`
   },
   {
     id: 'compile_test_sh',

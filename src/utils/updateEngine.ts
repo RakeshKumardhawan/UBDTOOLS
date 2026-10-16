@@ -19,6 +19,19 @@ export interface UpdateCheckResult {
 
 export const VERSION_HISTORY = [
   {
+    version: 'v1.0.7',
+    date: 'October 2026',
+    changes: [
+      'Target Website https://ubd.telangana.gov.in/ Full Zone 2 Registry Automation Engine',
+      'All 48+ Security Zone Settings mapped with exact official Windows Registry DWORD values',
+      'Automatic Registry Backup snapshot before applying any changes',
+      'Automated Elevated PowerShell Script (.ps1) and BAT Launcher (.bat) with UAC auto-elevation',
+      'Deep Registry Post-Execution Verification with full TXT Audit Report generation',
+      'Edge Enterprise IE Mode & IE5 Quirks configuration for ubd.telangana.gov.in',
+      'Strict Zone 2 isolation maintaining standard high-security for general web browsing',
+    ]
+  },
+  {
     version: 'v1.0.6',
     date: 'October 2026',
     changes: [
@@ -79,7 +92,7 @@ export const VERSION_HISTORY = [
   }
 ];
 
-export const CURRENT_APP_VERSION = 'v1.0.6';
+export const CURRENT_APP_VERSION = 'v1.0.7';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 /**
@@ -102,38 +115,65 @@ export async function checkForUpdates(
   customUrl?: string,
   currentVer: string = CURRENT_APP_VERSION
 ): Promise<UpdateCheckResult> {
-  const githubUrl = customUrl || DEFAULT_GITHUB_RAW_URL;
+  const candidateUrls = customUrl ? [customUrl] : [
+    '/api/version',
+    'https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest',
+    'https://www.e-vedhika.in/api/version',
+    '/version.json',
+    'https://www.e-vedhika.in/version.json'
+  ];
 
   try {
-    // Try GitHub raw URL with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    for (const url of candidateUrls) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(url, { cache: 'no-cache', signal: controller.signal });
+        clearTimeout(timeoutId);
 
-    let res = await fetch(githubUrl, { cache: 'no-cache', signal: controller.signal }).catch(() => null);
-    clearTimeout(timeoutId);
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && (contentType.includes('application/json') || url.endsWith('.json'))) {
+          const rawData = await res.json();
+          let latestVer = rawData.latestVersion || rawData.currentVersion || rawData.tag_name || CURRENT_APP_VERSION;
+          let downloadUrl = rawData.downloadUrl;
+          let releaseNotes = rawData.releaseNotes || rawData.body;
 
-    // Fallback to local API endpoint if GitHub raw URL is unreachable
-    if (!res || !res.ok) {
-      res = await fetch('/api/version', { cache: 'no-cache' }).catch(() => null);
-    }
+          // Scan all assets and pick the highest versioned setup executable
+          if (rawData.assets && Array.isArray(rawData.assets)) {
+            let maxWeight = parseVersionWeight(latestVer);
+            for (const asset of rawData.assets) {
+              if (asset.name && asset.name.endsWith('.exe')) {
+                const match = asset.name.match(/v?([0-9]+(?:\.[0-9]+)+)/i);
+                if (match) {
+                  const candidateVer = 'v' + match[1];
+                  const weight = parseVersionWeight(candidateVer);
+                  if (weight >= maxWeight) {
+                    maxWeight = weight;
+                    latestVer = candidateVer;
+                    downloadUrl = asset.browser_download_url;
+                  }
+                }
+              }
+            }
+          }
+          if (!downloadUrl) {
+            downloadUrl = `https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_${latestVer}.exe`;
+          }
 
-    if (res && res.ok) {
-      const data: VersionMetadata = await res.json();
-      const latestVer = data.latestVersion || data.currentVersion || CURRENT_APP_VERSION;
+          const latestWeight = parseVersionWeight(latestVer);
+          const currentWeight = parseVersionWeight(currentVer);
+          const hasUpdate = latestWeight > currentWeight || Boolean(rawData.updateRequired);
 
-      const latestWeight = parseVersionWeight(latestVer);
-      const currentWeight = parseVersionWeight(currentVer);
-
-      const hasUpdate = latestWeight > currentWeight || Boolean(data.updateRequired);
-
-      return {
-        hasUpdate,
-        currentVersion: currentVer,
-        latestVersion: latestVer,
-        downloadUrl: data.downloadUrl || 'https://www.e-vedhika.in/EVedhikaUBDDeploymentTool_CSharp_Solution.zip',
-        releaseNotes: data.releaseNotes || 'Includes ActiveX policies, DSC drivers, and live cloud telemetry.',
-        updateRequired: data.updateRequired || false,
-      };
+          return {
+            hasUpdate,
+            currentVersion: currentVer,
+            latestVersion: latestVer,
+            downloadUrl: downloadUrl || 'https://www.e-vedhika.in/EVedhikaUBDDeploymentTool_CSharp_Solution.zip',
+            releaseNotes: releaseNotes || 'Includes latest UBD Telangana configuration and DSC token fixes.',
+            updateRequired: rawData.updateRequired || false,
+          };
+        }
+      } catch (err) {}
     }
   } catch (error) {
     console.warn('Update check failed, using local version configuration:', error);

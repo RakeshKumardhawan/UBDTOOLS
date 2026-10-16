@@ -71,28 +71,37 @@ function MainAppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSystemPanelOpen, setIsSystemPanelOpen] = useState(false);
 
-  // Hook: Check GitHub Raw / Remote Version metadata on mount
+  // Hook: Check GitHub / Remote Version metadata on mount and every 5 minutes
   useEffect(() => {
     let isMounted = true;
-    checkForUpdates().then((res) => {
-      if (!isMounted) return;
-      if (res.hasUpdate) {
-        showInfo(
-          `Software Update ${res.latestVersion} is available! Current installed build is ${CURRENT_APP_VERSION}.`,
-          'New Version Available'
-        );
-        
-        const autoInstall = localStorage.getItem('autoInstallOnLaunch');
-        if (autoInstall !== 'false') {
-          showInfo(`Auto-installing update ${res.latestVersion} in the background...`, 'Auto-Update Started');
-          setTimeout(() => {
-            window.open(res.downloadUrl, '_blank');
-          }, 1500);
+    
+    const runUpdateCheck = () => {
+      checkForUpdates().then((res) => {
+        if (!isMounted) return;
+        if (res.hasUpdate) {
+          showInfo(
+            `Software Update ${res.latestVersion} is available! Current installed build is ${CURRENT_APP_VERSION}.`,
+            'New Version Available'
+          );
+          
+          const autoInstall = localStorage.getItem('autoInstallOnLaunch');
+          if (autoInstall !== 'false') {
+            showInfo(`Auto-installing update ${res.latestVersion} in the background...`, 'Auto-Update Started');
+            setTimeout(() => {
+              window.open(res.downloadUrl, '_blank');
+            }, 1500);
+          }
         }
-      }
-    }).catch(() => {});
+      }).catch(() => {});
+    };
 
-    return () => { isMounted = false; };
+    runUpdateCheck();
+    const interval = setInterval(runUpdateCheck, 5 * 60 * 1000); // Poll every 5 minutes
+
+    return () => { 
+      isMounted = false; 
+      clearInterval(interval);
+    };
   }, [showInfo]);
 
   // Sync tab from URL search parameters on load & popstate
