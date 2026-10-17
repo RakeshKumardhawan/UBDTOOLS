@@ -9,7 +9,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
     public class AutoUpdateEngine
     {
         public const string CurrentVersion = "v1.0.7";
-        public const int CurrentVersionCode = 107;
+        public const int CurrentVersionCode = 10070;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         public class UpdateInfo
@@ -53,10 +53,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
+                "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
+                "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json",
+                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest",
+                "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/version",
                 "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
-                "https://www.e-vedhika.in/version.json",
-                "https://www.e-vedhika.in/api/version",
-                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest"
+                "https://www.e-vedhika.in/version.json"
             };
 
             bool fetched = false;
@@ -67,42 +69,110 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika_UBD_Deployment_v1.0.1.exe";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.7";
                         wc.Encoding = System.Text.Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
-                        if (!string.IsNullOrEmpty(jsonResponse) && jsonResponse.Contains("\"latestVersion\":"))
+                        if (string.IsNullOrEmpty(jsonResponse)) continue;
+
+                        string latestVer = "";
+                        string releaseNotes = "";
+                        string downloadUrl = "";
+                        int serverCode = 0;
+                        bool isSilent = false;
+
+                        // Case 1: Custom version.json schema (contains latestVersion)
+                        if (jsonResponse.Contains("\"latestVersion\":"))
                         {
-                            string latestVer = ExtractJsonValue(jsonResponse, "latestVersion");
-                            string releaseNotes = ExtractJsonValue(jsonResponse, "releaseNotes");
-                            string downloadUrl = ExtractJsonValue(jsonResponse, "downloadUrl");
+                            latestVer = ExtractJsonValue(jsonResponse, "latestVersion");
+                            releaseNotes = ExtractJsonValue(jsonResponse, "releaseNotes");
+                            downloadUrl = ExtractJsonValue(jsonResponse, "downloadUrl");
                             string vCodeStr = ExtractJsonValue(jsonResponse, "versionCode");
                             string silentStr = ExtractJsonValue(jsonResponse, "silent");
                             if (string.IsNullOrEmpty(silentStr)) silentStr = ExtractJsonValue(jsonResponse, "silentUpdate");
 
-                            int serverCode = 100;
                             int.TryParse(vCodeStr, out serverCode);
-
-                            bool isSilent = false;
                             bool.TryParse(silentStr, out isSilent);
 
-                            info.Success = true;
-                            info.LatestVersion = string.IsNullOrEmpty(latestVer) ? CurrentVersion : latestVer;
-                            info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Portal and UBD deployment updates." : releaseNotes;
-                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool.exe" : downloadUrl;
-                            info.IsSilent = isSilent;
+                            // Calculate weight if serverCode missing or unparsed
+                            if (serverCode <= 0 && !string.IsNullOrEmpty(latestVer))
+                            {
+                                serverCode = ParseVersionToWeight(latestVer);
+                            }
+                        }
+                        // Case 2: GitHub Releases API schema (contains tag_name and assets)
+                        else if (jsonResponse.Contains("\"tag_name\":") || jsonResponse.Contains("\"assets\":"))
+                        {
+                            // Search and inspect ALL EVedhika_Setup_v*.exe assets to find the HIGHEST version
+                            var matches = System.Text.RegularExpressions.Regex.Matches(jsonResponse, @"(EVedhika_Setup_v([0-9\.]+)\.exe)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                            int highestAssetWeight = 0;
+                            string highestAssetVer = "";
+                            string highestAssetFile = "";
 
-                            if (serverCode > CurrentVersionCode || (info.LatestVersion != CurrentVersion && !info.LatestVersion.Equals("v1.0.1", StringComparison.OrdinalIgnoreCase)))
+                            foreach (System.Text.RegularExpressions.Match m in matches)
+                            {
+                                if (m.Success && m.Groups.Count >= 3)
+                                {
+                                    string vStr = m.Groups[2].Value;
+                                    int weight = ParseVersionToWeight(vStr);
+                                    if (weight > highestAssetWeight)
+                                    {
+                                        highestAssetWeight = weight;
+                                        highestAssetVer = "v" + vStr;
+                                        highestAssetFile = m.Groups[1].Value;
+                                    }
+                                }
+                            }
+
+                            if (highestAssetWeight > 0)
+                            {
+                                latestVer = highestAssetVer;
+                                serverCode = highestAssetWeight;
+                                downloadUrl = $"https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/{highestAssetFile}";
+                                releaseNotes = "Official GitHub Release: " + latestVer;
+                            }
+                            else
+                            {
+                                string tag = ExtractJsonValue(jsonResponse, "tag_name");
+                                if (!string.IsNullOrEmpty(tag) && !tag.Equals("latest", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    latestVer = tag.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? tag : "v" + tag;
+                                    serverCode = ParseVersionToWeight(latestVer);
+                                }
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(latestVer))
+                        {
+                            info.Success = true;
+                            info.LatestVersion = latestVer;
+                            info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Portal and UBD deployment updates." : releaseNotes;
+                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.7.exe" : downloadUrl;
+                            info.IsSilent = isSilent;
+                            info.VersionCode = serverCode > 0 ? serverCode : ParseVersionToWeight(latestVer);
+
+                            // Strict check: only consider an update if server version is strictly GREATER than current installed build
+                            bool isNewer = false;
+                            if (info.VersionCode > CurrentVersionCode)
+                            {
+                                isNewer = true;
+                            }
+                            else if (info.VersionCode <= 0)
+                            {
+                                isNewer = ParseVersionToWeight(info.LatestVersion) > CurrentVersionCode;
+                            }
+
+                            if (isNewer)
                             {
                                 info.IsUpdateAvailable = true;
                                 info.Message = $"✨ New Software Update Available: {info.LatestVersion}!\n\nRelease Notes: {info.ReleaseNotes}";
-                                logCallback?.Invoke($"[AUTO-UPDATE] NEW UPDATE DETECTED: {info.LatestVersion} (Silent: {isSilent})");
+                                logCallback?.Invoke($"[AUTO-UPDATE] NEW UPDATE DETECTED: {info.LatestVersion} from {url}");
                             }
                             else
                             {
                                 info.IsUpdateAvailable = false;
                                 info.Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is up to date!";
-                                logCallback?.Invoke($"[AUTO-UPDATE] Software is up to date ({CurrentVersion}).");
+                                logCallback?.Invoke($"[AUTO-UPDATE] Software is up to date ({CurrentVersion}). Verified via {url}");
                             }
 
                             fetched = true;
@@ -382,6 +452,25 @@ del ""%~f0""
             catch
             {
                 return "";
+            }
+        }
+
+        public static int ParseVersionToWeight(string version)
+        {
+            if (string.IsNullOrEmpty(version)) return 0;
+            try
+            {
+                string clean = System.Text.RegularExpressions.Regex.Replace(version, @"[^0-9\.]", "");
+                string[] parts = clean.Split('.');
+                int p1 = 0, p2 = 0, p3 = 0;
+                if (parts.Length >= 1) int.TryParse(parts[0], out p1);
+                if (parts.Length >= 2) int.TryParse(parts[1], out p2);
+                if (parts.Length >= 3) int.TryParse(parts[2], out p3);
+                return (p1 * 10000) + (p2 * 100) + p3;
+            }
+            catch
+            {
+                return 0;
             }
         }
     }

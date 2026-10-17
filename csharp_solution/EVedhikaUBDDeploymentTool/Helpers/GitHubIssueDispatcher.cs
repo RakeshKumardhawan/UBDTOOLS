@@ -91,11 +91,77 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     // 1. Silent Background Transmission to Google AI Studio Central Telemetry
                     Logger.SendCentralTelemetry(telemetryPayload, delegate(bool ok, string msg) { });
 
-                    // 2. Silent HTTP POST directly to /api/report-issue
+                    // 2. Direct Telegram Live Issue Alert to Administrator (100% Reliable Delivery)
+                    try
+                    {
+                        string safeSummary = Logger.EscapeTelegramHtml(summary);
+                        string safeDetails = Logger.EscapeTelegramHtml(fullDetails);
+                        if (safeDetails.Length > 300) safeDetails = safeDetails.Substring(0, 300) + "...";
+
+                        string tgTextHtml = "🚨 <b>E-VEDHIKA UBD ISSUE REPORT (LIVE)</b>\n" +
+                                            "━━━━━━━━━━━━━━━━━━━\n" +
+                                            $"🏢 <b>Office:</b> {Logger.EscapeTelegramHtml(location)}\n" +
+                                            $"💻 <b>PC:</b> <code>{Logger.EscapeTelegramHtml(machineName)}</code> ({Logger.EscapeTelegramHtml(userName)})\n" +
+                                            $"⚠️ <b>Issue:</b> {safeSummary}\n" +
+                                            $"📝 <b>Details:</b> {safeDetails}\n" +
+                                            $"🔑 <b>DSC Status:</b> {Logger.EscapeTelegramHtml(dsc)}\n" +
+                                            $"🖥️ <b>OS:</b> {Logger.EscapeTelegramHtml(winVer)}\n" +
+                                            $"⏰ <b>Time:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+
+                        string tgUrl = "https://api.telegram.org/bot8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE/sendMessage";
+                        bool sentTg = false;
+
+                        try
+                        {
+                            using (var tgClient = new TimeoutWebClient(4000))
+                            {
+                                tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                                tgClient.Encoding = Encoding.UTF8;
+                                string tgJson = $"{{\"chat_id\":\"431228008\",\"text\":\"{Logger.EscapeJson(tgTextHtml)}\",\"parse_mode\":\"HTML\"}}";
+                                tgClient.UploadString(tgUrl, "POST", tgJson);
+                                sentTg = true;
+                            }
+                        }
+                        catch
+                        {
+                            // Fallback to plain text if HTML entities fail
+                            try
+                            {
+                                string tgTextPlain = $"🚨 E-VEDHIKA UBD ISSUE REPORT (LIVE)\n" +
+                                                     $"-----------------------------------\n" +
+                                                     $"Office: {location}\n" +
+                                                     $"PC: {machineName} ({userName})\n" +
+                                                     $"Issue: {summary}\n" +
+                                                     $"Details: {fullDetails}\n" +
+                                                     $"DSC Status: {dsc}\n" +
+                                                     $"OS: {winVer}\n" +
+                                                     $"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+
+                                using (var tgClient = new TimeoutWebClient(4000))
+                                {
+                                    tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                                    tgClient.Encoding = Encoding.UTF8;
+                                    string tgJson = $"{{\"chat_id\":\"431228008\",\"text\":\"{Logger.EscapeJson(tgTextPlain)}\"}}";
+                                    tgClient.UploadString(tgUrl, "POST", tgJson);
+                                    sentTg = true;
+                                }
+                            }
+                            catch { }
+                        }
+
+                        if (sentTg)
+                        {
+                            Logger.LogInfo("AUTO-REPORT", "Direct Telegram Issue Alert successfully dispatched to Admin (@DhawanRakesh)");
+                        }
+                    }
+                    catch { }
+
+                    // 3. HTTP POST directly to /api/report-issue
                     string[] targetEndpoints = new string[]
                     {
-                        "https://www.e-vedhika.in/api/report-issue",
-                        "https://ais-dev-hsy4unuvg6gixi3y2y4acj-585783354343.asia-southeast1.run.app/api/report-issue"
+                        "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/report-issue",
+                        "https://ais-pre-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/report-issue",
+                        "https://www.e-vedhika.in/api/report-issue"
                     };
 
                     var jsonSb = new StringBuilder();

@@ -117,10 +117,10 @@ export async function checkForUpdates(
 ): Promise<UpdateCheckResult> {
   const candidateUrls = customUrl ? [customUrl] : [
     '/api/version',
+    'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json',
+    'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json',
     'https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest',
-    'https://www.e-vedhika.in/api/version',
-    '/version.json',
-    'https://www.e-vedhika.in/version.json'
+    '/version.json'
   ];
 
   try {
@@ -137,6 +137,11 @@ export async function checkForUpdates(
           let latestVer = rawData.latestVersion || rawData.currentVersion || rawData.tag_name || CURRENT_APP_VERSION;
           let downloadUrl = rawData.downloadUrl;
           let releaseNotes = rawData.releaseNotes || rawData.body;
+
+          // Skip obsolete mock versions
+          if (String(latestVer).toLowerCase().includes('enterprise')) {
+            continue;
+          }
 
           // Scan all assets and pick the highest versioned setup executable
           if (rawData.assets && Array.isArray(rawData.assets)) {
@@ -162,7 +167,7 @@ export async function checkForUpdates(
 
           const latestWeight = parseVersionWeight(latestVer);
           const currentWeight = parseVersionWeight(currentVer);
-          const hasUpdate = latestWeight > currentWeight || Boolean(rawData.updateRequired);
+          const hasUpdate = latestWeight > currentWeight;
 
           return {
             hasUpdate,

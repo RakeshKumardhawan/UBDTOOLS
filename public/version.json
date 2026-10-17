@@ -4,13 +4,13 @@
   "executableName": "EVedhika_Setup_v1.0.7.exe",
   "currentVersion": "v1.0.7",
   "latestVersion": "v1.0.7",
-  "versionCode": 107,
+  "versionCode": 10070,
   "releaseDate": "2026-10-16",
-  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.7.exe",
+  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe",
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": false,
-  "releaseNotes": "v1.0.7 Release: Complete UBD Telangana (ubd.telangana.gov.in) Zone 2 Registry Configuration Engine, Automated Registry Backup, Elevated PowerShell & BAT Deployment, and Post-Execution Deep Verification TXT Audit Report.",
+  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.7 - Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live"
 }

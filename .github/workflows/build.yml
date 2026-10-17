@@ -49,8 +49,8 @@ jobs:
         files: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
-        name: Latest Stable Build v1.0.4
-        body: "Automatic build from GitHub Actions. Enterprise v1.0.4 - Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation."
+        name: Latest Stable Build v1.0.7
+        body: "Automatic build from GitHub Actions. Enterprise v1.0.7 - Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

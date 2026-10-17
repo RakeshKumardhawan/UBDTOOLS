@@ -10,7 +10,7 @@
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": false,
-  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v- Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation.\r\n\r\n**Full Changelog**: https://github.com/RakeshKumardhawan/UBDTOOLS/commits/latest",
+  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.7 - Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live"
 }

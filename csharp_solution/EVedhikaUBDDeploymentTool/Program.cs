@@ -90,6 +90,41 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 catch { }
 
+                // Check if launched from Inno Setup post-install hook (Instant Install Reporting)
+                if (args != null && args.Length > 0)
+                {
+                    string arg0 = args[0].Trim().ToLowerInvariant();
+                    if (arg0 == "--post-install" || arg0 == "/postinstall" || arg0 == "-postinstall")
+                    {
+                        try
+                        {
+                            string machineName = Environment.MachineName;
+                            string userName = Environment.UserName;
+                            string location = SystemInfoHelper.GetLiveLocation();
+                            string winVer = SystemInfoHelper.GetWindowsVersion();
+                            string dsc = SystemInfoHelper.CheckDscStatus();
+
+                            var installPayload = new System.Collections.Generic.Dictionary<string, string>
+                            {
+                                { "pcName", machineName },
+                                { "userName", userName },
+                                { "officeLocation", location },
+                                { "osVersion", winVer },
+                                { "dscStatus", dsc },
+                                { "status", "NEW APP INSTALLED (v1.0.7)" },
+                                { "version", "v1.0.7" },
+                                { "remarks", $"🎉 New Installation: E-Vedhika Setup v1.0.7 successfully installed on {machineName} ({location})." }
+                            };
+
+                            SendSyncTelegramInstallNotification(machineName, userName, location, winVer, dsc);
+                            Logger.SendCentralTelemetry(installPayload);
+                            System.Threading.Thread.Sleep(2000);
+                        }
+                        catch { }
+                        return;
+                    }
+                }
+
                 // Check if launched from Windows Control Panel "Uninstall" command
                 if (args != null && args.Length > 0)
                 {
@@ -205,6 +240,33 @@ namespace EVedhikaUBDDeploymentTool
                     errDetails,
                     "CRASH"
                 );
+            }
+            catch { }
+        }
+
+        private static void SendSyncTelegramInstallNotification(string pcName, string userName, string location, string os, string dsc)
+        {
+            try
+            {
+                string text = "🎉 <b>NEW E-VEDHIKA INSTALLATION DETECTED!</b>\n" +
+                              "━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                              $"🏢 <b>Office:</b> {Logger.EscapeTelegramHtml(location)}\n" +
+                              $"💻 <b>PC:</b> <code>{Logger.EscapeTelegramHtml(pcName)}</code> ({Logger.EscapeTelegramHtml(userName)})\n" +
+                              $"🖥️ <b>OS:</b> {Logger.EscapeTelegramHtml(os)}\n" +
+                              $"🔑 <b>DSC Status:</b> {Logger.EscapeTelegramHtml(dsc)}\n" +
+                              $"📦 <b>Version:</b> v1.0.7 (Full Enterprise Bundle)\n" +
+                              $"⏰ <b>Time:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                              "━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                              "🌐 <b>Portal:</b> https://www.e-vedhika.in";
+
+                string tgUrl = "https://api.telegram.org/bot8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE/sendMessage";
+                using (var wc = new Logger.TimeoutWebClient(5000))
+                {
+                    wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                    wc.Encoding = System.Text.Encoding.UTF8;
+                    string json = $"{{\"chat_id\":\"431228008\",\"text\":\"{Logger.EscapeJson(text)}\",\"parse_mode\":\"HTML\"}}";
+                    wc.UploadString(tgUrl, "POST", json);
+                }
             }
             catch { }
         }

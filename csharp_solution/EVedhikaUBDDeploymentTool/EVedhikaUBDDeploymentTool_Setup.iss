@@ -38,6 +38,7 @@ Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 [Run]
 Filename: "{tmp}\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
 Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing System Components (Fixing missing DLLs for Windows 7)..."; Check: NeedsVCRedist
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--post-install"; Flags: runhidden
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallDelete]

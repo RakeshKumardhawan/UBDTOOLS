@@ -136,11 +136,32 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         }
       } catch (err) {}
 
+      // Also merge issues from dedicated /api/issues route
+      try {
+        const iRes = await fetch(`/api/issues?t=${Date.now()}`, { cache: 'no-store' });
+        if (iRes.ok && (iRes.headers.get('content-type') || '').includes('application/json')) {
+          const iData = await iRes.json();
+          const extraIssues = iData.issues || [];
+          if (Array.isArray(extraIssues) && extraIssues.length > 0) {
+            const existingIds = new Set(logs.map(l => l.id));
+            for (const item of extraIssues) {
+              if (!existingIds.has(item.id)) {
+                logs.unshift(item);
+                existingIds.add(item.id);
+              }
+            }
+            fetchedSuccessfully = true;
+          }
+        }
+      } catch (e) {}
+
       // 2. If running on GitHub Pages (e-vedhika.in) where /api/telemetry returns HTML redirect, try static JSON files
       if (!fetchedSuccessfully) {
         const fallbackUrls = [
           `/api/telemetry.json?t=${Date.now()}`,
           `/telemetry_logs.json?t=${Date.now()}`,
+          `/ubd_issues.json?t=${Date.now()}`,
+          `/api/ubd_issues.json?t=${Date.now()}`,
           `/admin/exe_ubd_live.json?t=${Date.now()}`
         ];
         for (const url of fallbackUrls) {
@@ -149,7 +170,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
             const fType = fRes.headers.get('content-type') || '';
             if (fRes.ok && (fType.includes('application/json') || fType.includes('text/plain') || url.includes('.json'))) {
               const fData = await fRes.json();
-              const fLogs = Array.isArray(fData) ? fData : (fData.logs || []);
+              const fLogs = Array.isArray(fData) ? fData : (fData.logs || fData.issues || []);
               if (fLogs.length > 0) {
                 logs = fLogs;
                 fetchedSuccessfully = true;

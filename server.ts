@@ -943,7 +943,7 @@ ${aiAnalysis || 'Analysis in progress.'}
       telemetryLogsStore.unshift(issueRecord);
       saveTelemetryLogs();
 
-      // Save permanently to ubd_issues.json
+      // Save permanently to ubd_issues.json and public directories
       try {
         const UBD_ISSUES_FILE = path.join(process.cwd(), 'ubd_issues.json');
         let savedIssues: any[] = [];
@@ -951,13 +951,21 @@ ${aiAnalysis || 'Analysis in progress.'}
           savedIssues = JSON.parse(fs.readFileSync(UBD_ISSUES_FILE, 'utf8'));
         }
         savedIssues.unshift(issueRecord);
-        fs.writeFileSync(UBD_ISSUES_FILE, JSON.stringify(savedIssues, null, 2), 'utf8');
+        const issuesJson = JSON.stringify(savedIssues, null, 2);
+        fs.writeFileSync(UBD_ISSUES_FILE, issuesJson, 'utf8');
+        try {
+          fs.writeFileSync(path.join(process.cwd(), 'public', 'ubd_issues.json'), issuesJson, 'utf8');
+          fs.writeFileSync(path.join(process.cwd(), 'public', 'api', 'ubd_issues.json'), issuesJson, 'utf8');
+        } catch (pubErr) {}
       } catch (saveErr: any) {
         console.warn('Could not save ubd_issues.json:', saveErr?.message);
       }
 
       // 4. Autonomous Direct GitHub Issue Creation via GitHub REST API (Zero permission/manual click needed)
-      const ghToken = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || process.env.GH_TOKEN;
+      let ghToken = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || process.env.GH_TOKEN;
+      if (ghToken && (!ghToken.startsWith('ghp_') && !ghToken.startsWith('github_pat_') && !ghToken.startsWith('gho_'))) {
+        ghToken = undefined; // Telegram token or non-github token must not be sent to GitHub API
+      }
       let directGithubCreated = false;
       let createdIssueNumber: number | null = null;
       if (ghToken) {
@@ -1021,6 +1029,22 @@ ${aiAnalysis || 'Analysis in progress.'}
     }
   });
 
+  // API Route: Get Reported UBD Issues
+  const handleGetIssues = (req: any, res: any) => {
+    try {
+      const UBD_ISSUES_FILE = path.join(process.cwd(), 'ubd_issues.json');
+      if (fs.existsSync(UBD_ISSUES_FILE)) {
+        const savedIssues = JSON.parse(fs.readFileSync(UBD_ISSUES_FILE, 'utf8'));
+        return res.json({ success: true, count: savedIssues.length, issues: savedIssues });
+      }
+    } catch (e) {}
+    const filteredIssues = telemetryLogsStore.filter((l: any) => l.isUbdIssue || String(l.status).includes('ISSUE'));
+    return res.json({ success: true, count: filteredIssues.length, issues: filteredIssues });
+  };
+  app.get('/api/issues', handleGetIssues);
+  app.get('/api/ubd-issues', handleGetIssues);
+  app.get('/api/report-issue', handleGetIssues);
+
   // API Route: Reload Telemetry from Disk
   app.post('/api/telemetry/reload', (req, res) => {
     try {
@@ -1038,8 +1062,77 @@ ${aiAnalysis || 'Analysis in progress.'}
     }
   });
 
-  // API Route: Get Central Telemetry Logs
+  // API Route: Get Central Telemetry Logs (or ingest report via GET if query params supplied)
   app.get('/api/telemetry', (req, res) => {
+    if (req.query.pcName) {
+      const q = req.query as Record<string, string>;
+      const officeLoc = q.officeLocation || q.office || 'Grama Panchayat Office';
+      const stateVal = q.state || (officeLoc.toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana');
+      const targetDom = q.targetDomain || (stateVal === 'Andhra Pradesh' ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in');
+
+      let pcId = q.pcId;
+      if (!pcId) {
+        const rawSeed = `${q.pcName || 'PC'}_${q.userName || 'USER'}_${officeLoc}`;
+        let hash = 0;
+        for (let i = 0; i < rawSeed.length; i++) { hash = (hash << 5) - hash + rawSeed.charCodeAt(i); hash |= 0; }
+        const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+        const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
+        pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4)}`;
+      }
+
+      const newRecord = {
+        id: q.id || `TEL-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+        pcId: pcId,
+        slNo: telemetryLogsStore.length + 1,
+        date: q.date || new Date().toISOString().slice(0, 10),
+        time: q.time || new Date().toLocaleTimeString(),
+        pcName: q.pcName || 'Unknown-PC',
+        userName: q.userName || 'Panchayat-Secretary',
+        officeLocation: officeLoc,
+        state: stateVal,
+        livePresence: 'ONLINE',
+        lastSeen: 'Just Now',
+        lastSeenEpoch: Date.now(),
+        targetDomain: targetDom,
+        osVersion: q.osVersion || 'Win10/11 Pro (64-Bit)',
+        dotNet: q.dotNet || 'v3.5 & v4.8 Active',
+        nicDigiSigner: q.nicDigiSigner || 'Port 8080 Active',
+        dscStatus: q.dscStatus || 'USB Token Driver Active',
+        trustedSites: q.trustedSites || `Zone 2 Configured (${targetDom})`,
+        edgeIeMode: q.edgeIeMode || 'IE5 Quirks Active',
+        sitesXml: q.sitesXml || 'IE5 Quirks Active (sites.xml present)',
+        verification: q.verification || 'Passed (15/15)',
+        version: q.version || q.deployVersion || 'v1.0.7',
+        deployVersion: q.deployVersion || q.version || 'v1.0.7',
+        healthScore: q.healthScore ? Number(q.healthScore) : 100,
+        status: q.status || 'SUCCESS',
+        remarks: q.remarks || 'Telemetry received via GET channel.',
+        ...q
+      };
+
+      telemetryLogsStore.unshift(newRecord);
+      saveTelemetryLogs();
+      console.log(`[GET TELEMETRY RECEIVED] ${newRecord.pcName} -> ${newRecord.status}`);
+
+      if (telegramConfig.botToken && telegramConfig.chatId) {
+        const teleMsg = `🛡️ <b>E-VEDHIKA TELEMETRY REPORT (Live)</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━\n` +
+          `🆔 <b>Unique PC ID:</b> <code>${newRecord.pcId}</code>\n` +
+          `🏢 <b>Office:</b> ${newRecord.officeLocation}\n` +
+          `💻 <b>PC:</b> <code>${newRecord.pcName}</code>\n` +
+          `👤 <b>User:</b> ${newRecord.userName}\n` +
+          `⚡ <b>Status:</b> ${newRecord.status} (${newRecord.verification || '15/15'})\n` +
+          `💯 <b>Health Score:</b> ${newRecord.healthScore || 100}%\n` +
+          `📦 <b>Version:</b> ${newRecord.version || 'v1.0.7'}\n` +
+          `🔑 <b>DSC Status:</b> ${newRecord.dscStatus || 'Active'}\n` +
+          `📅 <b>Time:</b> ${newRecord.date} ${newRecord.time}\n` +
+          `📝 <b>Remarks:</b> ${newRecord.remarks}`;
+        sendTelegramMessage(teleMsg).catch(() => {});
+      }
+
+      return res.json({ success: true, message: 'Telemetry recorded via GET', record: newRecord });
+    }
+
     console.log(`[GET /api/telemetry] Serving ${telemetryLogsStore.length} records.`);
     res.json({ success: true, count: telemetryLogsStore.length, logs: telemetryLogsStore });
   });
@@ -1362,11 +1455,15 @@ Be crisp, authoritative, professional, and directly tailored to Enterprise porta
   // CENTRAL UNIFIED CLOUD GATEWAY: /admin/exe_ubd_live
   // Handles ALL C# Tool requests: Telemetry, News, Updates & Remote
   // ====================================================================
-  app.all('/admin/exe_ubd_live', (req, res) => {
+  app.all('/admin/exe_ubd_live', async (req, res) => {
     const action = (req.query.action || req.body?.action || 'telemetry').toString().toLowerCase();
 
     if (action === 'check_update' || action === 'version') {
-      return res.json(currentVersionConfig);
+      await syncGitHubRelease();
+      return res.json({
+        success: true,
+        ...currentVersionConfig
+      });
     }
 
     if (action === 'get_news' || action === 'news') {
