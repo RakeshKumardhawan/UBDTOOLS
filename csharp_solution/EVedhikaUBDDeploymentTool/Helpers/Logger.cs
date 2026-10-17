@@ -239,6 +239,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                        .Replace("\r", "")
                        .Replace("\n", "\\n");
         }
+
+        /// <summary>
+        /// Nested alias for TimeoutWebClient to support both Logger.TimeoutWebClient and TimeoutWebClient
+        /// </summary>
+        public class TimeoutWebClient : EVedhikaUBDDeploymentTool.Helpers.TimeoutWebClient
+        {
+            public TimeoutWebClient(int timeoutMs = 4000) : base(timeoutMs) { }
+        }
     }
 
     /// <summary>

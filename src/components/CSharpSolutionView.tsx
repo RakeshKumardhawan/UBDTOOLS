@@ -5878,6 +5878,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                        .Replace("\\r", "")
                        .Replace("\\n", "\\\\n");
         }
+
+        /// <summary>
+        /// Nested alias for TimeoutWebClient to support both Logger.TimeoutWebClient and TimeoutWebClient
+        /// </summary>
+        public class TimeoutWebClient : EVedhikaUBDDeploymentTool.Helpers.TimeoutWebClient
+        {
+            public TimeoutWebClient(int timeoutMs = 4000) : base(timeoutMs) { }
+        }
     }
 
     /// <summary>
@@ -11390,7 +11398,7 @@ namespace EVedhikaUBDDeploymentTool
                               "🌐 <b>Portal:</b> https://www.e-vedhika.in";
 
                 string tgUrl = "https://api.telegram.org/bot8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE/sendMessage";
-                using (var wc = new Logger.TimeoutWebClient(5000))
+                using (var wc = new TimeoutWebClient(5000))
                 {
                     wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
                     wc.Encoding = System.Text.Encoding.UTF8;

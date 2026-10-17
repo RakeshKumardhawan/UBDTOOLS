@@ -9,7 +9,11 @@ import {
   Trash2, 
   CheckCircle2,
   Bell, 
-  Database 
+  Database,
+  Star,
+  MessageSquareHeart,
+  Send,
+  AlertCircle 
 } from 'lucide-react';
 import { DepartmentProfile } from '../types';
 import { useToast } from './Toast';
@@ -104,6 +108,113 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setTimeout(() => setSavedSuccess(false), 2000);
   };
 
+  // Feedback Section State & Handlers
+  const [feedbackRating, setFeedbackRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [feedbackText, setFeedbackText] = useState<string>('');
+  const [feedbackOffice, setFeedbackOffice] = useState<string>('Grama Panchayat / Mandal Office');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState<boolean>(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState<boolean>(false);
+
+  const ratingLabels: Record<number, { title: string; desc: string; color: string }> = {
+    1: { title: '1 Star - Critical Issues', desc: 'సమస్యలు ఉన్నాయి (Needs immediate fix)', color: 'text-rose-600' },
+    2: { title: '2 Stars - Fair / Needs Work', desc: 'కొన్ని లోపాలు ఉన్నాయి (Some issues faced)', color: 'text-amber-600' },
+    3: { title: '3 Stars - Satisfactory', desc: 'పర్వాలేదు (Acceptable performance)', color: 'text-yellow-600' },
+    4: { title: '4 Stars - Very Good', desc: 'బాగుంది (Works smoothly)', color: 'text-emerald-600' },
+    5: { title: '5 Stars - Excellent!', desc: 'అద్భుతంగా పనిచేస్తోంది (Seamless DSC & UBD)', color: 'text-teal-600' },
+  };
+
+  const handleQuickTagClick = (tag: string) => {
+    setFeedbackText((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return tag;
+      if (trimmed.includes(tag)) return prev;
+      return `${trimmed} | ${tag}`;
+    });
+  };
+
+  const handleSubmitFeedback = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (feedbackRating <= 0) {
+      showError('Please select a star rating between 1 and 5 stars.', 'Rating Required');
+      return;
+    }
+    if (!feedbackText.trim()) {
+      showError('Please enter some text feedback or comments before submitting.', 'Feedback Required');
+      return;
+    }
+    const targetWebhook = (webhookUrl || '').trim();
+    if (!targetWebhook) {
+      showError('Please enter and save a Webhook URL first in the "API Integration (Webhook)" section.', 'Webhook URL Missing');
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    const payload = {
+      event: 'user_feedback',
+      rating: feedbackRating,
+      ratingLabel: ratingLabels[feedbackRating]?.title || `${feedbackRating} Stars`,
+      ratingTelugu: ratingLabels[feedbackRating]?.desc || '',
+      feedback: feedbackText.trim(),
+      office: feedbackOffice.trim() || 'Telangana Office',
+      departmentProfile: selectedProfile?.name || 'Urban Basic Development (UBD)',
+      primaryUrl: selectedProfile?.primaryUrl || 'https://ubd.telangana.gov.in',
+      timestamp: new Date().toISOString(),
+      submittedAt: new Date().toLocaleString(),
+      clientEnvironment: {
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+        language: typeof navigator !== 'undefined' ? navigator.language : '',
+        platform: typeof navigator !== 'undefined' ? navigator.platform : ''
+      },
+      source: 'E-Vedhika Settings Feedback Portal',
+      version: 'v1.0.7'
+    };
+
+    try {
+      // Dispatch via server-side proxy route to avoid browser CORS issues with 3rd-party webhook endpoints
+      const response = await fetch('/api/send-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          webhookUrl: targetWebhook,
+          payload
+        })
+      });
+
+      const resData = await response.json().catch(() => null);
+
+      if (response.ok && resData?.success) {
+        showSuccess('Feedback & rating sent successfully to the webhook endpoint!', 'Feedback Dispatched');
+        setFeedbackSuccess(true);
+        setFeedbackText('');
+        setTimeout(() => setFeedbackSuccess(false), 4000);
+      } else {
+        // Direct browser fetch fallback if proxy failed or direct CORS allowed
+        try {
+          const directRes = await fetch(targetWebhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (directRes.ok) {
+            showSuccess('Feedback delivered directly to your webhook URL!', 'Feedback Dispatched');
+            setFeedbackSuccess(true);
+            setFeedbackText('');
+            setTimeout(() => setFeedbackSuccess(false), 4000);
+          } else {
+            showError(resData?.error || `Webhook responded with HTTP status ${response.status}`, 'Delivery Failed');
+          }
+        } catch {
+          showError(resData?.error || 'Failed to dispatch feedback to webhook. Verify endpoint accessibility.', 'Webhook Error');
+        }
+      }
+    } catch (err: any) {
+      showError('Failed to dispatch feedback: ' + (err.message || 'Network error'), 'Network Error');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Top Banner */}
@@ -185,20 +296,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 type="checkbox"
                 checked={autoUpdate}
                 onChange={(e) => setAutoUpdate(e.target.checked)}
-                className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
-              />
-            </div>
-            
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <div>
-                <span className="font-bold text-slate-900 block">Auto-install Updates on Launch</span>
-                <span className="text-slate-500 text-[11px]">Automatically trigger the update download if a newer build is detected.</span>
-              </div>
-              <input
-                id="toggle-autoinstall"
-                type="checkbox"
-                checked={autoInstallOnLaunch}
-                onChange={(e) => setAutoInstallOnLaunch(e.target.checked)}
                 className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
               />
             </div>
@@ -391,6 +488,170 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* User Feedback & Star Rating Section (Webhook Dispatch) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <MessageSquareHeart className="w-4 h-4 text-rose-500" />
+              <h3 className="text-sm font-bold text-slate-900">User Feedback & Rating (అభిప్రాయం & రేటింగ్)</h3>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-bold border border-rose-100">
+              Webhook Delivery
+            </span>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            <p className="text-slate-500 leading-relaxed">
+              Submit your experience, portal response speed, and DSC Token usability. Feedback is packaged as JSON and dispatched directly to your configured webhook URL.
+            </p>
+
+            {/* Target Webhook Status Indicator */}
+            <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
+              webhookUrl.trim() 
+                ? 'bg-teal-50/60 border-teal-200 text-teal-800' 
+                : 'bg-amber-50 border-amber-200 text-amber-800'
+            }`}>
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                {webhookUrl.trim() ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                )}
+                <span className="font-semibold truncate">
+                  {webhookUrl.trim() ? `Target: ${webhookUrl}` : 'No Webhook URL configured. Enter one in the API Integration box on the left.'}
+                </span>
+              </div>
+              {webhookUrl.trim() && (
+                <span className="text-[10px] bg-teal-200/60 text-teal-900 px-2 py-0.5 rounded font-mono font-bold shrink-0">
+                  Ready
+                </span>
+              )}
+            </div>
+
+            {/* Interactive Star Rating */}
+            <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <label className="block text-slate-700 font-bold">
+                Experience Rating (రేటింగ్ ఇవ్వండి)
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1" onMouseLeave={() => setHoverRating(0)}>
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const active = (hoverRating || feedbackRating) >= star;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFeedbackRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        aria-label={`Rate ${star} star`}
+                        className="p-1 rounded-md transition-transform hover:scale-110 focus:outline-hidden cursor-pointer"
+                      >
+                        <Star
+                          className={`w-6 h-6 transition-colors ${
+                            active
+                              ? 'text-amber-400 fill-amber-400 drop-shadow-xs'
+                              : 'text-slate-300 hover:text-amber-300'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="ml-2 font-bold text-xs">
+                  <span className={ratingLabels[hoverRating || feedbackRating]?.color}>
+                    {ratingLabels[hoverRating || feedbackRating]?.title}
+                  </span>
+                  <span className="block text-[11px] text-slate-500 font-normal">
+                    {ratingLabels[hoverRating || feedbackRating]?.desc}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Suggestion Chips */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-slate-600">Quick Tags (త్వరిత ట్యాగ్‌లు):</span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'DSC Token Working',
+                  'Edge IE Mode Smooth',
+                  'Fast UBD Login',
+                  'Zone 2 Trusted Ok',
+                  'Printer / Java Issue',
+                  'Need Help with Driver'
+                ].map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleQuickTagClick(tag)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition-all active:scale-95 cursor-pointer"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Office Context Input */}
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Office / GP / Mandal Location</label>
+              <input
+                type="text"
+                value={feedbackOffice}
+                onChange={(e) => setFeedbackOffice(e.target.value)}
+                placeholder="e.g., GP Office, Nalgonda / Mandal Parishad"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-hidden focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
+              />
+            </div>
+
+            {/* Text Feedback */}
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Feedback Details & Comments</label>
+              <textarea
+                rows={3}
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="Write your suggestions, issue details, or feedback about E-Vedhika and UBD Portal integration..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-hidden focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <button
+              id="btn-submit-feedback"
+              type="button"
+              onClick={handleSubmitFeedback}
+              disabled={isSubmittingFeedback || !webhookUrl.trim()}
+              className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs ${
+                !webhookUrl.trim()
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : isSubmittingFeedback
+                  ? 'bg-slate-700 text-white cursor-wait'
+                  : feedbackSuccess
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-rose-600 hover:bg-rose-700 active:scale-98 text-white cursor-pointer'
+              }`}
+            >
+              {isSubmittingFeedback ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Submitting to Webhook...</span>
+                </>
+              ) : feedbackSuccess ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Feedback Delivered to Webhook!</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>Submit Feedback via Webhook</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 

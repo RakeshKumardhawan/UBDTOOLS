@@ -1235,6 +1235,62 @@ ${aiAnalysis || 'Analysis in progress.'}
     }
   });
 
+  // API Route: Send / Proxy Webhook (e.g. for User Feedback, Deploy Audits)
+  app.post('/api/send-webhook', async (req, res) => {
+    try {
+      const { webhookUrl, payload } = req.body || {};
+      if (!webhookUrl) {
+        return res.status(400).json({ success: false, error: 'Webhook URL is required' });
+      }
+
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(webhookUrl);
+      } catch {
+        return res.status(400).json({ success: false, error: 'Invalid Webhook URL format' });
+      }
+
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return res.status(400).json({ success: false, error: 'Webhook URL must use http or https protocol' });
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'EVedhika-Webhook-Client/1.0 (Telangana UBD Suite)',
+        },
+        body: JSON.stringify(payload ?? {}),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const text = await response.text();
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: `Webhook returned HTTP ${response.status}: ${text.slice(0, 300)}`
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Feedback successfully dispatched to webhook endpoint.',
+        status: response.status,
+        responseSnippet: text.slice(0, 200)
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err.name === 'AbortError' ? 'Webhook request timed out after 10s' : (err.message || 'Failed to connect to webhook URL')
+      });
+    }
+  });
+
   // API Route: Live Telangana Government Portals Speed Test & Ping
   app.get('/api/portal-ping', async (req, res) => {
     const portals = [
