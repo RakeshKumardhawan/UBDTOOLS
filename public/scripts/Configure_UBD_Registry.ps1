@@ -61,7 +61,28 @@ try {
 
 # 4. ADD TARGET GOVERNMENT WEBSITE TO TRUSTED SITES (ZONE 2)
 Write-Host ""
-Write-Host "[STEP 2/5] Adding 'ubd.telangana.gov.in' to Windows Trusted Sites (Zone 2)..." -ForegroundColor Green
+Write-Host "[STEP 2/5] Checking and Configuring 'ubd.telangana.gov.in' in Windows Trusted Sites (Zone 2)..." -ForegroundColor Green
+
+$CheckUbdPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ubd.telangana.gov.in"
+$CheckUbdSub  = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\telangana.gov.in\ubd"
+$UbdAlreadyConfigured = $false
+
+try {
+    if (Test-Path $CheckUbdPath) {
+        $existingVal = (Get-ItemProperty -Path $CheckUbdPath -Name "https" -ErrorAction SilentlyContinue).https
+        if ($existingVal -eq 2) { $UbdAlreadyConfigured = $true }
+    }
+    if (-not $UbdAlreadyConfigured -and (Test-Path $CheckUbdSub)) {
+        $existingVal = (Get-ItemProperty -Path $CheckUbdSub -Name "https" -ErrorAction SilentlyContinue).https
+        if ($existingVal -eq 2) { $UbdAlreadyConfigured = $true }
+    }
+} catch {}
+
+if ($UbdAlreadyConfigured) {
+    Write-Host "  [EXISTS] 'https://ubd.telangana.gov.in/' is already configured in Trusted Sites (Zone 2). Duplicate entry avoided." -ForegroundColor DarkGreen
+} else {
+    Write-Host "  [ADDING] Target domain missing in ZoneMap. Adding 'ubd.telangana.gov.in' to Trusted Sites..." -ForegroundColor Yellow
+}
 
 $DomainKeys = @(
     "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\telangana.gov.in\ubd",
@@ -85,6 +106,13 @@ foreach ($keyPath in $DomainKeys) {
     }
 }
 
+# Enforce HTTPS Server Verification for Zone 2 (Flags = 0x47, bit 0x04)
+try {
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2" -Name "Flags" -Value 0x47 -Type DWord -Force
+    Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2" -Name "Flags" -Value 0x47 -Type DWord -Force
+    Write-Host "  [VERIFIED] Zone 2 HTTPS Server Verification enforced (Flags = 0x47)." -ForegroundColor DarkGreen
+} catch {}
+
 # Add localhost / 127.0.0.1 for NIC DigiSigner WebSocket/HTTP Bridge (Port 8080)
 $LocalhostPaths = @(
     "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\localhost",
@@ -103,95 +131,180 @@ try {
 # 0 = Enable / Allow (or Prompt where applicable)
 # 3 = Disable (for Pop-up Blocker and Protected Mode, 3 Disables restriction)
 $SettingsCatalog = @(
-    # Header Flags
-    @{ ID="CurrentLevel"; Name="Current Zone Security Level (Custom)"; Value=0; Desc="Sets security template level to 0 (Custom Level)" },
-    @{ ID="Flags";        Name="Zone Capabilities & Custom Level UI"; Value=0x47; Desc="Enables Custom Level, Sites button and manual add" },
-    @{ ID="MinLevel";     Name="Minimum Zone Security Level";        Value=0x10000; Desc="Enables low-security privilege execution in Zone 2" },
-
-    # ActiveX Controls and Plugins
-    @{ ID="1001"; Name="Download signed ActiveX controls";               Value=0; Desc="Allows downloading signed controls without blocking" },
-    @{ ID="1004"; Name="Download unsigned ActiveX controls";             Value=0; Desc="Allows legacy DSC token CAB / ActiveX components" },
-    @{ ID="1200"; Name="Run ActiveX controls and plug-ins";              Value=0; Desc="Executes ActiveX controls needed by UBD DSC portal" },
-    @{ ID="1201"; Name="Initialize and script ActiveX not marked safe";  Value=0; Desc="Essential for NIC DigiSigner Helper & DSC USB Tokens" },
-    @{ ID="1206"; Name="Allow scripting of Microsoft web browser control"; Value=0; Desc="Permits internal WebBrowser automation controls" },
-    @{ ID="1208"; Name="Allow previously unused ActiveX controls";       Value=0; Desc="Runs controls without repetitive user warnings" },
-    @{ ID="1209"; Name="Scriptlets";                                    Value=0; Desc="Allows execution of web scriptlets and helper COM" },
-    @{ ID="120A"; Name="Override Antivirus protection for ActiveX";      Value=0; Desc="Prevents false-positive AV blocking on DSC drivers" },
-    @{ ID="120B"; Name="Override SmartScreen filter for ActiveX";        Value=0; Desc="Prevents Windows SmartScreen from halting token driver" },
-
-    # Scripting & DOM Permissions
-    @{ ID="1400"; Name="Active scripting (JavaScript Execution)";       Value=0; Desc="Allows all portal scripts, calculations and AJAX" },
-    @{ ID="1402"; Name="Scripting of Java applets";                     Value=0; Desc="Permits legacy Java applets if invoked by portal" },
-    @{ ID="1405"; Name="Script ActiveX controls marked safe";           Value=0; Desc="Enables safe ActiveX scripting" },
-    @{ ID="1406"; Name="Access data sources across domains";            Value=0; Desc="Enables cross-domain communications for e-governance APIs" },
-    @{ ID="1407"; Name="Allow Programmatic clipboard access";           Value=0; Desc="Allows copy/paste operations inside data fields" },
-    @{ ID="1408"; Name="Active scripting (Secondary channel)";          Value=0; Desc="Extended scripting pipeline support" },
-
-    # Miscellaneous Navigation & Form Permissions
-    @{ ID="1601"; Name="Submit encrypted/non-encrypted form data";      Value=0; Desc="Enables citizen form submission without alerts" },
-    @{ ID="1604"; Name="Font download";                                 Value=0; Desc="Allows Telugu web font rendering without distortions" },
-    @{ ID="1606"; Name="Userdata persistence";                          Value=0; Desc="Allows portal state caching in IE DOM" },
-    @{ ID="1607"; Name="Navigate windows and frames across domains";     Value=0; Desc="Enables portal redirection to Payment & DSC gateways" },
-    @{ ID="1608"; Name="Allow META REFRESH";                            Value=0; Desc="Allows automatic page refresh during payment/session" },
-    @{ ID="1609"; Name="Display mixed content (HTTP inside HTTPS)";     Value=0; Desc="Allows legacy portal sub-assets over mixed protocols" },
-    @{ ID="160A"; Name="Include local directory path when uploading";   Value=0; Desc="Passes file paths required by legacy file upload forms" },
-
-    # Downloads & File Handling
-    @{ ID="1802"; Name="Drag and drop or copy and paste files";         Value=0; Desc="Permits file attachments upload to portal" },
-    @{ ID="1803"; Name="File download";                                 Value=0; Desc="Fixes 'File download blocked' error for receipts and PDFs" },
-    @{ ID="1804"; Name="Launching programs and files in an IFRAME";     Value=0; Desc="Enables DSC helper launch from invisible frame" },
-    @{ ID="1806"; Name="Launching applications and unsafe files";       Value=0; Desc="Allows invoking DigiSigner client from web interface" },
-    @{ ID="1807"; Name="Navigate sub-frames across different domains";  Value=0; Desc="Permits sub-frame navigation across telangana.gov.in" },
-    @{ ID="1808"; Name="Font download (Secondary)";                     Value=0; Desc="Secondary font download channel" },
-    @{ ID="1809"; Name="Use Pop-up Blocker (3 = Disable Blocker)";      Value=3; Desc="Disables popup blocker so DSC PIN password box appears" },
-
-    # .NET Framework & Binary Behaviors
-    @{ ID="2000"; Name="Binary and script behaviors";                   Value=0; Desc="Allows binary behaviors required by IE5 Quirks mode" },
-    @{ ID="2001"; Name="Run .NET-reliant components";                   Value=0; Desc="Permits .NET Framework 3.5 / 4.8 client side signing" },
-    @{ ID="2004"; Name="Run components not signed with Authenticode";   Value=0; Desc="Permits government utility modules without commercial cert" },
-
-    # Window Constraints & MIME Handling
-    @{ ID="2100"; Name="Open files based on content (MIME Sniffing)";   Value=0; Desc="Prevents file corruption when downloading receipts" },
-    @{ ID="2101"; Name="Web sites in less privileged zone navigation";   Value=0; Desc="Permits seamless navigation into Trusted Sites" },
-    @{ ID="2102"; Name="Allow script-initiated windows without constraints"; Value=0; Desc="Enables custom size windows for DSC signing PIN input" },
-    @{ ID="2103"; Name="Allow status bar updates via script";           Value=0; Desc="Shows digital signature progress in status bar" },
-    @{ ID="2104"; Name="Allow websites to open windows without address/status"; Value=0; Desc="Allows clean modal popups for DSC signature verification" },
-    @{ ID="2105"; Name="Allow scripted prompt windows";                 Value=0; Desc="Allows JavaScript prompt and alert dialogs" },
-
-    # Automatic Prompting
-    @{ ID="2200"; Name="Automatic prompting for file downloads";        Value=0; Desc="Downloads reports and tokens without modal prompts" },
-    @{ ID="2201"; Name="Automatic prompting for ActiveX controls";      Value=0; Desc="Invokes ActiveX components automatically" },
-    @{ ID="2300"; Name="Web sites in less privileged zone navigation";   Value=0; Desc="Permits zone transition during user redirect" },
-
-    # .NET / XAML
-    @{ ID="2400"; Name=".NET Framework: XAML browser applications";     Value=0; Desc="Allows XBAP execution if required" },
-    @{ ID="2401"; Name=".NET Framework: XPS documents";                 Value=0; Desc="Enables document viewing in XPS format" },
-    @{ ID="2402"; Name=".NET Framework: Loose XAML";                    Value=0; Desc="Enables WPF loose XAML support" },
-
-    # Protected Mode & Security Isolation
-    @{ ID="2500"; Name="Turn on Protected Mode (3 = Disable)";          Value=3; Desc="Disables sandbox isolation so USB token hardware can be accessed" },
-    @{ ID="2702"; Name="ActiveX Filtering (3 = Disable Filtering)";     Value=3; Desc="Disables ActiveX filtering to prevent blocking tokens" },
-    @{ ID="2708"; Name="Allow only approved domains to use ActiveX";    Value=0; Desc="Allows approved domains without additional prompts" },
-    @{ ID="2709"; Name="Run Antimalware against ActiveX (3 = Disable)";  Value=3; Desc="Prevents Windows Defender from hanging on token PIN prompts" },
-    @{ ID="270C"; Name="Allow Microsoft Silverlight / COM components";  Value=0; Desc="Permits COM/OLE automation bridges" }
+    # ==========================================
+    # ZONE 1: LOCAL INTRANET
+    # ==========================================
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="CurrentLevel"; Name="Zone Security Level (Custom)"; Value=0; Desc="Sets zone security template to 0 (Custom Level)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="Flags";        Name="Zone Capabilities & Flags"; Value=0xdb; Desc="Local Intranet Zone base permissions" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="MinLevel";     Name="Minimum Security Level Allowed"; Value=0x10000; Desc="Minimum level allowed" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1001"; Name="Download signed ActiveX controls"; Value=0; Desc="Download signed ActiveX controls (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1004"; Name="Download unsigned ActiveX controls"; Value=0; Desc="Download unsigned ActiveX controls (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1200"; Name="Run ActiveX controls and plug-ins"; Value=0; Desc="Run ActiveX controls and plug-ins (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1201"; Name="Initialize and script ActiveX not marked safe"; Value=0; Desc="Initialize and script ActiveX not marked safe (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1206"; Name="Allow scripting of Microsoft web browser control"; Value=0; Desc="Allow scripting of Microsoft web browser control (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1208"; Name="Allow previously unused ActiveX controls"; Value=0; Desc="Allow previously unused ActiveX controls (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1209"; Name="Scriptlets"; Value=0; Desc="Scriptlets (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="120A"; Name="Display video and animation without external player"; Value=0; Desc="Display video and animation without external player (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="120B"; Name="Override SmartScreen filter for ActiveX"; Value=0; Desc="Override SmartScreen filter for ActiveX (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1400"; Name="Active scripting (JavaScript Execution)"; Value=0; Desc="Active scripting (JavaScript Execution) (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1402"; Name="Scripting of Java applets"; Value=0; Desc="Scripting of Java applets (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1405"; Name="Script ActiveX controls marked safe"; Value=0; Desc="Script ActiveX controls marked safe (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1406"; Name="Access data sources across domains"; Value=0; Desc="Access data sources across domains (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1407"; Name="Allow Programmatic clipboard access"; Value=0; Desc="Allow Programmatic clipboard access (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1409"; Name="Scripting of XSLT elements"; Value=0; Desc="Scripting of XSLT elements (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1604"; Name="Font download"; Value=0; Desc="Font download (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1606"; Name="Userdata persistence"; Value=0; Desc="Userdata persistence (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1607"; Name="Navigate windows and frames across domains"; Value=0; Desc="Navigate windows and frames across domains (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1608"; Name="Allow META REFRESH"; Value=0; Desc="Allow META REFRESH (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1609"; Name="Display mixed content (HTTP inside HTTPS)"; Value=0; Desc="Display mixed content (HTTP inside HTTPS) (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1802"; Name="Drag and drop or copy and paste files"; Value=0; Desc="Drag and drop or copy and paste files (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1803"; Name="File download"; Value=0; Desc="File download (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1804"; Name="Launching programs and files in an IFRAME"; Value=1; Desc="Launching programs and files in an IFRAME (Value = 1)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1806"; Name="Launching applications and unsafe files"; Value=0; Desc="Launching applications and unsafe files (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1809"; Name="Use Pop-up Blocker"; Value=0; Desc="Use Pop-up Blocker (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2000"; Name="Binary and script behaviors"; Value=0; Desc="Binary and script behaviors (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2001"; Name="Run components signed with Authenticode / .NET"; Value=3; Desc="Disabled per exact user specification (3 = Disable)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2004"; Name="Run components not signed with Authenticode"; Value=0; Desc="Run components not signed with Authenticode (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2007"; Name="Run components signed with Authenticode (Secondary)"; Value=0; Desc="Run components signed with Authenticode (Secondary) (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2100"; Name="Open files based on content (MIME Sniffing)"; Value=0; Desc="Open files based on content (MIME Sniffing) (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2102"; Name="Script-initiated windows without constraints"; Value=0; Desc="Script-initiated windows without constraints (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2103"; Name="Allow status bar updates via script"; Value=0; Desc="Allow status bar updates via script (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2104"; Name="Allow websites to open windows without address/status"; Value=0; Desc="Allow websites to open windows without address/status (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2105"; Name="Allow scripted prompt windows"; Value=0; Desc="Allow scripted prompt windows (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2201"; Name="Automatic prompting for ActiveX controls"; Value=0; Desc="Automatic prompting for ActiveX controls (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2300"; Name="Web sites in less privileged zone navigation"; Value=0; Desc="Web sites in less privileged zone navigation (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2301"; Name="Use SmartScreen Filter"; Value=0; Desc="Use SmartScreen Filter (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2400"; Name=".NET Framework: XAML browser applications"; Value=0; Desc=".NET Framework: XAML browser applications (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2401"; Name=".NET Framework: XPS documents"; Value=0; Desc=".NET Framework: XPS documents (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2402"; Name=".NET Framework: Loose XAML"; Value=0; Desc=".NET Framework: Loose XAML (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2600"; Name="Enable .NET Framework setup"; Value=0; Desc="Enable .NET Framework setup (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2702"; Name="ActiveX Filtering"; Value=0; Desc="ActiveX Filtering (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2708"; Name="Allow approved domains to use ActiveX"; Value=0; Desc="Allow approved domains to use ActiveX (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="2709"; Name="Run Antimalware against ActiveX"; Value=0; Desc="Run Antimalware against ActiveX (Value = 0)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1A00"; Name="User Authentication Logon"; Value=0x20000; Desc="User Authentication Logon (Value = 0x20000)" },
+    @{ ZoneId=1; ZoneName="Local Intranet"; ID="1A04"; Name="Don't prompt for client certificate selection"; Value=0; Desc="Don't prompt for client certificate selection (Value = 0)" },
+    # ==========================================
+    # ZONE 2: TRUSTED SITES
+    # ==========================================
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="CurrentLevel"; Name="Zone Security Level (Custom)"; Value=0; Desc="Sets zone security template to 0 (Custom Level)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="Flags";        Name="Zone Capabilities & Flags"; Value=0x47; Desc="Trusted Sites Zone base permissions" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="MinLevel";     Name="Minimum Security Level Allowed"; Value=0x10000; Desc="Minimum level allowed" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1001"; Name="Download signed ActiveX controls"; Value=0; Desc="Download signed ActiveX controls (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1004"; Name="Download unsigned ActiveX controls"; Value=0; Desc="Download unsigned ActiveX controls (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1200"; Name="Run ActiveX controls and plug-ins"; Value=0; Desc="Run ActiveX controls and plug-ins (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1201"; Name="Initialize and script ActiveX not marked safe"; Value=0; Desc="Initialize and script ActiveX not marked safe (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1206"; Name="Allow scripting of Microsoft web browser control"; Value=0; Desc="Allow scripting of Microsoft web browser control (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1208"; Name="Allow previously unused ActiveX controls"; Value=0; Desc="Allow previously unused ActiveX controls (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1209"; Name="Scriptlets"; Value=0; Desc="Scriptlets (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="120A"; Name="Display video and animation without external player"; Value=0; Desc="Display video and animation without external player (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="120B"; Name="Override SmartScreen filter for ActiveX"; Value=0; Desc="Override SmartScreen filter for ActiveX (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1400"; Name="Active scripting (JavaScript Execution)"; Value=0; Desc="Active scripting (JavaScript Execution) (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1402"; Name="Scripting of Java applets"; Value=0; Desc="Scripting of Java applets (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1405"; Name="Script ActiveX controls marked safe"; Value=0; Desc="Script ActiveX controls marked safe (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1406"; Name="Access data sources across domains"; Value=0; Desc="Access data sources across domains (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1407"; Name="Allow Programmatic clipboard access"; Value=0; Desc="Allow Programmatic clipboard access (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1409"; Name="Scripting of XSLT elements"; Value=0; Desc="Scripting of XSLT elements (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1604"; Name="Font download"; Value=0; Desc="Font download (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1606"; Name="Userdata persistence"; Value=0; Desc="Userdata persistence (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1607"; Name="Navigate windows and frames across domains"; Value=0; Desc="Navigate windows and frames across domains (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1608"; Name="Allow META REFRESH"; Value=0; Desc="Allow META REFRESH (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1609"; Name="Display mixed content (HTTP inside HTTPS)"; Value=0; Desc="Display mixed content (HTTP inside HTTPS) (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1802"; Name="Drag and drop or copy and paste files"; Value=0; Desc="Drag and drop or copy and paste files (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1803"; Name="File download"; Value=0; Desc="File download (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1804"; Name="Launching programs and files in an IFRAME"; Value=0; Desc="Launching programs and files in an IFRAME (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1806"; Name="Launching applications and unsafe files"; Value=0; Desc="Launching applications and unsafe files (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1809"; Name="Use Pop-up Blocker"; Value=0; Desc="Use Pop-up Blocker (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2000"; Name="Binary and script behaviors"; Value=0; Desc="Binary and script behaviors (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2001"; Name="Run components signed with Authenticode / .NET"; Value=3; Desc="Disabled per exact user specification (3 = Disable)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2004"; Name="Run components not signed with Authenticode"; Value=0; Desc="Run components not signed with Authenticode (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2007"; Name="Run components signed with Authenticode (Secondary)"; Value=0; Desc="Run components signed with Authenticode (Secondary) (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2100"; Name="Open files based on content (MIME Sniffing)"; Value=0; Desc="Open files based on content (MIME Sniffing) (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2102"; Name="Script-initiated windows without constraints"; Value=0; Desc="Script-initiated windows without constraints (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2103"; Name="Allow status bar updates via script"; Value=0; Desc="Allow status bar updates via script (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2104"; Name="Allow websites to open windows without address/status"; Value=0; Desc="Allow websites to open windows without address/status (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2105"; Name="Allow scripted prompt windows"; Value=0; Desc="Allow scripted prompt windows (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2201"; Name="Automatic prompting for ActiveX controls"; Value=0; Desc="Automatic prompting for ActiveX controls (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2300"; Name="Web sites in less privileged zone navigation"; Value=0; Desc="Web sites in less privileged zone navigation (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2301"; Name="Use SmartScreen Filter"; Value=0; Desc="Use SmartScreen Filter (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2400"; Name=".NET Framework: XAML browser applications"; Value=0; Desc=".NET Framework: XAML browser applications (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2401"; Name=".NET Framework: XPS documents"; Value=0; Desc=".NET Framework: XPS documents (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2402"; Name=".NET Framework: Loose XAML"; Value=0; Desc=".NET Framework: Loose XAML (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2600"; Name="Enable .NET Framework setup"; Value=0; Desc="Enable .NET Framework setup (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2702"; Name="ActiveX Filtering"; Value=0; Desc="ActiveX Filtering (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2708"; Name="Allow approved domains to use ActiveX"; Value=0; Desc="Allow approved domains to use ActiveX (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="2709"; Name="Run Antimalware against ActiveX"; Value=0; Desc="Run Antimalware against ActiveX (Value = 0)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1A00"; Name="User Authentication Logon"; Value=0x20000; Desc="User Authentication Logon (Value = 0x20000)" },
+    @{ ZoneId=2; ZoneName="Trusted Sites"; ID="1A04"; Name="Don't prompt for client certificate selection"; Value=0; Desc="Don't prompt for client certificate selection (Value = 0)" },
+    # ==========================================
+    # ZONE 3: INTERNET
+    # ==========================================
+    @{ ZoneId=3; ZoneName="Internet"; ID="CurrentLevel"; Name="Zone Security Level (Custom)"; Value=0; Desc="Sets zone security template to 0 (Custom Level)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="Flags";        Name="Zone Capabilities & Flags"; Value=1; Desc="Internet Zone base permissions" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1001"; Name="Download signed ActiveX controls"; Value=0; Desc="Download signed ActiveX controls (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1004"; Name="Download unsigned ActiveX controls"; Value=0; Desc="Download unsigned ActiveX controls (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1200"; Name="Run ActiveX controls and plug-ins"; Value=0; Desc="Run ActiveX controls and plug-ins (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1201"; Name="Initialize and script ActiveX not marked safe"; Value=0; Desc="Initialize and script ActiveX not marked safe (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1206"; Name="Allow scripting of Microsoft web browser control"; Value=0; Desc="Allow scripting of Microsoft web browser control (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1208"; Name="Allow previously unused ActiveX controls"; Value=0; Desc="Allow previously unused ActiveX controls (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1209"; Name="Scriptlets"; Value=0; Desc="Scriptlets (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="120A"; Name="Display video and animation without external player"; Value=0; Desc="Display video and animation without external player (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="120B"; Name="Override SmartScreen filter for ActiveX"; Value=0; Desc="Override SmartScreen filter for ActiveX (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1400"; Name="Active scripting (JavaScript Execution)"; Value=0; Desc="Active scripting (JavaScript Execution) (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1402"; Name="Scripting of Java applets"; Value=0; Desc="Scripting of Java applets (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1405"; Name="Script ActiveX controls marked safe"; Value=0; Desc="Script ActiveX controls marked safe (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1406"; Name="Access data sources across domains"; Value=0; Desc="Access data sources across domains (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1407"; Name="Allow Programmatic clipboard access"; Value=0; Desc="Allow Programmatic clipboard access (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1409"; Name="Scripting of XSLT elements"; Value=0; Desc="Scripting of XSLT elements (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1604"; Name="Font download"; Value=0; Desc="Font download (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1606"; Name="Userdata persistence"; Value=0; Desc="Userdata persistence (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1607"; Name="Navigate windows and frames across domains"; Value=0; Desc="Navigate windows and frames across domains (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1608"; Name="Allow META REFRESH"; Value=0; Desc="Allow META REFRESH (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1609"; Name="Display mixed content (HTTP inside HTTPS)"; Value=0; Desc="Display mixed content (HTTP inside HTTPS) (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1802"; Name="Drag and drop or copy and paste files"; Value=0; Desc="Drag and drop or copy and paste files (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1803"; Name="File download"; Value=0; Desc="File download (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1804"; Name="Launching programs and files in an IFRAME"; Value=0; Desc="Launching programs and files in an IFRAME (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1806"; Name="Launching applications and unsafe files"; Value=0; Desc="Launching applications and unsafe files (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1809"; Name="Use Pop-up Blocker"; Value=0; Desc="Use Pop-up Blocker (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2000"; Name="Binary and script behaviors"; Value=0; Desc="Binary and script behaviors (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2001"; Name="Run components signed with Authenticode / .NET"; Value=3; Desc="Disabled per exact user specification (3 = Disable)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2004"; Name="Run components not signed with Authenticode"; Value=0; Desc="Run components not signed with Authenticode (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2007"; Name="Run components signed with Authenticode (Secondary)"; Value=0; Desc="Run components signed with Authenticode (Secondary) (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2100"; Name="Open files based on content (MIME Sniffing)"; Value=0; Desc="Open files based on content (MIME Sniffing) (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2102"; Name="Script-initiated windows without constraints"; Value=0; Desc="Script-initiated windows without constraints (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2103"; Name="Allow status bar updates via script"; Value=0; Desc="Allow status bar updates via script (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2104"; Name="Allow websites to open windows without address/status"; Value=0; Desc="Allow websites to open windows without address/status (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2105"; Name="Allow scripted prompt windows"; Value=0; Desc="Allow scripted prompt windows (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2201"; Name="Automatic prompting for ActiveX controls"; Value=0; Desc="Automatic prompting for ActiveX controls (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2300"; Name="Web sites in less privileged zone navigation"; Value=0; Desc="Web sites in less privileged zone navigation (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2301"; Name="Use SmartScreen Filter"; Value=0; Desc="Use SmartScreen Filter (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2400"; Name=".NET Framework: XAML browser applications"; Value=0; Desc=".NET Framework: XAML browser applications (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2401"; Name=".NET Framework: XPS documents"; Value=0; Desc=".NET Framework: XPS documents (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2402"; Name=".NET Framework: Loose XAML"; Value=0; Desc=".NET Framework: Loose XAML (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2600"; Name="Enable .NET Framework setup"; Value=0; Desc="Enable .NET Framework setup (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2702"; Name="ActiveX Filtering"; Value=0; Desc="ActiveX Filtering (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2708"; Name="Allow approved domains to use ActiveX"; Value=0; Desc="Allow approved domains to use ActiveX (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="2709"; Name="Run Antimalware against ActiveX"; Value=0; Desc="Run Antimalware against ActiveX (Value = 0)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1A00"; Name="User Authentication Logon"; Value=0x20000; Desc="User Authentication Logon (Value = 0x20000)" },
+    @{ ZoneId=3; ZoneName="Internet"; ID="1A04"; Name="Don't prompt for client certificate selection"; Value=0; Desc="Don't prompt for client certificate selection (Value = 0)" }
 )
 
-# 6. APPLY SETTINGS TO REGISTRY (BOTH HKCU AND HKLM FOR ZONE 2)
+# 6. APPLY SETTINGS TO REGISTRY (ZONE 1, ZONE 2, ZONE 3)
 Write-Host ""
-Write-Host "[STEP 3/5] Applying All Configured Registry Values to Zone 2..." -ForegroundColor Green
-
-$TargetZoneKeys = @(
-    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2",
-    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2"
-)
+Write-Host "[STEP 3/5] Applying Security Zone Settings (Zone 1, Zone 2, Zone 3)..." -ForegroundColor Green
 
 $ExecutionResults = [System.Collections.Generic.List[PSObject]]::new()
 
 foreach ($setting in $SettingsCatalog) {
     $appliedSuccessfully = $true
     $failureReason = "None"
+    $zoneId = $setting.ZoneId
 
-    foreach ($zonePath in $TargetZoneKeys) {
+    $targetRoots = @(
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\$zoneId",
+        "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\$zoneId"
+    )
+
+    foreach ($zonePath in $targetRoots) {
         try {
             if (-not (Test-Path $zonePath)) {
                 New-Item -Path $zonePath -Force | Out-Null
@@ -204,6 +317,8 @@ foreach ($setting in $SettingsCatalog) {
     }
 
     $resultObj = [PSCustomObject]@{
+        ZoneId       = $setting.ZoneId
+        ZoneName     = $setting.ZoneName
         SettingID    = $setting.ID
         SettingName  = $setting.Name
         ExpectedData = $setting.Value
@@ -214,9 +329,9 @@ foreach ($setting in $SettingsCatalog) {
     $ExecutionResults.Add($resultObj)
 
     if ($appliedSuccessfully) {
-        Write-Host "  [APPLIED] $($setting.ID.PadRight(12)) -> $($setting.Name)" -ForegroundColor DarkGreen
+        Write-Host "  [APPLIED] [$($setting.ZoneName.PadRight(14))] $($setting.ID.PadRight(12)) -> $($setting.Name)" -ForegroundColor DarkGreen
     } else {
-        Write-Host "  [FAILED]  $($setting.ID.PadRight(12)) -> $($setting.Name) (Reason: $failureReason)" -ForegroundColor Red
+        Write-Host "  [FAILED]  [$($setting.ZoneName.PadRight(14))] $($setting.ID.PadRight(12)) -> $($setting.Name) (Reason: $failureReason)" -ForegroundColor Red
     }
 }
 
@@ -265,13 +380,13 @@ Write-Host ""
 Write-Host "[STEP 5/5] Performing Deep Registry Verification & Compiling Audit Report..." -ForegroundColor Cyan
 
 $ReportHeader = @"
-================================================================================
- E-VEDHIKA AUTOMATED REGISTRY AUDIT & VERIFICATION REPORT
- Target Website: https://ubd.telangana.gov.in/
- Office / PC   : $env:COMPUTERNAME ($env:USERNAME)
- Execution Date: $(Get-Date -Format 'dd-MMM-yyyy HH:mm:ss')
- Backup Path   : $BackupFolder
-================================================================================
+========================================================================================================
+  E-VEDHIKA AUTOMATED REGISTRY AUDIT & SECURITY ZONES VERIFICATION REPORT
+  Target Website: https://ubd.telangana.gov.in/
+  Office / PC   : $env:COMPUTERNAME ($env:USERNAME)
+  Execution Date: $(Get-Date -Format 'dd-MMM-yyyy HH:mm:ss')
+  Backup Path   : $BackupFolder
+========================================================================================================
 
 [A] TRUSTED SITES ZONE MAP (ZONE 2) STATUS:
 "@
@@ -295,9 +410,9 @@ foreach ($mPath in $ZoneMapChecks) {
 }
 
 $ReportBody = @"
-`n[B] ZONE 2 SECURITY SETTINGS VERIFICATION MATRIX:
+`n[B] SECURITY ZONES (ZONE 1, ZONE 2, ZONE 3) VERIFICATION MATRIX:
 ---------------------------------------------------------------------------------------------------------------------------------
-Value ID     Actual (HKCU)  Actual (HKLM)  Expected   Verification Status  Setting Name
+Zone Name       | Value ID     Actual (HKCU)  Actual (HKLM)  Expected   Verification Status  Setting Name
 ---------------------------------------------------------------------------------------------------------------------------------
 "@
 
@@ -308,20 +423,21 @@ $VerificationLines = [System.Collections.Generic.List[string]]::new()
 foreach ($setting in $SettingsCatalog) {
     $hkcuActual = $null
     $hklmActual = $null
+    $zoneId = $setting.ZoneId
 
     try {
-        $hkcuActual = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2" -Name $setting.ID -ErrorAction SilentlyContinue).($setting.ID)
+        $hkcuActual = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\$zoneId" -Name $setting.ID -ErrorAction SilentlyContinue).($setting.ID)
     } catch {}
 
     try {
-        $hklmActual = (Get-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2" -Name $setting.ID -ErrorAction SilentlyContinue).($setting.ID)
+        $hklmActual = (Get-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\$zoneId" -Name $setting.ID -ErrorAction SilentlyContinue).($setting.ID)
     } catch {}
 
     $statusStr = "FAILED"
     $reasonStr = ""
 
     if ($hkcuActual -eq $setting.Value -or $hklmActual -eq $setting.Value) {
-        $statusStr = "ENABLED / PASS"
+        $statusStr = "PASS"
         $PassedCount++
     } else {
         $statusStr = "FAILED"
@@ -333,6 +449,7 @@ foreach ($setting in $SettingsCatalog) {
         }
     }
 
+    $zoneCol   = $setting.ZoneName.PadRight(15)
     $idCol     = $setting.ID.PadRight(12)
     $hkcuCol   = if ($null -ne $hkcuActual) { "$hkcuActual".PadRight(14) } else { "NOT SET".PadRight(14) }
     $hklmCol   = if ($null -ne $hklmActual) { "$hklmActual".PadRight(14) } else { "NOT SET".PadRight(14) }
@@ -340,9 +457,9 @@ foreach ($setting in $SettingsCatalog) {
     $statCol   = $statusStr.PadRight(20)
     $nameCol   = $setting.Name
 
-    $VerificationLines.Add("$idCol $hkcuCol $hklmCol $expCol $statCol $nameCol")
+    $VerificationLines.Add("$zoneCol | $idCol $hkcuCol $hklmCol $expCol $statCol $nameCol")
     if ($reasonStr) {
-        $VerificationLines.Add("             --> [Failure Reason]: $reasonStr")
+        $VerificationLines.Add("                   --> [Failure Reason]: $reasonStr")
     }
 }
 
@@ -361,18 +478,18 @@ $ReportFooter = @"
   E-Vedhika Web App       : Excluded (Opens in modern Edge/Chrome)
 
 [E] SAFETY & SCOPE CONFIRMATION:
-  * All modifications were restricted exclusively to Zone 2 (Trusted Sites).
-  * Zone 3 (Standard Internet) remains in safe default mode for daily browsing.
-================================================================================
+  * Security settings are strictly applied to their respective Security Zones (Zone 1, Zone 2, Zone 3).
+  * Pre-deployment backup preserved at $BackupFolder.
+========================================================================================================
 Report File Generated at: $ReportPath
-================================================================================
+========================================================================================================
 "@
 
 $FinalFullReport = $ReportHeader + "`n" + ($MapReportLines -join "`n") + "`n" + $ReportBody + "`n" + ($VerificationLines -join "`n") + "`n" + $ReportFooter
 
 [System.IO.File]::WriteAllText($ReportPath, $FinalFullReport, [System.Text.Encoding]::UTF8)
 
-# 9. SILENT AUTOMATIC CLOUD TELEMETRY DISPATCH TO https://www.e-vedhika.in/admin/exe_ubd_live
+# 9. SILENT AUTOMATIC CLOUD TELEMETRY# 9. SILENT AUTOMATIC CLOUD TELEMETRY# 9. SILENT AUTOMATIC CLOUD TELEMETRY DISPATCH TO https://www.e-vedhika.in/admin/exe_ubd_live
 try {
     $telemetryPayload = @{
         action            = "telemetry"

@@ -63,6 +63,8 @@ namespace EVedhikaUBDDeploymentTool
             this.lblAskAi = new System.Windows.Forms.Label();
             this.tabBackup = new System.Windows.Forms.TabPage();
             this.btnBackup = new System.Windows.Forms.Button();
+            this.btnRollback = new System.Windows.Forms.Button();
+            this.btnVerifyZones = new System.Windows.Forms.Button();
             this.btnUninstall = new System.Windows.Forms.Button();
             this.btnCheckUpdates = new System.Windows.Forms.Button();
             this.lblBackupInfo = new System.Windows.Forms.Label();
@@ -625,6 +627,8 @@ namespace EVedhikaUBDDeploymentTool
             // tabBackup
             // 
             this.tabBackup.Controls.Add(this.btnBackup);
+            this.tabBackup.Controls.Add(this.btnRollback);
+            this.tabBackup.Controls.Add(this.btnVerifyZones);
             this.tabBackup.Controls.Add(this.btnUninstall);
             this.tabBackup.Controls.Add(this.btnCheckUpdates);
             this.tabBackup.Controls.Add(this.lblBackupInfo);
@@ -633,7 +637,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabBackup.Padding = new System.Windows.Forms.Padding(12);
             this.tabBackup.Size = new System.Drawing.Size(876, 444);
             this.tabBackup.TabIndex = 4;
-            this.tabBackup.Text = "💾 Registry Snapshots";
+            this.tabBackup.Text = "💾 Registry Snapshots & Security Zones";
             this.tabBackup.UseVisualStyleBackColor = true;
             // 
             // btnBackup
@@ -648,6 +652,34 @@ namespace EVedhikaUBDDeploymentTool
             this.btnBackup.Text = "Export Registry Backup (.reg)";
             this.btnBackup.UseVisualStyleBackColor = false;
             this.btnBackup.Click += new System.EventHandler(this.btnBackup_Click);
+            // 
+            // btnRollback
+            // 
+            this.btnRollback.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(217)))), ((int)(((byte)(119)))), ((int)(((byte)(6)))));
+            this.btnRollback.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnRollback.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnRollback.ForeColor = System.Drawing.Color.White;
+            this.btnRollback.Location = new System.Drawing.Point(20, 108);
+            this.btnRollback.Name = "btnRollback";
+            this.btnRollback.Size = new System.Drawing.Size(240, 36);
+            this.btnRollback.TabIndex = 4;
+            this.btnRollback.Text = "⏪ Rollback Registry Settings";
+            this.btnRollback.UseVisualStyleBackColor = false;
+            this.btnRollback.Click += new System.EventHandler(this.btnRollback_Click);
+            // 
+            // btnVerifyZones
+            // 
+            this.btnVerifyZones.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(13)))), ((int)(((byte)(148)))), ((int)(((byte)(136)))));
+            this.btnVerifyZones.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnVerifyZones.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnVerifyZones.ForeColor = System.Drawing.Color.White;
+            this.btnVerifyZones.Location = new System.Drawing.Point(280, 108);
+            this.btnVerifyZones.Name = "btnVerifyZones";
+            this.btnVerifyZones.Size = new System.Drawing.Size(280, 36);
+            this.btnVerifyZones.TabIndex = 5;
+            this.btnVerifyZones.Text = "🔍 Verify Security Zones (1, 2, 3) Audit";
+            this.btnVerifyZones.UseVisualStyleBackColor = false;
+            this.btnVerifyZones.Click += new System.EventHandler(this.btnVerifyZones_Click);
             // 
             // btnUninstall
             // 
@@ -847,6 +879,8 @@ namespace EVedhikaUBDDeploymentTool
         private System.Windows.Forms.TextBox txtAiResponse;
         private System.Windows.Forms.Label lblAiStatus;
         private System.Windows.Forms.Button btnBackup;
+        private System.Windows.Forms.Button btnRollback;
+        private System.Windows.Forms.Button btnVerifyZones;
         private System.Windows.Forms.Button btnUninstall;
         private System.Windows.Forms.Button btnCheckUpdates;
         private System.Windows.Forms.Label lblBackupInfo;

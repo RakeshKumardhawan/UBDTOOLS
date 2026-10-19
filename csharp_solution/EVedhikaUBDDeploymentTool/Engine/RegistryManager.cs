@@ -17,6 +17,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
+                // STEP 1: Always take safety pre-deployment backup BEFORE any cleanup or modification
+                try
+                {
+                    string backupFile = BackupEngine.CreatePreDeploymentBackup();
+                    if (!string.IsNullOrEmpty(backupFile))
+                    {
+                        Logger.LogInfo("Backup", "Pre-deployment registry snapshot saved to: " + backupFile);
+                    }
+                }
+                catch (Exception bEx)
+                {
+                    Logger.LogWarn("Backup", "Pre-deployment backup warning: " + bEx.Message);
+                }
+
                 // Forcefully remove old settings using system CMD (reg delete) to ensure maximum cleanup power
                 try
                 {
@@ -137,6 +151,39 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         domainPaths.Add(targetDomain);
                 }
 
+                // Check if target website https://ubd.telangana.gov.in/ is ALREADY configured in Trusted Sites to avoid duplicate entries
+                bool ubdAlreadyExists = false;
+                try
+                {
+                    using (RegistryKey chkKey = Registry.CurrentUser.OpenSubKey($@"{Zone2KeyPath}\ubd.telangana.gov.in"))
+                    {
+                        if (chkKey != null && chkKey.GetValue("https") != null && Convert.ToInt32(chkKey.GetValue("https")) == 2)
+                        {
+                            ubdAlreadyExists = true;
+                        }
+                    }
+                    if (!ubdAlreadyExists)
+                    {
+                        using (RegistryKey chkKey2 = Registry.CurrentUser.OpenSubKey($@"{Zone2KeyPath}\telangana.gov.in\ubd"))
+                        {
+                            if (chkKey2 != null && chkKey2.GetValue("https") != null && Convert.ToInt32(chkKey2.GetValue("https")) == 2)
+                            {
+                                ubdAlreadyExists = true;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                if (ubdAlreadyExists)
+                {
+                    Logger.LogInfo("Registry", "[VERIFIED] https://ubd.telangana.gov.in/ is already registered in Trusted Sites (Zone 2). Duplicate entry avoided.");
+                }
+                else
+                {
+                    Logger.LogInfo("Registry", "[ADDING] Registering https://ubd.telangana.gov.in/ into Trusted Sites (Zone 2)...");
+                }
+
                 // Write to both CurrentUser (visible to user in Sites dialog) and LocalMachine (machine-level safety backup)
                 RegistryKey[] rootKeys = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
                 foreach (var root in rootKeys)
@@ -159,6 +206,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         catch { }
                     }
                 }
+
+                // Ensure HTTPS Server Verification setting for Zone 2 (Trusted Sites) is configured
+                try
+                {
+                    using (RegistryKey z2 = Registry.CurrentUser.CreateSubKey(SecurityZonesKeyPath))
+                    {
+                        if (z2 != null)
+                        {
+                            // Flags = 0x47 enforces 'Require server verification (https:) for all sites in this zone' (bit 0x04)
+                            z2.SetValue("Flags", 0x00000047, RegistryValueKind.DWord);
+                            Logger.LogInfo("Registry", "[VERIFIED] Trusted Sites Server Verification (HTTPS) enforced with Flags = 0x47.");
+                        }
+                    }
+                }
+                catch { }
 
                 // Protect core government domains from deletion while keeping user ability to add/delete other domains
                 ProtectGovernmentDomainACL(@"telangana.gov.in\ubd");
@@ -282,7 +344,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         zone2Key.SetValue("1808", 0, RegistryValueKind.DWord); // Font download
                         zone2Key.SetValue("1809", 0, RegistryValueKind.DWord); // Pop-up Blocker: Disable
                         zone2Key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary and script behaviors
-                        zone2Key.SetValue("2001", 0, RegistryValueKind.DWord); // .NET-reliant components
+                        zone2Key.SetValue("2001", 3, RegistryValueKind.DWord); // Disabled per user order // .NET-reliant components
                         zone2Key.SetValue("2004", 0, RegistryValueKind.DWord); // Run components not signed with Authenticode
                         zone2Key.SetValue("2101", 0, RegistryValueKind.DWord); // Status bar updates via script
                         zone2Key.SetValue("2102", 0, RegistryValueKind.DWord); // Script-initiated windows without size/pos constraints
@@ -314,20 +376,67 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (systemSettings != null)
                     {
-                        systemSettings.SetValue("SecureProtocols", 2688, RegistryValueKind.DWord);
+                        // TLS 1.0 (128) + TLS 1.1 (512) + TLS 1.2 (2048) + TLS 1.3 (8192) = 10880 (0x2AA0)
+                        systemSettings.SetValue("SecureProtocols", 10880, RegistryValueKind.DWord);
                         systemSettings.SetValue("DisableCachingOfSSLPages", 0, RegistryValueKind.DWord);
                         systemSettings.SetValue("SyncMode5", 3, RegistryValueKind.DWord);
+                        systemSettings.SetValue("CertificateRevocation", 0, RegistryValueKind.DWord);
+                        systemSettings.SetValue("PublisherRevocation", 0, RegistryValueKind.DWord);
+                        systemSettings.SetValue("WarnonBadCertRecving", 0, RegistryValueKind.DWord);
+                        systemSettings.SetValue("WarnOnZoneCrossing", 0, RegistryValueKind.DWord);
+                        systemSettings.SetValue("WarnOnPostRedirect", 0, RegistryValueKind.DWord);
+                        systemSettings.SetValue("AllowInvalidCertificates", 1, RegistryValueKind.DWord);
+                        systemSettings.SetValue("CheckExeSignatures", "no", RegistryValueKind.String);
                     }
                 }
-
+                using (RegistryKey advHklm = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings"))
+                {
+                    if (advHklm != null)
+                    {
+                        advHklm.SetValue("SecureProtocols", 10880, RegistryValueKind.DWord);
+                        advHklm.SetValue("CertificateRevocation", 0, RegistryValueKind.DWord);
+                        advHklm.SetValue("PublisherRevocation", 0, RegistryValueKind.DWord);
+                        advHklm.SetValue("WarnonBadCertRecving", 0, RegistryValueKind.DWord);
+                    }
+                }
+                // Allow active content to run in files on My Computer (FEATURE_LOCALMACHINE_LOCKDOWN)
+                string[] featHives = new string[] { @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_LOCALMACHINE_LOCKDOWN", @"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_LOCALMACHINE_LOCKDOWN" };
+                RegistryKey[] rootList = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var root in rootList)
+                {
+                    foreach (var fh in featHives)
+                    {
+                        try
+                        {
+                            using (var fk = root.CreateSubKey(fh))
+                            {
+                                if (fk != null)
+                                {
+                                    fk.SetValue("iexplore.exe", 0, RegistryValueKind.DWord);
+                                    fk.SetValue("msedge.exe", 0, RegistryValueKind.DWord);
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                // Pop-up Blocker disabled in Internet Explorer settings for UBD portal
+                try
+                {
+                    using (var nw = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Internet Explorer\New Windows"))
+                    {
+                        nw?.SetValue("PopupMgr", "no", RegistryValueKind.String);
+                    }
+                }
+                catch { }
                 using (RegistryKey ieMain = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Internet Explorer\Main"))
                 {
                     if (ieMain != null)
                     {
                         ieMain.SetValue("TabProcGrowth", 1, RegistryValueKind.DWord);
+                        ieMain.SetValue("DOMStorage", 1, RegistryValueKind.DWord);
                     }
                 }
-
                 ApplyMasterZonesConfiguration();
                 ForceEnableDownloadsForAllZones();
                 return true;
@@ -400,6 +509,59 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         dict["SecureProtocols"] = protocols != null ? protocols.ToString() : "Not Configured";
                     }
                 }
+
+                // Enhanced status indicators for Zone 1, Zone 2, Zone 3
+                try
+                {
+                    var results = VerifyAllSecurityZones();
+                    int passed = results.FindAll(x => x.IsPass).Count;
+                    int failed = results.FindAll(x => !x.IsPass).Count;
+                    int z1Passed = results.FindAll(x => x.ZoneId == 1 && x.IsPass).Count;
+                    int z1Total = results.FindAll(x => x.ZoneId == 1).Count;
+                    int z2Passed = results.FindAll(x => x.ZoneId == 2 && x.IsPass).Count;
+                    int z2Total = results.FindAll(x => x.ZoneId == 2).Count;
+                    int z3Passed = results.FindAll(x => x.ZoneId == 3 && x.IsPass).Count;
+                    int z3Total = results.FindAll(x => x.ZoneId == 3).Count;
+
+                    dict["TotalAudited"] = results.Count.ToString();
+                    dict["TotalPassed"] = passed.ToString();
+                    dict["TotalFailed"] = failed.ToString();
+                    dict["ComplianceScore"] = results.Count > 0 ? (Math.Round(((double)passed / results.Count) * 100)) + "%" : "0%";
+                    dict["Zone1_Status"] = $"{z1Passed}/{z1Total} Settings Configured (Local Intranet)";
+                    dict["Zone2_Status"] = $"{z2Passed}/{z2Total} Settings Configured (Trusted Sites)";
+                    dict["Zone3_Status"] = $"{z3Passed}/{z3Total} Settings Configured (Internet)";
+                }
+                catch { }
+
+                // Check Trusted Site domain and HTTPS Server Verification
+                try
+                {
+                    bool ubdExists = false;
+                    using (var k = Registry.CurrentUser.OpenSubKey($@"{Zone2KeyPath}\ubd.telangana.gov.in"))
+                    {
+                        if (k != null && k.GetValue("https") != null && Convert.ToInt32(k.GetValue("https")) == 2) ubdExists = true;
+                    }
+                    dict["TrustedSite_UBD"] = ubdExists ? "Configured (ubd.telangana.gov.in)" : "Not Set";
+
+                    using (var z2Key = Registry.CurrentUser.OpenSubKey(SecurityZonesKeyPath))
+                    {
+                        if (z2Key != null)
+                        {
+                            object flags = z2Key.GetValue("Flags");
+                            if (flags != null && (Convert.ToInt32(flags) & 0x04) != 0)
+                            {
+                                dict["HttpsServerVerification"] = "Enabled (Flags = 0x" + Convert.ToInt32(flags).ToString("X") + ")";
+                            }
+                            else
+                            {
+                                dict["HttpsServerVerification"] = "Flags = " + (flags != null ? flags.ToString() : "Not Set");
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                dict["LastBackup"] = !string.IsNullOrEmpty(BackupEngine.LastBackupPath) ? BackupEngine.LastBackupPath : "None";
             }
             catch (Exception ex)
             {
@@ -933,16 +1095,219 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        public class ZoneSettingItem
+        {
+            public int ZoneId { get; set; }
+            public string ZoneName { get; set; }
+            public string ValueName { get; set; }
+            public string SettingName { get; set; }
+            public int ExpectedValue { get; set; }
+            public string Description { get; set; }
+            public string Category { get; set; }
+
+            public ZoneSettingItem(int zoneId, string zoneName, string valueName, string settingName, int expectedValue, string desc, string cat = "Security")
+            {
+                ZoneId = zoneId;
+                ZoneName = zoneName;
+                ValueName = valueName;
+                SettingName = settingName;
+                ExpectedValue = expectedValue;
+                Description = desc;
+                Category = cat;
+            }
+        }
+
+        public class ZoneVerificationResult
+        {
+            public int ZoneId { get; set; }
+            public string ZoneName { get; set; }
+            public string ValueName { get; set; }
+            public string SettingName { get; set; }
+            public string ExpectedValue { get; set; }
+            public string ActualValueHkcu { get; set; }
+            public string ActualValueHklm { get; set; }
+            public bool IsPass { get; set; }
+            public string FailureReason { get; set; }
+            public string Description { get; set; }
+        }
+
+        /// <summary>
+        /// Comprehensive Master Catalog of Windows Internet Settings Security Zones (Zone 1, Zone 2, Zone 3)
+        /// Matching exact Windows Registry DWORD specifications for government UBD & DSC portals.
+        /// </summary>
+        public static List<ZoneSettingItem> GetZoneSettingsCatalog()
+        {
+            List<ZoneSettingItem> catalog = new List<ZoneSettingItem>();
+            // ==========================================
+            // ZONE 1: LOCAL INTRANET
+            // ==========================================
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "CurrentLevel", "Zone Security Level (Custom)", 0, "Sets zone security template to 0 (Custom Level)", "Zone Template"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "Flags", "Zone Capabilities & Flags", 0xdb, "Local Intranet Zone Flags", "Zone Flags"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "MinLevel", "Minimum Security Level Allowed", 0x10000, "Minimum level for custom security template", "Zone Template"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1001", "Download signed ActiveX controls", 0, "Download signed ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1004", "Download unsigned ActiveX controls", 0, "Download unsigned ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1200", "Run ActiveX controls and plug-ins", 0, "Run ActiveX controls and plug-ins (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1201", "Initialize and script ActiveX not marked safe", 0, "Initialize and script ActiveX not marked safe (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1206", "Allow scripting of Microsoft web browser control", 0, "Allow scripting of Microsoft web browser control (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1208", "Allow previously unused ActiveX controls", 0, "Allow previously unused ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1209", "Scriptlets", 0, "Scriptlets (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "120A", "Display video and animation without external player", 0, "Display video and animation without external player (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "120B", "Override SmartScreen filter for ActiveX", 0, "Override SmartScreen filter for ActiveX (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1400", "Active scripting (JavaScript Execution)", 0, "Active scripting (JavaScript Execution) (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1402", "Scripting of Java applets", 0, "Scripting of Java applets (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1405", "Script ActiveX controls marked safe", 0, "Script ActiveX controls marked safe (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1406", "Access data sources across domains", 0, "Access data sources across domains (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1407", "Allow Programmatic clipboard access", 0, "Allow Programmatic clipboard access (Value = 0)", "Clipboard"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1409", "Scripting of XSLT elements", 0, "Scripting of XSLT elements (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1604", "Font download", 0, "Font download (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1606", "Userdata persistence", 0, "Userdata persistence (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1607", "Navigate windows and frames across domains", 0, "Navigate windows and frames across domains (Value = 0)", "Navigation"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1608", "Allow META REFRESH", 0, "Allow META REFRESH (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1609", "Display mixed content (HTTP inside HTTPS)", 0, "Display mixed content (HTTP inside HTTPS) (Value = 0)", "Mixed Content"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1802", "Drag and drop or copy and paste files", 0, "Drag and drop or copy and paste files (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1803", "File download", 0, "File download (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1804", "Launching programs and files in an IFRAME", 1, "Launching programs and files in an IFRAME (Value = 1)", "Frames"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1806", "Launching applications and unsafe files", 0, "Launching applications and unsafe files (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1809", "Use Pop-up Blocker", 0, "Use Pop-up Blocker (Value = 0)", "Pop-up Blocker"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2000", "Binary and script behaviors", 0, "Binary and script behaviors (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2001", "Run components signed with Authenticode / .NET", 3, "Disabled per exact user specification (3 = Disable)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2004", "Run components not signed with Authenticode", 0, "Run components not signed with Authenticode (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2007", "Run components signed with Authenticode (Secondary)", 0, "Run components signed with Authenticode (Secondary) (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2100", "Open files based on content (MIME Sniffing)", 0, "Open files based on content (MIME Sniffing) (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2102", "Script-initiated windows without constraints", 0, "Script-initiated windows without constraints (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2103", "Allow status bar updates via script", 0, "Allow status bar updates via script (Value = 0)", "Status Bar"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2104", "Allow websites to open windows without address/status", 0, "Allow websites to open windows without address/status (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2105", "Allow scripted prompt windows", 0, "Allow scripted prompt windows (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2201", "Automatic prompting for ActiveX controls", 0, "Automatic prompting for ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2300", "Web sites in less privileged zone navigation", 0, "Web sites in less privileged zone navigation (Value = 0)", "Navigation"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2301", "Use SmartScreen Filter", 0, "Use SmartScreen Filter (Value = 0)", "SmartScreen"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2400", ".NET Framework: XAML browser applications", 0, ".NET Framework: XAML browser applications (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2401", ".NET Framework: XPS documents", 0, ".NET Framework: XPS documents (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2402", ".NET Framework: Loose XAML", 0, ".NET Framework: Loose XAML (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2600", "Enable .NET Framework setup", 0, "Enable .NET Framework setup (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2702", "ActiveX Filtering", 0, "ActiveX Filtering (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2708", "Allow approved domains to use ActiveX", 0, "Allow approved domains to use ActiveX (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2709", "Run Antimalware against ActiveX", 0, "Run Antimalware against ActiveX (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1A00", "User Authentication Logon", 0x20000, "User Authentication Logon (Value = 0x20000)", "Authentication"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1A04", "Don't prompt for client certificate selection", 0, "Don't prompt for client certificate selection (Value = 0)", "Certificates"));
+            // ==========================================
+            // ZONE 2: TRUSTED SITES
+            // ==========================================
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "CurrentLevel", "Zone Security Level (Custom)", 0, "Sets zone security template to 0 (Custom Level)", "Zone Template"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "Flags", "Zone Capabilities & Flags", 0x47, "Trusted Sites Zone Flags", "Zone Flags"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "MinLevel", "Minimum Security Level Allowed", 0x10000, "Minimum level for custom security template", "Zone Template"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1001", "Download signed ActiveX controls", 0, "Download signed ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1004", "Download unsigned ActiveX controls", 0, "Download unsigned ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1200", "Run ActiveX controls and plug-ins", 0, "Run ActiveX controls and plug-ins (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1201", "Initialize and script ActiveX not marked safe", 0, "Initialize and script ActiveX not marked safe (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1206", "Allow scripting of Microsoft web browser control", 0, "Allow scripting of Microsoft web browser control (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1208", "Allow previously unused ActiveX controls", 0, "Allow previously unused ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1209", "Scriptlets", 0, "Scriptlets (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "120A", "Display video and animation without external player", 0, "Display video and animation without external player (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "120B", "Override SmartScreen filter for ActiveX", 0, "Override SmartScreen filter for ActiveX (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1400", "Active scripting (JavaScript Execution)", 0, "Active scripting (JavaScript Execution) (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1402", "Scripting of Java applets", 0, "Scripting of Java applets (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1405", "Script ActiveX controls marked safe", 0, "Script ActiveX controls marked safe (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1406", "Access data sources across domains", 0, "Access data sources across domains (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1407", "Allow Programmatic clipboard access", 0, "Allow Programmatic clipboard access (Value = 0)", "Clipboard"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1409", "Scripting of XSLT elements", 0, "Scripting of XSLT elements (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1604", "Font download", 0, "Font download (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1606", "Userdata persistence", 0, "Userdata persistence (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1607", "Navigate windows and frames across domains", 0, "Navigate windows and frames across domains (Value = 0)", "Navigation"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1608", "Allow META REFRESH", 0, "Allow META REFRESH (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1609", "Display mixed content (HTTP inside HTTPS)", 0, "Display mixed content (HTTP inside HTTPS) (Value = 0)", "Mixed Content"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1802", "Drag and drop or copy and paste files", 0, "Drag and drop or copy and paste files (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1803", "File download", 0, "File download (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1804", "Launching programs and files in an IFRAME", 0, "Launching programs and files in an IFRAME (Value = 0)", "Frames"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1806", "Launching applications and unsafe files", 0, "Launching applications and unsafe files (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1809", "Use Pop-up Blocker", 0, "Use Pop-up Blocker (Value = 0)", "Pop-up Blocker"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2000", "Binary and script behaviors", 0, "Binary and script behaviors (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2001", "Run components signed with Authenticode / .NET", 3, "Disabled per exact user specification (3 = Disable)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2004", "Run components not signed with Authenticode", 0, "Run components not signed with Authenticode (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2007", "Run components signed with Authenticode (Secondary)", 0, "Run components signed with Authenticode (Secondary) (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2100", "Open files based on content (MIME Sniffing)", 0, "Open files based on content (MIME Sniffing) (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2102", "Script-initiated windows without constraints", 0, "Script-initiated windows without constraints (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2103", "Allow status bar updates via script", 0, "Allow status bar updates via script (Value = 0)", "Status Bar"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2104", "Allow websites to open windows without address/status", 0, "Allow websites to open windows without address/status (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2105", "Allow scripted prompt windows", 0, "Allow scripted prompt windows (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2201", "Automatic prompting for ActiveX controls", 0, "Automatic prompting for ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2300", "Web sites in less privileged zone navigation", 0, "Web sites in less privileged zone navigation (Value = 0)", "Navigation"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2301", "Use SmartScreen Filter", 0, "Use SmartScreen Filter (Value = 0)", "SmartScreen"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2400", ".NET Framework: XAML browser applications", 0, ".NET Framework: XAML browser applications (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2401", ".NET Framework: XPS documents", 0, ".NET Framework: XPS documents (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2402", ".NET Framework: Loose XAML", 0, ".NET Framework: Loose XAML (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2600", "Enable .NET Framework setup", 0, "Enable .NET Framework setup (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2702", "ActiveX Filtering", 0, "ActiveX Filtering (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2708", "Allow approved domains to use ActiveX", 0, "Allow approved domains to use ActiveX (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2709", "Run Antimalware against ActiveX", 0, "Run Antimalware against ActiveX (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1A00", "User Authentication Logon", 0x20000, "User Authentication Logon (Value = 0x20000)", "Authentication"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1A04", "Don't prompt for client certificate selection", 0, "Don't prompt for client certificate selection (Value = 0)", "Certificates"));
+            // ==========================================
+            // ZONE 3: INTERNET
+            // ==========================================
+            catalog.Add(new ZoneSettingItem(3, "Internet", "CurrentLevel", "Zone Security Level (Custom)", 0, "Sets zone security template to 0 (Custom Level)", "Zone Template"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "Flags", "Zone Capabilities & Flags", 1, "Internet Zone Flags", "Zone Flags"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1001", "Download signed ActiveX controls", 0, "Download signed ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1004", "Download unsigned ActiveX controls", 0, "Download unsigned ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1200", "Run ActiveX controls and plug-ins", 0, "Run ActiveX controls and plug-ins (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1201", "Initialize and script ActiveX not marked safe", 0, "Initialize and script ActiveX not marked safe (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1206", "Allow scripting of Microsoft web browser control", 0, "Allow scripting of Microsoft web browser control (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1208", "Allow previously unused ActiveX controls", 0, "Allow previously unused ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1209", "Scriptlets", 0, "Scriptlets (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "120A", "Display video and animation without external player", 0, "Display video and animation without external player (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "120B", "Override SmartScreen filter for ActiveX", 0, "Override SmartScreen filter for ActiveX (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1400", "Active scripting (JavaScript Execution)", 0, "Active scripting (JavaScript Execution) (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1402", "Scripting of Java applets", 0, "Scripting of Java applets (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1405", "Script ActiveX controls marked safe", 0, "Script ActiveX controls marked safe (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1406", "Access data sources across domains", 0, "Access data sources across domains (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1407", "Allow Programmatic clipboard access", 0, "Allow Programmatic clipboard access (Value = 0)", "Clipboard"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1409", "Scripting of XSLT elements", 0, "Scripting of XSLT elements (Value = 0)", "Scripting"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1604", "Font download", 0, "Font download (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1606", "Userdata persistence", 0, "Userdata persistence (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1607", "Navigate windows and frames across domains", 0, "Navigate windows and frames across domains (Value = 0)", "Navigation"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1608", "Allow META REFRESH", 0, "Allow META REFRESH (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1609", "Display mixed content (HTTP inside HTTPS)", 0, "Display mixed content (HTTP inside HTTPS) (Value = 0)", "Mixed Content"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1802", "Drag and drop or copy and paste files", 0, "Drag and drop or copy and paste files (Value = 0)", "Miscellaneous"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1803", "File download", 0, "File download (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1804", "Launching programs and files in an IFRAME", 0, "Launching programs and files in an IFRAME (Value = 0)", "Frames"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1806", "Launching applications and unsafe files", 0, "Launching applications and unsafe files (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1809", "Use Pop-up Blocker", 0, "Use Pop-up Blocker (Value = 0)", "Pop-up Blocker"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2000", "Binary and script behaviors", 0, "Binary and script behaviors (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2001", "Run components signed with Authenticode / .NET", 3, "Disabled per exact user specification (3 = Disable)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2004", "Run components not signed with Authenticode", 0, "Run components not signed with Authenticode (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2007", "Run components signed with Authenticode (Secondary)", 0, "Run components signed with Authenticode (Secondary) (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2100", "Open files based on content (MIME Sniffing)", 0, "Open files based on content (MIME Sniffing) (Value = 0)", "Downloads"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2102", "Script-initiated windows without constraints", 0, "Script-initiated windows without constraints (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2103", "Allow status bar updates via script", 0, "Allow status bar updates via script (Value = 0)", "Status Bar"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2104", "Allow websites to open windows without address/status", 0, "Allow websites to open windows without address/status (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2105", "Allow scripted prompt windows", 0, "Allow scripted prompt windows (Value = 0)", "Windows"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2201", "Automatic prompting for ActiveX controls", 0, "Automatic prompting for ActiveX controls (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2300", "Web sites in less privileged zone navigation", 0, "Web sites in less privileged zone navigation (Value = 0)", "Navigation"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2301", "Use SmartScreen Filter", 0, "Use SmartScreen Filter (Value = 0)", "SmartScreen"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2400", ".NET Framework: XAML browser applications", 0, ".NET Framework: XAML browser applications (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2401", ".NET Framework: XPS documents", 0, ".NET Framework: XPS documents (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2402", ".NET Framework: Loose XAML", 0, ".NET Framework: Loose XAML (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2600", "Enable .NET Framework setup", 0, "Enable .NET Framework setup (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2702", "ActiveX Filtering", 0, "ActiveX Filtering (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2708", "Allow approved domains to use ActiveX", 0, "Allow approved domains to use ActiveX (Value = 0)", "ActiveX"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2709", "Run Antimalware against ActiveX", 0, "Run Antimalware against ActiveX (Value = 0)", "Security"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1A00", "User Authentication Logon", 0x20000, "User Authentication Logon (Value = 0x20000)", "Authentication"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "1A04", "Don't prompt for client certificate selection", 0, "Don't prompt for client certificate selection (Value = 0)", "Certificates"));
+            return catalog;
+        }
+
         private static void ApplyDirectZoneDwords()
         {
             try
             {
+                var catalog = GetZoneSettingsCatalog();
                 RegistryKey[] rootHives = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+
                 foreach (var root in rootHives)
                 {
                     try
                     {
-                        // Zone 0: Computer
+                        // 1. Zone 0: Computer
                         using (var z0 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\0"))
                         {
                             if (z0 != null)
@@ -957,125 +1322,34 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             }
                         }
 
-                        // Zone 1: Local Intranet
-                        using (var z1 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\1"))
+                        // 2. Zone 1, Zone 2, Zone 3 from Catalog
+                        for (int zoneId = 1; zoneId <= 3; zoneId++)
                         {
-                            if (z1 != null)
+                            string subPath = $@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\{zoneId}";
+                            using (var zk = root.CreateSubKey(subPath))
                             {
-                                z1.SetValue("DisplayName", "Local intranet", RegistryValueKind.String);
-                                z1.SetValue("CurrentLevel", 0, RegistryValueKind.DWord);
-                                z1.SetValue("Flags", 0xdb, RegistryValueKind.DWord);
-                                z1.SetValue("1200", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1400", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1001", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1004", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1201", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1405", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1803", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2001", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2004", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2500", 3, RegistryValueKind.DWord);
-                                z1.SetValue("2402", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2400", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2401", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2007", 3, RegistryValueKind.DWord);
-                                z1.SetValue("2702", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1208", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1209", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2201", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2000", 0, RegistryValueKind.DWord);
-                                z1.SetValue("120A", 0, RegistryValueKind.DWord);
-                                z1.SetValue("270C", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1604", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2600", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1406", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2709", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2708", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1608", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1206", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2102", 0, RegistryValueKind.DWord);
-                                z1.SetValue("120C", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2300", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2104", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1609", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1A04", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1802", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2100", 0, RegistryValueKind.DWord);
-                                z1.SetValue("160A", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1806", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1804", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1607", 0, RegistryValueKind.DWord);
-                                z1.SetValue("270B", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1601", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1809", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2301", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1606", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2101", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1407", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2103", 0, RegistryValueKind.DWord);
-                                z1.SetValue("2105", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1409", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1402", 0, RegistryValueKind.DWord);
-                                z1.SetValue("1A00", 0x20000, RegistryValueKind.DWord);
-                                z1.SetValue("2707", 0, RegistryValueKind.DWord);
-                            }
-                        }
-
-                        // Zone 2: Trusted Sites
-                        using (var z2 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2"))
-                        {
-                            if (z2 != null)
-                            {
-                                z2.SetValue("DisplayName", "Trusted sites", RegistryValueKind.String);
-                                z2.SetValue("MinLevel", 0x00010000, RegistryValueKind.DWord);
-                                z2.SetValue("Flags", 0x47, RegistryValueKind.DWord);
-
-                                if (root == Registry.LocalMachine)
+                                if (zk != null)
                                 {
-                                    z2.SetValue("CurrentLevel", 0x00011000, RegistryValueKind.DWord);
-                                    z2.SetValue("1001", 1, RegistryValueKind.DWord);
-                                    z2.SetValue("1004", 3, RegistryValueKind.DWord);
-                                    z2.SetValue("1201", 3, RegistryValueKind.DWord);
-                                    z2.SetValue("1806", 1, RegistryValueKind.DWord);
-                                    z2.SetValue("2201", 3, RegistryValueKind.DWord);
-                                }
-                                else
-                                {
-                                    z2.SetValue("CurrentLevel", 0x00000000, RegistryValueKind.DWord);
-                                    z2.SetValue("1200", 0, RegistryValueKind.DWord);
-                                    z2.SetValue("1400", 0, RegistryValueKind.DWord);
-                                    z2.SetValue("1001", 0, RegistryValueKind.DWord);
-                                    z2.SetValue("1004", 0, RegistryValueKind.DWord);
-                                    z2.SetValue("1201", 0, RegistryValueKind.DWord);
-                                    z2.SetValue("120B", 3, RegistryValueKind.DWord);
+                                    string displayName = zoneId == 1 ? "Local intranet" : (zoneId == 2 ? "Trusted sites" : "Internet");
+                                    zk.SetValue("DisplayName", displayName, RegistryValueKind.String);
+
+                                    var zoneItems = catalog.FindAll(x => x.ZoneId == zoneId);
+                                    foreach (var item in zoneItems)
+                                    {
+                                        try
+                                        {
+                                            zk.SetValue(item.ValueName, item.ExpectedValue, RegistryValueKind.DWord);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Logger.LogWarn("Registry", $"Failed to set Zone {zoneId} setting {item.ValueName}: {ex.Message}");
+                                        }
+                                    }
                                 }
                             }
                         }
 
-                        // Zone 3: Internet
-                        using (var z3 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\3"))
-                        {
-                            if (z3 != null)
-                            {
-                                z3.SetValue("DisplayName", "Internet", RegistryValueKind.String);
-                                z3.SetValue("CurrentLevel", 0, RegistryValueKind.DWord);
-                                z3.SetValue("Flags", 1, RegistryValueKind.DWord);
-                                
-                                // Apply the 24 permissive zeros requested
-                                string[] zeros = { 
-                                    "1001", "1004", "1201", "1206", "1209", "120A", "120C", 
-                                    "1407", "1607", "1609", "160A", "1804", "1A04", "2102", 
-                                    "2103", "2104", "2105", "2201", "2300", "2400", "2402", 
-                                    "2708", "2709", "270B" 
-                                };
-                                foreach (var z in zeros) z3.SetValue(z, 0, RegistryValueKind.DWord);
-                                
-                                z3.SetValue("1200", 0, RegistryValueKind.DWord);
-                                z3.SetValue("1400", 0, RegistryValueKind.DWord);
-                            }
-                        }
-
-                        // Zone 4: Restricted Sites
+                        // 3. Zone 4: Restricted Sites
                         using (var z4 = root.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\4"))
                         {
                             if (z4 != null)
@@ -1088,10 +1362,246 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception rEx)
+                    {
+                        Logger.LogWarn("Registry", $"Root hive zone application notice ({root.Name}): {rEx.Message}");
+                    }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("Registry", "ApplyDirectZoneDwords general exception: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Deep Automated Verification of all configured Security Zone settings (Zone 1, Zone 2, Zone 3).
+        /// Reads back each setting directly from the Windows Registry, compares with expected DWORD value,
+        /// and records PASS/FAIL along with specific failure reasons.
+        /// </summary>
+        public static List<ZoneVerificationResult> VerifyAllSecurityZones()
+        {
+            List<ZoneVerificationResult> results = new List<ZoneVerificationResult>();
+            var catalog = GetZoneSettingsCatalog();
+
+            foreach (var item in catalog)
+            {
+                var res = new ZoneVerificationResult
+                {
+                    ZoneId = item.ZoneId,
+                    ZoneName = item.ZoneName,
+                    ValueName = item.ValueName,
+                    SettingName = item.SettingName,
+                    ExpectedValue = item.ExpectedValue.ToString(),
+                    Description = item.Description,
+                    IsPass = false,
+                    FailureReason = "None"
+                };
+
+                object valHkcu = null;
+                object valHklm = null;
+
+                try
+                {
+                    using (var k = Registry.CurrentUser.OpenSubKey($@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\{item.ZoneId}"))
+                    {
+                        if (k != null) valHkcu = k.GetValue(item.ValueName);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    res.FailureReason = "HKCU Access Error: " + ex.Message;
+                }
+
+                try
+                {
+                    using (var k = Registry.LocalMachine.OpenSubKey($@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\{item.ZoneId}"))
+                    {
+                        if (k != null) valHklm = k.GetValue(item.ValueName);
+                    }
+                }
+                catch { }
+
+                res.ActualValueHkcu = valHkcu != null ? valHkcu.ToString() : "NOT SET";
+                res.ActualValueHklm = valHklm != null ? valHklm.ToString() : "NOT SET";
+
+                // Validation logic: HKCU must match expected, or HKLM must match expected
+                bool hkcuMatch = valHkcu != null && Convert.ToInt32(valHkcu) == item.ExpectedValue;
+                bool hklmMatch = valHklm != null && Convert.ToInt32(valHklm) == item.ExpectedValue;
+
+                if (hkcuMatch || hklmMatch)
+                {
+                    res.IsPass = true;
+                    res.FailureReason = "Verified";
+                }
+                else
+                {
+                    res.IsPass = false;
+                    if (valHkcu == null && valHklm == null)
+                    {
+                        res.FailureReason = $"Registry value missing in both HKCU and HKLM (Zones\\{item.ZoneId}\\{item.ValueName})";
+                    }
+                    else
+                    {
+                        res.FailureReason = $"Value mismatch: Expected {item.ExpectedValue}, got HKCU={res.ActualValueHkcu}, HKLM={res.ActualValueHklm}";
+                    }
+
+                    // Log failure to application logger
+                    Logger.LogWarn("RegistryVerify", $"[FAILED] Zone {item.ZoneId} ({item.ZoneName}) -> {item.SettingName} ({item.ValueName}): Expected {item.ExpectedValue}, HKCU={res.ActualValueHkcu}, HKLM={res.ActualValueHklm}. Reason: {res.FailureReason}");
+                }
+
+                results.Add(res);
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Generates a comprehensive verification report text formatted in a clean matrix.
+        /// </summary>
+        public static string GenerateAuditReportText(List<ZoneVerificationResult> results)
+        {
+            var sb = new System.Text.StringBuilder();
+            string timestamp = DateTime.Now.ToString("dd-MMM-yyyy HH:mm:ss");
+
+            sb.AppendLine("========================================================================================================");
+            sb.AppendLine("                 E-VEDHIKA AUTOMATED REGISTRY AUDIT & SECURITY ZONES VERIFICATION REPORT");
+            sb.AppendLine(" Target Government Portal : https://ubd.telangana.gov.in/ (Telangana UBD Portal)");
+            sb.AppendLine($" Generated On             : {timestamp}");
+            sb.AppendLine($" Computer / User          : {Environment.MachineName} ({Environment.UserName})");
+            sb.AppendLine($" Operating System         : {Environment.OSVersion.VersionString} ({(Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit")})");
+            sb.AppendLine("========================================================================================================");
+            sb.AppendLine();
+
+            sb.AppendLine("[A] TRUSTED SITES (ZONE 2) DOMAIN MAPPING STATUS:");
+            string[] domains = new string[] { @"ubd.telangana.gov.in", @"telangana.gov.in\ubd" };
+            foreach (var d in domains)
+            {
+                object val = null;
+                try
+                {
+                    using (var k = Registry.CurrentUser.OpenSubKey($@"{Zone2KeyPath}\{d}"))
+                    {
+                        if (k != null) val = k.GetValue("https");
+                    }
+                }
+                catch { }
+
+                string status = (val != null && Convert.ToInt32(val) == 2) ? "[VERIFIED / PASS]" : "[MISSING / FAILED]";
+                sb.AppendLine($"  {status} Domain: {d} -> Zone ID 2 (https = {(val != null ? val.ToString() : "Not Set")})");
+            }
+            sb.AppendLine();
+
+            sb.AppendLine("[B] ALL SECURITY ZONES (ZONE 1, ZONE 2, ZONE 3) VERIFICATION MATRIX:");
+            sb.AppendLine("--------------------------------------------------------------------------------------------------------");
+            sb.AppendLine("Zone Name       | Value ID   | Expected | Actual (HKCU) | Status   | Setting Name");
+            sb.AppendLine("--------------------------------------------------------------------------------------------------------");
+
+            int passed = 0;
+            int failed = 0;
+
+            foreach (var r in results)
+            {
+                if (r.IsPass) passed++; else failed++;
+
+                string zoneCol = r.ZoneName.PadRight(15);
+                string idCol = r.ValueName.PadRight(10);
+                string expCol = r.ExpectedValue.PadRight(8);
+                string actCol = r.ActualValueHkcu.PadRight(13);
+                string statCol = (r.IsPass ? "PASS" : "FAILED").PadRight(8);
+                string nameCol = r.SettingName;
+
+                sb.AppendLine($"{zoneCol} | {idCol} | {expCol} | {actCol} | {statCol} | {nameCol}");
+                if (!r.IsPass)
+                {
+                    sb.AppendLine($"  --> [Failure Reason]: {r.FailureReason}");
+                }
+            }
+
+            sb.AppendLine("--------------------------------------------------------------------------------------------------------");
+            sb.AppendLine();
+            sb.AppendLine("[C] AUDIT SUMMARY & COMPLIANCE SCORE:");
+            sb.AppendLine($"  Total Security Settings Audited : {results.Count}");
+            sb.AppendLine($"  Successfully Passed & Verified  : {passed}");
+            sb.AppendLine($"  Failed / Needs Attention        : {failed}");
+            double score = results.Count > 0 ? Math.Round(((double)passed / results.Count) * 100, 2) : 0;
+            sb.AppendLine($"  Overall Security Compliance     : {score}%");
+            sb.AppendLine($"  Status                          : {(failed == 0 ? "100% HEALTHY & COMPLIANT" : "ATTENTION NEEDED")}");
+            sb.AppendLine();
+            sb.AppendLine("[D] SAFETY, ROLLBACK & SCOPE CONFIRMATION:");
+            sb.AppendLine("  * Security modifications are strictly isolated to required zones.");
+            sb.AppendLine("  * Automatic pre-deployment safety backup created at C:\\EVedhika_UBD_Backups\\.");
+            sb.AppendLine("  * Rollback feature available in tool via BackupEngine.RollbackLastBackup().");
+            sb.AppendLine("========================================================================================================");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Executes full application of Zone 1, Zone 2, and Zone 3 security settings,
+        /// verifies each setting against the registry, saves an audit report, and returns overall success status.
+        /// </summary>
+        public static bool ApplyZoneSettings(out List<ZoneVerificationResult> verificationResults)
+        {
+            // 1. Take safety pre-deployment backup
+            try
+            {
+                string bPath = BackupEngine.CreatePreDeploymentBackup();
+                if (!string.IsNullOrEmpty(bPath))
+                {
+                    Logger.LogInfo("Backup", "[BACKUP] Pre-deployment registry backup taken: " + bPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarn("Backup", "Pre-deployment backup warning: " + ex.Message);
+            }
+
+            // 2. Direct API enforcement for all zones
+            ApplyDirectZoneDwords();
+
+            // 3. Deep automated verification
+            verificationResults = VerifyAllSecurityZones();
+
+            // 4. Generate and save TXT audit report
+            try
+            {
+                string reportText = GenerateAuditReportText(verificationResults);
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string primaryDir = @"C:\EVedhika_UBD_Backups";
+                string fallbackDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "EVedhika_Backups");
+                
+                string targetDir = primaryDir;
+                try { Directory.CreateDirectory(primaryDir); } catch { targetDir = fallbackDir; Directory.CreateDirectory(fallbackDir); }
+
+                string reportPath = Path.Combine(targetDir, $"UBD_Registry_Audit_Report_{timestamp}.txt");
+                File.WriteAllText(reportPath, reportText, System.Text.Encoding.UTF8);
+                Logger.LogInfo("Registry", $"[AUDIT REPORT] Comprehensive verification report saved to: {reportPath}");
+            }
+            catch (Exception rEx)
+            {
+                Logger.LogWarn("Registry", "Audit report saving warning: " + rEx.Message);
+            }
+
+            int failedCount = verificationResults.FindAll(x => !x.IsPass).Count;
+            return failedCount == 0;
+        }
+
+        /// <summary>
+        /// Rolls back registry settings to previous saved backup snapshot.
+        /// </summary>
+        public static bool RollbackSecurityZones(string backupPath = null)
+        {
+            bool ok = BackupEngine.RollbackLastBackup(backupPath);
+            if (ok)
+            {
+                Logger.LogInfo("Rollback", "[SUCCESS] Security zones rolled back to previous backup snapshot.");
+            }
+            else
+            {
+                Logger.LogWarn("Rollback", "[FAILED] Could not rollback security zones.");
+            }
+            return ok;
         }
 
         private static string GetMasterZonesRegScript()

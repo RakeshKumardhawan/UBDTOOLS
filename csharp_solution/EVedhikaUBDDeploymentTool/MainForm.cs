@@ -1223,12 +1223,32 @@ namespace EVedhikaUBDDeploymentTool
                     DriverInstaller.InstallDotNet35Offline();
                     break;
                 case 2:
+                    LogMessage("BACKUP", "Creating safety pre-deployment backup of Internet Settings & Security Zones...");
+                    string preBackup = BackupEngine.CreatePreDeploymentBackup();
+                    if (!string.IsNullOrEmpty(preBackup))
+                    {
+                        LogMessage("BACKUP", $"[OK] Pre-deployment backup snapshot saved: {preBackup}");
+                    }
                     RegistryManager.CleanOldBatSettings();
                     Logger.LogInfo("Cleanup", "Removed old .bat file registry settings (Edge/IE Policies) to avoid conflicts.");
-                    RegistryManager.ConfigureTrustedSites(currentTargetDomain);
+                    bool tsOk = RegistryManager.ConfigureTrustedSites(currentTargetDomain);
+                    LogMessage("REGISTRY", tsOk ? $"[OK] Trusted Sites (Zone 2) configured for {currentTargetDomain} (Duplicates avoided)." : "[WARN] Trusted Sites configuration warning.");
                     break;
                 case 3:
-                    RegistryManager.ConfigureActiveXAndTLS();
+                    LogMessage("SECURITY", "Applying and deeply verifying Security Settings for Zone 1 (Intranet), Zone 2 (Trusted Sites), and Zone 3 (Internet)...");
+                    System.Collections.Generic.List<RegistryManager.ZoneVerificationResult> verifyResults;
+                    bool zonesOk = RegistryManager.ApplyZoneSettings(out verifyResults);
+                    int pCount = verifyResults.FindAll(x => x.IsPass).Count;
+                    int fCount = verifyResults.FindAll(x => !x.IsPass).Count;
+                    if (zonesOk)
+                    {
+                        LogMessage("SECURITY", $"[PASS] All {verifyResults.Count} Security Settings across Zone 1, Zone 2, and Zone 3 VERIFIED (100% Compliance).");
+                    }
+                    else
+                    {
+                        LogMessage("WARN", $"[NOTICE] {pCount}/{verifyResults.Count} Settings Passed, {fCount} Failed. See audit log for details.");
+                    }
+                    LogMessage("AUDIT", "Full Security Zone Audit Report saved at C:\\EVedhika_UBD_Backups\\");
                     break;
                 case 4:
                     // Verify Microsoft Edge is present and updated.
@@ -1927,6 +1947,45 @@ namespace EVedhikaUBDDeploymentTool
                 MessageBox.Show($"Registry snapshot exported successfully to:\n{path}", "Backup Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LogMessage("BACKUP", $"Created registry backup at {path}");
             }
+        }
+
+        private void btnRollback_Click(object sender, EventArgs e)
+        {
+            DialogResult dr = MessageBox.Show(
+                "Are you sure you want to rollback all Internet Security Settings and Zone policies to the previous pre-deployment backup snapshot?\n\n(మునుపటి బ్యాకప్ నుండి సెక్యూరిటీ జోన్ సెట్టింగ్స్‌ను రోల్‌బ్యాక్ / రీస్టోర్ చేయాలనుకుంటున్నారా?)",
+                "Rollback Security Zones / రోల్‌బ్యాక్ సెట్టింగ్స్",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (dr == DialogResult.Yes)
+            {
+                bool success = RegistryManager.RollbackSecurityZones();
+                if (success)
+                {
+                    MessageBox.Show("Security Zone settings rolled back successfully from previous backup snapshot!", "Rollback Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LogMessage("ROLLBACK", "[SUCCESS] Restored previous registry snapshot.");
+                }
+                else
+                {
+                    MessageBox.Show("Rollback failed or no valid backup snapshot file was found in C:\\EVedhika_UBD_Backups\\.", "Rollback Notice", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    LogMessage("ROLLBACK", "[WARN] Could not restore backup snapshot.");
+                }
+            }
+        }
+
+        private void btnVerifyZones_Click(object sender, EventArgs e)
+        {
+            LogMessage("AUDIT", "Performing deep live verification of Security Zones (Zone 1, Zone 2, Zone 3)...");
+            var results = RegistryManager.VerifyAllSecurityZones();
+            string report = RegistryManager.GenerateAuditReportText(results);
+            
+            int passed = results.FindAll(x => x.IsPass).Count;
+            int failed = results.FindAll(x => !x.IsPass).Count;
+
+            LogMessage("AUDIT", $"Verification Complete: {passed}/{results.Count} Settings Passed ({Math.Round(((double)passed/results.Count)*100)}% Compliance). Failed: {failed}");
+            
+            string summaryMsg = $"Security Zones Audit Summary:\n\nTotal Settings Audited: {results.Count}\nPassed (VERIFIED): {passed}\nFailed / Attention: {failed}\n\nFull audit report generated at C:\\EVedhika_UBD_Backups\\.";
+            MessageBox.Show(summaryMsg, "Security Zones Verification Audit", MessageBoxButtons.OK, failed == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
         }
 
         private void btnUninstall_Click(object sender, EventArgs e)
