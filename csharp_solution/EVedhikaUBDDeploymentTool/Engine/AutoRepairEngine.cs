@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using Microsoft.Win32;
 using System.Windows.Forms;
+using EVedhikaUBDDeploymentTool.Helpers;
 
 namespace EVedhikaUBDDeploymentTool.Engine
 {
@@ -311,6 +312,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     { "ubdPortalStatus", "PASS" },
                     { "status", repairedSomething ? (postRepairStatus == "RESOLVED" ? "RESOLVED" : "UBD ISSUE DETECTED") : "SUCCESS" },
                     { "activeIssue", detectedIssue ?? "None" },
+                    { "issueDetails", issueDetails ?? (detectedIssue ?? "None") },
                     { "issueId", string.IsNullOrEmpty(detectedIssue) ? "" : "ISS-" + pcName.ToUpper() + "-EDGE-01" },
                     { "repairedSomething", repairedSomething.ToString() },
                     { "lastRepairResult", repairedSomething ? "AutoRepair applied sites.xml & Edge policies" : "None Required" },
