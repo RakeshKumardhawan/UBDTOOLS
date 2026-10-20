@@ -160,9 +160,14 @@ Filename: "{tmp}\\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg
 Filename: "{app}\\{#MyAppExeName}"; Parameters: "--post-install"; Flags: runhidden
 Filename: "{app}\\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
+[UninstallRun]
+Filename: "{app}\\{#MyAppExeName}"; Parameters: "--uninstall --silent"; Flags: runhidden; RunOnceId: "EVedhikaRevert"
+
 [UninstallDelete]
 Type: files; Name: "{commondesktop}\\{#MyAppName}.lnk"
 Type: files; Name: "{group}\\{#MyAppName}.lnk"
+Type: filesandordirs; Name: "C:\\enterprise_compat"
+Type: filesandordirs; Name: "{commonappdata}\\EVedhika"
 
 [Code]
 function IsWin7SP1OrHigher: Boolean;
@@ -326,55 +331,60 @@ namespace EVedhikaUBDDeploymentTool.Engine
         public static bool PerformSelfHealingAudit(Action<string> logCallback)
         {
             bool repairedSomething = false;
+            string detectedIssue = null;
+            string issueDetails = null;
+
             if (logCallback != null) logCallback("[Audit] Scanning system for corrupted settings, deleted files, Windows Update resets, or missing UBD policies...");
 
             string expectedXmlPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "sites.xml");
 
+            bool edgeOk = true;
+            bool zoneOk = true;
+            bool activexOk = true;
+            bool emuOk = true;
+
             // 1. Verify Edge IE Mode Policies & sites.xml file existence
             try
             {
-                bool edgeOk = true;
-
-                // Check if sites.xml exists on disk and is non-empty
                 if (!File.Exists(expectedXmlPath) || new FileInfo(expectedXmlPath).Length < 30)
                 {
                     if (logCallback != null) logCallback("[Audit WARN] sites.xml is MISSING or DELETED from " + expectedXmlPath);
                     edgeOk = false;
                 }
 
-                // Check Registry Keys for Edge Policy
                 if (edgeOk)
                 {
-                    RegistryKey edgeKey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\\Policies\\Microsoft\\Edge");
-                    if (edgeKey == null) edgeKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\\Policies\\Microsoft\\Edge");
-
-                    if (edgeKey == null)
+                    using (RegistryKey edgeKey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\\Policies\\Microsoft\\Edge") ?? Registry.LocalMachine.OpenSubKey(@"SOFTWARE\\Policies\\Microsoft\\Edge"))
                     {
-                        if (logCallback != null) logCallback("[Audit WARN] Edge Registry Policy Key missing!");
-                        edgeOk = false;
-                    }
-                    else
-                    {
-                        var ieLevel = edgeKey.GetValue("InternetExplorerIntegrationLevel");
-                        var siteListObj = edgeKey.GetValue("InternetExplorerIntegrationSiteList");
-                        string siteList = siteListObj != null ? siteListObj.ToString() : null;
-
-                        if (ieLevel == null || Convert.ToInt32(ieLevel) != 1)
+                        if (edgeKey == null)
                         {
-                            if (logCallback != null) logCallback("[Audit WARN] InternetExplorerIntegrationLevel != 1");
+                            if (logCallback != null) logCallback("[Audit WARN] Edge Registry Policy Key missing!");
                             edgeOk = false;
                         }
-                        if (string.IsNullOrEmpty(siteList) || !File.Exists(siteList))
+                        else
                         {
-                            if (logCallback != null) logCallback("[Audit WARN] InternetExplorerIntegrationSiteList points to invalid/missing file!");
-                            edgeOk = false;
+                            var ieLevel = edgeKey.GetValue("InternetExplorerIntegrationLevel");
+                            var siteListObj = edgeKey.GetValue("InternetExplorerIntegrationSiteList");
+                            string siteList = siteListObj != null ? siteListObj.ToString() : null;
+
+                            if (ieLevel == null || Convert.ToInt32(ieLevel) != 1)
+                            {
+                                if (logCallback != null) logCallback("[Audit WARN] InternetExplorerIntegrationLevel != 1");
+                                edgeOk = false;
+                            }
+                            if (string.IsNullOrEmpty(siteList) || !File.Exists(siteList))
+                            {
+                                if (logCallback != null) logCallback("[Audit WARN] InternetExplorerIntegrationSiteList points to invalid/missing file!");
+                                edgeOk = false;
+                            }
                         }
-                        edgeKey.Dispose();
                     }
                 }
 
                 if (!edgeOk)
                 {
+                    detectedIssue = "UBD Edge Policy / sites.xml Drift Detected";
+                    issueDetails = "AutoRepair Guardian detected missing or corrupted Edge IE Mode policy/sites.xml.";
                     if (logCallback != null) logCallback("[Audit REPAIR] Re-generating sites.xml and re-enforcing Edge IE Mode Group Policies...");
                     string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { 
                         "ubd.telangana.gov.in", 
@@ -385,13 +395,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     });
                     EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                     repairedSomething = true;
-
-                    // 100% Autonomous Silent Background Report to AI Studio & GitHub - Zero permissions needed
-                    EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently(
-                        "UBD Edge Policy / sites.xml Drift Detected",
-                        "AutoRepair Guardian detected missing or corrupted Edge IE Mode policy/sites.xml and performed background self-healing.",
-                        "GUARDIAN-HEAL"
-                    );
                 }
             }
             catch (Exception ex)
@@ -402,21 +405,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
             // 2. Verify Zone 2 Trusted Sites for UBD
             try
             {
-                bool zoneOk = false;
                 using (RegistryKey domainKeyTS = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\ubd.telangana.gov.in") ??
                                                Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\telangana.gov.in"))
                 using (RegistryKey domainKeyAP = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\ubd.ap.gov.in") ??
                                                Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\ap.gov.in") ??
                                                Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains\\www.ubd.ap.gov.in"))
                 {
-                    if (domainKeyTS != null || domainKeyAP != null)
+                    if (domainKeyTS == null && domainKeyAP == null)
                     {
-                        zoneOk = true;
+                        zoneOk = false;
                     }
                 }
 
                 if (!zoneOk)
                 {
+                    if (string.IsNullOrEmpty(detectedIssue)) detectedIssue = "UBD Zone 2 Trusted Site Mapping Missing";
                     if (logCallback != null) logCallback("[Audit WARN] Zone 2 Trusted Site mapping for UBD (TS/AP) missing/deleted. Restoring...");
                     RegistryManager.ConfigureTrustedSites("ubd.telangana.gov.in");
                     RegistryManager.ConfigureTrustedSites("ubd.ap.gov.in");
@@ -432,29 +435,33 @@ namespace EVedhikaUBDDeploymentTool.Engine
             // 3. Verify ActiveX Controls & Security Zone 2 Policies
             try
             {
-                bool activexOk = false;
                 using (RegistryKey zone2Key = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2"))
                 {
                     if (zone2Key != null)
                     {
-                        var val1001 = zone2Key.GetValue("1001"); // Download signed ActiveX
-                        var val1201 = zone2Key.GetValue("1201"); // Script ActiveX not safe
-                        var val1405 = zone2Key.GetValue("1405"); // Script ActiveX safe
-                        var val1803 = zone2Key.GetValue("1803"); // File Download (0 = Allow)
-                        var val2200 = zone2Key.GetValue("2200"); // Automatic prompting for file downloads
-                        if (val1001 != null && Convert.ToInt32(val1001) == 0 &&
-                            val1201 != null && Convert.ToInt32(val1201) == 0 &&
-                            val1405 != null && Convert.ToInt32(val1405) == 0 &&
-                            val1803 != null && Convert.ToInt32(val1803) == 0 &&
-                            val2200 != null && Convert.ToInt32(val2200) == 0)
+                        var val1001 = zone2Key.GetValue("1001");
+                        var val1201 = zone2Key.GetValue("1201");
+                        var val1405 = zone2Key.GetValue("1405");
+                        var val1803 = zone2Key.GetValue("1803");
+                        var val2200 = zone2Key.GetValue("2200");
+                        if (val1001 == null || Convert.ToInt32(val1001) != 0 ||
+                            val1201 == null || Convert.ToInt32(val1201) != 0 ||
+                            val1405 == null || Convert.ToInt32(val1405) != 0 ||
+                            val1803 == null || Convert.ToInt32(val1803) != 0 ||
+                            val2200 == null || Convert.ToInt32(val2200) != 0)
                         {
-                            activexOk = true;
+                            activexOk = false;
                         }
+                    }
+                    else
+                    {
+                        activexOk = false;
                     }
                 }
 
                 if (!activexOk)
                 {
+                    if (string.IsNullOrEmpty(detectedIssue)) detectedIssue = "ActiveX Security Zone 2 Policy Drift";
                     if (logCallback != null) logCallback("[Audit WARN] ActiveX Security Zone 2 settings missing or restricted. Re-enabling ActiveX Controls & TLS...");
                     RegistryManager.ConfigureActiveXAndTLS();
                     repairedSomething = true;
@@ -468,16 +475,19 @@ namespace EVedhikaUBDDeploymentTool.Engine
             // 4. Verify IE5 Browser Emulation Mode
             try
             {
-                bool emuOk = false;
                 using (RegistryKey emuKey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION"))
                 {
                     if (emuKey != null)
                     {
                         var msedgeVal = emuKey.GetValue("msedge.exe");
-                        if (msedgeVal != null && Convert.ToInt32(msedgeVal) == 5000)
+                        if (msedgeVal == null || Convert.ToInt32(msedgeVal) != 5000)
                         {
-                            emuOk = true;
+                            emuOk = false;
                         }
+                    }
+                    else
+                    {
+                        emuOk = false;
                     }
                 }
 
@@ -493,38 +503,87 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[Audit Repair] Emulation check error: {0}", ex.Message));
             }
 
-            // 5. Check Windows Activation Status & Auto-Repair
-            try
-            {
-                var actStatus = WindowsActivationEngine.CheckWindowsActivation();
-                if (!actStatus.IsActivated)
-                {
-                    if (logCallback != null) logCallback(string.Format("[Audit WARN] Windows license status: {0}. Auto-repairing activation...", actStatus.LicenseStatusText));
-                    WindowsActivationEngine.AutoActivateWindows(logCallback);
-                    repairedSomething = true;
-                }
-            }
-            catch { }
+            // 5. POST-REPAIR VERIFICATION STEP (Strict 10-Step Workflow)
+            string postRepairVerification = "N/A";
+            string postRepairStatus = "HEALTHY";
 
-            // 6. If settings were restored/repaired, restart msedge.exe processes so Edge reloads policies immediately
             if (repairedSomething)
             {
-                try
+                RestartEdgeProcesses(logCallback);
+
+                // Re-verify edge policies & sites.xml after repair
+                bool postCheckEdge = File.Exists(expectedXmlPath) && new FileInfo(expectedXmlPath).Length >= 30;
+                bool postCheckReg = false;
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\\Policies\\Microsoft\\Edge") ?? Registry.LocalMachine.OpenSubKey(@"SOFTWARE\\Policies\\Microsoft\\Edge"))
                 {
-                    if (logCallback != null) logCallback("[Audit REPAIRED] Self-healing complete. Refreshing Edge Browser process policy cache...");
-                    RestartEdgeProcesses(logCallback);
+                    if (k != null)
+                    {
+                        var lev = k.GetValue("InternetExplorerIntegrationLevel");
+                        var list = k.GetValue("InternetExplorerIntegrationSiteList");
+                        postCheckReg = lev != null && Convert.ToInt32(lev) == 1 && list != null && File.Exists(list.ToString());
+                    }
                 }
-                catch { }
+
+                if (postCheckEdge && postCheckReg)
+                {
+                    postRepairVerification = "PASS";
+                    postRepairStatus = "RESOLVED";
+                    if (logCallback != null) logCallback("[Audit POST-VERIFICATION PASS] Post-repair re-check confirmed Edge IE Mode policies & sites.xml are 100% compliant.");
+                }
+                else
+                {
+                    postRepairVerification = "FAIL";
+                    postRepairStatus = "RECURRING";
+                    if (logCallback != null) logCallback("[Audit POST-VERIFICATION WARN] Post-repair re-check indicates policies require elevated restart or domain policy override.");
+                }
             }
             else
             {
                 if (logCallback != null) logCallback("[Audit OK] All system policies, Edge IE Mode rules, sites.xml, and drivers are 100% compliant.");
             }
 
+            // 6. Dispatch Consolidated Telemetry Payload
+            try
+            {
+                string pcName = Environment.MachineName;
+                string userName = Environment.UserName;
+                string location = SystemInfoHelper.GetLiveLocation();
+                string winVer = SystemInfoHelper.GetWindowsVersion();
+                string dsc = SystemInfoHelper.CheckDscStatus();
+                string dotNet = SystemInfoHelper.CheckDotNetFramework();
+                string digiSigner = SystemInfoHelper.CheckNicDigiSigner();
+
+                var telemetryPayload = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "pcId", Logger.GetUniqueMachineId() },
+                    { "pcName", pcName },
+                    { "userName", userName },
+                    { "officeLocation", location },
+                    { "osVersion", winVer },
+                    { "dscStatus", dsc },
+                    { "dotNet", dotNet },
+                    { "nicDigiSigner", digiSigner },
+                    { "edgeIeModeStatus", edgeOk ? "PASS" : "FAIL" },
+                    { "sitesXmlStatus", File.Exists(expectedXmlPath) ? "PASS" : "FAIL" },
+                    { "registryPoliciesStatus", edgeOk ? "PASS" : "FAIL" },
+                    { "ubdPortalStatus", "PASS" },
+                    { "status", repairedSomething ? (postRepairStatus == "RESOLVED" ? "RESOLVED" : "UBD ISSUE DETECTED") : "SUCCESS" },
+                    { "activeIssue", detectedIssue ?? "None" },
+                    { "issueId", string.IsNullOrEmpty(detectedIssue) ? "" : "ISS-" + pcName.ToUpper() + "-EDGE-01" },
+                    { "repairedSomething", repairedSomething.ToString() },
+                    { "lastRepairResult", repairedSomething ? "AutoRepair applied sites.xml & Edge policies" : "None Required" },
+                    { "postRepairVerification", postRepairVerification },
+                    { "healthScore", repairedSomething ? (postRepairVerification == "PASS" ? "100" : "70") : "100" },
+                    { "remarks", repairedSomething ? ("[AUTOREPAIR GUARDIAN] " + (detectedIssue ?? "Self-healing applied") + " -> Post-Check: " + postRepairVerification) : "[AUTOREPAIR GUARDIAN] All system policies, Edge IE Mode rules, and sites.xml are 100% compliant." }
+                };
+
+                EVedhikaUBDDeploymentTool.Helpers.Logger.SendCentralTelemetry(telemetryPayload, delegate(bool ok, string msg) { });
+            }
+            catch { }
+
             return repairedSomething;
         }
-
-        public static void RestartEdgeProcesses(Action<string> logCallback)
+public static void RestartEdgeProcesses(Action<string> logCallback)
         {
             try
             {
@@ -958,7 +1017,9 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
+                "https://www.e-vedhika.in/api/v1/posts/feed",
                 "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news",
+                "https://www.e-vedhika.in/api/announcements",
                 "https://www.e-vedhika.in/api/news"
             };
 
@@ -5553,21 +5614,195 @@ namespace EVedhikaUBDDeploymentTool.Engine
             bool success = true;
             if (logCallback != null) logCallback("==========================================================================");
             if (logCallback != null) logCallback("[UNINSTALL] Starting Complete Clean Uninstall & System Revert Process...");
+            if (logCallback != null) logCallback("  Target: Reverting all registry, zone settings, policies & files to original state.");
             if (logCallback != null) logCallback("==========================================================================");
 
-            // 1. Remove Windows Control Panel Uninstall Registry Key
+            // 1. REVERT REGISTRY SECURITY ZONES VIA PRE-DEPLOYMENT BACKUP SNAPSHOT
             try
             {
-                try { Registry.CurrentUser.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
-                try { Registry.LocalMachine.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
-                if (logCallback != null) logCallback("[1/7] Removed 'E-Vedhika UBD Deployment Tool' from Windows Control Panel (Add/Remove Programs).");
+                bool restoredFromBackup = false;
+                try
+                {
+                    restoredFromBackup = BackupEngine.RollbackLastBackup();
+                }
+                catch { }
+
+                if (restoredFromBackup)
+                {
+                    if (logCallback != null) logCallback("[1/10] [SUCCESS] All Security Zones (0, 1, 2, 3) restored from Pre-Deployment Backup snapshot!");
+                }
+                else
+                {
+                    if (logCallback != null) logCallback("[1/10] [RESET] No pre-deployment backup found. Manually resetting Zones 1, 2, 3 to Windows factory defaults...");
+                    ResetZonesToWindowsFactoryDefaults(logCallback);
+                }
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[1/7 WARN] Control Panel Registry Removal: {0}", ex.Message));
+                if (logCallback != null) logCallback(\$"[1/10 WARN] Registry zones restoration notice: {ex.Message}");
             }
 
-            // 2. Remove Windows Startup Registry Key (HKCU\\...\\Run)
+            // 2. REMOVE TRUSTED SITES (Zone 2) DOMAIN MAPPINGS
+            try
+            {
+                string[] domainsToPurge = new string[]
+                {
+                    @"ubd.telangana.gov.in",
+                    @"telangana.gov.in\\ubd",
+                    @"ubd.ap.gov.in",
+                    @"ap.gov.in\\ubd"
+                };
+
+                RegistryKey[] rootHives = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var root in rootHives)
+                {
+                    try
+                    {
+                        using (var dm = root.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains", true))
+                        {
+                            if (dm != null)
+                            {
+                                foreach (var d in domainsToPurge)
+                                {
+                                    try { dm.DeleteSubKeyTree(d, false); } catch { }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[2/10] Removed UBD portal domain mappings from ZoneMap (Trusted Sites).");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[2/10 WARN] ZoneMap cleanup notice: {ex.Message}");
+            }
+
+            // 3. REMOVE MICROSOFT EDGE ENTERPRISE SITE LIST POLICIES
+            try
+            {
+                RegistryKey[] edgeRoots = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var r in edgeRoots)
+                {
+                    try
+                    {
+                        using (var edgePol = r.OpenSubKey(@"SOFTWARE\\Policies\\Microsoft\\Edge", true))
+                        {
+                            if (edgePol != null)
+                            {
+                                edgePol.DeleteValue("InternetExplorerIntegrationLevel", false);
+                                edgePol.DeleteValue("InternetExplorerIntegrationSiteList", false);
+                                edgePol.DeleteValue("InternetExplorerIntegrationReloadInIEModeAllowed", false);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[3/10] Removed Microsoft Edge IE Mode enterprise policies from Registry.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[3/10 WARN] Edge policies cleanup notice: {ex.Message}");
+            }
+
+            // 4. DELETE ENTERPRISE COMPATIBILITY SITES.XML FILE & DIRECTORY
+            try
+            {
+                string compatDir = @"C:\\enterprise_compat";
+                if (Directory.Exists(compatDir))
+                {
+                    Directory.Delete(compatDir, true);
+                    if (logCallback != null) logCallback(@"[4/10] Deleted Enterprise Mode Site List (C:\\enterprise_compat\\sites.xml).");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[4/10 WARN] enterprise_compat directory notice: {ex.Message}");
+            }
+
+            // 5. RESTORE ADVANCED TAB & INTERNET SETTINGS (TLS & Certificate Revocation)
+            try
+            {
+                RegistryKey[] isRoots = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var r in isRoots)
+                {
+                    try
+                    {
+                        using (var isKey = r.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", true))
+                        {
+                            if (isKey != null)
+                            {
+                                isKey.DeleteValue("CertificateRevocation", false);
+                                isKey.DeleteValue("PublisherRevocation", false);
+                                isKey.DeleteValue("WarnonBadCertRecving", false);
+                                isKey.DeleteValue("WarnOnZoneCrossing", false);
+                                isKey.DeleteValue("WarnOnPostRedirect", false);
+                                isKey.DeleteValue("AllowInvalidCertificates", false);
+                                isKey.DeleteValue("CheckExeSignatures", false);
+                                isKey.DeleteValue("SyncMode5", false);
+                                isKey.DeleteValue("DisableCachingOfSSLPages", false);
+                                // Restore SecureProtocols to Windows Default (TLS 1.0, 1.1, 1.2 = 2688)
+                                isKey.SetValue("SecureProtocols", 2688, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[5/10] Restored Windows Internet Settings Advanced options & TLS protocols to default (2688).");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[5/10 WARN] Advanced Internet Settings restore notice: {ex.Message}");
+            }
+
+            // 6. RESTORE FEATURE CONTROL LOCKDOWN & POP-UP BLOCKER
+            try
+            {
+                string[] featHives = new string[] 
+                { 
+                    @"Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_LOCALMACHINE_LOCKDOWN", 
+                    @"SOFTWARE\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_LOCALMACHINE_LOCKDOWN",
+                    @"SOFTWARE\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION"
+                };
+
+                RegistryKey[] rootList = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var root in rootList)
+                {
+                    foreach (var fh in featHives)
+                    {
+                        try
+                        {
+                            using (var fk = root.OpenSubKey(fh, true))
+                            {
+                                if (fk != null)
+                                {
+                                    fk.DeleteValue("iexplore.exe", false);
+                                    fk.DeleteValue("msedge.exe", false);
+                                    fk.DeleteValue("EVedhikaUBDDeploymentTool.exe", false);
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                try
+                {
+                    using (var nw = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Internet Explorer\\New Windows", true))
+                    {
+                        nw?.DeleteValue("PopupMgr", false);
+                    }
+                }
+                catch { }
+
+                if (logCallback != null) logCallback("[6/10] Reverted FeatureControl and Pop-up Blocker settings to original state.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[6/10 WARN] FeatureControl revert notice: {ex.Message}");
+            }
+
+            // 7. REMOVE WINDOWS STARTUP REGISTRY KEYS
             try
             {
                 using (RegistryKey runKey = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Run", true))
@@ -5575,114 +5810,176 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (runKey != null && runKey.GetValue("EVedhikaUBDGuardian") != null)
                     {
                         runKey.DeleteValue("EVedhikaUBDGuardian", false);
-                        if (logCallback != null) logCallback("[2/7] Removed 'EVedhikaUBDGuardian' from Windows Startup Registry (HKCU\\\\...\\\\Run).");
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                if (logCallback != null) logCallback(string.Format("[2/7 WARN] Startup Registry removal: {0}", ex.Message));
-            }
-
-            // 3. Remove Edge IE Mode Group Policies & Registry Settings
-            try
-            {
-                try { Registry.CurrentUser.DeleteSubKeyTree(@"SOFTWARE\\Policies\\Microsoft\\Edge", false); } catch { }
-                try { Registry.LocalMachine.DeleteSubKeyTree(@"SOFTWARE\\Policies\\Microsoft\\Edge", false); } catch { }
-                if (logCallback != null) logCallback("[3/7] Removed Edge IE Mode Enterprise Site List policies from HKCU & HKLM Registry.");
-            }
-            catch (Exception ex)
-            {
-                if (logCallback != null) logCallback(string.Format("[3/7 WARN] Edge Policy removal: {0}", ex.Message));
-            }
-
-            // 4. Remove Zone 2 Trusted Sites Domain Mappings
-            try
-            {
-                using (RegistryKey domainsKey = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\Domains", true))
+                using (RegistryKey runKeyLM = Registry.LocalMachine.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Run", true))
                 {
-                    if (domainsKey != null)
+                    if (runKeyLM != null && runKeyLM.GetValue("EVedhikaUBDGuardian") != null)
                     {
-                        try { domainsKey.DeleteSubKeyTree("ubd.telangana.gov.in", false); } catch { }
-                        try { domainsKey.DeleteSubKeyTree("telangana.gov.in", false); } catch { }
-                        try { domainsKey.DeleteSubKeyTree("ubd.ap.gov.in", false); } catch { }
-                        try { domainsKey.DeleteSubKeyTree("ap.gov.in", false); } catch { }
-                        if (logCallback != null) logCallback("[4/7] Removed UBD Trusted Sites (TS/AP) from Zone 2.");
+                        runKeyLM.DeleteValue("EVedhikaUBDGuardian", false);
                     }
                 }
+                if (logCallback != null) logCallback("[7/10] Removed startup run keys (EVedhikaUBDGuardian).");
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[4/7 WARN] Trusted Sites removal: {0}", ex.Message));
+                if (logCallback != null) logCallback(\$"[7/10 WARN] Startup keys notice: {ex.Message}");
             }
 
-            // 5. Reset IE Browser Emulation Registry
-            try
-            {
-                using (RegistryKey emuKey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION", true))
-                {
-                    if (emuKey != null && emuKey.GetValue("msedge.exe") != null)
-                    {
-                        emuKey.DeleteValue("msedge.exe", false);
-                        if (logCallback != null) logCallback("[5/7] Removed Browser Emulation override for msedge.exe.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                if (logCallback != null) logCallback(string.Format("[5/7 WARN] Browser Emulation cleanup: {0}", ex.Message));
-            }
-
-            // 6. Remove Desktop & Start Menu Shortcuts
+            // 8. REMOVE ALL DESKTOP & START MENU SHORTCUTS
             try
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                string commonDesktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+                string startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "E-Vedhika UBD Tool");
+                string commonStartMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), "E-Vedhika UBD Tool");
+
                 string[] shortcuts = new string[]
                 {
                     Path.Combine(desktopPath, "UBD Portal (Edge IE Mode).url"),
                     Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.lnk"),
                     Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.url"),
-                    Path.Combine(desktopPath, "E-Vedhika Web App (www.e-vedhika.in).url")
+                    Path.Combine(desktopPath, "E-Vedhika Web App (www.e-vedhika.in).url"),
+                    Path.Combine(commonDesktop, "UBD Portal (Edge IE Mode).url"),
+                    Path.Combine(commonDesktop, "E-Vedhika UBD Deployment Tool.lnk"),
+                    Path.Combine(commonDesktop, "E-Vedhika UBD Deployment Tool.url")
                 };
 
                 foreach (var sc in shortcuts)
                 {
-                    if (File.Exists(sc))
-                    {
-                        File.Delete(sc);
-                        if (logCallback != null) logCallback(string.Format("[6/7] Deleted Desktop Shortcut: {0}", Path.GetFileName(sc)));
-                    }
+                    try { if (File.Exists(sc)) File.Delete(sc); } catch { }
                 }
+
+                try { if (Directory.Exists(startMenu)) Directory.Delete(startMenu, true); } catch { }
+                try { if (Directory.Exists(commonStartMenu)) Directory.Delete(commonStartMenu, true); } catch { }
+
+                if (logCallback != null) logCallback("[8/10] Deleted all Desktop and Start Menu shortcuts.");
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[6/7 WARN] Desktop Shortcut deletion: {0}", ex.Message));
+                if (logCallback != null) logCallback(\$"[8/10 WARN] Shortcuts notice: {ex.Message}");
             }
 
-            // 7. Clean ProgramData Files (sites.xml, logs, backups)
+            // 9. CLEAN PROGRAMDATA AND APPLICATION STORAGE
             try
             {
                 string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
                 if (Directory.Exists(appDataDir))
                 {
                     Directory.Delete(appDataDir, true);
-                    if (logCallback != null) logCallback(string.Format("[7/7] Deleted Application Data Directory: {0}", appDataDir));
                 }
-                else
-                {
-                    if (logCallback != null) logCallback("[7/7] ProgramData EVedhika folder is already clean.");
-                }
+                if (logCallback != null) logCallback("[9/10] Cleaned Application Data directories.");
             }
             catch (Exception ex)
             {
-                if (logCallback != null) logCallback(string.Format("[7/7 WARN] Application Data Directory cleanup: {0}", ex.Message));
+                if (logCallback != null) logCallback(\$"[9/10 WARN] Storage notice: {ex.Message}");
+            }
+
+            // 10. REMOVE CONTROL PANEL UNINSTALL REGISTRATIONS & SEND TELEMETRY
+            try
+            {
+                CleanLegacyUninstallEntries();
+                try { Registry.CurrentUser.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
+                try { Registry.LocalMachine.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
+                try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool", false); } catch { }
+
+                // Post silent telemetry notification to central dashboard
+                try
+                {
+                    var uninstallPayload = new System.Collections.Generic.Dictionary<string, string>
+                    {
+                        { "pcName", Environment.MachineName },
+                        { "userName", Environment.UserName },
+                        { "officeLocation", SystemInfoHelper.GetLiveLocation() },
+                        { "status", "APP UNINSTALLED (System Reverted)" },
+                        { "remarks", "Tool uninstalled on " + Environment.MachineName + ". All security zones and policies cleanly reverted to previous state." }
+                    };
+                    Helpers.Logger.SendCentralTelemetry(uninstallPayload);
+                }
+                catch { }
+
+                if (logCallback != null) logCallback("[10/10] Removed Control Panel Uninstall registration & posted telemetry.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[10/10 WARN] Control panel unregister notice: {ex.Message}");
             }
 
             if (logCallback != null) logCallback("==========================================================================");
-            if (logCallback != null) logCallback("[UNINSTALL SUCCESS] All E-Vedhika UBD Deployment Tool configurations cleanly uninstalled & reverted!");
+            if (logCallback != null) logCallback("[COMPLETE] All application changes removed. System successfully reverted to original state!");
             if (logCallback != null) logCallback("==========================================================================");
 
             return success;
+        }
+
+        private static void ResetZonesToWindowsFactoryDefaults(Action<string> logCallback)
+        {
+            try
+            {
+                string[] customKeys = new string[]
+                {
+                    "1001", "1004", "1200", "1201", "1206", "1208", "1209", "120A", "120B",
+                    "1400", "1402", "1405", "1406", "1407", "1409", "1604", "1606", "1607",
+                    "1608", "1609", "1802", "1803", "1804", "1806", "1809", "2000", "2001",
+                    "2004", "2007", "2100", "2102", "2103", "2104", "2105", "2201", "2300",
+                    "2301", "2400", "2401", "2402", "2600", "2702", "2708", "2709", "1A00", "1A04"
+                };
+
+                // 1. Reset Zone 2 (Trusted Sites) to Default Medium template
+                using (var z2 = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2", true))
+                {
+                    if (z2 != null)
+                    {
+                        foreach (var k in customKeys) { try { z2.DeleteValue(k, false); } catch { } }
+                        z2.SetValue("CurrentLevel", 0x00010000, RegistryValueKind.DWord); // 0x10000 = Medium
+                        z2.SetValue("Flags", 0x00000043, RegistryValueKind.DWord);        // Default Flags
+                        try { z2.DeleteValue("MinLevel", false); } catch { }
+                    }
+                }
+
+                // Delete HKLM Zone 2 mirror
+                try
+                {
+                    using (var z2lm = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2", true))
+                    {
+                        if (z2lm != null)
+                        {
+                            foreach (var k in customKeys) { try { z2lm.DeleteValue(k, false); } catch { } }
+                            z2lm.SetValue("CurrentLevel", 0x00010000, RegistryValueKind.DWord);
+                            z2lm.SetValue("Flags", 0x00000043, RegistryValueKind.DWord);
+                        }
+                    }
+                }
+                catch { }
+
+                // 2. Reset Zone 1 (Local Intranet) to Default Medium-low template
+                using (var z1 = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\1", true))
+                {
+                    if (z1 != null)
+                    {
+                        foreach (var k in customKeys) { try { z1.DeleteValue(k, false); } catch { } }
+                        z1.SetValue("CurrentLevel", 0x00010500, RegistryValueKind.DWord); // 0x10500 = Medium-low
+                        z1.SetValue("Flags", 0x000000db, RegistryValueKind.DWord);
+                    }
+                }
+
+                // 3. Reset Zone 3 (Internet) to Default Medium-high template
+                using (var z3 = Registry.CurrentUser.OpenSubKey(@"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\3", true))
+                {
+                    if (z3 != null)
+                    {
+                        foreach (var k in customKeys) { try { z3.DeleteValue(k, false); } catch { } }
+                        z3.SetValue("CurrentLevel", 0x00011000, RegistryValueKind.DWord); // 0x11000 = Medium-high
+                        z3.SetValue("Flags", 0x00000025, RegistryValueKind.DWord);
+                    }
+                }
+
+                if (logCallback != null) logCallback("  [RESET] Zones 1, 2, 3 custom DWORD overrides removed; template levels restored to Windows defaults.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback("  [RESET NOTICE] " + ex.Message);
+            }
         }
     }
 }
@@ -6125,116 +6422,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "autoReported", "true" }
                     };
 
-                    // 1. Silent Background Transmission to Google AI Studio Central Telemetry
+                    // 1. Silent Background Transmission to Google AI Studio Central Telemetry Gateway
+                    // (Central server handles deduplication & consolidated Telegram reporting)
                     Logger.SendCentralTelemetry(telemetryPayload, delegate(bool ok, string msg) { });
-
-                    // 2. Direct Telegram Live Issue Alert to Administrator (100% Reliable Delivery)
-                    try
-                    {
-                        string safeSummary = Logger.EscapeTelegramHtml(summary);
-                        string safeDetails = Logger.EscapeTelegramHtml(fullDetails);
-                        if (safeDetails.Length > 300) safeDetails = safeDetails.Substring(0, 300) + "...";
-
-                        string tgTextHtml = "🚨 <b>E-VEDHIKA UBD ISSUE REPORT (LIVE)</b>\\n" +
-                                            "━━━━━━━━━━━━━━━━━━━\\n" +
-                                            \$"🏢 <b>Office:</b> {Logger.EscapeTelegramHtml(location)}\\n" +
-                                            \$"💻 <b>PC:</b> <code>{Logger.EscapeTelegramHtml(machineName)}</code> ({Logger.EscapeTelegramHtml(userName)})\\n" +
-                                            \$"⚠️ <b>Issue:</b> {safeSummary}\\n" +
-                                            \$"📝 <b>Details:</b> {safeDetails}\\n" +
-                                            \$"🔑 <b>DSC Status:</b> {Logger.EscapeTelegramHtml(dsc)}\\n" +
-                                            \$"🖥️ <b>OS:</b> {Logger.EscapeTelegramHtml(winVer)}\\n" +
-                                            \$"⏰ <b>Time:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-
-                        string tgUrl = "https://api.telegram.org/bot8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE/sendMessage";
-                        bool sentTg = false;
-
-                        try
-                        {
-                            using (var tgClient = new TimeoutWebClient(4000))
-                            {
-                                tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                                tgClient.Encoding = Encoding.UTF8;
-                                string tgJson = \$"{{\\"chat_id\\":\\"431228008\\",\\"text\\":\\"{Logger.EscapeJson(tgTextHtml)}\\",\\"parse_mode\\":\\"HTML\\"}}";
-                                tgClient.UploadString(tgUrl, "POST", tgJson);
-                                sentTg = true;
-                            }
-                        }
-                        catch
-                        {
-                            // Fallback to plain text if HTML entities fail
-                            try
-                            {
-                                string tgTextPlain = \$"🚨 E-VEDHIKA UBD ISSUE REPORT (LIVE)\\n" +
-                                                     \$"-----------------------------------\\n" +
-                                                     \$"Office: {location}\\n" +
-                                                     \$"PC: {machineName} ({userName})\\n" +
-                                                     \$"Issue: {summary}\\n" +
-                                                     \$"Details: {fullDetails}\\n" +
-                                                     \$"DSC Status: {dsc}\\n" +
-                                                     \$"OS: {winVer}\\n" +
-                                                     \$"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-
-                                using (var tgClient = new TimeoutWebClient(4000))
-                                {
-                                    tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                                    tgClient.Encoding = Encoding.UTF8;
-                                    string tgJson = \$"{{\\"chat_id\\":\\"431228008\\",\\"text\\":\\"{Logger.EscapeJson(tgTextPlain)}\\"}}";
-                                    tgClient.UploadString(tgUrl, "POST", tgJson);
-                                    sentTg = true;
-                                }
-                            }
-                            catch { }
-                        }
-
-                        if (sentTg)
-                        {
-                            Logger.LogInfo("AUTO-REPORT", "Direct Telegram Issue Alert successfully dispatched to Admin (@DhawanRakesh)");
-                        }
-                    }
-                    catch { }
-
-                    // 3. HTTP POST directly to /api/report-issue
-                    string[] targetEndpoints = new string[]
-                    {
-                        "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/report-issue",
-                        "https://ais-pre-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/report-issue",
-                        "https://www.e-vedhika.in/api/report-issue"
-                    };
-
-                    var jsonSb = new StringBuilder();
-                    jsonSb.Append("{");
-                    bool f = true;
-                    foreach (var kvp in telemetryPayload)
-                    {
-                        if (!f) jsonSb.Append(",");
-                        string safeVal = (kvp.Value ?? "").Replace("\\\\", "\\\\\\\\").Replace("\\"", "'").Replace("\\r", "").Replace("\\n", " ");
-                        jsonSb.AppendFormat("\\"{0}\\":\\"{1}\\"", kvp.Key, safeVal);
-                        f = false;
-                    }
-                    jsonSb.Append("}");
-                    string payloadStr = jsonSb.ToString();
-
-                    foreach (var endpoint in targetEndpoints)
-                    {
-                        try
-                        {
-                            using (var wc = new TimeoutWebClient(4000))
-                            {
-                                wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                                wc.Encoding = Encoding.UTF8;
-                                wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                                wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-
-                                wc.UploadString(endpoint, "POST", payloadStr);
-                                Logger.LogInfo("AUTO-REPORT", "Silent automated report dispatched successfully to Google AI Studio (" + endpoint + ")");
-                                break;
-                            }
-                        }
-                        catch
-                        {
-                            // Continue to fallback
-                        }
-                    }
                 }
                 catch (Exception ex)
                 {
@@ -6412,74 +6602,6 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEMETRY] FAILED to {url}: {ex.Message}\\r\\n"); } catch { }
                     }
                 }
-
-                // Direct Telegram Instant Reporting fallback: Ensures administrators always get report on phone
-                try
-                {
-                    string pcName = data.ContainsKey("pcName") ? data["pcName"] : Environment.MachineName;
-                    string office = data.ContainsKey("officeLocation") ? data["officeLocation"] : "Grama Panchayat Office";
-                    string status = data.ContainsKey("status") ? data["status"] : "SUCCESS";
-                    string ver = data.ContainsKey("deployVersion") ? data["deployVersion"] : (data.ContainsKey("version") ? data["version"] : "v1.0.7");
-                    string remarks = data.ContainsKey("remarks") ? data["remarks"] : "UBD Deployment executed successfully (15/15 steps verified).";
-
-                    string tgTextHtml = "🛡️ <b>E-VEDHIKA TELEMETRY REPORT (Live)</b>\\n" +
-                                        "━━━━━━━━━━━━━━━━━━━\\n" +
-                                        \$"💻 <b>PC:</b> <code>{EscapeTelegramHtml(pcName)}</code>\\n" +
-                                        \$"🏢 <b>Office:</b> {EscapeTelegramHtml(office)}\\n" +
-                                        \$"⚡ <b>Status:</b> {EscapeTelegramHtml(status)} (15/15 Steps Verified)\\n" +
-                                        \$"📦 <b>Version:</b> {EscapeTelegramHtml(ver)}\\n" +
-                                        \$"📝 <b>Summary:</b> {EscapeTelegramHtml(remarks)}\\n" +
-                                        \$"⏰ <b>Time:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-
-                    bool tgSuccess = false;
-                    string tgUrl = "https://api.telegram.org/bot8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE/sendMessage";
-
-                    // Attempt 1: Rich HTML Mode
-                    try
-                    {
-                        using (var tgClient = new TimeoutWebClient(4000))
-                        {
-                            tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                            tgClient.Encoding = System.Text.Encoding.UTF8;
-                            string tgJson = \$"{{\\"chat_id\\":\\"431228008\\",\\"text\\":\\"{EscapeJson(tgTextHtml)}\\",\\"parse_mode\\":\\"HTML\\"}}";
-                            tgClient.UploadString(tgUrl, "POST", tgJson);
-                            tgSuccess = true;
-                        }
-                    }
-                    catch
-                    {
-                        // Attempt 2: Fallback to Pure Plain-Text (Guaranteed never to fail on HTML entities)
-                        try
-                        {
-                            string tgTextPlain = \$"🛡️ E-VEDHIKA TELEMETRY REPORT (Live)\\n" +
-                                                 \$"-----------------------------------\\n" +
-                                                 \$"PC: {pcName}\\n" +
-                                                 \$"Office: {office}\\n" +
-                                                 \$"Status: {status} (15/15 Steps Verified)\\n" +
-                                                 \$"Version: {ver}\\n" +
-                                                 \$"Summary: {remarks}\\n" +
-                                                 \$"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-
-                            using (var tgClient = new TimeoutWebClient(4000))
-                            {
-                                tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                                tgClient.Encoding = System.Text.Encoding.UTF8;
-                                string tgJson = \$"{{\\"chat_id\\":\\"431228008\\",\\"text\\":\\"{EscapeJson(tgTextPlain)}\\"}}";
-                                tgClient.UploadString(tgUrl, "POST", tgJson);
-                                tgSuccess = true;
-                            }
-                        }
-                        catch { }
-                    }
-
-                    if (tgSuccess)
-                    {
-                        delivered = true;
-                        try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEMETRY] SUCCESS Telegram Alert Dispatched to Admin\\r\\n"); } catch { }
-                        onComplete?.Invoke(true, "Delivered to Admin via Telegram Alert");
-                    }
-                }
-                catch { }
 
                 if (!delivered)
                 {

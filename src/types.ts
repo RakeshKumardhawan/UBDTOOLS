@@ -83,6 +83,7 @@ export interface DepartmentProfile {
 
 export type NavigationTab = 
   | 'dashboard'
+  | 'posts'
   | 'deploy'
   | 'csharp'
   | 'repair'

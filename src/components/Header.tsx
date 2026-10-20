@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, X, Terminal, ShieldCheck, ChevronDown, Github } from 'lucide-react';
+import { Menu, X, Terminal, ShieldCheck, ChevronDown, Github, Megaphone } from 'lucide-react';
 import { EnvironmentStatus, DepartmentProfile, NavigationTab } from '../types';
 import { EVedhikaLogo } from './EVedhikaLogo';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
@@ -21,6 +21,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  setActiveTab,
   selectedProfile,
   setSelectedProfile,
   departmentProfiles,
@@ -43,7 +44,6 @@ export const Header: React.FC<HeaderProps> = ({
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         )}
-
         <div className="flex items-center gap-2.5 sm:gap-3">
           <EVedhikaLogo size={32} className="w-7 h-7 sm:w-8 sm:h-8" />
           <div>
@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right Controls: Profile dropdown, Admin pill & System Console button */}
+      {/* Right Controls: Profile dropdown, Post button, Admin pill & System Console button */}
       <div className="flex gap-2 sm:gap-3 items-center">
         {/* Real-Time System RAM & Junk Stats */}
         <div className="hidden lg:block">
@@ -83,6 +83,17 @@ export const Header: React.FC<HeaderProps> = ({
           <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-medium pointer-events-none" />
         </div>
 
+        {/* Post Publisher Quick Button */}
+        <button
+          onClick={() => setActiveTab('posts')}
+          className="pill text-amber-300 border-amber-400/40 hover:border-amber-300 hover:bg-amber-400/10 transition-colors inline-flex items-center gap-1.5 font-mono text-[0.65rem] cursor-pointer"
+          title="Open Post Publisher & Broadcast Manager"
+        >
+          <Megaphone size={12} className="text-amber-400 animate-pulse" />
+          <span className="hidden sm:inline">📢 Post Publisher</span>
+          <span className="sm:hidden">Post</span>
+        </button>
+
         {/* GitHub Repository Link */}
         <a
           href="https://github.com/Rakeshkumardhawan/UBDTOOLS"
@@ -101,8 +112,6 @@ export const Header: React.FC<HeaderProps> = ({
           <ShieldCheck size={11} />
           <span>ADMIN_MODE</span>
         </div>
-
-
       </div>
     </header>
   );

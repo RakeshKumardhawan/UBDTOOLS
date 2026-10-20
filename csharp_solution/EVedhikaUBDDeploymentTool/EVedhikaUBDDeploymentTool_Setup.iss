@@ -41,9 +41,14 @@ Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg:
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--post-install"; Flags: runhidden
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
+[UninstallRun]
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall --silent"; Flags: runhidden; RunOnceId: "EVedhikaRevert"
+
 [UninstallDelete]
 Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
 Type: files; Name: "{group}\{#MyAppName}.lnk"
+Type: filesandordirs; Name: "C:\enterprise_compat"
+Type: filesandordirs; Name: "{commonappdata}\EVedhika"
 
 [Code]
 function IsWin7SP1OrHigher: Boolean;

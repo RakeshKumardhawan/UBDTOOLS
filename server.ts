@@ -45,22 +45,58 @@ async function startServer() {
   };
 
   // In-memory Telemetry Storage & Remote Desktop Queue Store
-  const liveAnnouncements = [
-    {
-      id: 1,
-      title: 'IMPORTANT: v1.0.7 Update Released',
-      content: 'Brand new v1.0.7 release with Direct Telegram & Cloud Telemetry, immediate installation reporting, zero-manual auto-repair, and full Windows 7/8/10/11 compatibility.',
-      date: '2026-10-13',
-      importance: 'High'
-    },
-    {
-      id: 2,
-      title: 'UBD Portal Security Guidelines',
-      content: 'Ensure Edge IE Mode and Zone 2 Trusted Sites are configured before signing documents with USB DSC Token.',
-      date: '2026-10-04',
-      importance: 'Normal'
+  const ANNOUNCEMENTS_FILE_PATH = path.join(process.cwd(), 'public', 'admin', 'announcements.json');
+  let liveAnnouncements: any[] = [];
+
+  if (fs.existsSync(ANNOUNCEMENTS_FILE_PATH)) {
+    try {
+      liveAnnouncements = JSON.parse(fs.readFileSync(ANNOUNCEMENTS_FILE_PATH, 'utf8'));
+    } catch (e) {
+      console.warn('[ANNOUNCEMENTS] Failed to parse announcements.json, using defaults:', e);
     }
-  ];
+  }
+
+  if (!Array.isArray(liveAnnouncements) || liveAnnouncements.length === 0) {
+    liveAnnouncements = [
+      {
+        id: 1,
+        title: 'IMPORTANT: v1.0.7 Update Released',
+        content: 'Brand new v1.0.7 release with Direct Telegram & Cloud Telemetry, immediate installation reporting, zero-manual auto-repair, and full Windows 7/8/10/11 compatibility.',
+        date: '2026-10-13',
+        importance: 'High',
+        category: 'Software Update',
+        author: 'Rakesh Dhawan (Admin)'
+      },
+      {
+        id: 2,
+        title: 'UBD Portal Security Guidelines',
+        content: 'Ensure Edge IE Mode and Zone 2 Trusted Sites are configured before signing documents with USB DSC Token.',
+        date: '2026-10-04',
+        importance: 'Normal',
+        category: 'General Notice',
+        author: 'System Operator'
+      }
+    ];
+  }
+
+  const saveAnnouncements = () => {
+    try {
+      const adminDir = path.join(process.cwd(), 'public', 'admin');
+      if (!fs.existsSync(adminDir)) {
+        fs.mkdirSync(adminDir, { recursive: true });
+      }
+      fs.writeFileSync(ANNOUNCEMENTS_FILE_PATH, JSON.stringify(liveAnnouncements, null, 2), 'utf8');
+      const liveJsonPath = path.join(adminDir, 'exe_ubd_live.json');
+      fs.writeFileSync(liveJsonPath, JSON.stringify({ news: liveAnnouncements }, null, 2), 'utf8');
+    } catch (err) {
+      console.error('[ANNOUNCEMENTS] Failed to save announcements to disk:', err);
+    }
+  };
+
+  // Save initial state if file doesn't exist yet
+  if (!fs.existsSync(ANNOUNCEMENTS_FILE_PATH)) {
+    saveAnnouncements();
+  }
 
   const telemetryLogsStore: any[] = [
     {
@@ -519,27 +555,82 @@ async function startServer() {
   app.get('/exe/api/version', handleGetVersion);
   app.get('/version.json', handleGetVersion);
 
-  // API Route: Live News & Announcements for C# Application (Website Posts)
-  app.get('/api/news', (req, res) => {
+  // API Routes: Live News & Announcements & Feed (GET, POST, DELETE)
+  app.get(['/api/v1/posts/feed', '/api/announcements', '/api/news'], (req, res) => {
     return res.json({
       success: true,
-      news: [
-        {
-          id: 1,
-          title: 'IMPORTANT: v1.0.4 Update Released',
-          content: 'New v1.0.4 version includes Longmai mToken (Class 3) support and Windows 7 & 8 DLL auto-repair. Please update if prompted.',
-          date: '2026-10-05',
-          importance: 'High'
-        },
-        {
-          id: 2,
-          title: 'UBD Portal Security Guidelines',
-          content: 'Ensure Edge IE Mode and Zone 2 Trusted Sites are configured before signing documents with USB DSC Token.',
-          date: '2026-10-04',
-          importance: 'Normal'
-        }
-      ]
+      status: 'ACTIVE_FEED',
+      endpoint: '/api/v1/posts/feed',
+      count: liveAnnouncements.length,
+      posts: liveAnnouncements,
+      feed: liveAnnouncements,
+      announcements: liveAnnouncements,
+      news: liveAnnouncements
     });
+  });
+
+  app.post(['/api/v1/posts/feed', '/api/announcements', '/api/news'], async (req, res) => {
+    try {
+      const { title, content, importance, category, author, sendTelegram } = req.body || {};
+      if (!title || !content) {
+        return res.status(400).json({ success: false, error: 'Title and content are required' });
+      }
+
+      const newPost = {
+        id: Date.now(),
+        title: String(title).trim(),
+        content: String(content).trim(),
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toLocaleTimeString(),
+        importance: importance || 'High',
+        category: category || 'General Notice',
+        author: author || 'Rakesh Dhawan (Admin)',
+        sendTelegram: !!sendTelegram
+      };
+
+      liveAnnouncements.unshift(newPost);
+      saveAnnouncements();
+
+      if (sendTelegram && telegramConfig.botToken && telegramConfig.chatId) {
+        const teleMsg = `📢 <b>NEW OFFICIAL ANNOUNCEMENT / BROADCAST</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━\n` +
+          `📌 <b>Title:</b> ${newPost.title}\n` +
+          `⚡ <b>Priority:</b> ${newPost.importance === 'High' ? '🔴 High Priority' : '🔵 Normal'}\n` +
+          `🏷️ <b>Category:</b> ${newPost.category}\n` +
+          `📅 <b>Date:</b> ${newPost.date}\n\n` +
+          `📝 <b>Details:</b>\n${newPost.content}\n\n` +
+          `🌐 <i>Published from E-Vedhika Website Admin Portal (www.e-vedhika.in)</i>`;
+
+        sendTelegramMessage(teleMsg, telegramConfig.botToken, telegramConfig.chatId).catch((e) => {
+          console.warn('[TELEGRAM] Announcement alert failed:', e?.message || e);
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Announcement published successfully live to Website & C# Executable',
+        announcement: newPost
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.delete(['/api/v1/posts/feed/:id', '/api/announcements/:id', '/api/news/:id'], (req, res) => {
+    try {
+      const { id } = req.params;
+      const initialCount = liveAnnouncements.length;
+      liveAnnouncements = liveAnnouncements.filter(item => String(item.id) !== String(id));
+      
+      if (liveAnnouncements.length < initialCount) {
+        saveAnnouncements();
+        return res.json({ success: true, message: 'Announcement deleted successfully' });
+      } else {
+        return res.status(404).json({ success: false, error: 'Announcement not found' });
+      }
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
   });
 
   // API Route: Permanent Download Link for Latest EXE

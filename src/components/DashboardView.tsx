@@ -2,6 +2,7 @@ import React from 'react';
 import { EnvironmentStatus, DepartmentProfile, NavigationTab, LogEntry } from '../types';
 import { Download, Play, Shield, CheckCircle2 } from 'lucide-react';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
+import { LiveAnnouncementWidget } from './LiveAnnouncementWidget';
 import { ReleaseNotes } from './ReleaseNotes';
 
 interface DashboardViewProps {
@@ -22,6 +23,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="max-w-5xl mx-auto w-full space-y-6 sm:space-y-10">
       <LiveSystemStatsWidget mode="card" onOpenPcBoost={() => setActiveTab('pcboost')} className="mb-6" />
+
+      {/* Live Broadcast Announcement Widget */}
+      <div className="mb-6">
+        <LiveAnnouncementWidget setActiveTab={setActiveTab} />
+      </div>
 
       {/* Hero Section */}
       <div className="mb-8 sm:mb-12 lg:mb-14">

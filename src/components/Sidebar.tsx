@@ -18,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const workflowItems = [
     { id: 'dashboard' as NavigationTab, label: 'DASHBOARD' },
+    { id: 'posts' as NavigationTab, label: 'POST_PUBLISHER', tag: 'BROADCAST' },
     { id: 'deploy' as NavigationTab, label: 'DEPLOY_ALL', tag: isDeploying ? 'RUN' : '' },
     { id: 'csharp' as NavigationTab, label: 'C#_VS_SLN', tag: '.NET + BOOST' },
   ];

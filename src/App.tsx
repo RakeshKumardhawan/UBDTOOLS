@@ -21,6 +21,7 @@ import { SettingsView } from './components/SettingsView';
 import { RegistryAuditor } from './components/RegistryAuditor';
 import { HelpView } from './components/HelpView';
 import { AboutView } from './components/AboutView';
+import { AdminPostPublisherView } from './components/AdminPostPublisherView';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
@@ -118,8 +119,17 @@ function MainAppContent() {
           normalized === 'livemonitoring'
         ) {
           setActiveTab('backups');
+        } else if (
+          normalized === 'admin/post' ||
+          normalized === 'admin/posts' ||
+          normalized === 'post' ||
+          normalized === 'posts' ||
+          normalized === 'publisher' ||
+          normalized === 'announcements'
+        ) {
+          setActiveTab('posts');
         } else if ([
-          'dashboard', 'deploy', 'csharp', 'repair', 'diagnostics', 'remote',
+          'dashboard', 'posts', 'deploy', 'csharp', 'repair', 'diagnostics', 'remote',
           'drivers', 'browser', 'registry', 'auditor', 'dsc', 'ai', 
           'downloads', 'backups', 'pcboost', 'settings', 'help', 'about'
         ].includes(normalized)) {
@@ -140,6 +150,8 @@ function MainAppContent() {
       const url = new URL(window.location.href);
       if (tab === 'backups') {
         url.searchParams.set('tab', 'admin/UBDLiveMonitoring');
+      } else if (tab === 'posts') {
+        url.searchParams.set('tab', 'admin/post');
       } else {
         url.searchParams.set('tab', tab);
       }
@@ -535,6 +547,7 @@ End of Report
               logs={logs}
             />
           )}
+          {activeTab === 'posts' && <AdminPostPublisherView />}
           {activeTab === 'deploy' && (
             <DeployView
               steps={deploySteps}

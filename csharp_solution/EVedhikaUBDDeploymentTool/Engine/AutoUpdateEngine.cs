@@ -390,7 +390,9 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
+                "https://www.e-vedhika.in/api/v1/posts/feed",
                 "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news",
+                "https://www.e-vedhika.in/api/announcements",
                 "https://www.e-vedhika.in/api/news"
             };
 
