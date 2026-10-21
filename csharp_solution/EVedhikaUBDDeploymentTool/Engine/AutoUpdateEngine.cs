@@ -390,41 +390,49 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
+                "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/admin/announcements.json",
+                "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/admin/exe_ubd_live.json",
+                "https://www.e-vedhika.in/admin/announcements.json",
+                "https://www.e-vedhika.in/admin/exe_ubd_live.json",
+                "https://www.e-vedhika.in/announcements.json",
                 "https://www.e-vedhika.in/api/v1/posts/feed",
-                "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news",
-                "https://www.e-vedhika.in/api/announcements",
-                "https://www.e-vedhika.in/api/news"
+                "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news"
             };
 
             foreach (var url in endpoints)
             {
                 try
                 {
-                    using (var wc = new TimeoutWebClient(3000))
+                    using (var wc = new TimeoutWebClient(4000))
                     {
                         wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika-News-Agent/1.0";
+                        wc.Encoding = System.Text.Encoding.UTF8;
                         string json = wc.DownloadString(url);
-                        if (!string.IsNullOrEmpty(json) && json.Contains("\"news\":"))
+                        if (!string.IsNullOrEmpty(json))
                         {
-                            int newsIdx = json.IndexOf("\"news\":");
-                            string newsList = json.Substring(newsIdx);
-                            
-                            for (int i = 0; i < 5; i++)
+                            var objMatches = System.Text.RegularExpressions.Regex.Matches(json, @"\{[^{}]*\}");
+                            foreach (System.Text.RegularExpressions.Match m in objMatches)
                             {
-                                int itemStart = newsList.IndexOf("{");
-                                if (itemStart == -1) break;
-                                int itemEnd = newsList.IndexOf("}", itemStart);
-                                if (itemEnd == -1) break;
-                                
-                                string itemJson = newsList.Substring(itemStart, itemEnd - itemStart + 1);
-                                news.Add(new NewsItem
+                                string block = m.Value;
+                                var tMatch = System.Text.RegularExpressions.Regex.Match(block, @""title"\s*:\s*"([^"]*)"");
+                                var cMatch = System.Text.RegularExpressions.Regex.Match(block, @""content"\s*:\s*"([^"]*)"");
+                                if (tMatch.Success && cMatch.Success)
                                 {
-                                    Title = ExtractJsonValue(itemJson, "title"),
-                                    Content = ExtractJsonValue(itemJson, "content"),
-                                    Date = ExtractJsonValue(itemJson, "date"),
-                                    Importance = ExtractJsonValue(itemJson, "importance")
-                                });
-                                newsList = newsList.Substring(itemEnd + 1);
+                                    string title = tMatch.Groups[1].Value.Trim();
+                                    string content = cMatch.Groups[1].Value.Trim();
+                                    if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(content) && !title.Equals("success", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        var dMatch = System.Text.RegularExpressions.Regex.Match(block, @""date"\s*:\s*"([^"]*)"");
+                                        var iMatch = System.Text.RegularExpressions.Regex.Match(block, @""importance"\s*:\s*"([^"]*)"");
+                                        news.Add(new NewsItem
+                                        {
+                                            Title = CleanJsonString(title),
+                                            Content = CleanJsonString(content),
+                                            Date = dMatch.Success ? dMatch.Groups[1].Value : DateTime.Now.ToString("yyyy-MM-dd"),
+                                            Importance = iMatch.Success ? iMatch.Groups[1].Value : "Normal"
+                                        });
+                                    }
+                                }
                             }
                             if (news.Count > 0) break; // Stop after first successful fetch
                         }
@@ -432,28 +440,39 @@ del ""%~f0""
                 }
                 catch { }
             }
+
+            // Fallback default announcements if offline or server is temporarily unreachable
+            if (news.Count == 0)
+            {
+                news.Add(new NewsItem
+                {
+                    Title = "E-Vedhika Live Deployment Engine Active",
+                    Content = "UBD Telangana (ubd.telangana.gov.in) Zone 2 Registry Automation, DSC Token Drivers & Central Live Telemetry active.",
+                    Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Importance = "High"
+                });
+                news.Add(new NewsItem
+                {
+                    Title = "UBD Portal Security Guidelines",
+                    Content = "Ensure Edge IE Mode and Zone 2 Trusted Sites configuration are kept verified. AutoRepair Guardian automatically secures all policies.",
+                    Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Importance = "Medium"
+                });
+            }
+
             return news;
         }
 
-        private static string ExtractJsonValue(string json, string key)
+        private static string CleanJsonString(string text)
         {
+            if (string.IsNullOrEmpty(text)) return "";
             try
             {
-                string searchKey = $"\"{key}\":";
-                int idx = json.IndexOf(searchKey, StringComparison.OrdinalIgnoreCase);
-                if (idx == -1) return "";
-
-                int start = idx + searchKey.Length;
-                while (start < json.Length && (json[start] == ' ' || json[start] == '"')) start++;
-
-                int end = start;
-                while (end < json.Length && json[end] != '"' && json[end] != ',' && json[end] != '}') end++;
-
-                return json.Substring(start, end - start).Trim('"', ' ');
+                return System.Text.RegularExpressions.Regex.Unescape(text).Replace("\/", "/");
             }
             catch
             {
-                return "";
+                return text;
             }
         }
 

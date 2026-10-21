@@ -25,29 +25,83 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         }
 
 
-                        public static string GetLiveLocation()
+                        public static string GetLiveLocation(string preferredState = null)
         {
+            string state = preferredState;
+            if (string.IsNullOrEmpty(state))
+            {
+                state = NativeRemoteAgent.CurrentState;
+            }
+            if (string.IsNullOrEmpty(state))
+            {
+                state = "Telangana";
+            }
+
+            // 1. Query ip-api.com (Reliable, fast, returns accurate Indian cities and states)
             try
             {
-                using (System.Net.WebClient client = new System.Net.WebClient())
+                using (System.Net.WebClient client = new TimeoutWebClient(3500))
                 {
-                    client.Headers.Add("User-Agent", "EVedhika/1.0");
-                    string response = client.DownloadString("https://get.geojs.io/v1/ip/geo.json");
-                    System.Text.RegularExpressions.Match cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
-                    System.Text.RegularExpressions.Match regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\"region\":\"([^\"]+)\"");
-                    
-                    string city = cityMatch.Success ? cityMatch.Groups[1].Value : "Unknown City";
-                    string region = regionMatch.Success ? regionMatch.Groups[1].Value : "Unknown Region";
-                    
-                    if (city != "Unknown City")
+                    client.Headers.Add("User-Agent", "Mozilla/5.0");
+                    client.Encoding = System.Text.Encoding.UTF8;
+                    string response = client.DownloadString("http://ip-api.com/json/?fields=status,country,regionName,city,district");
+                    if (!string.IsNullOrEmpty(response) && response.Contains(""status":"success""))
                     {
-                        if (region != "Unknown Region") return city + ", " + region;
-                        return city;
+                        var cityM = System.Text.RegularExpressions.Regex.Match(response, ""city":"([^"]+)"");
+                        var regionM = System.Text.RegularExpressions.Regex.Match(response, ""regionName":"([^"]+)"");
+                        string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
+                        string region = regionM.Success ? regionM.Groups[1].Value.Trim() : "";
+
+                        // If user app is explicitly set to Telangana, keep Telangana
+                        if (state == "Telangana" && region.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            region = "Telangana";
+                        }
+
+                        if (!string.IsNullOrEmpty(city) && !string.IsNullOrEmpty(region))
+                        {
+                            return city + ", " + region;
+                        }
+                        if (!string.IsNullOrEmpty(city))
+                        {
+                            return city + ", " + state;
+                        }
                     }
                 }
             }
             catch { }
-            return "Unknown Location";
+
+            // 2. Fallback to ipwho.is
+            try
+            {
+                using (System.Net.WebClient client = new TimeoutWebClient(3500))
+                {
+                    client.Headers.Add("User-Agent", "Mozilla/5.0");
+                    client.Encoding = System.Text.Encoding.UTF8;
+                    string response = client.DownloadString("https://ipwho.is/");
+                    if (!string.IsNullOrEmpty(response) && response.Contains(""success":true"))
+                    {
+                        var cityM = System.Text.RegularExpressions.Regex.Match(response, ""city":"([^"]+)"");
+                        var regionM = System.Text.RegularExpressions.Regex.Match(response, ""region":"([^"]+)"");
+                        string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
+                        string region = regionM.Success ? regionM.Groups[1].Value.Trim() : state;
+
+                        if (state == "Telangana" && region.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            region = "Telangana";
+                        }
+
+                        if (!string.IsNullOrEmpty(city))
+                        {
+                            return city + ", " + region;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Clean default based on selected state (Telangana / Andhra Pradesh)
+            return state == "Andhra Pradesh" ? "Andhra Pradesh GP Office" : "Telangana GP Office";
         }
 
         public static string GetWindowsVersion()

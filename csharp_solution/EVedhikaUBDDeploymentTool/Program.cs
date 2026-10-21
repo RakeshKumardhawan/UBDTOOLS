@@ -100,7 +100,7 @@ namespace EVedhikaUBDDeploymentTool
                         {
                             string machineName = Environment.MachineName;
                             string userName = Environment.UserName;
-                            string location = SystemInfoHelper.GetLiveLocation();
+                            string location = SystemInfoHelper.GetLiveLocation("Telangana");
                             string winVer = SystemInfoHelper.GetWindowsVersion();
                             string dsc = SystemInfoHelper.CheckDscStatus();
 

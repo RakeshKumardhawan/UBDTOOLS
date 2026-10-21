@@ -820,7 +820,7 @@ namespace EVedhikaUBDDeploymentTool
                         {
                             { "pcName", Environment.MachineName },
                             { "userName", Environment.UserName },
-                            { "officeLocation", SystemInfoHelper.GetLiveLocation() },
+                            { "officeLocation", SystemInfoHelper.GetLiveLocation(currentStateName) },
                             { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                             { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                             { "status", "ONLINE & READY (v1.0.7)" },
@@ -856,7 +856,7 @@ namespace EVedhikaUBDDeploymentTool
                         try
                         {
                             string stateName = currentTargetDomain.Contains("ap.gov.in") ? "Andhra Pradesh" : "Telangana";
-                            string loc = SystemInfoHelper.GetLiveLocation();
+                            string loc = SystemInfoHelper.GetLiveLocation(currentStateName);
                             string fullLoc = (string.IsNullOrEmpty(loc) || loc == "Unknown Location")
                                 ? $"{stateName} Panchayat Office"
                                 : $"{loc} ({stateName})";
@@ -1030,7 +1030,7 @@ namespace EVedhikaUBDDeploymentTool
             });
             
             string stateTag = currentTargetDomain.Contains("ap.gov.in") ? "Andhra Pradesh" : "Telangana";
-            string locComplete = SystemInfoHelper.GetLiveLocation();
+            string locComplete = SystemInfoHelper.GetLiveLocation(currentStateName);
             string officeFull = (string.IsNullOrEmpty(locComplete) || locComplete == "Unknown Location")
                 ? $"{stateTag} Grama Panchayat Office"
                 : $"{locComplete} ({stateTag})";
@@ -2129,7 +2129,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "pcName", Environment.MachineName },
                 { "userName", Environment.UserName },
                 { "state", currentStateName },
-                { "officeLocation", SystemInfoHelper.GetLiveLocation() },
+                { "officeLocation", SystemInfoHelper.GetLiveLocation(currentStateName) },
                 { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                 { "internet", "Online" },
                 { "dotNet", SystemInfoHelper.CheckDotNetFramework() },

@@ -1019,41 +1019,49 @@ del ""%~f0""
             var news = new System.Collections.Generic.List<NewsItem>();
             string[] endpoints = new string[]
             {
+                "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/admin/announcements.json",
+                "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/admin/exe_ubd_live.json",
+                "https://www.e-vedhika.in/admin/announcements.json",
+                "https://www.e-vedhika.in/admin/exe_ubd_live.json",
+                "https://www.e-vedhika.in/announcements.json",
                 "https://www.e-vedhika.in/api/v1/posts/feed",
-                "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news",
-                "https://www.e-vedhika.in/api/announcements",
-                "https://www.e-vedhika.in/api/news"
+                "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news"
             };
 
             foreach (var url in endpoints)
             {
                 try
                 {
-                    using (var wc = new TimeoutWebClient(3000))
+                    using (var wc = new TimeoutWebClient(4000))
                     {
                         wc.Headers[HttpRequestHeader.UserAgent] = "e-Vedhika-News-Agent/1.0";
+                        wc.Encoding = System.Text.Encoding.UTF8;
                         string json = wc.DownloadString(url);
-                        if (!string.IsNullOrEmpty(json) && json.Contains("\\"news\\":"))
+                        if (!string.IsNullOrEmpty(json))
                         {
-                            int newsIdx = json.IndexOf("\\"news\\":");
-                            string newsList = json.Substring(newsIdx);
-                            
-                            for (int i = 0; i < 5; i++)
+                            var objMatches = System.Text.RegularExpressions.Regex.Matches(json, @"\\{[^{}]*\\}");
+                            foreach (System.Text.RegularExpressions.Match m in objMatches)
                             {
-                                int itemStart = newsList.IndexOf("{");
-                                if (itemStart == -1) break;
-                                int itemEnd = newsList.IndexOf("}", itemStart);
-                                if (itemEnd == -1) break;
-                                
-                                string itemJson = newsList.Substring(itemStart, itemEnd - itemStart + 1);
-                                news.Add(new NewsItem
+                                string block = m.Value;
+                                var tMatch = System.Text.RegularExpressions.Regex.Match(block, @""title"\\s*:\\s*"([^"]*)"");
+                                var cMatch = System.Text.RegularExpressions.Regex.Match(block, @""content"\\s*:\\s*"([^"]*)"");
+                                if (tMatch.Success && cMatch.Success)
                                 {
-                                    Title = ExtractJsonValue(itemJson, "title"),
-                                    Content = ExtractJsonValue(itemJson, "content"),
-                                    Date = ExtractJsonValue(itemJson, "date"),
-                                    Importance = ExtractJsonValue(itemJson, "importance")
-                                });
-                                newsList = newsList.Substring(itemEnd + 1);
+                                    string title = tMatch.Groups[1].Value.Trim();
+                                    string content = cMatch.Groups[1].Value.Trim();
+                                    if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(content) && !title.Equals("success", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        var dMatch = System.Text.RegularExpressions.Regex.Match(block, @""date"\\s*:\\s*"([^"]*)"");
+                                        var iMatch = System.Text.RegularExpressions.Regex.Match(block, @""importance"\\s*:\\s*"([^"]*)"");
+                                        news.Add(new NewsItem
+                                        {
+                                            Title = CleanJsonString(title),
+                                            Content = CleanJsonString(content),
+                                            Date = dMatch.Success ? dMatch.Groups[1].Value : DateTime.Now.ToString("yyyy-MM-dd"),
+                                            Importance = iMatch.Success ? iMatch.Groups[1].Value : "Normal"
+                                        });
+                                    }
+                                }
                             }
                             if (news.Count > 0) break; // Stop after first successful fetch
                         }
@@ -1061,28 +1069,39 @@ del ""%~f0""
                 }
                 catch { }
             }
+
+            // Fallback default announcements if offline or server is temporarily unreachable
+            if (news.Count == 0)
+            {
+                news.Add(new NewsItem
+                {
+                    Title = "E-Vedhika Live Deployment Engine Active",
+                    Content = "UBD Telangana (ubd.telangana.gov.in) Zone 2 Registry Automation, DSC Token Drivers & Central Live Telemetry active.",
+                    Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Importance = "High"
+                });
+                news.Add(new NewsItem
+                {
+                    Title = "UBD Portal Security Guidelines",
+                    Content = "Ensure Edge IE Mode and Zone 2 Trusted Sites configuration are kept verified. AutoRepair Guardian automatically secures all policies.",
+                    Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Importance = "Medium"
+                });
+            }
+
             return news;
         }
 
-        private static string ExtractJsonValue(string json, string key)
+        private static string CleanJsonString(string text)
         {
+            if (string.IsNullOrEmpty(text)) return "";
             try
             {
-                string searchKey = \$"\\"{key}\\":";
-                int idx = json.IndexOf(searchKey, StringComparison.OrdinalIgnoreCase);
-                if (idx == -1) return "";
-
-                int start = idx + searchKey.Length;
-                while (start < json.Length && (json[start] == ' ' || json[start] == '"')) start++;
-
-                int end = start;
-                while (end < json.Length && json[end] != '"' && json[end] != ',' && json[end] != '}') end++;
-
-                return json.Substring(start, end - start).Trim('"', ' ');
+                return System.Text.RegularExpressions.Regex.Unescape(text).Replace("\\/", "/");
             }
             catch
             {
-                return "";
+                return text;
             }
         }
 
@@ -7224,29 +7243,83 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         }
 
 
-                        public static string GetLiveLocation()
+                        public static string GetLiveLocation(string preferredState = null)
         {
+            string state = preferredState;
+            if (string.IsNullOrEmpty(state))
+            {
+                state = NativeRemoteAgent.CurrentState;
+            }
+            if (string.IsNullOrEmpty(state))
+            {
+                state = "Telangana";
+            }
+
+            // 1. Query ip-api.com (Reliable, fast, returns accurate Indian cities and states)
             try
             {
-                using (System.Net.WebClient client = new System.Net.WebClient())
+                using (System.Net.WebClient client = new TimeoutWebClient(3500))
                 {
-                    client.Headers.Add("User-Agent", "EVedhika/1.0");
-                    string response = client.DownloadString("https://get.geojs.io/v1/ip/geo.json");
-                    System.Text.RegularExpressions.Match cityMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"city\\":\\"([^\\"]+)\\"");
-                    System.Text.RegularExpressions.Match regionMatch = System.Text.RegularExpressions.Regex.Match(response, "\\"region\\":\\"([^\\"]+)\\"");
-                    
-                    string city = cityMatch.Success ? cityMatch.Groups[1].Value : "Unknown City";
-                    string region = regionMatch.Success ? regionMatch.Groups[1].Value : "Unknown Region";
-                    
-                    if (city != "Unknown City")
+                    client.Headers.Add("User-Agent", "Mozilla/5.0");
+                    client.Encoding = System.Text.Encoding.UTF8;
+                    string response = client.DownloadString("http://ip-api.com/json/?fields=status,country,regionName,city,district");
+                    if (!string.IsNullOrEmpty(response) && response.Contains(""status":"success""))
                     {
-                        if (region != "Unknown Region") return city + ", " + region;
-                        return city;
+                        var cityM = System.Text.RegularExpressions.Regex.Match(response, ""city":"([^"]+)"");
+                        var regionM = System.Text.RegularExpressions.Regex.Match(response, ""regionName":"([^"]+)"");
+                        string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
+                        string region = regionM.Success ? regionM.Groups[1].Value.Trim() : "";
+
+                        // If user app is explicitly set to Telangana, keep Telangana
+                        if (state == "Telangana" && region.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            region = "Telangana";
+                        }
+
+                        if (!string.IsNullOrEmpty(city) && !string.IsNullOrEmpty(region))
+                        {
+                            return city + ", " + region;
+                        }
+                        if (!string.IsNullOrEmpty(city))
+                        {
+                            return city + ", " + state;
+                        }
                     }
                 }
             }
             catch { }
-            return "Unknown Location";
+
+            // 2. Fallback to ipwho.is
+            try
+            {
+                using (System.Net.WebClient client = new TimeoutWebClient(3500))
+                {
+                    client.Headers.Add("User-Agent", "Mozilla/5.0");
+                    client.Encoding = System.Text.Encoding.UTF8;
+                    string response = client.DownloadString("https://ipwho.is/");
+                    if (!string.IsNullOrEmpty(response) && response.Contains(""success":true"))
+                    {
+                        var cityM = System.Text.RegularExpressions.Regex.Match(response, ""city":"([^"]+)"");
+                        var regionM = System.Text.RegularExpressions.Regex.Match(response, ""region":"([^"]+)"");
+                        string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
+                        string region = regionM.Success ? regionM.Groups[1].Value.Trim() : state;
+
+                        if (state == "Telangana" && region.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            region = "Telangana";
+                        }
+
+                        if (!string.IsNullOrEmpty(city))
+                        {
+                            return city + ", " + region;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Clean default based on selected state (Telangana / Andhra Pradesh)
+            return state == "Andhra Pradesh" ? "Andhra Pradesh GP Office" : "Telangana GP Office";
         }
 
         public static string GetWindowsVersion()
@@ -9275,7 +9348,7 @@ namespace EVedhikaUBDDeploymentTool
                         {
                             { "pcName", Environment.MachineName },
                             { "userName", Environment.UserName },
-                            { "officeLocation", SystemInfoHelper.GetLiveLocation() },
+                            { "officeLocation", SystemInfoHelper.GetLiveLocation(currentStateName) },
                             { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                             { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                             { "status", "ONLINE & READY (v1.0.7)" },
@@ -9311,7 +9384,7 @@ namespace EVedhikaUBDDeploymentTool
                         try
                         {
                             string stateName = currentTargetDomain.Contains("ap.gov.in") ? "Andhra Pradesh" : "Telangana";
-                            string loc = SystemInfoHelper.GetLiveLocation();
+                            string loc = SystemInfoHelper.GetLiveLocation(currentStateName);
                             string fullLoc = (string.IsNullOrEmpty(loc) || loc == "Unknown Location")
                                 ? \$"{stateName} Panchayat Office"
                                 : \$"{loc} ({stateName})";
@@ -9485,7 +9558,7 @@ namespace EVedhikaUBDDeploymentTool
             });
             
             string stateTag = currentTargetDomain.Contains("ap.gov.in") ? "Andhra Pradesh" : "Telangana";
-            string locComplete = SystemInfoHelper.GetLiveLocation();
+            string locComplete = SystemInfoHelper.GetLiveLocation(currentStateName);
             string officeFull = (string.IsNullOrEmpty(locComplete) || locComplete == "Unknown Location")
                 ? \$"{stateTag} Grama Panchayat Office"
                 : \$"{locComplete} ({stateTag})";
@@ -10584,7 +10657,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "pcName", Environment.MachineName },
                 { "userName", Environment.UserName },
                 { "state", currentStateName },
-                { "officeLocation", SystemInfoHelper.GetLiveLocation() },
+                { "officeLocation", SystemInfoHelper.GetLiveLocation(currentStateName) },
                 { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                 { "internet", "Online" },
                 { "dotNet", SystemInfoHelper.CheckDotNetFramework() },
@@ -12256,7 +12329,7 @@ namespace EVedhikaUBDDeploymentTool
                         {
                             string machineName = Environment.MachineName;
                             string userName = Environment.UserName;
-                            string location = SystemInfoHelper.GetLiveLocation();
+                            string location = SystemInfoHelper.GetLiveLocation("Telangana");
                             string winVer = SystemInfoHelper.GetWindowsVersion();
                             string dsc = SystemInfoHelper.CheckDscStatus();
 

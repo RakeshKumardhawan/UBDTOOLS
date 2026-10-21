@@ -822,7 +822,7 @@ async function startServer() {
 
       const targetDom = body.targetDomain || (String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in');
       const stateVal = body.state || (targetDom.includes('ap.gov.in') || String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana');
-      const officeLoc = body.officeLocation || body.office || (stateVal === 'Andhra Pradesh' ? 'Visakhapatnam, Andhra Pradesh' : 'Rangareddy, Telangana');
+      const officeLoc = (body.officeLocation && !body.officeLocation.toLowerCase().includes('unknown')) ? body.officeLocation : (stateVal === 'Andhra Pradesh' ? 'Visakhapatnam, Andhra Pradesh' : 'Telangana GP Office (Rangareddy, TS)');
       const osVer = body.osVersion || body.winEdition || body.winVersion || 'Win11 Pro (64-Bit)';
       const dotNetVer = body.dotNet || body.dotnet35 || body.dotnet4x || 'v3.5 & v4.8 Active';
       const digiSigner = body.nicDigiSigner || body.digiSignerPort || body.digiSignerVersion || 'Port 8080 Active';

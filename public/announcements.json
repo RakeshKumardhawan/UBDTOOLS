@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1792524495419,
+    "title": "టెస్ట్",
+    "content": "ఈ-వేదిక లైవ్ బ్రాడ్‌కాస్ట్ నోటీస్ - Telangana UBD Portal Active",
+    "date": "2026-10-20",
+    "importance": "High",
+    "category": "General Notice",
+    "author": "Rakesh Dhawan (Admin)"
+  },
+  {
+    "id": 1,
+    "title": "IMPORTANT: v1.0.7 Update Released",
+    "content": "Brand new v1.0.7 release with Direct Telegram & Cloud Telemetry, immediate installation reporting, zero-manual auto-repair, and full Windows 7/8/10/11 compatibility.",
+    "date": "2026-10-13",
+    "importance": "High",
+    "category": "Software Update",
+    "author": "Rakesh Dhawan (Admin)"
+  },
+  {
+    "id": 2,
+    "title": "UBD Portal Security Guidelines",
+    "content": "Ensure Edge IE Mode and Zone 2 Trusted Sites configuration are kept verified. AutoRepair Guardian automatically secures all policies.",
+    "date": "2026-10-04",
+    "importance": "Medium",
+    "category": "Security",
+    "author": "E-Vedhika Security Desk"
+  }
+]
