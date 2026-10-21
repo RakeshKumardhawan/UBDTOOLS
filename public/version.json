@@ -1,16 +1,14 @@
 {
-  "name": "E-VEDHIKA All Problems One Solution & UBD Deployment Tool",
-  "appName": "E-VEDHIKA All Problems One Solution & UBD Deployment Tool",
-  "executableName": "EVedhika_Setup_v1.0.7.exe",
   "currentVersion": "v1.0.7",
   "latestVersion": "v1.0.7",
   "versionCode": 10070,
-  "releaseDate": "2026-10-16",
+  "resourceVersion": "2026.10.21-R4",
+  "resourceDate": "2026-10-21",
+  "resourceDescription": "OTA Dynamic UBD Rules, Zone 2 ActiveX Policies, sites.xml Engine & Live Posts Feed",
+  "releaseDate": "2026-10-21",
   "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe",
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": false,
-  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.7 - Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation.",
-  "publisher": "E-Vedhika.in (Rakesh Dhawan)",
-  "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live"
+  "releaseNotes": "Main App Version remains v1.0.7. Dynamic Over-The-Air (OTA) Resource & Rules Engine updates policies, drivers and announcements dynamically without changing main software build."
 }

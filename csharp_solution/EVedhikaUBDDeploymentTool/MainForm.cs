@@ -219,7 +219,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | PC ID: {0} | Status: Ready", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 (Resource Build: 2026.10.21-R4) | PC ID: {0} | Status: Ready", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;

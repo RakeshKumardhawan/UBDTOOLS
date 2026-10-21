@@ -15,9 +15,12 @@ import {
   Globe,
   Layers,
   ArrowUpRight,
-  ShieldAlert
+  ShieldAlert,
+  MapPin,
+  Compass
 } from 'lucide-react';
 import { EnvironmentStatus, DepartmentProfile } from '../types';
+import { detectSystemLocation, SystemLocationInfo } from '../utils/locationHelper';
 
 interface DiagnosticsViewProps {
   envStatus: EnvironmentStatus;
@@ -33,6 +36,18 @@ export const DiagnosticsView: React.FC<DiagnosticsViewProps> = ({
   isScanning,
 }) => {
   const [diagnosticReport, setDiagnosticReport] = useState<string | null>(null);
+
+  // System Location State
+  const [locationInfo, setLocationInfo] = useState<SystemLocationInfo | null>(null);
+  const [isCheckingLocation, setIsCheckingLocation] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    setIsCheckingLocation(true);
+    detectSystemLocation().then((info) => {
+      setLocationInfo(info);
+      setIsCheckingLocation(false);
+    });
+  }, []);
 
   // IE Version Compatibility State
   const [ieCompatStatus, setIeCompatStatus] = useState<{
@@ -214,6 +229,89 @@ End of E-Vedhika Diagnostic Report.
             <span>Export Diagnostic Log (.txt)</span>
           </button>
         </div>
+      </div>
+
+      {/* System Location & Regional Policy Diagnostics */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                System Location & Regional Policy Diagnostics
+              </h3>
+              <p className="text-xs text-slate-500">
+                Live IP Geolocation, Timezone, and Departmental Policy Alignment Check
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setIsCheckingLocation(true);
+              detectSystemLocation().then((info) => {
+                setLocationInfo(info);
+                setIsCheckingLocation(false);
+              });
+            }}
+            disabled={isCheckingLocation}
+            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Compass className={`w-3.5 h-3.5 ${isCheckingLocation ? 'animate-spin' : ''}`} />
+            <span>{isCheckingLocation ? 'Detecting Location...' : 'Re-detect Location'}</span>
+          </button>
+        </div>
+
+        {locationInfo ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Detected Region / State</div>
+              <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                {locationInfo.detectedState} ({locationInfo.region})
+              </div>
+              <div className="text-[10px] text-slate-500">{locationInfo.city}, {locationInfo.country}</div>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">System IP & API Source</div>
+              <div className="font-bold text-slate-900 text-xs truncate" title={locationInfo.ip}>
+                {locationInfo.ip}
+              </div>
+              <div className="text-[10px] text-slate-500 truncate" title={locationInfo.source}>{locationInfo.source}</div>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Timezone & Locale</div>
+              <div className="font-bold text-slate-900 text-xs">
+                {locationInfo.timezone}
+              </div>
+              <div className="text-[10px] text-slate-500">Locale: {locationInfo.locale}</div>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Regional Profile Status</div>
+              {selectedProfile.name.toLowerCase().includes(locationInfo.detectedState.toLowerCase()) || 
+               (selectedProfile.name.includes('Telangana') && locationInfo.detectedState === 'Telangana') ? (
+                <div className="font-bold text-emerald-700 text-xs flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> OPTIMAL ALIGNMENT
+                </div>
+              ) : (
+                <div className="font-bold text-amber-700 text-xs flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> PROFILE CROSS-MATCH
+                </div>
+              )}
+              <div className="text-[10px] text-slate-500">
+                Active: {selectedProfile.name}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 text-center text-xs text-slate-500">
+            Detecting system regional location and IP parameters...
+          </div>
+        )}
       </div>
 
       {/* Advanced System Repair Tools */}
