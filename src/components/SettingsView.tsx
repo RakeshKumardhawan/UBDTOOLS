@@ -13,10 +13,23 @@ import {
   Star,
   MessageSquareHeart,
   Send,
-  AlertCircle 
+  AlertCircle,
+  Layers,
+  Hash,
+  RotateCw,
+  Server,
+  ShieldAlert,
+  FileCode
 } from 'lucide-react';
 import { DepartmentProfile } from '../types';
 import { useToast } from './Toast';
+import { 
+  getLocalResourceManifest, 
+  checkResourceManifestUpdates, 
+  syncSingleResource, 
+  syncAllResources, 
+  ResourceManifest 
+} from '../utils/updateEngine';
 
 interface SettingsViewProps {
   selectedProfile: DepartmentProfile;
@@ -31,11 +44,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   departmentProfiles,
   onClearLogs,
 }) => {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [updateInterval, setUpdateInterval] = useState('Daily');
   const [logLevel, setLogLevel] = useState('Detailed Audit');
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Resource Manifest & Component Hash State
+  const [manifest, setManifest] = useState<ResourceManifest>(() => getLocalResourceManifest());
+  const [isCheckingManifest, setIsCheckingManifest] = useState(false);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+
+  const handleCheckManifestUpdates = async () => {
+    setIsCheckingManifest(true);
+    try {
+      const updated = await checkResourceManifestUpdates();
+      setManifest(updated);
+      if (updated.outdatedCount > 0) {
+        showInfo(`${updated.outdatedCount} component resource(s) have new OTA hash updates available!`, 'Resource Updates Found');
+      } else {
+        showSuccess('All resource component hashes are verified and up to date!', 'Manifest Verified');
+      }
+    } catch (e) {
+      showError('Failed to check resource manifest updates.', 'Network Error');
+    } finally {
+      setIsCheckingManifest(false);
+    }
+  };
+
+  const handleSyncAllResources = () => {
+    setIsSyncingAll(true);
+    setTimeout(() => {
+      const synced = syncAllResources();
+      setManifest(synced);
+      setIsSyncingAll(false);
+      showSuccess('All component resources synced to latest hashes! Software version remains v1.0.7.', 'Resources Synced');
+    }, 800);
+  };
+
+  const handleSyncSingleResource = (id: string, name: string) => {
+    const synced = syncSingleResource(id);
+    setManifest(synced);
+    showSuccess(`Component '${name}' updated to latest hash!`, 'Component Synced');
+  };
 
   const [otaApiUrl, setOtaApiUrl] = useState(() => {
     return localStorage.getItem('ota_gateway_url') || 'https://www.e-vedhika.in/api/ota-broadcast';
@@ -239,6 +290,133 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {savedSuccess ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           <span>{savedSuccess ? 'Settings Saved!' : 'Save Preferences'}</span>
         </button>
+      </div>
+
+      {/* Resource Manifest & Component Hash System */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <div className="p-3 rounded-xl bg-teal-100 text-teal-800 shrink-0">
+              <Layers className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-bold text-slate-900">
+                  Resource Manifest & Component Hash System
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-mono font-bold border border-slate-200">
+                  App: v1.0.7 (Fixed)
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[11px] font-mono font-bold border border-teal-200">
+                  Manifest: {manifest.manifestVersion}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                యాప్ వర్షన్ నంబర్ (<span className="font-bold text-slate-700">v1.0.7</span>) మార్చాల్సిన అవసరం లేకుండానే ప్రతి డ్రైవర్, రజిస్ట్రీ పాలసీ, మరియు గజ్రెట్ ఆర్డర్ విడివిడిగా SHA-256 హాష్‌లతో OTA ద్వారా అప్‌డేట్ అవుతుంది.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-start lg:self-center">
+            <button
+              onClick={handleCheckManifestUpdates}
+              disabled={isCheckingManifest}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs flex items-center gap-2 border border-slate-200 transition-all cursor-pointer"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${isCheckingManifest ? 'animate-spin' : ''}`} />
+              <span>{isCheckingManifest ? 'Checking Hashes...' : 'Verify Remote Hashes'}</span>
+            </button>
+
+            <button
+              onClick={handleSyncAllResources}
+              disabled={isSyncingAll || manifest.outdatedCount === 0}
+              className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs ${
+                manifest.outdatedCount > 0
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+              }`}
+            >
+              <CheckCircle2 className={`w-4 h-4 ${isSyncingAll ? 'animate-spin' : ''}`} />
+              <span>{isSyncingAll ? 'Syncing All...' : manifest.outdatedCount > 0 ? `Sync All (${manifest.outdatedCount} Outdated)` : 'All Resources Verified'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Manifest Overview Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-0.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Tracked Components</span>
+            <span className="text-sm font-extrabold text-slate-900">{manifest.resources.length} System Resources</span>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-0.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Outdated Hashes</span>
+            <span className={`text-sm font-extrabold ${manifest.outdatedCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+              {manifest.outdatedCount} Outdated
+            </span>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-0.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Last Verification Sync</span>
+            <span className="text-xs font-semibold text-slate-700 block truncate" title={manifest.lastSyncTimestamp}>
+              {new Date(manifest.lastSyncTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-0.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">OTA Distribution Channel</span>
+            <span className="text-xs font-semibold text-teal-700 block truncate">
+              https://www.e-vedhika.in
+            </span>
+          </div>
+        </div>
+
+        {/* Resources Table / List */}
+        <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+          <div className="bg-slate-50 px-4 py-2.5 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+            <span>Component / Resource Item</span>
+            <div className="flex items-center gap-12 pr-2">
+              <span className="hidden md:inline">Content Hash (SHA-256)</span>
+              <span>Status & Action</span>
+            </div>
+          </div>
+
+          {manifest.resources.map((item) => (
+            <div key={item.id} className="p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+              <div className="space-y-1 max-w-xl">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">
+                    {item.category}
+                  </span>
+                  <span className="font-bold text-slate-900">{item.name}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">v{item.currentVersion}</span>
+                </div>
+                <p className="text-slate-500 text-[11px]">{item.description}</p>
+                <div className="text-[10px] text-slate-400 font-mono md:hidden truncate" title={item.hash}>
+                  Hash: {item.hash.slice(0, 24)}...
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 shrink-0 justify-between md:justify-end">
+                <div className="hidden md:block text-[11px] font-mono text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200" title={item.hash}>
+                  {item.hash.slice(0, 16)}...
+                </div>
+
+                <div>
+                  {item.status === 'Up to Date' || item.status === 'Verified' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Up to Date
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleSyncSingleResource(item.id, item.name)}
+                      className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" /> Sync Hash
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Settings Grid */}
