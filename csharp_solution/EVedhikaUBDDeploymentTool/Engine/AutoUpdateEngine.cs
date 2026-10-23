@@ -9,9 +9,26 @@ namespace EVedhikaUBDDeploymentTool.Engine
     public class AutoUpdateEngine
     {
         public const string CurrentVersion = "v1.0.7";
-                public const string CurrentResourceBuild = "2026.10.21-R4";
+        public const int CurrentVersionCode = 10007; // (1 * 10000) + (0 * 100) + 7
+        public const string CurrentResourceBuild = "2026.10.21-R4";
         public const string ResourceDate = "2026-10-21";
-                public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
+        public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
+
+        private static string ExtractJsonValue(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return "";
+            try
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(json, $"\"{key}\"\\s*:\\s*\"([^\"]*)\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success) return match.Groups[1].Value;
+
+                // Also check for non-quoted values (numbers/bools)
+                var matchNum = System.Text.RegularExpressions.Regex.Match(json, $"\"{key}\"\\s*:\\s*([^,\\s}}]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (matchNum.Success) return matchNum.Groups[1].Value.Replace("\"", "").Trim();
+            }
+            catch { }
+            return "";
+        }
 
         public class UpdateInfo
         {
