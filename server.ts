@@ -1240,16 +1240,21 @@ async function startServer() {
 
       const targetDom = body.targetDomain || (String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in');
       const stateVal = body.state || (targetDom.includes('ap.gov.in') || String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana');
-      const officeLoc = (body.officeLocation && !body.officeLocation.toLowerCase().includes('unknown')) ? body.officeLocation : (stateVal === 'Andhra Pradesh' ? 'Visakhapatnam, Andhra Pradesh' : 'Telangana GP Office (Rangareddy, TS)');
-      const osVer = body.osVersion || body.winEdition || body.winVersion || 'Win11 Pro (64-Bit)';
+      
+      // Use exact reported office location (from IP Geolocation or PC identity), avoiding hardcoded static strings
+      const officeLoc = (body.officeLocation && body.officeLocation.trim().length > 0) 
+        ? body.officeLocation 
+        : (body.pcName ? `${body.pcName} (${stateVal})` : `${stateVal} Office`);
+
+      const osVer = body.osVersion || body.winEdition || body.winVersion || 'Windows 11 Pro';
       const dotNetVer = body.dotNet || body.dotnet35 || body.dotnet4x || 'v3.5 & v4.8 Active';
       const digiSigner = body.nicDigiSigner || body.digiSignerPort || body.digiSignerVersion || 'Port 8080 Active';
       const dsc = body.dscStatus || body.dscDriverInstalled || 'USB Token Driver Active';
       const trusted = body.trustedSites || `Zone 2 Configured (${targetDom})`;
       const edgeMode = body.edgeIeMode || 'IE5 Quirks Active';
       const sitesXmlVal = body.sitesXml || (body.sitesXmlExists === 'Yes' ? 'IE5 Quirks Active (sites.xml present)' : 'Active') || 'IE5 Quirks Active (sites.xml present)';
-      const verif = body.verification || body.verificationCompleted || body.regVerification || 'Passed (15/15)';
-      const ver = body.version || body.deployVersion || 'v1.0.4';
+      const verif = body.verification || body.verificationCompleted || body.regVerification || 'Passed (16/16)';
+      const ver = body.version || body.deployVersion || 'v1.0.7';
 
       // Generate or retrieve persistent Unique Machine/PC ID
       let pcId = body.pcId;
@@ -1323,11 +1328,19 @@ async function startServer() {
         .catch(err => console.warn(`[RELAY FAILED] Relay to ${currentVersionConfig.telemetryRelayUrl}:`, err.message));
       }
 
-      // Auto-forward Telemetry Report to Telegram if configured
+      // Auto-forward Telemetry Report to Telegram ONLY when full 16-step deployment completes or on explicit issue
       const activeBotToken = body.botToken || body.telegramBotToken || telegramConfig.botToken;
       const activeChatId = body.chatId || body.telegramChatId || telegramConfig.chatId;
 
-      if (activeBotToken && activeChatId) {
+      const isCompletedDeployment = (
+        (String(newRecord.verification || '').includes('16/16') || 
+         String(newRecord.verificationCompleted || '').includes('COMPLETED') ||
+         String(newRecord.remarks || '').toLowerCase().includes('verified successfully')) &&
+        !String(newRecord.status || '').toUpperCase().includes('ONLINE') &&
+        !String(newRecord.remarks || '').toLowerCase().includes('app opened')
+      );
+
+      if (activeBotToken && activeChatId && isCompletedDeployment) {
         const teleMsg = constructFullTelegramReport(newRecord);
         sendTelegramMessage(teleMsg, activeBotToken, activeChatId).catch((err) => {
           console.warn('Telegram auto-notify failed:', err?.message || err);

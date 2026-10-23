@@ -90,37 +90,13 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 catch { }
 
-                // Check if launched from Inno Setup post-install hook (Instant Install Reporting)
+                // Check if launched from Inno Setup post-install hook
                 if (args != null && args.Length > 0)
                 {
                     string arg0 = args[0].Trim().ToLowerInvariant();
                     if (arg0 == "--post-install" || arg0 == "/postinstall" || arg0 == "-postinstall")
                     {
-                        try
-                        {
-                            string machineName = Environment.MachineName;
-                            string userName = Environment.UserName;
-                            string location = SystemInfoHelper.GetLiveLocation("Telangana");
-                            string winVer = SystemInfoHelper.GetWindowsVersion();
-                            string dsc = SystemInfoHelper.CheckDscStatus();
-
-                            var installPayload = new System.Collections.Generic.Dictionary<string, string>
-                            {
-                                { "pcName", machineName },
-                                { "userName", userName },
-                                { "officeLocation", location },
-                                { "osVersion", winVer },
-                                { "dscStatus", dsc },
-                                { "status", "NEW APP INSTALLED (v1.0.7)" },
-                                { "version", "v1.0.7" },
-                                { "remarks", $"🎉 New Installation: E-Vedhika Setup v1.0.7 successfully installed on {machineName} ({location})." }
-                            };
-
-                            SendSyncTelegramInstallNotification(machineName, userName, location, winVer, dsc);
-                            Logger.SendCentralTelemetry(installPayload);
-                            System.Threading.Thread.Sleep(2000);
-                        }
-                        catch { }
+                        // NO report on installation alone. User requested reports ONLY after running 16-step deployment.
                         return;
                     }
                 }

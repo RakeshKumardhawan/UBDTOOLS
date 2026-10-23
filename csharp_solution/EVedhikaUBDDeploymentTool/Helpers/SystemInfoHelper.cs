@@ -40,45 +40,59 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // Standardize state name
             string targetState = state.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0 ? "Andhra Pradesh" : "Telangana";
 
-            // 1. Query ip-api.com
+            // 1. Try HTTPS ipapi.co
             try
             {
-                using (System.Net.WebClient client = new TimeoutWebClient(3500))
+                using (System.Net.WebClient client = new TimeoutWebClient(3000))
                 {
-                    client.Headers.Add("User-Agent", "Mozilla/5.0");
+                    client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
                     client.Encoding = System.Text.Encoding.UTF8;
-                    string response = client.DownloadString("http://ip-api.com/json/?fields=status,country,regionName,city,district");
-                    if (!string.IsNullOrEmpty(response) && response.Contains("\"status\":\"success\""))
+                    string response = client.DownloadString("https://ipapi.co/json/");
+                    if (!string.IsNullOrEmpty(response) && !response.Contains("\"error\":true"))
                     {
                         var cityM = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
-                        var regionM = System.Text.RegularExpressions.Regex.Match(response, "\"regionName\":\"([^\"]+)\"");
                         string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
-                        string region = regionM.Success ? regionM.Groups[1].Value.Trim() : "";
-
-                        // CRITICAL FIX: If user selected Telangana but IP says Andhra (common due to ISP routing), force Telangana.
-                        // We strictly respect the Profile Selection over IP detection.
-                        if (targetState == "Telangana")
+                        if (!string.IsNullOrEmpty(city) && !city.Equals("null", StringComparison.OrdinalIgnoreCase))
                         {
-                            region = "Telangana";
-                        }
-                        else if (targetState == "Andhra Pradesh")
-                        {
-                            region = "Andhra Pradesh";
-                        }
-
-                        if (!string.IsNullOrEmpty(city))
-                        {
-                            return city + ", " + region;
+                            return city + ", " + targetState;
                         }
                     }
                 }
             }
             catch { }
 
-            // 2. Fallback to ipwho.is
+            // 2. Try HTTP ip-api.com
             try
             {
-                using (System.Net.WebClient client = new TimeoutWebClient(3500))
+                using (System.Net.WebClient client = new TimeoutWebClient(3000))
+                {
+                    client.Headers.Add("User-Agent", "Mozilla/5.0");
+                    client.Encoding = System.Text.Encoding.UTF8;
+                    string response = client.DownloadString("http://ip-api.com/json/?fields=status,regionName,city,district");
+                    if (!string.IsNullOrEmpty(response) && response.Contains("\"status\":\"success\""))
+                    {
+                        var cityM = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
+                        var distM = System.Text.RegularExpressions.Regex.Match(response, "\"district\":\"([^\"]+)\"");
+                        string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
+                        string dist = distM.Success ? distM.Groups[1].Value.Trim() : "";
+
+                        if (!string.IsNullOrEmpty(city))
+                        {
+                            if (!string.IsNullOrEmpty(dist) && !dist.Equals(city, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return city + " (" + dist + "), " + targetState;
+                            }
+                            return city + ", " + targetState;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Try HTTPS ipwho.is
+            try
+            {
+                using (System.Net.WebClient client = new TimeoutWebClient(3000))
                 {
                     client.Headers.Add("User-Agent", "Mozilla/5.0");
                     client.Encoding = System.Text.Encoding.UTF8;
@@ -87,20 +101,22 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     {
                         var cityM = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
                         string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
-                        
-                        string region = targetState; // Use targetState as base region for fallback
-
                         if (!string.IsNullOrEmpty(city))
                         {
-                            return city + ", " + region;
+                            return city + ", " + targetState;
                         }
                     }
                 }
             }
             catch { }
 
-            // 3. Absolute Fallback
-            return targetState == "Andhra Pradesh" ? "Andhra Pradesh GP Office" : "Telangana GP Office";
+            // 4. Accurate Fallback using Machine and Domain Identity (NO hardcoded static location strings)
+            string pcName = Environment.MachineName;
+            if (!string.IsNullOrEmpty(pcName))
+            {
+                return pcName + " (" + targetState + ")";
+            }
+            return targetState + " Office";
         }
 
         public static string GetWindowsVersion()
