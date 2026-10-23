@@ -1092,16 +1092,16 @@ del ""%~f0""
                             foreach (System.Text.RegularExpressions.Match m in objMatches)
                             {
                                 string block = m.Value;
-                                var tMatch = System.Text.RegularExpressions.Regex.Match(block, @""title"\\s*:\\s*"([^"]*)"");
-                                var cMatch = System.Text.RegularExpressions.Regex.Match(block, @""content"\\s*:\\s*"([^"]*)"");
+                                var tMatch = System.Text.RegularExpressions.Regex.Match(block, @"""title""\\s*:\\s*""([^""]*)""");
+                                var cMatch = System.Text.RegularExpressions.Regex.Match(block, @"""content""\\s*:\\s*""([^""]*)""");
                                 if (tMatch.Success && cMatch.Success)
                                 {
                                     string title = tMatch.Groups[1].Value.Trim();
                                     string content = cMatch.Groups[1].Value.Trim();
                                     if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(content) && !title.Equals("success", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        var dMatch = System.Text.RegularExpressions.Regex.Match(block, @""date"\\s*:\\s*"([^"]*)"");
-                                        var iMatch = System.Text.RegularExpressions.Regex.Match(block, @""importance"\\s*:\\s*"([^"]*)"");
+                                        var dMatch = System.Text.RegularExpressions.Regex.Match(block, @"""date""\\s*:\\s*""([^""]*)""");
+                                        var iMatch = System.Text.RegularExpressions.Regex.Match(block, @"""importance""\\s*:\\s*""([^""]*)""");
                                         news.Add(new NewsItem
                                         {
                                             Title = CleanJsonString(title),
@@ -1146,7 +1146,7 @@ del ""%~f0""
             if (string.IsNullOrEmpty(text)) return "";
             try
             {
-                return System.Text.RegularExpressions.Regex.Unescape(text).Replace("\\/", "/");
+                return System.Text.RegularExpressions.Regex.Unescape(text).Replace(@"\\/", "/");
             }
             catch
             {
