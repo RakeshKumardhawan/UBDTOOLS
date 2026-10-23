@@ -124,7 +124,7 @@ EndGlobal
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
 [Setup]
-AppId={8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}
+AppId={{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
