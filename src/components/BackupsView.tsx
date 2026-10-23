@@ -55,13 +55,14 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   isRestoring,
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
-  const [selectedTab, setSelectedTab] = useState<'telemetry' | 'issues' | 'telegram' | 'remote_queue' | 'snapshots'>('telemetry');
+  const [selectedTab, setSelectedTab] = useState<'telemetry' | 'health' | 'issues' | 'telegram' | 'remote_queue' | 'snapshots'>('health');
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<'all' | 'ap' | 'ts'>('all');
 
   // Master Telemetry State (Initial Mock Data included)
   const [centralTelemetryLogs, setCentralTelemetryLogs] = useState<any[]>([]);
+  const [consolidatedMachines, setConsolidatedMachines] = useState<any[]>([]);
 
   const [remoteQueue, setRemoteQueue] = useState<any[]>([]);
   const [selectedLogFor90Params, setSelectedLogFor90Params] = useState<any | null>(null);
@@ -270,6 +271,24 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         if (qRes.ok && (qRes.headers.get('content-type') || '').includes('application/json')) {
           const qData = await qRes.json();
           if (qData.queue) setRemoteQueue(qData.queue);
+        }
+      } catch (e) {}
+
+      // Load Consolidated Machine Health
+      try {
+        const hRes = await fetch(`/api/consolidated-health?t=${Date.now()}`, { cache: 'no-store' });
+        if (hRes.ok && (hRes.headers.get('content-type') || '').includes('application/json')) {
+          const hData = await hRes.json();
+          if (hData.success && Array.isArray(hData.machines)) {
+            setConsolidatedMachines(hData.machines);
+          }
+        } else {
+          // Fallback to static JSON file if API fails
+          const hFallback = await fetch('/admin/consolidated_health.json');
+          if (hFallback.ok) {
+            const hfData = await hFallback.json();
+            if (Array.isArray(hfData)) setConsolidatedMachines(hfData);
+          }
         }
       } catch (e) {}
     } catch (e: any) {
@@ -481,6 +500,9 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
           <button onClick={() => setSelectedTab('telemetry')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'telemetry' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>
             <FileText className="w-3.5 h-3.5" /> Telemetry
           </button>
+          <button onClick={() => setSelectedTab('health')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'health' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500'}`}>
+            <ShieldCheck className="w-3.5 h-3.5" /> Health Hub
+          </button>
           <button onClick={() => setSelectedTab('issues')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'issues' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500'}`}>
             <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
             <span>UBD Issues & GitHub</span>
@@ -501,6 +523,129 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {selectedTab === 'health' && (
+        <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+            {/* Dashboard Header */}
+            <div className="px-6 py-6 bg-gradient-to-br from-slate-900 to-indigo-950 text-white flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-indigo-500/20 rounded-2xl border border-indigo-400/30 shadow-inner">
+                  <ShieldCheck className="w-8 h-8 text-indigo-300" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black tracking-tight uppercase">CONSOLIDATED PC HEALTH STATUS (కన్సాలిడేటెడ్ రిపోర్టులు)</h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-0.5 rounded-full font-bold border border-emerald-500/30 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      {consolidatedMachines.length} PCs Tracked
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">Central Diagnostic Cloud</span>
+                  </div>
+                </div>
+              </div>
+              <button onClick={fetchLiveCloudData} className="px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-black flex items-center gap-2 border border-white/10 transition-all active:scale-95 backdrop-blur-sm">
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> Force Sync
+              </button>
+            </div>
+
+            {/* Health Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse table-auto">
+                <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th className="p-4 pl-6">Machine & User</th>
+                    <th className="p-4">Office & Location</th>
+                    <th className="p-4">OS Environment</th>
+                    <th className="p-4 text-center">Overall Health</th>
+                    <th className="p-4 text-center">Verification</th>
+                    <th className="p-4 text-center">DSC Status</th>
+                    <th className="p-4">Active Issue</th>
+                    <th className="p-4 text-right pr-6">Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {consolidatedMachines.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-24 text-center bg-slate-50/30">
+                        <div className="flex flex-col items-center justify-center gap-4">
+                          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center animate-bounce">
+                            <Monitor className="w-8 h-8 text-slate-300" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-lg font-black text-slate-900">0 PCs Tracked</h4>
+                            <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto">No machine telemetry has been consolidated yet. Run the C# Tool on any PC to see it appear here live.</p>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    consolidatedMachines.map((m, idx) => (
+                      <tr key={m.pcId || idx} className="hover:bg-slate-50 transition-colors group">
+                        <td className="p-4 pl-6">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                              <Laptop className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="font-black text-slate-900 text-xs">{m.pcName}</div>
+                              <div className="text-[10px] text-slate-500 font-bold">{m.userName}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-xs font-bold text-slate-700">{m.officeLocation}</div>
+                          <div className="text-[10px] text-slate-400 font-medium">{m.district}, {m.state}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-[11px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 w-fit">{m.osVersion}</div>
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-tight ${
+                            m.overallStatus === 'HEALTHY' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                            m.overallStatus === 'WARNING' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                            'bg-rose-100 text-rose-700 border border-rose-200'
+                          }`}>
+                            {m.overallStatus}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          <div className="text-xs font-black text-indigo-700">{m.deployment?.verifiedSteps}/{m.deployment?.totalSteps} Passed</div>
+                          <div className="w-16 h-1 bg-slate-100 rounded-full mx-auto mt-1 overflow-hidden">
+                            <div className="h-full bg-indigo-500" style={{ width: `${m.deployment?.verificationPercentage}%` }}></div>
+                          </div>
+                        </td>
+                        <td className="p-4 text-center">
+                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${m.technicalHealth?.dscTokenConnected === 'PASS' ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'}`}>
+                             {m.technicalHealth?.dscTokenConnected === 'PASS' ? 'CONNECTED' : 'DISCONNECTED'}
+                           </span>
+                        </td>
+                        <td className="p-4">
+                          {m.activeIssue ? (
+                            <div className="flex items-center gap-2 text-rose-600">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span className="text-[10px] font-black truncate max-w-[120px]" title={m.activeIssue.summary}>{m.activeIssue.issueType}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-emerald-600">
+                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                              <span className="text-[10px] font-black">Stable</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 text-right pr-6">
+                           <div className="text-[10px] font-bold text-slate-400 uppercase">{m.lastTelemetryUpdate?.split(' ')[1] || 'Just now'}</div>
+                           <div className="text-[9px] text-slate-500 font-mono tracking-tighter">{m.lastTelemetryUpdate?.split(' ')[0] || ''}</div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedTab === 'telemetry' && (
         <div className="space-y-6 animate-in fade-in duration-500">

@@ -43,11 +43,12 @@ export const DiagnosticsView: React.FC<DiagnosticsViewProps> = ({
 
   React.useEffect(() => {
     setIsCheckingLocation(true);
-    detectSystemLocation().then((info) => {
+    const targetState = selectedProfile.name.includes('Andhra Pradesh') ? 'Andhra Pradesh' : 'Telangana';
+    detectSystemLocation(targetState as 'Telangana' | 'Andhra Pradesh').then((info) => {
       setLocationInfo(info);
       setIsCheckingLocation(false);
     });
-  }, []);
+  }, [selectedProfile]);
 
   // IE Version Compatibility State
   const [ieCompatStatus, setIeCompatStatus] = useState<{
@@ -250,7 +251,8 @@ End of E-Vedhika Diagnostic Report.
           <button
             onClick={() => {
               setIsCheckingLocation(true);
-              detectSystemLocation().then((info) => {
+              const targetState = selectedProfile.name.includes('Andhra Pradesh') ? 'Andhra Pradesh' : 'Telangana';
+              detectSystemLocation(targetState as 'Telangana' | 'Andhra Pradesh').then((info) => {
                 setLocationInfo(info);
                 setIsCheckingLocation(false);
               });

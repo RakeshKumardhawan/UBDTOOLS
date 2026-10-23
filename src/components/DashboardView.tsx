@@ -9,6 +9,7 @@ interface DashboardViewProps {
   envStatus: EnvironmentStatus;
   selectedProfile: DepartmentProfile;
   setActiveTab: (tab: NavigationTab) => void;
+  onOpenPost?: (slug: string) => void;
   onStartDeployment: () => void;
   isDeploying: boolean;
   logs: LogEntry[];
@@ -16,6 +17,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   setActiveTab,
+  onOpenPost,
   onStartDeployment,
   isDeploying,
   envStatus,
@@ -26,7 +28,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Live Broadcast Announcement Widget */}
       <div className="mb-6">
-        <LiveAnnouncementWidget setActiveTab={setActiveTab} />
+        <LiveAnnouncementWidget setActiveTab={setActiveTab} onOpenPost={onOpenPost} />
       </div>
 
       {/* Hero Section */}

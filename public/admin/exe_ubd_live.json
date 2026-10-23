@@ -1,6 +1,18 @@
 {
   "news": [
     {
+      "id": "ubd-setting-issues-one-click-all-in-one-setup",
+      "slug": "ubd-setting-issues-one-click-all-in-one-setup",
+      "title": "UBD Setting Issues One-Click All-in-One Setup (తెలంగాణ UBD పోర్టల్ లాగిన్ & DSC సమస్యలకు సంపూర్ణ పరిష్కారం)",
+      "summary": "తెలంగాణ ubd.telangana.gov.in పోర్టల్ లాగిన్, ఎడ్జ్ IE మోడ్, యాక్టివ్‌ఎక్స్ (ActiveX), జోన్ 2 రిజిస్ట్రీ మరియు DSC డిజిటల్ సిగ్నేచర్ టోకెన్ సమస్యలను ఒక్క క్లిక్‌తో పరిష్కరించే సమగ్ర గైడ్ & ఆల్-ఇన్-వన్ సెటప్ టూల్.",
+      "content": "తెలంగాణ మరియు ఆంధ్రప్రదేశ్ రాష్ట్రాల్లోని గ్రామ పంచాయితీలు, మండల పరిషత్ కార్యాలయాలు, మరియు మున్సిపాలిటీలలో UBD (Urban Basic Development - ubd.telangana.gov.in) పోర్టల్‌లో లాగిన్ అవ్వడానికి లేదా బిల్స్ డిజిటల్ సైన్ (DSC) చేయడానికి ఎదుర్కొంటున్న సాంకేతిక సమస్యలన్నింటినీ ఒక్కే ఒక్క క్లిక్‌తో పరిష్కరించే సమగ్ర గైడ్ & ఆల్-ఇన్-వన్ సెటప్ టూల్ (EVedhika v1.0.7).",
+      "date": "2026-10-22",
+      "importance": "High",
+      "category": "ActiveX / DSC Guide",
+      "author": "Rakesh Dhawan (Admin)",
+      "canonicalUrl": "https://www.e-vedhika.in/home/post/ubd-setting-issues-one-click-all-in-one-setup"
+    },
+    {
       "id": 1792524495419,
       "title": "టెస్ట్",
       "content": "ఈ-వేదిక లైవ్ బ్రాడ్‌కాస్ట్ నోటీస్ - Telangana UBD Portal Active",

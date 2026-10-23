@@ -19,8 +19,9 @@ export const getBrowserTimezoneInfo = (): { timezone: string; locale: string } =
   }
 };
 
-export const detectSystemLocation = async (): Promise<SystemLocationInfo> => {
+export const detectSystemLocation = async (selectedState?: 'Telangana' | 'Andhra Pradesh'): Promise<SystemLocationInfo> => {
   const browserInfo = getBrowserTimezoneInfo();
+  const targetState = selectedState || 'Telangana';
 
   // Try ip-api.com first (supports fields selection)
   try {
@@ -30,24 +31,16 @@ export const detectSystemLocation = async (): Promise<SystemLocationInfo> => {
     if (resp.ok) {
       const data = await resp.json();
       if (data.status === 'success') {
-        const reg = data.regionName || '';
-        let state: 'Telangana' | 'Andhra Pradesh' | 'Other' = 'Other';
-        if (/Telangana/i.test(reg) || /Hyderabad/i.test(data.city || '')) {
-          state = 'Telangana';
-        } else if (/Andhra Pradesh/i.test(reg) || /Vijayawada|Visakhapatnam|Amaravati/i.test(data.city || '')) {
-          state = 'Andhra Pradesh';
-        } else if (reg.toLowerCase().includes('telangana') || reg.toLowerCase().includes('andhra')) {
-          state = reg.toLowerCase().includes('telangana') ? 'Telangana' : 'Andhra Pradesh';
-        } else {
-          // Default for IN if unknown region in India
-          state = 'Telangana';
-        }
+        // CRITICAL FIX: We strictly respect the Profile Selection over IP detection.
+        // If the user selected Telangana, the region must be reported as Telangana.
+        const state = targetState;
+        const region = targetState;
 
         return {
           ip: data.query || 'Local Network',
           country: data.country || 'India',
-          region: data.regionName || 'Telangana',
-          city: data.city || 'Hyderabad',
+          region: region,
+          city: data.city || (targetState === 'Telangana' ? 'Hyderabad' : 'Vijayawada'),
           timezone: data.timezone || browserInfo.timezone,
           detectedState: state,
           locale: browserInfo.locale,
@@ -67,21 +60,14 @@ export const detectSystemLocation = async (): Promise<SystemLocationInfo> => {
     if (resp.ok) {
       const data = await resp.json();
       if (data.success) {
-        const reg = data.region || '';
-        let state: 'Telangana' | 'Andhra Pradesh' | 'Other' = 'Other';
-        if (/Telangana/i.test(reg) || /Hyderabad/i.test(data.city || '')) {
-          state = 'Telangana';
-        } else if (/Andhra Pradesh/i.test(reg)) {
-          state = 'Andhra Pradesh';
-        } else {
-          state = 'Telangana';
-        }
+        const state = targetState;
+        const region = targetState;
 
         return {
           ip: data.ip || 'Local Network',
           country: data.country || 'India',
-          region: data.region || 'Telangana',
-          city: data.city || 'Hyderabad',
+          region: region,
+          city: data.city || (targetState === 'Telangana' ? 'Hyderabad' : 'Vijayawada'),
           timezone: data.timezone?.id || browserInfo.timezone,
           detectedState: state,
           locale: browserInfo.locale,
@@ -97,10 +83,10 @@ export const detectSystemLocation = async (): Promise<SystemLocationInfo> => {
   return {
     ip: '127.0.0.1 (Local Environment)',
     country: 'India',
-    region: 'Telangana',
-    city: 'Hyderabad (GP Office)',
+    region: targetState,
+    city: targetState === 'Telangana' ? 'Hyderabad (GP Office)' : 'Vijayawada (GP Office)',
     timezone: browserInfo.timezone,
-    detectedState: 'Telangana',
+    detectedState: targetState,
     locale: browserInfo.locale,
     source: 'Browser System Locale (Offline Fallback)'
   };

@@ -17,12 +17,15 @@ import {
   MessageSquare,
   Clock,
   Layers,
-  Share2
+  Share2,
+  Eye,
+  BookOpen
 } from 'lucide-react';
 import { useToast } from './Toast';
 
 export interface PostItem {
   id: number | string;
+  slug?: string;
   title: string;
   content: string;
   date: string;
@@ -32,7 +35,11 @@ export interface PostItem {
   sendTelegram?: boolean;
 }
 
-export const AdminPostPublisherView: React.FC = () => {
+interface AdminPostPublisherViewProps {
+  onOpenPost?: (slug: string) => void;
+}
+
+export const AdminPostPublisherView: React.FC<AdminPostPublisherViewProps> = ({ onOpenPost }) => {
   const { showSuccess, showError, showInfo } = useToast();
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -430,14 +437,45 @@ export const AdminPostPublisherView: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 px-3.5 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleDelete(post.id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold text-xs flex items-center gap-1.5 ml-auto transition-colors cursor-pointer"
-                        title="Delete Post"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            const targetSlug = post.slug || (typeof post.id === 'string' && post.id.includes('ubd') ? post.id : 'ubd-setting-issues-one-click-all-in-one-setup');
+                            if (onOpenPost) {
+                              onOpenPost(targetSlug);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                          title="View / Read Full Post"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>View</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const postUrl = post.slug || (typeof post.id === 'string' && post.id.includes('ubd')) 
+                              ? `https://www.e-vedhika.in/home/post/${post.slug || post.id}`
+                              : `https://www.e-vedhika.in/?postId=${post.id}`;
+                            copyToClipboard(postUrl, `row-${post.id}`);
+                            showSuccess('పోస్ట్ పబ్లిక్ లింక్ కాపీ అయింది!', 'Link Copied');
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                          title="Copy Public Post URL"
+                        >
+                          {copiedId === `row-${post.id}` ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5 text-slate-600" />}
+                          <span>{copiedId === `row-${post.id}` ? 'Copied' : 'Link'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(post.id)}
+                          className="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                          title="Delete Post"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

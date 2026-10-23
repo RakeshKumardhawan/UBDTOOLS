@@ -1,5 +1,35 @@
 [
   {
+    "id": "evedhika-atoz-version-history-and-ota-engine-guide",
+    "slug": "evedhika-atoz-version-history-and-ota-engine-guide",
+    "title": "E-Vedhika UBD Tool: A to Z వర్షన్ల చరిత్ర & ప్రయాణం - ఇప్పుడు ఉన్న v1.0.7 OTA ఇంజిన్ ఎలా పనిచేస్తుంది?",
+    "summary": "E-Vedhika మొదటి వర్షన్ V1.0 నుండి నేటి v1.0.7 వరకు వచ్చిన సాంకేతిక మార్పులు, మరియు వర్షన్ నంబర్ మారకుండానే ఓవర్-ది-ఎయిర్ (OTA) రిసోర్స్ & కంపోనెంట్ హాష్ సిస్టమ్ ఎలా పనిచేస్తుందో తెలిపే సమగ్ర వివరణ.",
+    "content": "E-Vedhika UBD Deployment Tool ప్రారంభ వర్షన్ V1.0 నుండి నేటి అధికారిక v1.0.7 వర్షన్ వరకు మరియు రాబోయే రోజుల్లో వర్షన్ నంబర్ మారకుండానే ఆటోమేటిక్ రిసోర్స్ అప్‌డేట్స్ ఎలా జరుగుతాయో తెలియజేసే సమగ్ర గైడ్.\n\n1. A to Z వర్షన్ల ప్రయాణం (Version Evolution History):\n• V1.0 (జనవరి 2026): మొదటి వర్షన్ విడుదల - సాధారణ IE11 మోడ్ సపోర్ట్.\n• V3.0 (జూన్ 2026): React + Vite మరియు C# .NET 4.8 ఆర్కిటెక్చర్ తో పునర్నిర్మాణం. UBD, eGramSwaraj, IFMIS పోర్టల్స్ కోసం ఆటోమేషన్.\n• V3.5 (ఆగస్టు 2026): సెంట్రల్ క్లౌడ్ టెలిమెట్రీ డ్యాష్‌బోర్డ్, జెమిని AI 3.6 డయాగ్నోస్టిక్ ఇంజిన్, WD ProxKey & HYP2003 డ్రైవర్ సపోర్ట్.\n• v1.0.1 (సెప్టెంబర్ 2026): అధికారిక స్టాండర్డ్ విడుదల - ఆటోమేటిక్ యాక్టివ్‌ఎక్స్ సెల్ఫ్-హీలింగ్.\n• v1.0.4 (అక్టోబర్ 2026): విండోస్ 7 & 8 సపోర్ట్, Universal CRT ఆటో-రిపేర్, TLS 1.2 సెక్యూర్ హ్యాండ్‌షేక్, Longmai mToken సపోర్ట్.\n• v1.0.6 (అక్టోబర్ 2026): 16-స్టెప్ C# డిప్లాయ్‌మెంట్ ఇంజిన్, లైవ్ టెలిమెట్రీ & టెలిగ్రామ్ ఇన్‌స్టంట్ అలర్ట్స్.\n• v1.0.7 (అక్టోబర్ 2026 - వర్తమాన ప్రధాన వర్షన్): ubd.telangana.gov.in కోసం పూర్తి జోన్ 2 రిజిస్ట్రీ ఆటోమేషన్ (48+ DWORDs), ఎలివేటెడ్ పవర్ షెల్ లాంచర్లు, మరియు డీప్ ఆడిట్ రిపోర్టింగ్.\n\n2. ఇప్పుడు ఉన్న v1.0.7 వర్షన్ ప్రత్యేకత ఏమిటి?\nసిస్టమ్ ఆపరేటర్ లేదా సెక్రటరీ '15-Step Auto Deployment' క్లిక్ చేయగానే విండోస్ రిజిస్ట్రీ, ఎడ్జ్ బ్రౌజర్ విధానాలు, మరియు డిజిటల్ సిగ్నేచర్ సర్వీసులన్నింటినీ విడివిడిగా పరిశీలించి పాస్ చేస్తుంది.\n\n3. వర్షన్ నంబర్ మారకుండా రిసోర్స్ మాత్రమే ఎలా అప్‌డేట్ అవుతుంది? (OTA Resource Engine):\nఇప్పటినుండి సాఫ్ట్‌వేర్ వర్షన్ v1.0.7 గానే స్థిరంగా ఉంటుంది. కానీ వెబ్‌సైట్ మార్పులు, సైట్స్ XML, మరియు డ్రైవర్లు SHA-256 కంపోనెంట్ హాష్‌ల ద్వారా OTA (Over-The-Air) ద్వారా ఆటోమేటిక్‌గా నవీకరించబడతాయి.",
+    "date": "2026-10-22",
+    "importance": "High",
+    "category": "Software Update",
+    "author": "Rakesh Dhawan (Admin)",
+    "tags": ["Version History", "AtoZ Versions", "v1.0.7", "OTA Engine", "E-Vedhika Guide"],
+    "downloadUrl": "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool_CSharp_Solution.zip",
+    "executableUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe",
+    "canonicalUrl": "https://www.e-vedhika.in/home/post/evedhika-atoz-version-history-and-ota-engine-guide"
+  },
+  {
+    "id": "ubd-setting-issues-one-click-all-in-one-setup",
+    "slug": "ubd-setting-issues-one-click-all-in-one-setup",
+    "title": "UBD Setting Issues One-Click All-in-One Setup (తెలంగాణ UBD పోర్టల్ లాగిన్ & DSC సమస్యలకు సంపూర్ణ పరిష్కారం)",
+    "summary": "తెలంగాణ ubd.telangana.gov.in పోర్టల్ లాగిన్, ఎడ్జ్ IE మోడ్, యాక్టివ్‌ఎక్స్ (ActiveX), జోన్ 2 రిజిస్ట్రీ మరియు DSC డిజిటల్ సిగ్నేచర్ టోకెన్ సమస్యలను ఒక్క క్లిక్‌తో పరిష్కరించే సమగ్ర గైడ్ & ఆల్-ఇన్-వన్ సెటప్ టూల్.",
+    "content": "తెలంగాణ మరియు ఆంధ్రప్రదేశ్ రాష్ట్రాల్లోని గ్రామ పంచాయితీలు, మండల పరిషత్ కార్యాలయాలు, మరియు మున్సిపాలిటీలలో UBD (Urban Basic Development - ubd.telangana.gov.in) పోర్టల్‌లో లాగిన్ అవ్వడానికి లేదా బిల్స్ డిజిటల్ సైన్ (DSC) చేయడానికి కంప్యూటర్ ఆపరేటర్లు, పంచాయతీ కార్యదర్శులు ఎదుర్కొంటున్న ప్రధాన సాంకేతిక సమస్యలు మరియు వాటన్నింటినీ ఒక్కే ఒక్క క్లిక్‌తో (One-Click All-in-One Setup) పరిష్కరించే విధానం గురించి ఈ సమగ్ర పోస్ట్‌లో వివరించబడింది.\n\nప్రధాన సమస్యలు (Common UBD Setting Issues):\n1. Microsoft Edge లో UBD పోర్టల్ ఖాళీ స్క్రీన్ (Blank Screen / Not Loading) - Internet Explorer 11 నిలిపివేయడంతో ఎడ్జ్ బ్రౌజర్ ఆటోమేటిక్‌గా IE5 Quirks Mode లో ఓపెన్ కాకపోవడం.\n2. ActiveX Controls బ్లాక్ అవ్వడం - 'ActiveX control is not allowed to run' లేదా 'Object doesn't support property or method' ఎర్రర్లు రావడం.\n3. USB DSC Digital Signature Token డిటెక్ట్ కాకపోవడం - WD ProxKey, HYP2003, ePass2003, mToken డోంగిల్స్ బ్రౌజర్ గుర్తించకపోవడం.\n4. NIC DigiSigner Client Port 8080/8443 కనెక్షన్ లోపాలు.\n5. .NET Framework 3.5 & Visual C++ రన్‌టైమ్ మిస్సింగ్ సమస్యలు.\n\nపరిష్కారం: E-Vedhika One-Click UBD Deployment Tool (v1.0.7)\nఈ-వేదిక రూపొందించిన వన్-క్లిక్ టూల్ ద్వారా ఒకే క్లిక్‌తో 15 దశల ఆటోమేటిక్ సెటప్ పూర్తవుతుంది. Edge Enterprise Site List (C:\\EVedhika_UBD\\sites.xml), Zone 2 Trusted Sites లో 48+ రిజిస్ట్రీ ఫ్లాగ్స్, మరియు డ్రైవర్లను ఆటోమేటిక్‌గా కాన్ఫిగర్ చేస్తుంది.\n\nఎలా ఉపయోగించాలి (Step-by-Step):\n1. EVedhika_Setup_v1.0.7.exe లేదా C# సొల్యూషన్ ఫైల్‌ను డౌన్‌లోడ్ చేసుకోండి.\n2. 'Run as Administrator' గా రన్ చేయండి.\n3. '15-Step Auto Deployment' బటన్ క్లిక్ చేయండి.\n4. అన్ని పచ్చటి టిక్స్ వచ్చాక, నేరుగా 'Open UBD Portal' క్లిక్ చేసి మీ USB టోకెన్‌తో సులభంగా లాగిన్ అవ్వండి!",
+    "date": "2026-10-22",
+    "importance": "High",
+    "category": "ActiveX / DSC Guide",
+    "author": "Rakesh Dhawan (Admin)",
+    "tags": ["UBD Setting Issues", "One-Click Setup", "Edge IE Mode", "ActiveX", "DSC Token", "Telangana UBD"],
+    "downloadUrl": "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool_CSharp_Solution.zip",
+    "executableUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe",
+    "canonicalUrl": "https://www.e-vedhika.in/home/post/ubd-setting-issues-one-click-all-in-one-setup"
+  },
+  {
     "id": 1792524495419,
     "title": "టెస్ట్",
     "content": "ఈ-వేదిక లైవ్ బ్రాడ్‌కాస్ట్ నోటీస్ - Telangana UBD Portal Active",
@@ -16,14 +46,5 @@
     "importance": "High",
     "category": "Software Update",
     "author": "Rakesh Dhawan (Admin)"
-  },
-  {
-    "id": 2,
-    "title": "UBD Portal Security Guidelines",
-    "content": "Ensure Edge IE Mode and Zone 2 Trusted Sites configuration are kept verified. AutoRepair Guardian automatically secures all policies.",
-    "date": "2026-10-04",
-    "importance": "Medium",
-    "category": "Security",
-    "author": "E-Vedhika Security Desk"
   }
 ]

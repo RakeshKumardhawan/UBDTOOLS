@@ -4,6 +4,7 @@ import { NavigationTab } from '../types';
 
 interface PostItem {
   id: number | string;
+  slug?: string;
   title: string;
   content: string;
   date: string;
@@ -13,9 +14,10 @@ interface PostItem {
 
 interface LiveAnnouncementWidgetProps {
   setActiveTab: (tab: NavigationTab) => void;
+  onOpenPost?: (slug: string) => void;
 }
 
-export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ setActiveTab }) => {
+export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ setActiveTab, onOpenPost }) => {
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -94,7 +96,15 @@ export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ 
           {posts.slice(0, 2).map((post) => (
             <div
               key={post.id}
-              className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-indigo-500/40 transition-colors space-y-1.5"
+              onClick={() => {
+                const targetSlug = post.slug || (typeof post.id === 'string' && post.id.includes('ubd') ? post.id : 'ubd-setting-issues-one-click-all-in-one-setup');
+                if (onOpenPost) {
+                  onOpenPost(targetSlug);
+                } else {
+                  setActiveTab('post-detail');
+                }
+              }}
+              className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-indigo-400 hover:bg-slate-900 transition-all space-y-1.5 cursor-pointer group"
             >
               <div className="flex items-center justify-between text-[10px]">
                 <span
@@ -111,12 +121,16 @@ export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ 
                   {post.date}
                 </span>
               </div>
-              <h4 className="text-xs font-bold text-amber-200 line-clamp-1 font-syne">
+              <h4 className="text-xs font-bold text-amber-200 line-clamp-1 font-syne group-hover:text-amber-300 transition-colors">
                 {post.title}
               </h4>
               <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
                 {post.content}
               </p>
+              <div className="pt-1 flex items-center gap-1 text-[10px] text-indigo-400 font-bold group-hover:text-indigo-300">
+                <span>చదవండి (Read Full Post)</span>
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
           ))}
         </div>
