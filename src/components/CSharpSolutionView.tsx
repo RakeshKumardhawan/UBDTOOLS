@@ -119,14 +119,18 @@ EndGlobal
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
 #define MyAppVersion "1.0.7"
-#define MyAppPublisher "E-Vedhika"
+#define MyAppPublisher "E-Vedhika Development Community"
+#define MyAppURL "https://www.e-vedhika.in"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
 [Setup]
-AppId={{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}
+AppId={8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}/help
+AppUpdatesURL={#MyAppURL}/downloads
 DefaultDirName={pf}\\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableDirPage=no
@@ -136,9 +140,10 @@ OutputBaseFilename=EVedhika_Setup_v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=app.ico
+UninstallDisplayIcon={app}\\{#MyAppExeName}
 WizardStyle=modern
 PrivilegesRequired=admin
-UninstallDisplayName={#MyAppName}
+UninstallDisplayName={#MyAppName} (E-Vedhika)
 CloseApplications=yes
 CloseApplicationsFilter=*.exe
 
@@ -703,6 +708,43 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 logCallback?.Invoke(\$"[RESOURCE ENGINE] App Version {CurrentVersion} | Active Resource Build: {CurrentResourceBuild}");
+                logCallback?.Invoke("[RESOURCE ENGINE] Checking Cloud for dynamic rule updates & live policies...");
+
+                string jsonResponse = "";
+                string[] candidateUrls = new string[]
+                {
+                    "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
+                    "https://www.e-vedhika.in/version.json"
+                };
+
+                foreach (var url in candidateUrls)
+                {
+                    try
+                    {
+                        using (var wc = new TimeoutWebClient(3000))
+                        {
+                            wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Resource-Agent/1.0";
+                            jsonResponse = wc.DownloadString(url);
+                            if (!string.IsNullOrEmpty(jsonResponse)) break;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (!string.IsNullOrEmpty(jsonResponse))
+                {
+                    string serverBuild = ExtractJsonValue(jsonResponse, "latestResourceBuild");
+                    if (string.IsNullOrEmpty(serverBuild)) serverBuild = ExtractJsonValue(jsonResponse, "resourceBuild");
+
+                    if (!string.IsNullOrEmpty(serverBuild) && !serverBuild.Equals(CurrentResourceBuild, StringComparison.OrdinalIgnoreCase))
+                    {
+                        resInfo.IsNewResourceAvailable = true;
+                        resInfo.ServerResourceBuild = serverBuild;
+                        resInfo.Message = \$"✨ Live Resource Update Applied: {serverBuild} (Seamless Background Update)";
+                        logCallback?.Invoke(\$"[RESOURCE ENGINE] NEW RESOURCE BUILD DETECTED: {serverBuild}. Applying live patches...");
+                    }
+                }
+
                 logCallback?.Invoke("[RESOURCE ENGINE] Syncing dynamic rules, sites.xml policies & live posts Over-The-Air (OTA)...");
 
                 var posts = GetLiveNewsFeed();
@@ -716,10 +758,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     logCallback?.Invoke("[RESOURCE ENGINE] Dynamic UBD Zone 2 rules & sites.xml policy patch applied successfully.");
                 }
+
+                if (resInfo.IsNewResourceAvailable)
+                {
+                    logCallback?.Invoke(\$"[RESOURCE ENGINE SUCCESS] All live resources successfully synchronized to build: {resInfo.ServerResourceBuild}");
+                }
             }
             catch (Exception ex)
             {
                 logCallback?.Invoke(\$"[RESOURCE ENGINE WARN] {ex.Message}");
+                resInfo.Success = false;
+                resInfo.Message = "Resource Sync Warning: " + ex.Message;
             }
 
             return resInfo;
@@ -5618,7 +5667,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1",
-                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4"
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool"
                 };
 
                 foreach (var kPath in legacyKeys)
@@ -10802,6 +10852,16 @@ namespace EVedhikaUBDDeploymentTool
                         LogMessage("HEALTH [OK]", \$"{alert.Title}: {alert.Description}");
                     }
                 }
+
+                // Seamlessly update live resources (news, policies, sites.xml) without restart
+                LogMessage("SYNC", "[RESOURCE ENGINE] Syncing live cloud resources (No restart required)...");
+                var resInfo = EVedhikaUBDDeploymentTool.Engine.AutoUpdateEngine.CheckAndApplyLiveResources(delegate(string msg) {
+                    LogMessage("RESOURCE", msg);
+                });
+                if (resInfo.IsNewResourceAvailable)
+                {
+                    LogMessage("SYNC SUCCESS", resInfo.Message);
+                }
             }
             catch (Exception ex)
             {
@@ -12452,12 +12512,12 @@ namespace EVedhikaUBDDeploymentTool
                     }
                 }
 
-                // Register in Windows Control Panel -> Add/Remove Programs on startup
-                try
-                {
-                    UninstallEngine.RegisterControlPanelUninstall(Application.ExecutablePath);
-                }
-                catch { }
+                // Register in Windows Control Panel -> Add/Remove Programs on startup - DISABLED
+                // try
+                // {
+                //     UninstallEngine.RegisterControlPanelUninstall(Application.ExecutablePath);
+                // }
+                // catch { }
 
                 // Show State Selection Dialog first
                 string selectedState = "Telangana";

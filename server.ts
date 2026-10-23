@@ -853,7 +853,9 @@ async function startServer() {
     silent: false,
     releaseNotes: 'v1.0.7 Release: Direct Telegram & Cloud Telemetry, Windows 7/8/10/11 Full Compatibility, and Automated Deployment.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
-    telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live' // Global relay endpoint for third-party integrations
+    telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
+    latestResourceBuild: '2026.10.21-R4',
+    resourceBuildDate: '2026-10-21'
   };
 
   // Try to load saved version config from public folder if it exists
@@ -862,7 +864,7 @@ async function startServer() {
     if (fs.existsSync(versionFilePath)) {
       const savedVersion = JSON.parse(fs.readFileSync(versionFilePath, 'utf8'));
       currentVersionConfig = { ...currentVersionConfig, ...savedVersion };
-      console.log(`[BOOT] Loaded version config: ${currentVersionConfig.latestVersion}`);
+      console.log(`[BOOT] Loaded version config: ${currentVersionConfig.latestVersion} (Resource: ${currentVersionConfig.latestResourceBuild})`);
     }
   } catch (e) {
     console.warn('[BOOT] Could not load public/version.json');
@@ -1054,7 +1056,12 @@ async function startServer() {
   // API Route: Update Software Version Config (For Admin/Developer Updates)
   app.post('/api/version', (req, res) => {
     try {
-      const { latestVersion, currentVersion, versionCode, downloadUrl, releaseNotes, updateRequired, executableName, silent, telemetryRelayUrl } = req.body || {};
+      const { 
+        latestVersion, currentVersion, versionCode, downloadUrl, 
+        releaseNotes, updateRequired, executableName, silent, 
+        telemetryRelayUrl, latestResourceBuild, resourceBuildDate 
+      } = req.body || {};
+      
       if (latestVersion) currentVersionConfig.latestVersion = latestVersion;
       if (currentVersion) currentVersionConfig.currentVersion = currentVersion;
       if (versionCode !== undefined) currentVersionConfig.versionCode = Number(versionCode);
@@ -1063,6 +1070,9 @@ async function startServer() {
       if (executableName) currentVersionConfig.executableName = executableName;
       if (updateRequired !== undefined) currentVersionConfig.updateRequired = Boolean(updateRequired);
       if (silent !== undefined) (currentVersionConfig as any).silent = Boolean(silent);
+      
+      if (latestResourceBuild) currentVersionConfig.latestResourceBuild = latestResourceBuild;
+      if (resourceBuildDate) currentVersionConfig.resourceBuildDate = resourceBuildDate;
       
       // Always lock relay URL permanently
       currentVersionConfig.telemetryRelayUrl = 'https://www.e-vedhika.in/admin/exe_ubd_live';

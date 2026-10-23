@@ -2209,6 +2209,16 @@ namespace EVedhikaUBDDeploymentTool
                         LogMessage("HEALTH [OK]", $"{alert.Title}: {alert.Description}");
                     }
                 }
+
+                // Seamlessly update live resources (news, policies, sites.xml) without restart
+                LogMessage("SYNC", "[RESOURCE ENGINE] Syncing live cloud resources (No restart required)...");
+                var resInfo = EVedhikaUBDDeploymentTool.Engine.AutoUpdateEngine.CheckAndApplyLiveResources(delegate(string msg) {
+                    LogMessage("RESOURCE", msg);
+                });
+                if (resInfo.IsNewResourceAvailable)
+                {
+                    LogMessage("SYNC SUCCESS", resInfo.Message);
+                }
             }
             catch (Exception ex)
             {

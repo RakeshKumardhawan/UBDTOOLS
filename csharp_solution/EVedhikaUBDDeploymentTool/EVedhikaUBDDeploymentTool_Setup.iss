@@ -1,13 +1,17 @@
 #define MyAppName "E-Vedhika UBD Tool"
 #define MyAppVersion "1.0.7"
-#define MyAppPublisher "E-Vedhika"
+#define MyAppPublisher "E-Vedhika Development Community"
+#define MyAppURL "https://www.e-vedhika.in"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
 [Setup]
-AppId={{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}
+AppId={8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}/help
+AppUpdatesURL={#MyAppURL}/downloads
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableDirPage=no
@@ -17,9 +21,10 @@ OutputBaseFilename=EVedhika_Setup_v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=app.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 WizardStyle=modern
 PrivilegesRequired=admin
-UninstallDisplayName={#MyAppName}
+UninstallDisplayName={#MyAppName} (E-Vedhika)
 CloseApplications=yes
 CloseApplicationsFilter=*.exe
 

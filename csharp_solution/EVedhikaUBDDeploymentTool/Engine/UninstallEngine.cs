@@ -23,7 +23,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhika_UBD_Deployment_Tool",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.1",
-                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.4"
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.4",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool"
                 };
 
                 foreach (var kPath in legacyKeys)

@@ -158,12 +158,12 @@ namespace EVedhikaUBDDeploymentTool
                     }
                 }
 
-                // Register in Windows Control Panel -> Add/Remove Programs on startup
-                try
-                {
-                    UninstallEngine.RegisterControlPanelUninstall(Application.ExecutablePath);
-                }
-                catch { }
+                // Register in Windows Control Panel -> Add/Remove Programs on startup - DISABLED
+                // try
+                // {
+                //     UninstallEngine.RegisterControlPanelUninstall(Application.ExecutablePath);
+                // }
+                // catch { }
 
                 // Show State Selection Dialog first
                 string selectedState = "Telangana";

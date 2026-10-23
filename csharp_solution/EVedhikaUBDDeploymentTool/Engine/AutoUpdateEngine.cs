@@ -74,6 +74,43 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 logCallback?.Invoke($"[RESOURCE ENGINE] App Version {CurrentVersion} | Active Resource Build: {CurrentResourceBuild}");
+                logCallback?.Invoke("[RESOURCE ENGINE] Checking Cloud for dynamic rule updates & live policies...");
+
+                string jsonResponse = "";
+                string[] candidateUrls = new string[]
+                {
+                    "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
+                    "https://www.e-vedhika.in/version.json"
+                };
+
+                foreach (var url in candidateUrls)
+                {
+                    try
+                    {
+                        using (var wc = new TimeoutWebClient(3000))
+                        {
+                            wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Resource-Agent/1.0";
+                            jsonResponse = wc.DownloadString(url);
+                            if (!string.IsNullOrEmpty(jsonResponse)) break;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (!string.IsNullOrEmpty(jsonResponse))
+                {
+                    string serverBuild = ExtractJsonValue(jsonResponse, "latestResourceBuild");
+                    if (string.IsNullOrEmpty(serverBuild)) serverBuild = ExtractJsonValue(jsonResponse, "resourceBuild");
+
+                    if (!string.IsNullOrEmpty(serverBuild) && !serverBuild.Equals(CurrentResourceBuild, StringComparison.OrdinalIgnoreCase))
+                    {
+                        resInfo.IsNewResourceAvailable = true;
+                        resInfo.ServerResourceBuild = serverBuild;
+                        resInfo.Message = $"✨ Live Resource Update Applied: {serverBuild} (Seamless Background Update)";
+                        logCallback?.Invoke($"[RESOURCE ENGINE] NEW RESOURCE BUILD DETECTED: {serverBuild}. Applying live patches...");
+                    }
+                }
+
                 logCallback?.Invoke("[RESOURCE ENGINE] Syncing dynamic rules, sites.xml policies & live posts Over-The-Air (OTA)...");
 
                 var posts = GetLiveNewsFeed();
@@ -87,10 +124,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     logCallback?.Invoke("[RESOURCE ENGINE] Dynamic UBD Zone 2 rules & sites.xml policy patch applied successfully.");
                 }
+
+                if (resInfo.IsNewResourceAvailable)
+                {
+                    logCallback?.Invoke($"[RESOURCE ENGINE SUCCESS] All live resources successfully synchronized to build: {resInfo.ServerResourceBuild}");
+                }
             }
             catch (Exception ex)
             {
                 logCallback?.Invoke($"[RESOURCE ENGINE WARN] {ex.Message}");
+                resInfo.Success = false;
+                resInfo.Message = "Resource Sync Warning: " + ex.Message;
             }
 
             return resInfo;
