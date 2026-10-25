@@ -133,9 +133,9 @@ export const CURRENT_APP_VERSION = 'v1.0.8';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.10.21-R4',
+  manifestVersion: '2026.10.25-R1',
   appVersion: 'v1.0.8',
-  lastSyncTimestamp: '2026-10-21T11:00:00.000Z',
+  lastSyncTimestamp: '2026-10-25T10:37:00.000Z',
   totalResources: 5,
   outdatedCount: 0,
   resources: [
@@ -143,11 +143,11 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'ubd-sites-xml',
       name: 'UBD Sites Enterprise List (sites.xml)',
       category: 'Portal Policy',
-      currentVersion: '2026.10.21-R4',
-      latestVersion: '2026.10.21-R4',
+      currentVersion: '2026.10.25-R1',
+      latestVersion: '2026.10.25-R1',
       hash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
       latestHash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
-      lastUpdated: '2026-10-21',
+      lastUpdated: '2026-10-25',
       status: 'Up to Date',
       description: 'Enterprise Site List configuration for ubd.telangana.gov.in & ubd.ap.gov.in IE Mode rules',
       sizeBytes: 14200
@@ -156,8 +156,8 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'zone2-registry-policy',
       name: 'Zone 2 Trusted Sites & ActiveX Flags',
       category: 'Registry Policy',
-      currentVersion: '2026.10.21-R4',
-      latestVersion: '2026.10.21-R4',
+      currentVersion: '2026.10.25-R1',
+      latestVersion: '2026.10.25-R1',
       hash: 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2',
       latestHash: 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2',
       lastUpdated: '2026-10-21',
