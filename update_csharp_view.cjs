@@ -41,13 +41,13 @@ function readDirRecursive(dir, relPath = '') {
 
 // Read Solution file too
 let allFiles = [];
-if (fs.existsSync('./csharp_solution/evedhika_ubd.sln')) {
+if (fs.existsSync('./csharp_solution/EVedhikaUBDDeploymentTool.sln')) {
   allFiles.push({
     id: 'sln',
-    name: 'evedhika_ubd.sln',
-    path: 'csharp_solution/evedhika_ubd.sln',
+    name: 'EVedhikaUBDDeploymentTool.sln',
+    path: 'csharp_solution/EVedhikaUBDDeploymentTool.sln',
     type: 'sln',
-    content: fs.readFileSync('./csharp_solution/evedhika_ubd.sln', 'utf8')
+    content: fs.readFileSync('./csharp_solution/EVedhikaUBDDeploymentTool.sln', 'utf8')
   });
 }
 

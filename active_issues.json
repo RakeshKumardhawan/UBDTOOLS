@@ -1,0 +1,18 @@
+[
+  {
+    "issueId": "ISS-AP-VIZAG-EDGE-01",
+    "machineId": "EVD-AP-88F3-90CC",
+    "pcName": "AP-GP-VIZAG-02",
+    "office": "Bheemunipatnam Mandal Office, Visakhapatnam, AP",
+    "issueCategory": "Edge IE Mode Policy Drift",
+    "severity": "WARNING",
+    "firstDetected": "2026-10-25 14:40:00",
+    "lastDetected": "2026-10-25 14:44:00",
+    "occurrenceCount": 1,
+    "repairAttempts": 1,
+    "lastRepairResult": "AutoRepair applied self-healing policies",
+    "postRepairVerification": "FAIL",
+    "currentStatus": "ACTIVE",
+    "remarks": "Edge IE Mode registry policy drift detected. IE Quirks mode inactive."
+  }
+]

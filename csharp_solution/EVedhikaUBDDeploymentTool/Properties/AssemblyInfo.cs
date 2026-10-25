@@ -8,10 +8,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("E-Vedhika One-Click Deployment Tool")]
 [assembly: AssemblyDescription("E-Vedhika Portal IE Mode, Registry & DSC Token Deployment Suite")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("E-Vedhika UBD Tool")]
+[assembly: AssemblyCompany("E-Vedhika | Developer: Rakesh Kumar Dhawan")]
 [assembly: AssemblyProduct("E-Vedhika One-Click Deployment Tool")]
-[assembly: AssemblyCopyright("Copyright © Enterprise 2026")]
-[assembly: AssemblyTrademark("E-Vedhika")]
+[assembly: AssemblyCopyright("Copyright © 2026 Rakesh Kumar Dhawan")]
+[assembly: AssemblyTrademark("E-Vedhika (Rakesh Kumar Dhawan)")]
 [assembly: AssemblyCulture("")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.7.0")]
-[assembly: AssemblyFileVersion("1.0.7.0")]
+[assembly: AssemblyVersion("1.0.8.0")]
+[assembly: AssemblyFileVersion("1.0.8.0")]

@@ -199,20 +199,109 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback($"[3/10 WARN] Edge policies cleanup notice: {ex.Message}");
             }
 
+            // 3b. REMOVE FIREWALL RULES & CLEAR EDGE IE CACHE
+            try
+            {
+                // Remove NIC DigiSigner Firewall Rule
+                try
+                {
+                    ProcessStartInfo psiFw = new ProcessStartInfo("netsh", "advfirewall firewall delete rule name=\"NIC DigiSigner 8080\"")
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    using (Process pFw = Process.Start(psiFw)) { pFw?.WaitForExit(3000); }
+                }
+                catch { }
+
+                // Clear Edge IE Mode site list cache directory
+                try
+                {
+                    string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    string edgeIeCache = Path.Combine(localAppData, @"Microsoft\Edge\User Data\Default\IE Mode");
+                    if (Directory.Exists(edgeIeCache))
+                    {
+                        Directory.Delete(edgeIeCache, true);
+                    }
+                }
+                catch { }
+
+                if (logCallback != null) logCallback("[3b/10] Removed NIC DigiSigner Firewall Rule and cleared Edge IE Mode site cache.");
+            }
+            catch { }
+
             // 4. DELETE ENTERPRISE COMPATIBILITY SITES.XML FILE & DIRECTORY
             try
             {
+                // Unregister SignatureDemoLib.dll before deleting
                 string compatDir = @"C:\enterprise_compat";
+                string dllPath = Path.Combine(compatDir, "SignatureDemoLib.dll");
+                if (File.Exists(dllPath))
+                {
+                    try
+                    {
+                        string regasmPath = Path.Combine(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory(), "RegAsm.exe");
+                        if (File.Exists(regasmPath))
+                        {
+                            ProcessStartInfo psi = new ProcessStartInfo(regasmPath, $"\"{dllPath}\" /u /silent")
+                            {
+                                CreateNoWindow = true,
+                                UseShellExecute = false
+                            };
+                            using (Process p = Process.Start(psi)) { p?.WaitForExit(3000); }
+                        }
+                    }
+                    catch { }
+                }
+
                 if (Directory.Exists(compatDir))
                 {
                     Directory.Delete(compatDir, true);
-                    if (logCallback != null) logCallback(@"[4/10] Deleted Enterprise Mode Site List (C:\enterprise_compat\sites.xml).");
+                    if (logCallback != null) logCallback(@"[4/10] Unregistered & Deleted SignatureDemoLib.dll and Enterprise Site List (C:\enterprise_compat\).");
                 }
             }
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback($"[4/10 WARN] enterprise_compat directory notice: {ex.Message}");
             }
+
+            // 4b. REMOVE ACTIVEX PROGID & CLSID OVERRIDES (DigiSignHelper, CAPICOM, NIC)
+            try
+            {
+                string[] progIds = new string[] { 
+                    "DigiSignHelper", "DigiSignHelper.1", "DigiSignHelper.DigiSigner",
+                    "DigiSigner", "DigiSigner.1", "DigiSigner.DigiSignHelper",
+                    "DigiSignerHelper", "DigiSignerHelper.1", "SignatureDemoLib.DigiSignHelper",
+                    "NIC.DigiSigner", "CAPICOM.SignedData", "CAPICOM.SignedData.1",
+                    "CAPICOM.SignedData.2", "CAPICOM.Store", "CAPICOM.Store.1",
+                    "CAPICOM.Store.2", "CAPICOM.Signer", "CAPICOM.Signer.1"
+                };
+
+                string[] clsids = new string[] 
+                { 
+                    "{32DB2444-A227-463C-868C-D63D6D254924}",
+                    "{B8601633-0100-47F1-9457-495204431B32}",
+                    "{A996E48C-D3DE-4206-89AF-00AA006C42C4}",
+                    "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}",
+                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}",
+                    "{15E2085E-94D1-4551-9E1D-444453456789}",
+                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}",
+                    "{BD0D437A-F76E-4545-9244-6720D911718F}"
+                };
+
+                foreach (var p in progIds) { try { Registry.ClassesRoot.DeleteSubKeyTree(p, false); } catch { } }
+                
+                string[] clsidRoots = new string[] { @"CLSID", @"Software\Classes\CLSID", @"Software\WOW6432Node\Classes\CLSID" };
+                foreach (var c in clsids)
+                {
+                    foreach (var root in clsidRoots)
+                    {
+                        try { Registry.LocalMachine.DeleteSubKeyTree(root + "\\" + c, false); } catch { }
+                    }
+                }
+                if (logCallback != null) logCallback("[4b/10] Purged all ActiveX ProgID and CLSID overrides from registry.");
+            }
+            catch { }
 
             // 5. RESTORE ADVANCED TAB & INTERNET SETTINGS (TLS & Certificate Revocation)
             try

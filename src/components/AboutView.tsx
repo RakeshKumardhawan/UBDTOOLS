@@ -26,13 +26,14 @@ export const AboutView: React.FC = () => {
             <EVedhikaLogo size={56} className="w-14 h-14 drop-shadow-md" />
             <div>
               <h1 className="text-2xl font-extrabold text-white tracking-tight">E-Vedhika UBD Deployment Tool</h1>
-              <p className="text-sm text-sky-300 font-medium mt-0.5">Enterprise Version 1.0.4 (Critical Launch Fix)</p>
+              <p className="text-sm text-sky-300 font-medium mt-0.5">Enterprise Version 1.0.8 (Final Stable Release)</p>
             </div>
           </div>
 
           <div className="text-right">
-            <span className="text-xs text-slate-400 block">Lead Architect & Developer</span>
-            <span className="text-base font-bold text-sky-400">Rakesh Dhawan</span>
+            <span className="text-xs text-slate-400 block uppercase tracking-widest font-extrabold">Architect & Developer</span>
+            <span className="text-base font-bold text-sky-400">RAKESH KUMAR DHAWAN</span>
+            <span className="text-[10px] text-slate-500 block font-mono">e-Panchayath Operator (TS)</span>
           </div>
         </div>
 

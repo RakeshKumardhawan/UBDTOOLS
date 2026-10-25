@@ -20,13 +20,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string exePath = Application.ExecutablePath;
                 string appDir = AppDomain.CurrentDomain.BaseDirectory;
 
-                // 1. Add to Windows Startup Registry Key
+                // 1. Add to Windows Startup Registry Key with -silent flag for 24x7 silent tray boot
                 using (RegistryKey runKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                 {
                     if (runKey != null)
                     {
-                        runKey.SetValue("EVedhikaUBDGuardian", string.Format("\"{0}\"", exePath), RegistryValueKind.String);
-                        if (logCallback != null) logCallback("[AutoRepair] Registered 'EVedhikaUBDGuardian' in Windows Startup Registry (HKCU\\...\\Run).");
+                        runKey.SetValue("EVedhikaUBDGuardian", string.Format("\"{0}\" -silent", exePath), RegistryValueKind.String);
+                        if (logCallback != null) logCallback("[AutoRepair] Registered 'EVedhikaUBDGuardian' (-silent mode) in Windows Startup Registry (HKCU\\...\\Run).");
                     }
                 }
 
@@ -244,6 +244,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback(string.Format("[Audit Repair] Emulation check error: {0}", ex.Message));
+            }
+
+            // 4b. Automated Integrity Check for SignatureDemoLib.dll v2.0.0.0 (SHA256 Patch)
+            try
+            {
+                UBDSigningFixEngine.VerifyAndEnforceIntegrity(logCallback);
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback("[Audit Repair] SignatureDemoLib check error: " + ex.Message);
             }
 
             // 5. POST-REPAIR VERIFICATION STEP (Strict 10-Step Workflow)

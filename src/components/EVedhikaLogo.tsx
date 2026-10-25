@@ -5,51 +5,54 @@ interface LogoProps {
   size?: number;
 }
 
-export const EVedhikaLogo: React.FC<LogoProps> = ({ className = "w-10 h-10", size = 40 }) => {
+export const EVedhikaLogo: React.FC<LogoProps & { color?: string }> = ({ 
+  className = "w-10 h-10", 
+  size = 40,
+  color
+}) => {
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 64 64" 
+      viewBox="0 0 100 100" 
       width={size} 
       height={size}
-      className={`${className} shrink-0 filter drop-shadow-md`}
+      className={`${className} shrink-0 filter drop-shadow-lg`}
     >
       <defs>
-        <linearGradient id="metal-ev" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#e2e8f0"/>
-          <stop offset="50%" stopColor="#94a3b8"/>
-          <stop offset="100%" stopColor="#cbd5e1"/>
+        <linearGradient id="shield-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2563EB" />
+          <stop offset="100%" stopColor="#1E40AF" />
         </linearGradient>
-        <linearGradient id="glow-ring" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#0ea5e9"/>
-          <stop offset="100%" stopColor="#38bdf8"/>
-        </linearGradient>
-        <radialGradient id="center-depth">
-          <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.8"/>
-          <stop offset="100%" stopColor="#0f172a" stopOpacity="1"/>
-        </radialGradient>
-        <style>{`
-          @keyframes ev-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-          @keyframes ev-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-          @keyframes ev-breathe { 0%, 100% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } }
-          .ev-spin { transform-origin: center; animation: ev-spin 4s linear infinite; }
-          .ev-pulse { animation: ev-pulse 2s ease-in-out infinite; }
-          .ev-breathe { transform-origin: center; animation: ev-breathe 3s ease-in-out infinite; }
-        `}</style>
+        <filter id="inner-glow">
+          <feFlood floodColor="white" floodOpacity="0.1" />
+          <feComposite in2="SourceAlpha" operator="out" />
+          <feGaussianBlur stdDeviation="2" />
+          <feComposite operator="atop" in2="SourceGraphic" />
+        </filter>
       </defs>
-      
-      <circle cx="32" cy="32" r="30" fill="#0f172a" stroke="#1e293b" strokeWidth="1" className="ev-breathe"/>
-      
-      <path d="M50 16 A24 24 0 1 0 50 48" fill="none" stroke="url(#glow-ring)" strokeWidth="6" strokeLinecap="round" opacity="0.9"/>
-      <path d="M50 16 A24 24 0 1 0 50 48" fill="none" stroke="#fff" strokeWidth="0.5" strokeDasharray="2 4" opacity="0.4"/>
 
-      <circle cx="32" cy="32" r="18" fill="url(#center-depth)" stroke="#1e40af" strokeWidth="1"/>
+      {/* Shield Shape */}
+      <path 
+        d="M50 5 L15 20 V50 C15 75 50 95 50 95 C50 95 85 75 85 50 V20 L50 5 Z" 
+        fill={color === 'white' ? 'white' : 'url(#shield-grad)'}
+        stroke={color === 'white' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}
+        strokeWidth="2"
+        filter="url(#inner-glow)"
+      />
+
+      {/* Building Icon */}
+      <g transform="translate(28, 30) scale(0.45)" fill={color === 'white' ? '#1E40AF' : 'white'}>
+        <path d="M50 0 L0 30 V40 H100 V30 L50 0 Z M10 45 V100 H30 V45 H10 Z M40 45 V100 H60 V45 H40 Z M70 45 V100 H90 V45 H70 Z" />
+      </g>
       
-      <text x="32" y="34.5" textAnchor="middle" dominantBaseline="middle" fill="url(#metal-ev)" fontSize="16" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="-1">EV</text>
-      
-      <circle cx="32" cy="32" r="28" fill="none" stroke="#38bdf8" strokeWidth="0.5" strokeDasharray="10 100" className="ev-spin"/>
-      <circle cx="50" cy="16" r="2" fill="#fff" className="ev-pulse"/>
-      <circle cx="50" cy="48" r="2" fill="#fff" className="ev-pulse"/>
+      {/* Accent Line */}
+      <path 
+        d="M35 80 H65" 
+        stroke={color === 'white' ? '#1E40AF' : 'white'} 
+        strokeWidth="3" 
+        strokeLinecap="round" 
+        opacity="0.3"
+      />
     </svg>
   );
 };

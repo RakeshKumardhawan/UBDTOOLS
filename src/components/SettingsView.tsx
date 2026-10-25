@@ -36,6 +36,7 @@ interface SettingsViewProps {
   setSelectedProfile: (profile: DepartmentProfile) => void;
   departmentProfiles: DepartmentProfile[];
   onClearLogs: () => void;
+  onResetState: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -43,6 +44,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   setSelectedProfile,
   departmentProfiles,
   onClearLogs,
+  onResetState,
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
   const [autoUpdate, setAutoUpdate] = useState(true);
@@ -520,16 +522,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </select>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-slate-600 font-medium">Clear Application Logs:</span>
-              <button
-                id="btn-clear-logs"
-                onClick={onClearLogs}
-                className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Clear Logs</span>
-              </button>
+            <div className="pt-2 border-t border-slate-100 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Clear Application Logs:</span>
+                <button
+                  id="btn-clear-logs"
+                  onClick={onClearLogs}
+                  className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Clear Logs</span>
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium text-[11px]">Re-select Target Portal (Reset State):</span>
+                <button
+                  id="btn-reset-state"
+                  onClick={onResetState}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer border border-indigo-100"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span>Reset & Re-Select State</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

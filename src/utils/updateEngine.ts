@@ -43,6 +43,18 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
+    version: 'v1.0.8',
+    date: 'October 2026',
+    changes: [
+      '24x7 Silent Background Guardian with System Tray integration',
+      'USB DSC Token Hardware Auto-Detector (WM_DEVICECHANGE)',
+      'Aggressive Cleanup Engine: 100% System Revert on Uninstall',
+      'Firewall Rule & Browser Cache purge logic integrated',
+      'COM DLL Auto-Unregistration (RegAsm /u) during cleanup',
+      'Developer identity prominently displayed in UI and Metadata',
+    ]
+  },
+  {
     version: 'v1.0.7',
     date: 'October 2026',
     changes: [
@@ -117,12 +129,12 @@ export const VERSION_HISTORY = [
   }
 ];
 
-export const CURRENT_APP_VERSION = 'v1.0.7';
+export const CURRENT_APP_VERSION = 'v1.0.8';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
   manifestVersion: '2026.10.21-R4',
-  appVersion: 'v1.0.7',
+  appVersion: 'v1.0.8',
   lastSyncTimestamp: '2026-10-21T11:00:00.000Z',
   totalResources: 5,
   outdatedCount: 0,

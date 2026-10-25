@@ -336,7 +336,7 @@ export const initialBackupSnapshots: BackupSnapshot[] = [
     title: 'Pre-Deployment Baseline Backup',
     regKeyCount: 142,
     policyCount: 18,
-    createdUser: 'Rakesh Dhawan (Admin)',
+    createdUser: 'System Administrator',
     notes: 'Automatic snapshot captured prior to initial E-Vedhika UBD deployment run.',
   }
 ];
@@ -363,7 +363,7 @@ export const initialLogs: LogEntry[] = [
   {
     id: 'log-1',
     timestamp: '09:00:12 AM',
-    user: 'Rakesh Dhawan',
+    user: 'System Administrator',
     pcName: 'PRRD-MPDO-PC01',
     module: 'System',
     message: 'E-Vedhika UBD Deployment Tool initialized successfully.',
@@ -372,7 +372,7 @@ export const initialLogs: LogEntry[] = [
   {
     id: 'log-2',
     timestamp: '09:00:15 AM',
-    user: 'Rakesh Dhawan',
+    user: 'System Administrator',
     pcName: 'PRRD-MPDO-PC01',
     module: 'Permissions',
     message: 'Elevated Administrator rights verified (Process token HAS_ADMIN_PRIVILEGES).',

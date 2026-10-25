@@ -45,13 +45,13 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <EVedhikaLogo size={32} className="w-7 h-7 sm:w-8 sm:h-8" />
+          <EVedhikaLogo size={36} className="w-8 h-8 sm:w-9 sm:h-9" />
           <div>
-            <h1 className="font-syne text-[1.15rem] sm:text-[1.4rem] tracking-[-0.04em] text-accent leading-none">
+            <h1 className="font-syne text-[1.25rem] sm:text-[1.5rem] font-black tracking-tight text-accent leading-none">
               E-VEDHIKA
             </h1>
-            <p className="label mt-0.5 text-[0.55rem] sm:text-[0.62rem] hidden xs:block">
-              Universal Deployment Framework
+            <p className="label mt-0.5 text-[0.6rem] sm:text-[0.65rem] font-bold tracking-[0.1em] text-ink-medium hidden xs:block uppercase">
+              UBD ENTERPRISE SOLUTION
             </p>
           </div>
         </div>

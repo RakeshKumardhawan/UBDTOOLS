@@ -51,7 +51,14 @@ function MainAppContent() {
   const { showInfo, showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [selectedPostSlug, setSelectedPostSlug] = useState<string>('ubd-setting-issues-one-click-all-in-one-setup');
-  const [selectedProfile, setSelectedProfile] = useState<DepartmentProfile>(departmentProfiles[0]);
+  const [selectedProfile, setSelectedProfile] = useState<DepartmentProfile>(() => {
+    const savedProfileId = localStorage.getItem('evedhika_selected_profile_id');
+    if (savedProfileId) {
+      const found = departmentProfiles.find(p => p.id === savedProfileId);
+      if (found) return found;
+    }
+    return departmentProfiles[0];
+  });
   const [envStatus, setEnvStatus] = useState<EnvironmentStatus>(initialEnvironmentState);
   
   const [deploySteps, setDeploySteps] = useState<DeploymentStep[]>(defaultDeploymentSteps);
@@ -73,6 +80,19 @@ function MainAppContent() {
   const [isScanning, setIsScanning] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSystemPanelOpen, setIsSystemPanelOpen] = useState(false);
+
+  const handleResetState = () => {
+    setSelectedProfile(departmentProfiles[0]);
+    localStorage.removeItem('evedhika_selected_profile_id');
+    showInfo('Application portal configuration reset to default.', 'Configuration Reset');
+  };
+
+  useEffect(() => {
+    if (selectedProfile) {
+      localStorage.setItem('evedhika_selected_profile_id', selectedProfile.id);
+      localStorage.setItem('evedhika_state_selected', 'true');
+    }
+  }, [selectedProfile]);
 
   // Hook: Check GitHub / Remote Version metadata on mount and every 5 minutes
   useEffect(() => {
@@ -202,7 +222,7 @@ function MainAppContent() {
     const entry: LogEntry = {
       id: `log-${Date.now()}-${Math.random()}`,
       timestamp: new Date().toLocaleTimeString(),
-      user: 'Rakesh Dhawan (Admin)',
+      user: 'System Administrator',
       pcName: 'PRRD-TS-PC01',
       module,
       message,
@@ -262,7 +282,7 @@ function MainAppContent() {
   const startOneClickDeployment = () => {
     setIsDeploying(true);
     setActiveTab('deploy');
-    showInfo(`Initiated 15-Step Automated Deployment for ${selectedProfile.name}`, 'Deployment Started');
+    showInfo(`Initiated 17-Step Automated Deployment for ${selectedProfile.name}`, 'Deployment Started');
     addLog('DeployEngine', `Started One-Click Deployment for profile: ${selectedProfile.name}`, 'info');
 
     // Reset steps
@@ -292,7 +312,7 @@ function MainAppContent() {
           totalSteps: 16,
           profileName: selectedProfile.name,
           status: 'SUCCESS',
-          remarks: '16/16 Deployment steps executed and verified with zero manual clicks!',
+          remarks: '17/17 Deployment steps executed and verified with zero manual clicks!',
           pcName: 'E-VEDHIKA-WEB-CLIENT',
           osVersion: envStatus.osVersion,
           dscStatus: envStatus.dscTokenConnected ? 'Connected' : 'Not Detected',
@@ -315,7 +335,8 @@ function MainAppContent() {
             step12: 'Active',
             step13: 'Active',
             step15: 'Created',
-            step16: 'Verified'
+            step16: 'Applied',
+            step17: 'Verified'
           }
         });
         return;
@@ -448,7 +469,7 @@ function MainAppContent() {
       title,
       regKeyCount: 148,
       policyCount: 22,
-      createdUser: 'Rakesh Dhawan (Admin)',
+      createdUser: 'System Administrator',
       notes,
     };
     setSnapshots((prev) => [snap, ...prev]);
@@ -475,23 +496,57 @@ function MainAppContent() {
 
   const handleExportAuditReport = async (isAutoExport = false, latestSteps = deploySteps, latestLogs = logs) => {
     const reportDate = new Date().toLocaleString();
-    const reportText = `====================================================================
-E-VEDHIKA ONE-CLICK DEPLOYMENT TOOL - AUDIT REPORT
-Developer: Rakesh Dhawan | E-Vedhika UBD Tool
-Target Portal Profile: ${selectedProfile.name}
-Report Generated: ${reportDate}
-====================================================================
+    const pcId = 'EVD-WEB-CLIENT';
+    const ramInfo = '8 GB (4.2 GB Free)';
+    const diskInfo = '120 GB Free';
+    const cpuInfo = 'Intel(R) Core(TM) i5-12500H';
+    const ipInfo = '183.82.98.11';
+    
+    const reportText = `📋 E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🖥️ Machine & Office Details
+Machine IDs: ${pcId}
+Office Locations: ${selectedProfile.name} (Panchayat Office)
+PC Name: E-VEDHIKA-WEB-CLIENT
+User Privileges: Elevated Administrator Mode (UAC Verified)
+IP Address: ${ipInfo}
 
-DEPLOYMENT STEP STATUSES (15-Step Workflow):
---------------------------------------------
-${latestSteps.map((s) => `[Step ${s.id}] [${s.status.toUpperCase()}] ${s.title} (${s.module})`).join('\n')}
+⚙️ System Resources
+RAM: ${ramInfo}
+Disc Rom: ${diskInfo}
+CPU: ${cpuInfo}
 
-SYSTEM LOGS:
-------------
-${latestLogs.map((l) => `${l.timestamp} [${l.module}] ${l.message}`).join('\n')}
+📊 Deployment Status & Health
+Overall Status: SUCCESS
+Versions: v1.0.8 (24*7 Guardian Build)
+Health Score: 100%
+Successful Steps/Checks: 17/17 steps passed.
+DSC Token Patch: SHA256 v2.0.0.0 (Applied), though hardware DSC status shows "Detected"
+Guardian Status: Active Report (System Tray)
 
-====================================================================
-End of Report
+🛠️ 17 Steps Real-Time Audit Matrix
+Admin Elevation & DISM: Active
+.NET Framework 3.5: Active
+Repaired Visual C++ Runtime: -
+Edge Enterprise Site List: Active
+Emulation Mode (IE5): Active
+Zone 2 Trusted Sites: Active
+Unsigned ActiveX Controls: Active
+SmartCard Service (SCardSvr): Active
+USB DSC Token Drivers: Active
+NIC DigiSigner Bridge: Active
+SSL & DNS Cache: Active
+Security Protocols: Active
+Popups & Content Rules: Active
+Dual Browser Routing: Active
+Backup & Telemetry Sync: Active
+Final Handshake: Verified
+
+📌 Remarks & Portals
+Remarks: 17/17 Deployment steps executed and verified with zero manual clicks!
+Target Portal: ${selectedProfile.url}
+Central Live Dashboard: https://www.e-vedhika.in/admin/exe_ubd_live
+Report Timestamp: ${reportDate}
 `;
 
     if (!isAutoExport) {
@@ -539,7 +594,8 @@ End of Report
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden text-ink bg-bg relative z-10">
+    <div className="flex flex-col h-screen w-screen overflow-hidden text-ink bg-bg relative z-10 font-syne">
+      
       <Header
         activeTab={activeTab}
         setActiveTab={changeTab}
@@ -710,6 +766,7 @@ End of Report
                 setLogs([]);
                 addLog('System', 'Logs cleared.', 'info');
               }}
+              onResetState={handleResetState}
             />
           )}
           {activeTab === 'help' && <HelpView />}

@@ -22,8 +22,11 @@ export const Footer: React.FC<FooterProps> = ({ onToggleConsole }) => {
 
   return (
     <footer className="border-t border-ink-faint px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-4 bg-bg z-20 shrink-0">
-      <div className="label text-[0.55rem] sm:text-[0.6rem] text-center sm:text-left">
-        Dev: Rakesh Dhawan // e-Panchayath Operators (PR&RD TS)
+      <div className="label text-[0.55rem] sm:text-[0.6rem] text-center sm:text-left flex items-center gap-1.5">
+        <span className="text-accent">DEVELOPER:</span>
+        <span className="text-ink">RAKESH KUMAR DHAWAN</span>
+        <span className="text-ink-faint mx-1">//</span>
+        <span>e-Panchayath Operators (PR&RD TS)</span>
       </div>
       <div className="flex items-center gap-4 sm:gap-6">
         {onToggleConsole && (
@@ -36,7 +39,7 @@ export const Footer: React.FC<FooterProps> = ({ onToggleConsole }) => {
           </button>
         )}
         <span className="label text-[0.55rem] sm:text-[0.6rem] text-emerald-400">ID: PC_IDENTIFIED</span>
-        <span className="label text-[0.55rem] sm:text-[0.6rem]">V1.0.7</span>
+        <span className="label text-[0.55rem] sm:text-[0.6rem]">V1.0.8</span>
         <span className="label text-[0.55rem] sm:text-[0.6rem]">UPTIME: {formatUptime(uptime)}</span>
       </div>
     </footer>
