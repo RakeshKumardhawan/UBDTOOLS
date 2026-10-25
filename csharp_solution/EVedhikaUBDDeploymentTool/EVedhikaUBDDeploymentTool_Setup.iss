@@ -74,6 +74,36 @@ begin
   end;
 end;
 
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    // Purge legacy standalone duplicate uninstall entries from Windows Registry
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhika_UBD_Deployment_Tool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.1');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.4');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.7');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.8');
+    
+    if IsWin64 then
+    begin
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhika_UBD_Deployment_Tool');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.1');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.4');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.7');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.8');
+    end;
+
+    RegDeleteKeyIncludingSubkeys(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhika_UBD_Deployment_Tool');
+  end;
+end;
+
 function InitializeSetup: Boolean;
 begin
   Result := True;

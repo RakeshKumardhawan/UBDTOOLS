@@ -221,6 +221,36 @@ begin
   end;
 end;
 
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    // Purge legacy standalone duplicate uninstall entries from Windows Registry
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.7');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.8');
+    
+    if IsWin64 then
+    begin
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.7');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.8');
+    end;
+
+    RegDeleteKeyIncludingSubkeys(HKCU, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool');
+  end;
+end;
+
 function InitializeSetup: Boolean;
 begin
   Result := True;
@@ -6032,41 +6062,75 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         /// <summary>
         /// Cleans up duplicate legacy/old Control Panel entries to prevent multiple entries in Add/Remove Programs.
+        /// <summary>
+        /// Cleans up all legacy, duplicate, or old version uninstall keys from Windows Control Panel
+        /// ensuring zero duplicates remain in HKLM (64-bit & 32-bit) and HKCU.
         /// </summary>
         public static void CleanLegacyUninstallEntries()
         {
             try
             {
-                // Delete legacy custom keys from HKCU and HKLM (Do NOT delete current EVedhikaUBDTool key)
-                string[] legacyKeys = new string[]
+                string innoSetupKey = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1";
+                string customKey = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool";
+
+                string[] targetKeys = new string[]
                 {
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4",
-                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.7"
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.7",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.8"
                 };
 
-                foreach (var kPath in legacyKeys)
+                // Check if Inno Setup official installation key exists
+                bool innoExists = false;
+                try
                 {
-                    try { Registry.CurrentUser.DeleteSubKeyTree(kPath, false); } catch { }
-                    try { Registry.LocalMachine.DeleteSubKeyTree(kPath, false); } catch { }
+                    using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32))
+                    using (var k = baseKey.OpenSubKey(innoSetupKey))
+                    {
+                        if (k != null) innoExists = true;
+                    }
+                }
+                catch { }
+
+                // Helper to delete subkey from a specific hive and view
+                Action<RegistryHive, RegistryView, string> deleteKey = (hive, view, subKey) =>
+                {
                     try
                     {
-                        using (var base32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32))
+                        using (var baseKey = RegistryKey.OpenBaseKey(hive, view))
                         {
-                            base32.DeleteSubKeyTree(kPath, false);
+                            baseKey.DeleteSubKeyTree(subKey, false);
                         }
                     }
                     catch { }
-                    try
+                };
+
+                // Delete known legacy keys from all hives and views
+                foreach (var kPath in targetKeys)
+                {
+                    deleteKey(RegistryHive.CurrentUser, RegistryView.Default, kPath);
+                    deleteKey(RegistryHive.LocalMachine, RegistryView.Registry32, kPath);
+                    deleteKey(RegistryHive.LocalMachine, RegistryView.Registry64, kPath);
+                }
+
+                // If Inno Setup key exists, DELETE all custom standalone keys so ONLY Inno Setup key remains!
+                if (innoExists)
+                {
+                    deleteKey(RegistryHive.CurrentUser, RegistryView.Default, customKey);
+                    deleteKey(RegistryHive.LocalMachine, RegistryView.Registry32, customKey);
+                    deleteKey(RegistryHive.LocalMachine, RegistryView.Registry64, customKey);
+                }
+                else
+                {
+                    // If standalone, ensure we don't have duplicate keys in both 32-bit and 64-bit views!
+                    if (Environment.Is64BitOperatingSystem)
                     {
-                        using (var base64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-                        {
-                            base64.DeleteSubKeyTree(kPath, false);
-                        }
+                        deleteKey(RegistryHive.LocalMachine, RegistryView.Registry32, customKey);
                     }
-                    catch { }
+                    deleteKey(RegistryHive.CurrentUser, RegistryView.Default, customKey);
                 }
             }
             catch { }
@@ -6074,63 +6138,74 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         /// <summary>
         /// Registers the application in Windows Control Panel -> "Programs and Features" (Add or Remove Programs)
-        /// ensuring only ONE single official entry exists.
+        /// ensuring strictly ONLY ONE single official entry exists.
         /// </summary>
         public static bool RegisterControlPanelUninstall(string exePath, Action<string> logCallback = null)
         {
             try
             {
-                // First remove all old duplicate legacy entries
+                // First purge all legacy and duplicate entries
                 CleanLegacyUninstallEntries();
 
+                string innoSetupKey = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1";
+                RegistryView targetView = Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32;
+
+                // 1. Check if Official Inno Setup key exists
+                bool innoExists = false;
+                try
+                {
+                    using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, targetView))
+                    using (var k = baseKey.OpenSubKey(innoSetupKey, true))
+                    {
+                        if (k != null)
+                        {
+                            innoExists = true;
+                            // Update display name and version on official Inno key
+                            k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
+                            k.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
+                            k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
+                        }
+                    }
+                }
+                catch { }
+
+                // If Inno Setup key exists, we are DONE! Strictly 1 entry exists in Control Panel.
+                if (innoExists)
+                {
+                    if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.0.8).");
+                    return true;
+                }
+
+                // 2. If standalone (not installed via Inno Setup), write STRICTLY ONE custom key in native OS registry view
                 if (string.IsNullOrEmpty(exePath))
                 {
                     exePath = Process.GetCurrentProcess().MainModule.FileName;
                 }
 
                 string installDir = Path.GetDirectoryName(exePath);
-                string subKeyName = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool";
+                string customKey = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool";
 
-                Action<RegistryKey> writeEntries = (keyLM) =>
+                using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, targetView))
+                using (var keyLM = baseKey.CreateSubKey(customKey))
                 {
-                    if (keyLM == null) return;
-                    keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
-                    keyLM.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
-                    keyLM.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
-                    keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
-                    keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
-                    keyLM.SetValue("DisplayIcon", string.Format("{0},0", exePath), RegistryValueKind.String);
-                    keyLM.SetValue("InstallLocation", installDir, RegistryValueKind.String);
-                    keyLM.SetValue("HelpLink", "https://www.e-vedhika.in", RegistryValueKind.String);
-                    keyLM.SetValue("URLInfoAbout", "https://www.e-vedhika.in", RegistryValueKind.String);
-                    keyLM.SetValue("NoModify", 1, RegistryValueKind.DWord);
-                    keyLM.SetValue("NoRepair", 1, RegistryValueKind.DWord);
-                    keyLM.SetValue("EstimatedSize", 142336, RegistryValueKind.DWord); // ~139 MB
-                };
-
-                // Write to 64-bit Registry
-                try
-                {
-                    using (var base64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-                    using (var k64 = base64.CreateSubKey(subKeyName))
+                    if (keyLM != null)
                     {
-                        writeEntries(k64);
+                        keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
+                        keyLM.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
+                        keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
+                        keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
+                        keyLM.SetValue("DisplayIcon", string.Format("{0},0", exePath), RegistryValueKind.String);
+                        keyLM.SetValue("InstallLocation", installDir, RegistryValueKind.String);
+                        keyLM.SetValue("HelpLink", "https://www.e-vedhika.in", RegistryValueKind.String);
+                        keyLM.SetValue("URLInfoAbout", "https://www.e-vedhika.in", RegistryValueKind.String);
+                        keyLM.SetValue("NoModify", 1, RegistryValueKind.DWord);
+                        keyLM.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+                        keyLM.SetValue("EstimatedSize", 142336, RegistryValueKind.DWord); // ~139 MB
                     }
                 }
-                catch { }
 
-                // Write to 32-bit Registry
-                try
-                {
-                    using (var base32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32))
-                    using (var k32 = base32.CreateSubKey(subKeyName))
-                    {
-                        writeEntries(k32);
-                    }
-                }
-                catch { }
-
-                if (logCallback != null) logCallback("[UNINSTALL REG] Registered v1.0.8 in Control Panel (Programs and Features).");
+                if (logCallback != null) logCallback("[UNINSTALL REG] Registered single official standalone entry in Control Panel.");
                 return true;
             }
             catch (Exception ex)
