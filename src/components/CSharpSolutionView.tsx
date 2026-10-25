@@ -10149,6 +10149,21 @@ namespace EVedhikaUBDDeploymentTool
             deployThread.Start();
         }
 
+        public void ExecuteFullDeployment()
+        {
+            SafeInvoke(delegate()
+            {
+                if (btnStartDeploy != null && btnStartDeploy.Enabled)
+                {
+                    btnStartDeploy_Click(btnStartDeploy, EventArgs.Empty);
+                }
+                else if (btnStartDeploy != null && !btnStartDeploy.Enabled)
+                {
+                    LogMessage("DEPLOY", "Deployment is already running in background.");
+                }
+            });
+        }
+
         private void RunDeploymentWorkflow()
         {
             for (int i = 0; i < deployStepNames.Length; i++)
