@@ -44,7 +44,7 @@ export async function SendDeploymentSummaryToTelegram(summary: DeploymentSummary
     `<b>CPU:</b> ${summary.cpuInfo || 'Intel(R) Core(TM) i5'}\n\n` +
     `📊 <b>Deployment Status & Health</b>\n` +
     `<b>Overall Status:</b> <b>${summary.status}</b>\n` +
-    `<b>Versions:</b> ${version.includes('1.0.8') ? 'v1.0.8 (24*7 Guardian Build)' : 'v1.0.7 (OTA Build 2026.10.21-R4)'}\n` +
+    `<b>Versions:</b> ${version.includes('1.0.8') ? 'v1.0.8 (24*7 Guardian Build)' : 'v1.0.7 (OTA Build 2026.10.25-R1)'}\n` +
     `<b>Health Score:</b> ${passRate}%\n` +
     `<b>Successful Steps/Checks:</b> ${summary.stepsPassed}/${totalSteps} steps passed.\n` +
     `<b>DSC Token Patch:</b> SHA256 v2.0.0.0 (Applied), though hardware DSC status shows "${summary.dscStatus || 'Detected'}"\n` +

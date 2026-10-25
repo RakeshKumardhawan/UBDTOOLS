@@ -9496,7 +9496,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: 2026.10.21-R4) | PC ID: {0} | Status: Ready", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", AutoUpdateEngine.CurrentResourceBuild, pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -11601,9 +11601,7 @@ namespace EVedhikaUBDDeploymentTool
             this.Hide();
             if (trayNotifyIcon != null)
             {
-                trayNotifyIcon.ShowBalloonTip(4000, "⚡ E-Vedhika 24x7 Guardian Active", 
-                    "E-Vedhika is running silently in the background.\\nUSB DSC Tokens will be auto-detected and managed 24x7 until digital signing succeeds.", 
-                    ToolTipIcon.Info);
+                trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.8 - Silent Guardian Active";
             }
         }
 
@@ -11642,13 +11640,7 @@ namespace EVedhikaUBDDeploymentTool
 
             if (isInserted)
             {
-                if (trayNotifyIcon != null)
-                {
-                    trayNotifyIcon.ShowBalloonTip(4000, "🔑 USB DSC Token Detected!", 
-                        "E-Vedhika 24x7 Guardian active! Verifying token drivers, SCardSvr & SHA256/SHA1 signing readiness...", 
-                        ToolTipIcon.Info);
-                }
-
+                // Silently trigger background verification without popping up intrusive notifications
                 ThreadPool.QueueUserWorkItem(delegate
                 {
                     VerifyAndEnforceDscReadiness();
@@ -11656,12 +11648,15 @@ namespace EVedhikaUBDDeploymentTool
             }
             else
             {
-                if (trayNotifyIcon != null)
+                // Silently update tray tooltip status on unplug
+                SafeInvoke(delegate
                 {
-                    trayNotifyIcon.ShowBalloonTip(3000, "ℹ️ USB DSC Token Unplugged", 
-                        "USB DSC Token was removed. E-Vedhika 24x7 Guardian remains active for next insertion.", 
-                        ToolTipIcon.Warning);
-                }
+                    if (trayNotifyIcon != null)
+                    {
+                        trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.8 - DSC Token Removed";
+                    }
+                    LogMessage("DSC-GUARDIAN", "[INFO] USB DSC Token unplugged. Application running silently in background.");
+                });
             }
         }
 
@@ -11686,7 +11681,7 @@ namespace EVedhikaUBDDeploymentTool
         {
             try
             {
-                // 1. Check SmartCard Service (SCardSvr)
+                // 1. Check SmartCard Service (SCardSvr) silently
                 try
                 {
                     using (var sc = new System.ServiceProcess.ServiceController("SCardSvr"))
@@ -11700,7 +11695,7 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 catch { }
 
-                // 2. Verify SignatureDemoLib.dll v2.0.0.0 (SHA256 / SHA1 dual algorithm patch)
+                // 2. Verify SignatureDemoLib.dll v2.0.0.0 (SHA256 / SHA1 dual algorithm patch) silently
                 UBDSigningFixEngine.VerifyAndEnforceIntegrity(msg => LogMessage("DSC-READINESS", msg));
 
                 // 3. Get Hardware Status
@@ -11710,11 +11705,11 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (trayNotifyIcon != null)
                     {
-                        trayNotifyIcon.ShowBalloonTip(5000, "✅ USB DSC Token 100% Ready (SHA256/SHA1)", 
-                            \$"Detected: {dscStatus}\\nE-Vedhika is actively managing digital signature readiness for ubd.telangana.gov.in.", 
-                            ToolTipIcon.Info);
+                        string iconText = \$"E-Vedhika v1.0.8 - DSC: {dscStatus}";
+                        if (iconText.Length > 63) iconText = iconText.Substring(0, 63);
+                        trayNotifyIcon.Text = iconText;
                     }
-                    LogMessage("DSC-GUARDIAN", \$"[SUCCESS] USB DSC Token verified: {dscStatus}. Application responsible until digital signing completes.");
+                    LogMessage("DSC-GUARDIAN", \$"[SUCCESS] USB DSC Token verified silently: {dscStatus}. Application ready for digital signing.");
                 });
 
                 // 4. Send Telemetry
