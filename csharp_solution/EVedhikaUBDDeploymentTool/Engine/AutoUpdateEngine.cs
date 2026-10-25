@@ -12,6 +12,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
         public const int CurrentVersionCode = 10008; // (1 * 10000) + (0 * 100) + 8
         public const string CurrentResourceBuild = "2026.10.25-R1";
         public const string ResourceDate = "2026-10-25";
+        public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
         private static string ExtractJsonValue(string json, string key)
@@ -252,6 +253,13 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                             }
                         }
 
+                        // Extract and sync resource build if present
+                        string serverResBuild = ExtractJsonValue(jsonResponse, "latestResourceBuild");
+                        if (!string.IsNullOrEmpty(serverResBuild))
+                        {
+                            ActiveResourceBuild = serverResBuild;
+                        }
+
                         if (!string.IsNullOrEmpty(latestVer))
                         {
                             info.Success = true;
@@ -275,7 +283,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                             else
                             {
                                 info.IsUpdateAvailable = false;
-                                info.Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is 100% up to date!\n\n(Resource Build: {CurrentResourceBuild} - All component hashes verified)";
+                                info.Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is 100% up to date!\n\nControl Panel Status: Registered in Windows Control Panel (Add/Remove Programs).\nResource Build: {ActiveResourceBuild}";
                                 logCallback?.Invoke($"[AUTO-UPDATE] Software is up to date ({CurrentVersion}). Verified via {url}");
                             }
 

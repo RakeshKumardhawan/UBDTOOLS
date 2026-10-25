@@ -2061,6 +2061,13 @@ namespace EVedhikaUBDDeploymentTool
                 SafeInvoke(delegate() {
                     btnCheckUpdates.Enabled = true;
 
+                    // Dynamically update footer status bar with active resource build
+                    if (toolStripStatusLabel != null)
+                    {
+                        string pcId = Helpers.Logger.GetUniqueMachineId();
+                        toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", AutoUpdateEngine.ActiveResourceBuild, pcId);
+                    }
+
                     if (info.IsUpdateAvailable)
                     {
                         DialogResult dr = MessageBox.Show(
@@ -2093,7 +2100,7 @@ namespace EVedhikaUBDDeploymentTool
                     else
                     {
                         MessageBox.Show(
-                            $"{info.Message}\n\nControl Panel Status: Registered in Windows Control Panel (Add/Remove Programs).\nVersion: {info.CurrentVersion}",
+                            $"{info.Message}",
                             "E-Vedhika Software Status",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
