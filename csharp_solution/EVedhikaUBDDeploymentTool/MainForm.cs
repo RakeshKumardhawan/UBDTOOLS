@@ -412,7 +412,12 @@ namespace EVedhikaUBDDeploymentTool
 
             ApplyExtraModernDarkTheme();
 
-            
+            // Auto-register in Control Panel (Programs and Features) for v1.0.8
+            try
+            {
+                UninstallEngine.RegisterControlPanelUninstall(Application.ExecutablePath);
+            }
+            catch { }
 
             
             

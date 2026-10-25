@@ -24,7 +24,7 @@ SetupIconFile=app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 WizardStyle=modern
 PrivilegesRequired=admin
-UninstallDisplayName={#MyAppName} (E-Vedhika)
+UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
 CloseApplications=yes
 CloseApplicationsFilter=*.exe
 
