@@ -21,7 +21,7 @@ OutputBaseFilename=EVedhika_Setup_v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=app.ico
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\app.ico
 WizardStyle=modern
 PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
@@ -30,6 +30,7 @@ CloseApplicationsFilter=*.exe
 
 [Files]
 ; Copy all build outputs for .NET Framework 4.8
+Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\*"; DestDir: "{app}\Payload"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
 Source: "installers\vc_redist.x86.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist

@@ -110,10 +110,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         if (k != null)
                         {
                             innoExists = true;
-                            // Update display name and version on official Inno key
+                            string icoPath = Path.Combine(Path.GetDirectoryName(exePath) ?? "", "app.ico");
+                            string iconVal = File.Exists(icoPath) ? icoPath : string.Format("\"{0}\",0", exePath);
                             k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
                             k.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
                             k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
+                            k.SetValue("DisplayIcon", iconVal, RegistryValueKind.String);
                         }
                     }
                 }
@@ -134,6 +136,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 string installDir = Path.GetDirectoryName(exePath);
                 string customKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool";
+                string standaloneIco = Path.Combine(installDir ?? "", "app.ico");
+                string standaloneIconVal = File.Exists(standaloneIco) ? standaloneIco : string.Format("\"{0}\",0", exePath);
 
                 using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, targetView))
                 using (var keyLM = baseKey.CreateSubKey(customKey))
@@ -145,7 +149,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         keyLM.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\"{0}\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\"{0}\" --uninstall --silent", exePath), RegistryValueKind.String);
-                        keyLM.SetValue("DisplayIcon", string.Format("{0},0", exePath), RegistryValueKind.String);
+                        keyLM.SetValue("DisplayIcon", standaloneIconVal, RegistryValueKind.String);
                         keyLM.SetValue("InstallLocation", installDir, RegistryValueKind.String);
                         keyLM.SetValue("HelpLink", "https://www.e-vedhika.in", RegistryValueKind.String);
                         keyLM.SetValue("URLInfoAbout", "https://www.e-vedhika.in", RegistryValueKind.String);

@@ -168,7 +168,7 @@ OutputBaseFilename=EVedhika_Setup_v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=app.ico
-UninstallDisplayIcon={app}\\{#MyAppExeName}
+UninstallDisplayIcon={app}\\app.ico
 WizardStyle=modern
 PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
@@ -177,6 +177,7 @@ CloseApplicationsFilter=*.exe
 
 [Files]
 ; Copy all build outputs for .NET Framework 4.8
+Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\\Release\\net48\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\\*"; DestDir: "{app}\\Payload"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
 Source: "installers\\vc_redist.x86.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
@@ -6162,10 +6163,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         if (k != null)
                         {
                             innoExists = true;
-                            // Update display name and version on official Inno key
+                            string icoPath = Path.Combine(Path.GetDirectoryName(exePath) ?? "", "app.ico");
+                            string iconVal = File.Exists(icoPath) ? icoPath : string.Format("\\"{0}\\",0", exePath);
                             k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
                             k.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
                             k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
+                            k.SetValue("DisplayIcon", iconVal, RegistryValueKind.String);
                         }
                     }
                 }
@@ -6186,6 +6189,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 string installDir = Path.GetDirectoryName(exePath);
                 string customKey = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool";
+                string standaloneIco = Path.Combine(installDir ?? "", "app.ico");
+                string standaloneIconVal = File.Exists(standaloneIco) ? standaloneIco : string.Format("\\"{0}\\",0", exePath);
 
                 using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, targetView))
                 using (var keyLM = baseKey.CreateSubKey(customKey))
@@ -6197,7 +6202,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         keyLM.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
-                        keyLM.SetValue("DisplayIcon", string.Format("{0},0", exePath), RegistryValueKind.String);
+                        keyLM.SetValue("DisplayIcon", standaloneIconVal, RegistryValueKind.String);
                         keyLM.SetValue("InstallLocation", installDir, RegistryValueKind.String);
                         keyLM.SetValue("HelpLink", "https://www.e-vedhika.in", RegistryValueKind.String);
                         keyLM.SetValue("URLInfoAbout", "https://www.e-vedhika.in", RegistryValueKind.String);
@@ -34068,7 +34073,51 @@ namespace EVedhikaUBDDeploymentTool
     name: 'app.ico',
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/app.ico',
     type: 'cs',
-    content: `       (     (                                                                                                                                                                                                                                                                                                        `
+    content: `           �  f   ��     �	  H  @@     �  �  00     �  �#         �  �'       /  	*  �PNG
+
+   IHDR         \\r�f  �IDATx���OH�g���כֿ~�@.��KJ
+�\\�RAs�!D�r���C�9ɀ�v��u�֦v�&iZ�Ngܝ�9��m\$�0��r��%�>O�lǉ�3��33ߙ�����*��>Q3��y��q�.}������@�o]�PC�c��SQA��Y5��Ղ�׺�����q����~\\�ܴ��i�{�����v�����vg��g�~f��fN�_�é
+�O[U���kjTM��*��}Cm���}V�x���4c�۟��������������1��gV׬>�Y}����_�p�aoS��uS�UB=�-��nSE���H����}ܲ4�hY�s\\�TW�9���]����R��u)֫F�\\�z�TY�F��ޟvC���Z~����QY�lY�S#�W����"�Vգ��)�_V/�c/�n��u;�jYM�,}~]�(�l�4*��uI�#jQ=SB��)�y}��ZlI}Q�ZR_t���;�N5�&TF��\\��|�\\_l���P���G�^П|�+�dT���j7>��_�k�Ғ�2�����'y�qB����~rT%ԫ��s��'�����J%Ԩ��Qǩ5�vuU���~�෌��lKj���NU�U7TR��į�r���������T�5������_C�}��������ULe�����O_|S�<z9��ᢠ���~��1���l���ȣ�S�>5%������oSM�>ݜ��w�	��\`��C�y}��9�������ɇF�R�j�������-u�G�����a�~���k>���q4��@�Q;�w�uG����UDe�~G��mN}Q�QҸ��Tb?|����M��BKC���.A�����!�s=WQՅ���?(��w�����/I5����ߡ��������6UD�
+Eu��W-��/~ͩ���
+?�a�~�[į���0��	��W[����R����[ͫ]������Z�W�LA�_V����ZV�QX;�#�	��_����4V~�S/�����/՘���*��T�o��5ǟߤ�Di��������5ל��!Z��?���!Ư��󨵇�#� ?�� ��������4��_G�s��S�y!� ��U��C��)����'�������Zib����_����w�ޖi�ˁ�������o\$�{=H+�1x�o���~�7"�\\	�oy����FƟ���BO��~�w�^��)�6���=<��.��5��\\�1���A���\\�?��a���M��#.�̋y��q��鉺��n^����߲�v�)^���xP�M��N5� ����?��L㍌�����ϗ�Tf�7m��F����=�: N�ϵ�z	��w�:� 8���TG�@�����w �ğ+������7 N�7m��z��%�I��� � g��J6���t �?\`o �ïM�z�?�����3 ��7=WC����J���'� :� 8�?WB������3� �w ��W���,��?��~ ���!�����w��h[�,�\\w������,P�p�iG�����?�� ���M�τm n�����:� �?�n�	�Z���� ��M�;,0��_��~ �E���>������m �sK���XꧾZ���~/@� ���W?��j����o�����t� ��M��b���q����2 �/�?W�����K{�^@� ��ߴq,��� ��_�Kw�� ���*a�U����h[ ���B�\`��]�h �"�s�W�Y���n�t� ��Mk�R?��� � ��u:� ����gӍJ�oWI�W�� ���oJ��J�U���/��� ��M;�j��6����h[ �C��]	�=����+�mc �_~�̪�09
+~�  �������J������4 �/�)�N��K����g � �}�7�R�l@���3 ~ �>����ߩV��?| �_6~�ZQ�A\`P���@� �/���j0� L�?~�� ��7�\\A�w����oI}	h�?0~SFu��l���3 A �>񛶏��.��X���3 A ��%S��V���� � ~�w�%�Uk�У��?8~�� ��L��g����~;� [ ~�s]/w ��o?\`c � ���T9���v�� h ��iY��JA�߫^��~ � ��~��[� ���~�� ���\\#%��1���� � ���o����M%�o?\`k � ��{R�5 �T���3 6 ����QpE��=�-�� h �o�鍺r� ��]�@� �%��n5 q���� � �[�o���U%�o?\`s � �J'�O�[�@�z~�� [ ���w����*6 }��~��  ~�M[��� ���v�[#��\\׊�(�v�{�~�h����rk �ï�1Yl �ri�< �7�=�	���ru �oJ����Z��rq �oZW�yA���rm �o�P�\`j@msi����M�j�p ����� ����C��1�v�~�ǅ�	�v�~�'�0ƥ�� 8��4V8 Q.� w�)��h� |��rs ��o��,�v�{�\$~�<[8 s\\�A��Ms�0ϥ� 8��4_8 \\�An�3�M�p�K;��p
+��^>~�ϥ�� 8��t��d&�3��=.� ��I�*s��K���v�~S�� ��\\�A��M�����r{ ��o*|@|�K;��p
+����1�� ��p���g��.�g \\ '��s?� 8��T�z ӟ���\` �o*|E��]�� 0 �7�&����� �A���W�Pۮ�oI}�5�۪�^���j�5�� �~������f>P��g \\ ���uUx7��	�v?� 8�ߔV'�"|�k� �1����AG�']�� 0 ��7M��Q��7��� ���4Zl ����\` �o�Vl �ԖK���C�K��i῁�K;B���䣾bХ��.~�K;B�_=z���@��'�o?��!�oJ�V���8���g ��#\$�Mq�#�7�osꯀ�Ҏ0�7�<j ��7෇��Ҏ����5 �T���3 \\����:w� ��\$���g ��#�MI��u=~{� .�~S�+�����g ��#��?GJ�^��v�7���K;j����-u ��2���g �����M��%���z�
+�v�3 \\�Qc���?�s�:���g �����M�������3 \\�Qc��TO�Ъ�?��5�oZT�^�G�#���9u�\\�Q+������%A�0� �v���{�]�9 _t����g ���F�տ2���{~���3 \\�Q#��	/��A����71 \\�Q���\`��T+�����Ҏ�7��N/��(���g ����MQ���K����oJ= 4�vT�+���?\` N����g �����M	uҳu�~���3 ~ �>�F=�G�{T���g  ���Ͼ��w�g��m𗏟�9 ���_���W�#�W����� � �G]�� ��\$���ߔ�Ё �%�7%U�W�#�7�_~ � ����^%���5𗎟�; �/��:�U��8�K�� � ��o��q��ʂ�4��� �!��o�]�u?���3 6 ���7żj������)�Ё �G��P�^�����4~ � �����W�#��&��� � ���/�Z����� � ���2�����?q��� ���ϫ��	��� � ��7Mxa8߭����H�:� �� �����[�??d � ~�-/LG��z���g � ���O�3^؎������ ����Q�^��Ww��P�p��:����ʂ��; �WY5���y��}�@ ��"^=A?����2 ��+�N{�r~H=?� ���s5����(� ��~Sԫ�#�]��t?\`s �ß|/�k�W�G�զ�� [��M����}�e�M�E@ ��_#^#��P��g ����T��(G�{՚��� �\$�5��5��a��~�� 8�K{�z�5����H?�ӱ���H�"�\\��!�������o���)A�?����yu�k�#��j����/�nϕ#�������>Q�=׎���K���a�/Ո���1���Q��1��#�mj��w��j�\\?�ߩ��~��ϩN���{�����Q���W	�����'�y���T��o@�i�ʏ��}*~�7���Cw�#ЯV������Q]��~�?���W~��>AO��u�5?������_g���~G�z ~������[}�}���3�x�O�F��N5	~�����<��
+#Ц��K��?\$?�;��T}��'��_�c����j����x]Fa�G�[̓�U~�n�f�;�����_���w��{�t����_�{�Q�������]}�誛��CE�&�����HC]����\$���R�QT�#�إ��9��_��**�]�i�!R	����	5�����*"�Y��?�������F�C�À��v��4�uG�½8��U�N�O�auN��g�-�~'�[��~N�t�	�
+����TM(���)~�OM�M�7�M��R�@'��!���j�u�C��"�fN�!H���ʂ�.�gUL�z��CpA��5����Wx�r*8?�U7TR퀿��wTR�Pgytr�9�ꪺ-�Y�W��4�����y4rj<�5���+���J�Q���Q�	��T�TT�W�k���Z�����N�(����:ՠ�P����ozFM�A�ɣ�S�c�!���\`)"�������Ud�Wz^��Ӡc�\\jU=꺠O�e��1�/Բ�O��G����88kW�jD�=���M����*�b�?�z���s8�����9uE�Tq�O�c�r�����|���Q\\�TW�9��y��#쭪K��kjT�'�]�V�jCmW�����Ϫ�ߪ�����>�U}<�����{�����s8���P��j@Ї���5��J�z/Ϫ95��=u_��ǌ�<���������_ѿ��EogEooEowEoU�gU�o���9����>�X�Cp���m    IEND�B\`��PNG
+
+   IHDR   �   �   �>a�  	sIDATx��?s���ّ�_AC�7P�f�Q��J�TQ�^*�qA��7�!Ė��܄�\$q|Ź�&�&uj��P��P�QEA��Xޫ ��,�g��mɅ�����9�e��,���g�0}R�i�o|�\$��oӐ���ƧE؃
+����.����w��_W��K|_��/���F�6?]��?^@�
+d����	�;����>���J>�|������5(@&�x�槯�4>�<h|���/#݅6 ��w��#���<V���5��a3�<Y�9{cgr�mH��k�B~�/}@\`�=��q{-��V�y��r1��H =h!���'^��<U�����E��hⓐC��>����� 7�|����z;��P����C+�ps�*���|��G��4�;e��͘�l'�<3WO<�񏶑~�?���Y7��(�<߆Ĭ��]��u�/~f����Q���,�_�"�͸|�(Π�� �k�W|�� 6�T|!��<���K�hG����&�)�W���k����Q��4�_C�k�%�Q��f��7����{T��	�x>��H?5��\$�i��6v�G ��s#,��[�9�΋�t���1��*��EF\$����������N�y�[Z ��?q��RqYi����\`�{�N!#A������͈�ݚN�)s�G�|�N�BJ������]���U��^cG���Qqh�? tKWkWOn �ȇڰ��E	�|��&�A�y�8I��w�G�k�� h��E�'�u)Ǹ�@�|��O�����2�]�Ǐ��w �%}ԓ ��l���Q���@�|x}�1��Ď��<2 F~�{��q�_����� ���n��]P�x{Wn ��P����ԧte@�|xs�Q���ؑ 1��F���<�An �ɇ�\\H��X�-]�)@z��7�Gl?_v �ɇz�� %} �� ���hA�ؒ~�Gf ���p�n#?���}�Kj �W� rC z8[���I�p�
+^K7\`38e@�|ht�������+���� ���(_'��,��� ���.,\\����v����x��6�\\�LXڐ ��=~�\\�BX�ؑ ������ަ�P<�%3 ����ݫ��}���9˳z� Z>�=�������v��N��	\\~�'��\`u����\\ �����Y���Z�4v4 \`���"�@�4v�G�|E���i������/ ������- �ʇ���3�]\\�b���i������/ �Eʦ��- �ʇ�V/ʷ�-ڦ��% ��W� ��4v���^�ح�Ǝ� *����g;��|��S�nQ�����
+�}�R^��U���ï�;����ٻ& ��W�{����˳ -��n\`i�S�M �ߙ���?PN���& �ʇ�N�"�G�aX���������@��H��eقi�,_Q������²i�4vF����C~&,kVLcgd���x��0��1����a� ,��K��3�|�;_�p�#�/�a��i�\$ޕ����0�V3����w��ﮟ��%�����3����\`� �E�&}��i�-_Q���7��G��􍚦�3�|p�n5(�)hI^�j;C����n *�w���P���>A��%/R� �����#>��-�" W�;W�}�=�H�I]�.7 �����o���ci��@��c} ���AL� F�b��a^ ��)I�� ��߄����َ\$�r J���CU!>	GR��{� B��\\���������� B>�1���^ �/A�� ���	k܅�u8�-_�]� !��\`ݚD!݆�n���U���5�B�"�tʗ ��\`њt!~ں�I����6lXA����@��y+�B|�:���/�߀�\\�ϸt!=���U�������������E~�k��B|N��@�"?cI)�g���D�9򳖤B�9�w����� ?�%��������"��B~�987��~�ω��>/m�"����������A�e�i����^�
+k!}\\#�<kV��)�W���o怜i)��!����cW/���~0A�a��+��ִ��gF��Ǹ���>*�ZG����W8�'z�Kv~L�6�fL�:��=�ӻ���\$�w�ޜr��q���>�1M��e( �x�䫧tcyVo6���+�ݐ�W�rwzD{���S�H�@+\$�[�L��H�9L]��)�oAZ�0�9|[j�P�L'��%�oB�.�5L�V���j����y�!��&���� =�!��'�Â�o͊ڴQP�����k�n����6��D�*�!y�a*j���E��v�u�j��Z�����jj��Z��v�\\�f�T���3X�����kL    IEND�B\`��PNG
+
+   IHDR   @   @   �iq�  �IDATx���n�@�ٵi�n�<��"�J�wY�Ko�]���ւKz�(�q�C�_!�J�g�����#AM��3'���	����L���\\���)��Dw�ɛn%�U^%��V�&�J���s�¿�[s���;��N��|�Q�D���!�.��3w�&���K ��]'ڎ��;������)��Q���W ��!u��%�ȃ�It��0vW@�6��A���ay�v����ڎ���j��%@�?���U�����:���RA��]�7�9�	˃�8/�G�NR~�-�,1�[e,NB~�e�  �z�<Nyt7:�ʃ'�ix�?�\\�i�ͩg���}gJ���9u�,u��S&��,�~�i��?�e14��9�vu/9���| ��A�h����.9�h˃��\`)��>0����-ϼ
+���¨xw{� ���Q����Q��Vg|��\`\$��R^�K�MuH ����+�l ���M����R����3o�ac,�I�l "� �ڀ�e:���I \$Ϩ�A�[_�z+��<��A��X�n/��|R
+���� ҹ}W��F6 1yp�-���� <�:� D��;���nl
+?���%�̆��2���O��hʃ�� �6���В'��-m\`�i�? -y�1����-m᧽^ ���l���߀tE]�i�? -y�)�|���� �� ������������[��~����u�hɃ/�\\K��[r�_&�z� �\\K[ZXr�_&��L �˝���%�}V��g�o.K��\$�����ʃo��Ÿ�%�����ʃ��4k��YTZr�g�;3����W�D�����'����s�'��@F�7����=<���l ���=~^��b߰� ��|��f���%Dm�q\` �\`�f)50���]N��P��o�rS�� ��<�Ъ�P���Z�y� ��[3a�_���)70�V��/6W�ǐ7��R����\$�_,W���)70�A���uY��r����������i�g~|m�_!<_��M�-�o��.50��X�<]rF_ufA�\\�b��}����.�p�@%D����,��:/��~���GU4ncIOr|z�镶�0�����ĝ���蚦�>��cYFx�R'�j)�̠r��iE�[ڀvu����--hn���o{.��x~�u;�#�    IEND�B\`��PNG
+
+   IHDR   0   0   W��  uIDATx�홻r�@���"9�z
+���z��:.rqB.�\`�i�@B�gq��u�?bG���׆4������++����V����N+y�k%O=�o%���[�Ơ�l�߭���}ĳ�힝�8K�^M�W��.��� ϐ��:��l"[�e�����S[���sm��^0���=�G��_�W�/ ��"{�~�D�8�,�x�C�.(f��9( ��Z��5�����!x�y5�D�[�ș'|�!���H�QBKw���h���1�:��\`mֿ����A�o��8�r��p���	�6D���ׁ��kiG^杯{Uj�6�����QS���)�{�W@9E�æ8�L<�;�/������6�D��+��|�����\`ƚmx��)yCD8�^����H����y>���LxD��8��2�q?R�,x\$��^�@�I����,���g�Z�7y\`�K)�S�J�r�5v\`U�_���~��&�z%x�KxK}H{\`����
+�|�����R};��������
+��Fi�7[@	�v�H餴��-��|���Y6)��
+O�*Jݗq�@��
+����^���#uk�5|\`��˴_��#KW�Z��qx�*�s���5���v>��?�	��R�j�^m��Q-��l��%��6���ȵw�RO�[Zb-o�+�?���tO�[Zbe��-�?��z��[Y}p
+h�#�����K�͵���U�����^@~^*�e��ֹ��N@~^*�e����#�y����t��3�yR�������g��jEN]i�M���J~��Yb)Z��s9xJ�y>d�I�����/Ә�i\$h0�w�Y\\��!�Gƌ�yR�����H�-#w���sK}x~J5����t�    IEND�B\`��PNG
+
+   IHDR           szz�  PIDATx�՗Mn�@�����f�+�]�����5X	"Aa�\`�(�HЀ���D����uS��H�鿸��j��<w������O!_�KX[�\`U�ú��[��Bm
+y���e�˓:�W����?�ϖ�z  W�k��#�X�h�����T�tVg�z�~��
+�p�u �Bgp�M��y���\$x	x���Ρ��e��U�X8�q���%tm��-c�޸�?�YP�z�,�:x�*���X�еZ�M���g�
+�n�����K�;�C�<΀m��>Ԯ%#B.΀}s�����BK&�@ 	5'Z��5���x�鹐�����'��m�
+�>��T�R���g�s��&�&��m�
+���L��:�!R��5̀�v;���u���¡/���P&���8�8�u��&�B��8���������4M���cg8t'f���h65�	�e���kkq�35��q��~_|swE��+Rcx�
+��[H�@�gM�8V����Ý���p��;�[��)H��T"\\�_��?+\\ �Ù5������v�5�4�d�����>�p��&�e��#դZǻ��+o8��[g'R'��Ց�~.#�    IEND�B\`��PNG
+
+   IHDR         ��a   �IDATxڵ�]
+�0��X�s�*�UD�R
+"i��KO�+�g��ߴ��y�&����O\\m��I\\mR�2�vy��2RY�c�, ׀5\`�4\`�T��,\\pC��Nʛ@]�����v�\\��u��dd\`�ܮm3\`*�J��q�r	�L)9���6�-0�W�=��G�We�^60�,_���*������H�g��ՠ�k�|M����{�0� �?&:�X�e�<g:Ꙫ�%�ٺ�kUY�a�W�*S�    IEND�B\`�`
   },
   {
     id: 'app_manifest',
