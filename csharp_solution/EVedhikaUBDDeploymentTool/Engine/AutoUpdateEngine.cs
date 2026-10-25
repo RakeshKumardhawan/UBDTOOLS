@@ -8,8 +8,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.7";
-        public const int CurrentVersionCode = 10007; // (1 * 10000) + (0 * 100) + 7
+        public const string CurrentVersion = "v1.0.8";
+        public const int CurrentVersionCode = 10008; // (1 * 10000) + (0 * 100) + 8
         public const string CurrentResourceBuild = "2026.10.21-R4";
         public const string ResourceDate = "2026-10-21";
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
@@ -179,7 +179,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.7";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.8";
                         wc.Encoding = System.Text.Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
@@ -257,7 +257,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                             info.Success = true;
                             info.LatestVersion = latestVer;
                             info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Portal and UBD deployment updates." : releaseNotes;
-                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.7.exe" : downloadUrl;
+                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.8.exe" : downloadUrl;
                             info.IsSilent = isSilent;
                             info.VersionCode = serverCode > 0 ? serverCode : ParseVersionToWeight(latestVer);
 

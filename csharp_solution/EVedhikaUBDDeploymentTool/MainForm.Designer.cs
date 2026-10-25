@@ -740,7 +740,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.7)";
+            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.8)";
             // 
             // lblHeaderSubtitle
             // 
@@ -793,7 +793,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
             this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | Status: Ready";
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 | Status: Ready";
             // 
             // MainForm
             // 

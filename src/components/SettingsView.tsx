@@ -80,7 +80,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       const synced = syncAllResources();
       setManifest(synced);
       setIsSyncingAll(false);
-      showSuccess('All component resources synced to latest hashes! Software version remains v1.0.7.', 'Resources Synced');
+      showSuccess('All component resources synced to latest hashes! Software version remains v1.0.8.', 'Resources Synced');
     }, 800);
   };
 
@@ -220,7 +220,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         platform: typeof navigator !== 'undefined' ? navigator.platform : ''
       },
       source: 'E-Vedhika Settings Feedback Portal',
-      version: 'v1.0.7'
+      version: 'v1.0.8'
     };
 
     try {
@@ -307,14 +307,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   Resource Manifest & Component Hash System
                 </h3>
                 <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-mono font-bold border border-slate-200">
-                  App: v1.0.7 (Fixed)
+                  App: v1.0.8 (Guardian Build)
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[11px] font-mono font-bold border border-teal-200">
                   Manifest: {manifest.manifestVersion}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                యాప్ వర్షన్ నంబర్ (<span className="font-bold text-slate-700">v1.0.7</span>) మార్చాల్సిన అవసరం లేకుండానే ప్రతి డ్రైవర్, రజిస్ట్రీ పాలసీ, మరియు గజ్రెట్ ఆర్డర్ విడివిడిగా SHA-256 హాష్‌లతో OTA ద్వారా అప్‌డేట్ అవుతుంది.
+                యాప్ వర్షన్ నంబర్ (<span className="font-bold text-slate-700">v1.0.8</span>) మార్చాల్సిన అవసరం లేకుండానే ప్రతి డ్రైవర్, రజిస్ట్రీ పాలసీ, మరియు గజ్రెట్ ఆర్డర్ విడివిడిగా SHA-256 హాష్‌లతో OTA ద్వారా అప్‌డేట్ అవుతుంది.
               </p>
             </div>
           </div>

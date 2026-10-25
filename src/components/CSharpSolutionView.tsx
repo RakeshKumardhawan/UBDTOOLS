@@ -146,7 +146,7 @@ EndGlobal
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss',
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.8"
 #define MyAppPublisher "E-Vedhika Development Community"
 #define MyAppURL "https://www.e-vedhika.in"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
@@ -680,8 +680,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.7";
-        public const int CurrentVersionCode = 10007; // (1 * 10000) + (0 * 100) + 7
+        public const string CurrentVersion = "v1.0.8";
+        public const int CurrentVersionCode = 10008; // (1 * 10000) + (0 * 100) + 8
         public const string CurrentResourceBuild = "2026.10.21-R4";
         public const string ResourceDate = "2026-10-21";
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
@@ -851,7 +851,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.7";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.8";
                         wc.Encoding = System.Text.Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
@@ -929,7 +929,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                             info.Success = true;
                             info.LatestVersion = latestVer;
                             info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Portal and UBD deployment updates." : releaseNotes;
-                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.7.exe" : downloadUrl;
+                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.8.exe" : downloadUrl;
                             info.IsSilent = isSilent;
                             info.VersionCode = serverCode > 0 ? serverCode : ParseVersionToWeight(latestVer);
 
@@ -6098,7 +6098,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (keyLM != null)
                     {
                         keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.7", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -9017,7 +9017,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.7)";
+            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.8)";
             // 
             // lblHeaderSubtitle
             // 
@@ -9070,7 +9070,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
             this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.7 | Status: Ready";
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 | Status: Ready";
             // 
             // MainForm
             // 
@@ -10228,7 +10228,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.7.exe");
+                LogMessage("DEPLOY", "Software Version    : EVedhika_Setup_v1.0.8.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -10332,7 +10332,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.7" },
+                { "deployVersion", "v1.0.8" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
@@ -13697,7 +13697,7 @@ namespace EVedhikaUBDDeploymentTool
     type: 'manifest',
     content: `<?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.7.0" name="EVedhikaUBDDeploymentTool.app"/>
+  <assemblyIdentity version="1.0.8.0" name="EVedhikaUBDDeploymentTool.app"/>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">

@@ -41,7 +41,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   const [copied, setCopied] = useState(false);
 
   const canonicalUrl = 'https://www.e-vedhika.in/home/post/ubd-setting-issues-one-click-all-in-one-setup';
-  const downloadExeUrl = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe';
+  const downloadExeUrl = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.8.exe';
   const downloadZipUrl = '/EVedhikaUBDDeploymentTool_CSharp_Solution.zip';
 
   const handleCopyLink = () => {
@@ -119,7 +119,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 ActiveX / DSC Guide
               </span>
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-                v1.0.7 Solution
+                v1.0.8 Solution
               </span>
             </div>
 
@@ -171,7 +171,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
               className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-all"
             >
               <Download className="w-4 h-4 text-amber-300" />
-              <span>EVedhika_Setup_v1.0.7.exe</span>
+              <span>EVedhika_Setup_v1.0.8.exe</span>
             </a>
 
             <a
@@ -264,7 +264,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
             <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <h2 className="text-lg font-bold text-slate-900 font-syne">
-                2. వన్-క్లిక్ ఆల్-ఇన్-వన్ పరిష్కారం: E-Vedhika Deployment Tool (v1.0.7)
+                2. వన్-క్లిక్ ఆల్-ఇన్-వన్ పరిష్కారం: E-Vedhika Deployment Tool (v1.0.8)
               </h2>
             </div>
 
@@ -371,7 +371,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 <div className="space-y-1">
                   <h4 className="font-bold text-slate-900 text-xs sm:text-sm">టూల్ డౌన్‌లోడ్ చేసుకోండి (Download EVedhika Tool):</h4>
                   <p className="text-xs text-slate-600">
-                    పై బటన్ ద్వారా <strong>EVedhika_Setup_v1.0.7.exe</strong> లేదా C# పోర్టబుల్ జిప్ ఫైల్‌ను మీ కంప్యూటర్‌లో డౌన్‌లోడ్ చేయండి.
+                    పై బటన్ ద్వారా <strong>EVedhika_Setup_v1.0.8.exe</strong> లేదా C# పోర్టబుల్ జిప్ ఫైల్‌ను మీ కంప్యూటర్‌లో డౌన్‌లోడ్ చేయండి.
                   </p>
                 </div>
               </div>
@@ -454,7 +454,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                   <span className="text-indigo-600 group-open:rotate-180 transition-transform">▼</span>
                 </summary>
                 <p className="mt-2 text-slate-600 leading-relaxed">
-                  అవును, E-Vedhika v1.0.7 టూల్ .NET Framework 4.8 ఆర్కిటెక్చర్‌తో రూపొందించబడింది. ఇది విండోస్ 7 SP1, విండోస్ 8.1, విండోస్ 10 మరియు విండోస్ 11 (32-బిట్ & 64-బిట్) అన్ని ఆపరేటింగ్ సిస్టమ్‌లలో విజయవంతంగా రన్ అవుతుంది.
+                  అవును, E-Vedhika v1.0.8 టూల్ .NET Framework 4.8 ఆర్కిటెక్చర్‌తో రూపొందించబడింది. ఇది విండోస్ 7 SP1, విండోస్ 8.1, విండోస్ 10 మరియు విండోస్ 11 (32-బిట్ & 64-బిట్) అన్ని ఆపరేటింగ్ సిస్టమ్‌లలో విజయవంతంగా రన్ అవుతుంది.
                 </p>
               </details>
 

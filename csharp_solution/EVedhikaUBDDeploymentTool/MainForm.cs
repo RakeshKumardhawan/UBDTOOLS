@@ -1053,7 +1053,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : e-Vedhika_UBD_Deployment_v1.0.7.exe");
+                LogMessage("DEPLOY", "Software Version    : EVedhika_Setup_v1.0.8.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -1157,7 +1157,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.7" },
+                { "deployVersion", "v1.0.8" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },

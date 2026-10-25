@@ -11,7 +11,7 @@
     "author": "Rakesh Dhawan (Admin)",
     "tags": ["Version History", "AtoZ Versions", "v1.0.7", "OTA Engine", "E-Vedhika Guide"],
     "downloadUrl": "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool_CSharp_Solution.zip",
-    "executableUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe",
+    "executableUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.8.exe",
     "canonicalUrl": "https://www.e-vedhika.in/home/post/evedhika-atoz-version-history-and-ota-engine-guide"
   },
   {
@@ -26,7 +26,7 @@
     "author": "Rakesh Dhawan (Admin)",
     "tags": ["UBD Setting Issues", "One-Click Setup", "Edge IE Mode", "ActiveX", "DSC Token", "Telangana UBD"],
     "downloadUrl": "https://www.e-vedhika.in/EVedhikaUBDDeploymentTool_CSharp_Solution.zip",
-    "executableUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.7.exe",
+    "executableUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.8.exe",
     "canonicalUrl": "https://www.e-vedhika.in/home/post/ubd-setting-issues-one-click-all-in-one-setup"
   },
   {
@@ -40,8 +40,8 @@
   },
   {
     "id": 1,
-    "title": "IMPORTANT: v1.0.7 Update Released",
-    "content": "Brand new v1.0.7 release with Direct Telegram & Cloud Telemetry, immediate installation reporting, zero-manual auto-repair, and full Windows 7/8/10/11 compatibility.",
+    "title": "IMPORTANT: v1.0.8 Guardian Build Released",
+    "content": "Brand new v1.0.8 release with 24x7 Silent Background Guardian, USB DSC Token Hardware Auto-Detector, Aggressive Cleanup Engine, and Direct Telegram & Cloud Telemetry.",
     "date": "2026-10-13",
     "importance": "High",
     "category": "Software Update",
