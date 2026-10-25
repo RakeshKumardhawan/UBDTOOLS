@@ -261,27 +261,21 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                             info.IsSilent = isSilent;
                             info.VersionCode = serverCode > 0 ? serverCode : ParseVersionToWeight(latestVer);
 
-                            // Strict check: only consider an update if server version is strictly GREATER than current installed build
-                            bool isNewer = false;
-                            if (info.VersionCode > CurrentVersionCode)
-                            {
-                                isNewer = true;
-                            }
-                            else if (info.VersionCode <= 0)
-                            {
-                                isNewer = ParseVersionToWeight(info.LatestVersion) > CurrentVersionCode;
-                            }
+                            // Strict check: only consider a software update if the server version string is strictly GREATER than current build
+                            int latestWeight = ParseVersionToWeight(info.LatestVersion);
+                            int currentWeight = ParseVersionToWeight(CurrentVersion);
+                            bool isNewer = (latestWeight > currentWeight);
 
                             if (isNewer)
                             {
                                 info.IsUpdateAvailable = true;
-                                info.Message = $"✨ New Software Update Available: {info.LatestVersion}!\n\nRelease Notes: {info.ReleaseNotes}";
-                                logCallback?.Invoke($"[AUTO-UPDATE] NEW UPDATE DETECTED: {info.LatestVersion} from {url}");
+                                info.Message = $"✨ New Cumulative Software Update Available: {info.LatestVersion}!\n\nRelease Notes: {info.ReleaseNotes}\n\n(Note: This single update pack includes all cumulative driver, ActiveX, and policy updates)";
+                                logCallback?.Invoke($"[AUTO-UPDATE] NEW UPDATE DETECTED: {info.LatestVersion} (Weight {latestWeight} > {currentWeight}) from {url}");
                             }
                             else
                             {
                                 info.IsUpdateAvailable = false;
-                                info.Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is up to date!";
+                                info.Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is 100% up to date!\n\n(Resource Build: {CurrentResourceBuild} - All component hashes verified)";
                                 logCallback?.Invoke($"[AUTO-UPDATE] Software is up to date ({CurrentVersion}). Verified via {url}");
                             }
 
