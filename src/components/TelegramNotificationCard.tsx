@@ -25,6 +25,8 @@ export function TelegramNotificationCard() {
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
+  const [pcFilters, setPcFilters] = useState<{ blockedPcs: string[]; allPcs: any[] }>({ blockedPcs: [], allPcs: [] });
+
   const fetchConfig = async () => {
     try {
       const resp = await fetch('/api/telegram-config');
@@ -41,9 +43,40 @@ export function TelegramNotificationCard() {
     }
   };
 
+  const fetchPcFilters = async () => {
+    try {
+      const resp = await fetch('/api/telegram-pc-filters');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success) {
+          setPcFilters(data);
+        }
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
     fetchConfig();
+    fetchPcFilters();
   }, []);
+
+  const handleTogglePcBlock = async (pcKey: string, isCurrentlyBlocked: boolean) => {
+    const action = isCurrentlyBlocked ? 'allow' : 'block';
+    try {
+      const resp = await fetch('/api/telegram-pc-filters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pcKey, action })
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        setStatusMsg({ type: 'success', text: `✅ PC ${pcKey} successfully ${action === 'block' ? 'blocked / muted' : 'allowed'} for Telegram alerts.` });
+        fetchPcFilters();
+      }
+    } catch (e: any) {
+      setStatusMsg({ type: 'error', text: e.message || 'Failed to update PC filter.' });
+    }
+  };
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
@@ -268,6 +301,67 @@ export function TelegramNotificationCard() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Telegram PC Allow / Block (Mute) Manager */}
+      <div className="pt-6 border-t border-slate-100 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <span>🛡️ టెలిగ్రామ్ PC అనుమతి & మ్యూట్ మేనేజర్ (Allow / Block Manager)</span>
+            </h4>
+            <p className="text-xs text-slate-500">
+              ఏ సిస్టమ్ (PC) నుండి టెలిగ్రామ్ మెసేజ్‌లు రావాలి, ఏ సిస్టమ్ నుండి రాకూడదో (Mute) ఇక్కడ మీరు సింగిల్ క్లిక్‌తో కంట్రోల్ చేయవచ్చు.
+            </p>
+          </div>
+          <button
+            onClick={fetchPcFilters}
+            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh PCs</span>
+          </button>
+        </div>
+
+        {pcFilters.allPcs.length === 0 ? (
+          <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-500 border border-slate-200">
+            ఇంకా ఎలాంటి PC టెలిమెట్రీ రికార్డులు రాలేదు.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pcFilters.allPcs.map((pc: any) => (
+              <div 
+                key={pc.pcId || pc.pcName}
+                className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 transition ${
+                  pc.isBlocked 
+                    ? 'bg-rose-50/50 border-rose-200 text-rose-900' 
+                    : 'bg-emerald-50/40 border-emerald-200 text-emerald-900'
+                }`}
+              >
+                <div className="space-y-0.5 overflow-hidden">
+                  <div className="font-bold text-xs truncate flex items-center gap-1.5">
+                    <span>💻</span>
+                    <span className="truncate">{pc.pcName}</span>
+                  </div>
+                  <div className="text-[11px] opacity-75 truncate">{pc.officeLocation}</div>
+                  <div className="text-[10px] font-mono opacity-60">{pc.pcId}</div>
+                </div>
+                <div>
+                  <button
+                    onClick={() => handleTogglePcBlock(pc.pcId || pc.pcName, pc.isBlocked)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer ${
+                      pc.isBlocked
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : 'bg-rose-600 hover:bg-rose-500 text-white'
+                    }`}
+                  >
+                    {pc.isBlocked ? '🟢 Allow (అనుమతించు)' : '🔴 Block / Mute (నిషేధించు)'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,13 +2,13 @@
 
 @theme {
   --color-bg: #0C0C0E;
-  --color-ink: #EEF0F2;
+  --color-ink: #FFFFFF;
   --color-accent: #00F0FF;
-  --color-ink-faint: rgba(238, 240, 242, 0.1);
-  --color-ink-medium: rgba(238, 240, 242, 0.6);
-  --font-syne: "Syne", sans-serif;
+  --color-ink-faint: rgba(255, 255, 255, 0.15);
+  --color-ink-medium: rgba(255, 255, 255, 0.9);
+  --font-syne: "Plus Jakarta Sans", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
-  --font-sans: "Inter", sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
 }
 
 @layer base {

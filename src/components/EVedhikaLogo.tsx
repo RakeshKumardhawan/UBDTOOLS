@@ -12,7 +12,7 @@ export const EVedhikaLogo: React.FC<LogoProps> = ({
 }) => {
   return (
     <img 
-      src="/ev-logo-v2.png" 
+      src="/logo.png" 
       alt="E-Vedhika Official Logo" 
       style={{ width: size, height: size }}
       className={`${className} shrink-0 object-contain drop-shadow-md rounded-full`} 

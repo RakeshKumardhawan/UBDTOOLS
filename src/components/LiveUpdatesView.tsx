@@ -46,20 +46,21 @@ export const LiveUpdatesView: React.FC = () => {
     setLoading(true);
     try {
       const now = new Date();
-      const newBuild = `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}-R${Math.floor(Math.random() * 9 + 1)}`;
+      // Re-broadcast the exact same current resource build version as requested by user
+      const currentBuild = versionConfig?.latestResourceBuild || `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}-R11`;
       const newDate = now.toISOString().slice(0, 10);
 
       const res = await fetch('/api/version', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          latestResourceBuild: newBuild,
+          latestResourceBuild: currentBuild,
           resourceBuildDate: newDate
         })
       });
 
       if (res.ok) {
-        showSuccess(`✨ Live Resource Patch Broadcasted: ${newBuild}`);
+        showSuccess(`✨ Live Resource Patch Re-Broadcasted: ${currentBuild}`);
         fetchVersionConfig();
       } else {
         showError('Failed to broadcast patch.');

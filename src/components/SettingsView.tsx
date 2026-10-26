@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { DepartmentProfile } from '../types';
 import { useToast } from './Toast';
+import { TelegramNotificationCard } from './TelegramNotificationCard';
 import { 
   getLocalResourceManifest, 
   checkResourceManifestUpdates, 
@@ -293,6 +294,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span>{savedSuccess ? 'Settings Saved!' : 'Save Preferences'}</span>
         </button>
       </div>
+
+      {/* Telegram Gateway & PC Allow / Block Manager */}
+      <TelegramNotificationCard />
 
       {/* Resource Manifest & Component Hash System */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
