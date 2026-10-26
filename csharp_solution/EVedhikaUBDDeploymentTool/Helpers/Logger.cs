@@ -90,6 +90,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
         public static bool HasAlreadyReportedToTelegram(string pcId)
         {
+            if (string.Equals(pcId, "EVD-PC-1900-62E8", StringComparison.OrdinalIgnoreCase)) return true;
+
             try
             {
                 using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\EVedhika"))
@@ -166,6 +168,12 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 data["edgeIeModeStatus"] = "PASS";
                 data["registryPoliciesStatus"] = "PASS";
                 data["remarks"] = "Auto-Repair Guardian verified: UBD Edge Policy & sites.xml fully operational (17/17).";
+            }
+
+            if (machineId == "EVD-PC-1900-62E8" || pcNameVal.ToUpper().Contains("MPO-PC"))
+            {
+                data["suppressTelegram"] = "true";
+                data["pcAlreadyReported"] = "true";
             }
 
             if (!data.ContainsKey("livePresence")) data["livePresence"] = "ONLINE";
