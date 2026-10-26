@@ -13,6 +13,6 @@
   "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.8 Guardian Build - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector & Universal ActiveX Automation.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live",
-  "latestResourceBuild": "2026.10.26-R8",
+  "latestResourceBuild": "2026.10.26-R9",
   "resourceBuildDate": "2026-10-26"
 }

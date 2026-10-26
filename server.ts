@@ -1684,7 +1684,7 @@ async function startServer() {
     releaseNotes: 'v1.0.8 Release: Daily 7 PM Consolidated Excel Report, Full DSC Execution Gate, and 1 PC = 1 Report Anti-Spam Protection.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.10.26-R8',
+    latestResourceBuild: '2026.10.26-R9',
     resourceBuildDate: '2026-10-26'
   };
 
