@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { BackupSnapshot } from '../types';
 import { TelegramNotificationCard } from './TelegramNotificationCard';
+import { DailyExcelReportCard } from './DailyExcelReportCard';
 import { useToast } from './Toast';
 
 interface BackupsViewProps {
@@ -1016,7 +1017,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
             <Laptop className="w-3.5 h-3.5" /> Remote Support
           </button>
           <button onClick={() => setSelectedTab('telegram')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'telegram' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>
-            <Send className="w-3.5 h-3.5" /> Telegram
+            <Send className="w-3.5 h-3.5" /> Telegram & 7 PM Reports
           </button>
           <button onClick={() => setSelectedTab('snapshots')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'snapshots' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>
             <History className="w-3.5 h-3.5" /> Snapshots
@@ -1634,7 +1635,12 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         </div>
       )}
 
-      {selectedTab === 'telegram' && <TelegramNotificationCard />}
+      {selectedTab === 'telegram' && (
+        <div className="space-y-6">
+          <DailyExcelReportCard />
+          <TelegramNotificationCard />
+        </div>
+      )}
       {selectedTab === 'snapshots' && (
         <div className="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-2xl animate-in fade-in duration-700">
            <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-8 border-b border-slate-100 gap-6">

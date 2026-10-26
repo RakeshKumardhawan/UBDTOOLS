@@ -842,6 +842,7 @@ namespace EVedhikaUBDDeploymentTool
                             { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                             { "status", "ONLINE & READY (v1.0.8)" },
                             { "version", "v1.0.8" },
+                            { "suppressTelegram", "true" },
                             { "remarks", "⚡ App Opened: E-Vedhika v1.0.8 running and ready for deployment." }
                         };
                         Logger.SendCentralTelemetry(startupData);
@@ -891,6 +892,7 @@ namespace EVedhikaUBDDeploymentTool
                                 { "processArch", Environment.Is64BitProcess ? "x64" : "x86" },
                                 { "winEdition", SystemInfoHelper.GetWindowsVersion() },
                                 { "status", "ONLINE_READY" },
+                                { "suppressTelegram", "true" },
                                 { "remarks", $"Tool active in {stateName}. Ready for One-Click 16-Step Deployment." }
                             };
                             Logger.PostTelemetryData(startupPing);
@@ -1168,8 +1170,13 @@ namespace EVedhikaUBDDeploymentTool
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
-                { "verification", "Passed (17/17)" },
+                { "verification", "17/17 steps passed." },
                 { "version", "v1.0.8" },
+                { "isFinalReport", "true" },
+                { "sendTelegram", "true" },
+                { "dscRunCompleted", "true" },
+                { "userPrivileges", SystemInfoHelper.GetUserPrivileges() },
+                { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
                 { "operatorName", Environment.UserName }
             };
 
@@ -2184,10 +2191,16 @@ namespace EVedhikaUBDDeploymentTool
                 { "trustedSites", "Zone 2 Configured" },
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
-                { "verification", "Passed (17/17)" },
+                { "verification", "17/17 steps passed." },
                 { "version", "v1.0.8" },
-                { "status", "Success (17/17)" },
+                { "status", "SUCCESS" },
                 { "healthScore", "100" },
+                { "isFinalReport", "true" },
+                { "sendTelegram", "true" },
+                { "userPrivileges", SystemInfoHelper.GetUserPrivileges() },
+                { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
+                { "diskFreeSpace", SystemInfoHelper.GetDiskSpace() },
+                { "cpuInfo", SystemInfoHelper.GetProcessorInfo() },
                 { "remarks", "Live telemetry update from C# WinForms App" }
             };
 
@@ -2465,6 +2478,7 @@ namespace EVedhikaUBDDeploymentTool
                         { "officeLocation", SystemInfoHelper.GetLiveLocation(currentStateName) },
                         { "dscStatus", dscStatus },
                         { "status", "DSC_TOKEN_AUTO_VERIFIED" },
+                        { "suppressTelegram", "true" },
                         { "remarks", "[24x7 GUARDIAN] USB DSC Token inserted & 100% verified (SHA256/SHA1 compliant)" }
                     };
                     Logger.SendCentralTelemetry(payload);
