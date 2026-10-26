@@ -5,14 +5,14 @@
   "currentVersion": "v1.0.8",
   "latestVersion": "v1.0.8",
   "versionCode": 10080,
-  "releaseDate": "2026-10-25",
+  "releaseDate": "2026-10-26",
   "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.8.exe",
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": false,
-  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.7 - Full Windows 7 & 8 (.NET 4.8 Architecture) & Universal ActiveX Automation.",
+  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.8 Guardian Build - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector & Universal ActiveX Automation.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live",
-  "latestResourceBuild": "2026.10.21-R4",
-  "resourceBuildDate": "2026-10-21"
+  "latestResourceBuild": "2026.10.26-R5",
+  "resourceBuildDate": "2026-10-26"
 }

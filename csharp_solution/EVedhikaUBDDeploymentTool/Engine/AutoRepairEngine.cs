@@ -71,6 +71,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
             _guardianThread.Start();
         }
 
+        public static void Stop24x7BackgroundGuardian()
+        {
+            _isGuardianRunning = false;
+            if (_guardianThread != null && _guardianThread.IsAlive)
+            {
+                try { _guardianThread.Abort(); } catch { }
+                _guardianThread = null;
+            }
+        }
+
         public static bool PerformSelfHealingAudit(Action<string> logCallback)
         {
             bool repairedSomething = false;

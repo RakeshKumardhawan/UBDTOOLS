@@ -1,7 +1,31 @@
 {
   "success": true,
-  "count": 24,
+  "count": 25,
   "logs": [
+    {
+      "id": "TEL-1793023716278",
+      "pcId": "EVD-PC-1900-62E8",
+      "slNo": 25,
+      "date": "2026-10-26",
+      "time": "2:08:36 PM",
+      "pcName": "GP-MANDAL-DESK-1900",
+      "userName": "Panchayat_Secretary_1900",
+      "officeLocation": "Mandal Panchayat Office",
+      "state": "Telangana",
+      "livePresence": "ONLINE",
+      "lastSeenEpoch": 1793023716279,
+      "status": "ISSUE DETECTED (Edge IE Mode & DSC Policy Drift)",
+      "remarks": "UBD Portal Digital Signature Error: Edge IE Mode policy reset by Windows Update & Port 8080 firewall blocked.",
+      "osVersion": "Windows 11 Pro (64-Bit)",
+      "verification": "12/17 steps passed (Action Needed)",
+      "healthScore": 70,
+      "dscStatus": "SmartCard Service Inactive / Edge Policy Drift",
+      "edgeIeMode": "IE5 Quirks Mode Disconnected",
+      "suppressTelegram": "true",
+      "isUbdIssue": true,
+      "issueTitle": "Edge IE Mode Policy Reset & USB DSC Token Disconnection on PC 1900-62E8",
+      "issueDescription": "Digital signature error in UBD Portal due to Edge IE Mode policy drift and SCardSvr service pause."
+    },
     {
       "id": "TEL-1792941276091-620",
       "pcId": "EVD-AP-0FF5-9B02",

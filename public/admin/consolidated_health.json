@@ -1,5 +1,64 @@
 [
   {
+    "pcId": "EVD-PC-1900-62E8",
+    "pcName": "GP-MANDAL-DESK-1900",
+    "userName": "Panchayat_Secretary_1900",
+    "officeLocation": "Mandal Panchayat Office",
+    "district": "Khammam",
+    "state": "Telangana",
+    "osVersion": "Windows 11 Pro (64-Bit)",
+    "winBuild": "10.0.22631",
+    "appVersion": "v1.0.8",
+    "machineIdentifier": "EVD-PC-1900-62E8",
+    "firstSeen": "2026-10-26 19:40:00",
+    "lastSeenEpoch": 1793023877714,
+    "lastTelemetryUpdate": "2026-10-26 19:40:00",
+    "overallStatus": "ISSUE DETECTED",
+    "deployment": {
+      "totalSteps": 17,
+      "verifiedSteps": 12,
+      "failedSteps": 5,
+      "skippedSteps": 0,
+      "verificationPercentage": 70,
+      "failedStepNames": [
+        "Edge Enterprise Site List",
+        "Edge IE5 Quirks Mode Emulation",
+        "NIC DigiSigner Port 8080 Firewall Loopback"
+      ],
+      "lastDeploymentTime": "2026-10-26 19:40:00",
+      "deployResult": "FAIL",
+      "deployProfile": "17/17 Telangana UBD Guardian Profile"
+    },
+    "technicalHealth": {
+      "edgeVersion": "Edge 128.0 (64-Bit)",
+      "edgeIeModeStatus": "FAIL",
+      "sitesXmlStatus": "FAIL",
+      "registryPoliciesStatus": "PASS",
+      "ubdWebsiteStatus": "FAIL",
+      "dotNetStatus": "PASS",
+      "internetConnectivity": "PASS",
+      "digiSignerStatus": "FAIL",
+      "dscDriverStatus": "PASS",
+      "dscTokenConnected": "FAIL",
+      "certValidity": "PASS"
+    },
+    "activeIssue": {
+      "issueId": "ISS-1900-62E8-EDGE",
+      "issueType": "Edge IE Mode & DSC Policy Drift",
+      "firstDetected": "2026-10-26 19:40:00",
+      "lastDetected": "2026-10-26 19:40:00",
+      "occurrenceCount": 1,
+      "severity": "CRITICAL",
+      "repairAttempts": 0,
+      "lastRepairResult": "Pending 17-step auto-repair run",
+      "postRepairVerification": "FAIL",
+      "status": "OPEN",
+      "summary": "Edge IE Mode policy reset by Windows Update & Port 8080 firewall blocked."
+    },
+    "issueHistory": [],
+    "lastTelegramAlertEpoch": 1793023877714
+  },
+  {
     "pcId": "EVD-TS-4A9B-12EF",
     "pcName": "TS-GP-KHAMMAM-01",
     "userName": "Srinivas Rao (Secretary)",

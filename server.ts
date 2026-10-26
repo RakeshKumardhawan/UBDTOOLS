@@ -475,46 +475,8 @@ async function startServer() {
       }
     }
 
-    saveConsolidatedHealthStore();
-
-    if (sendTelegram && telegramConfig.botToken && telegramConfig.chatId) {
-      record.lastTelegramAlertEpoch = nowEpoch;
-      const iss = record.activeIssue;
-
-      const tgMsgHtml = `🛡️ <b>E-VEDHIKA CONSOLIDATED SYSTEM HEALTH REPORT</b>
-━━━━━━━━━━━━━━━━━━━
-💻 <b>PC:</b> <code>${escapeHtml(record.pcName)}</code> (${record.pcId})
-🏢 <b>Office:</b> ${escapeHtml(record.officeLocation)}
-🖥️ <b>OS:</b> ${escapeHtml(record.osVersion)} (Build ${record.winBuild})
-⚙️ <b>Application:</b> ${record.appVersion}
-
-⚡ <b>Overall Status:</b> <b>${record.overallStatus}</b>
-
-📊 <b>Deployment Verification:</b> ${record.deployment.verifiedSteps}/${record.deployment.totalSteps} Steps Verified (${record.deployment.verificationPercentage}%)
-🔑 <b>DSC Driver:</b> ${record.technicalHealth.dscDriverStatus}
-🌐 <b>Edge IE Mode Policy:</b> ${record.technicalHealth.edgeIeModeStatus}
-📄 <b>sites.xml:</b> ${record.technicalHealth.sitesXmlStatus}
-` + (iss ? `
-⚠️ <b>Active Issue:</b> ${escapeHtml(iss.issueType)}
-🆔 <b>Issue ID:</b> <code>${iss.issueId}</code>
-⏰ <b>First Detected:</b> ${iss.firstDetected}
-⏱️ <b>Last Detected:</b> ${iss.lastDetected}
-🔢 <b>Occurrence Count:</b> ${iss.occurrenceCount}
-🔧 <b>Repair Attempts:</b> ${iss.repairAttempts}
-🛠️ <b>Last Repair Result:</b> ${escapeHtml(iss.lastRepairResult)}
-🔍 <b>Post-Repair Verification:</b> ${iss.postRepairVerification}
-
-📝 <b>Summary:</b> ${escapeHtml(iss.summary)}
-` : `
-✅ <b>Active Issues:</b> None (All parameters 100% healthy)
-`) + `
-⏰ <b>Last Updated:</b> ${nowStr}`;
-
-      sendTelegramMessage(tgMsgHtml, telegramConfig.botToken, telegramConfig.chatId).catch(err => {
-        console.warn('[TELEGRAM CONSOLIDATED] Dispatch failed:', err?.message || err);
-      });
-    }
-
+    // Consolidated health store updated silently without duplicate Telegram spam.
+    // Official reports are dispatched strictly via shouldServerDispatchTelegram (1 report per PC after full DSC run).
     return record;
   }
 
@@ -746,6 +708,10 @@ async function startServer() {
   const TELEGRAM_REPORTED_PCS_FILE = path.join(process.cwd(), 'reported_telegram_pcs.json');
   const reportedTelegramPcs = new Set<string>();
 
+  // Pre-populate known spam/reported PCs to stop repeat alerts immediately
+  reportedTelegramPcs.add('EVD-PC-1900-62E8');
+  reportedTelegramPcs.add('MPO-PC');
+
   try {
     if (fs.existsSync(TELEGRAM_REPORTED_PCS_FILE)) {
       const list = JSON.parse(fs.readFileSync(TELEGRAM_REPORTED_PCS_FILE, 'utf8'));
@@ -849,7 +815,6 @@ async function startServer() {
   };
 
   const shouldServerDispatchTelegram = (record: any, body: any): boolean => {
-    // If C# client already dispatched directly, or explicitly suppressed, or PC already reported:
     if (body.directTelegramSent === 'true' || body.directTelegramSent === true) return false;
     if (body.suppressTelegram === 'true' || body.suppressTelegram === true) return false;
     if (body.pcAlreadyReported === 'true' || body.pcAlreadyReported === true) return false;
@@ -860,19 +825,9 @@ async function startServer() {
     const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
     const pcNameKey = String(record.pcName || '').toUpperCase().trim();
 
-    // STRICT 1 PC = 1 REPORT ENFORCEMENT:
-    // If this PC has already dispatched its official report to Telegram, never send again!
-    if (body.forceTelegram !== true && body.forceTelegram !== 'true') {
-      if (reportedTelegramPcs.has(pcKey) || (pcNameKey && reportedTelegramPcs.has(pcNameKey))) {
-        console.log(`[TELEGRAM STRICT 1-REPORT-PER-PC] PC ${pcKey} (${pcNameKey}) already reported to Telegram. Suppressed duplicate.`);
-        return false;
-      }
-    }
-
-    // Strict 15-second rate limiting per PC to stop burst duplicate spam
-    const now = Date.now();
-    const lastSent = lastTelegramSentPerPc.get(pcKey) || 0;
-    if (now - lastSent < 15000 && !body.isFinalReport) {
+    // STRICT ABSOLUTE 1 PC = 1 TELEGRAM REPORT EVER (NO REPEATS, NO SPAM)
+    if (reportedTelegramPcs.has(pcKey) || (pcNameKey && reportedTelegramPcs.has(pcNameKey))) {
+      console.log(`[TELEGRAM STRICT 1-REPORT-PER-PC] PC ${pcKey} (${pcNameKey}) already reported to Telegram. Suppressed duplicate spam.`);
       return false;
     }
 
@@ -880,7 +835,7 @@ async function startServer() {
     const isDscFinished = record.dscRunCompleted === 'true' || record.dscRunCompleted === true ||
                           String(record.verification || '').includes('17/17') ||
                           String(record.verificationCompleted || '').includes('COMPLETED');
-    if (!isDscFinished && !body.forceTelegram) {
+    if (!isDscFinished) {
       console.log(`[TELEGRAM SKIP] PC ${pcKey} has not completed full DSC run yet. Waiting for full DSC completion.`);
       return false;
     }
@@ -889,7 +844,6 @@ async function startServer() {
       String(record.verification || '').includes('16/16') || 
       String(record.verification || '').includes('17/17') || 
       String(record.verificationCompleted || '').includes('COMPLETED') ||
-      statusStr.includes('FAIL') ||
       body.isFinalReport === 'true' ||
       body.isFinalReport === true ||
       body.sendTelegram === true ||
@@ -897,11 +851,11 @@ async function startServer() {
     );
 
     if (isCompletedDeployment) {
-      lastTelegramSentPerPc.set(pcKey, now);
-      // Persistently record this PC so it never gets reported again
+      // Permanently record this PC so it never gets reported again
       reportedTelegramPcs.add(pcKey);
       if (pcNameKey) reportedTelegramPcs.add(pcNameKey);
       saveReportedTelegramPcs();
+      console.log(`[TELEGRAM DISPATCH] First & only official report dispatched for PC ${pcKey}. Permanently locked.`);
       return true;
     }
     return false;
@@ -936,17 +890,20 @@ async function startServer() {
   // DAILY 7:00 PM CONSOLIDATED EXCEL (.xlsx) REPORT & EMAIL SYSTEM
   // =========================================================================
   const EMAIL_CONFIG_PATH = path.join(process.cwd(), 'email_config.json');
+  const MONTHLY_ARCHIVE_PATH = path.join(process.cwd(), 'public', 'admin', 'monthly_reports_archive.json');
+
   let emailConfig = {
     recipientEmail: 'Rakeshkumardhawan123@gmail.com',
-    senderEmail: 'evedhika.reports@gmail.com',
-    smtpHost: process.env.SMTP_HOST || '',
+    senderEmail: 'evedhikasupport@gmail.com',
+    smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
     smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
-    smtpUser: process.env.SMTP_USER || '',
-    smtpPass: process.env.SMTP_PASS || '',
+    smtpUser: process.env.SMTP_USER || 'evedhikasupport@gmail.com',
+    smtpPass: process.env.SMTP_PASS || 'hemg rcqn kugr hytg',
     scheduleTimeIST: '19:00', // 7:00 PM IST
     autoSendEnabled: true,
     lastSentTimestamp: '',
-    lastSentResult: ''
+    lastSentResult: '',
+    lastMonthlySentTimestamp: ''
   };
 
   try {
@@ -966,16 +923,66 @@ async function startServer() {
     }
   };
 
-  // Generate real Excel (.xlsx) workbook containing all reported PCs
-  const generateConsolidatedExcelWorkbook = () => {
+  // Helper to filter authentic PC records vs dummy test records
+  function isRealPcRecord(record: any): boolean {
+    if (!record) return false;
+    if (record.isDummy === true || record.isDummy === 'true') return false;
+    const pcId = String(record.pcId || '').toUpperCase();
+    const pcName = String(record.pcName || '').toUpperCase();
+    const id = String(record.id || '').toUpperCase();
+    if (pcId.startsWith('EVD-DUMMY') || pcId.includes('DUMMY') || pcName.includes('DUMMY') || id.startsWith('DUMMY')) return false;
+    return true;
+  }
+
+  // Save/Update Monthly Master Reports Archive on Website
+  const archivePcReportsToMonthlyStore = (records: any[]) => {
+    try {
+      const adminDir = path.join(process.cwd(), 'public', 'admin');
+      if (!fs.existsSync(adminDir)) fs.mkdirSync(adminDir, { recursive: true });
+
+      let monthlyArchive: Record<string, any[]> = {};
+      if (fs.existsSync(MONTHLY_ARCHIVE_PATH)) {
+        try {
+          monthlyArchive = JSON.parse(fs.readFileSync(MONTHLY_ARCHIVE_PATH, 'utf8'));
+        } catch (e) {}
+      }
+
+      for (const pc of records) {
+        if (!isRealPcRecord(pc)) continue; // Filter out dummy records
+        const dateKey = pc.date || new Date().toISOString().slice(0, 10);
+        const monthKey = dateKey.slice(0, 7); // YYYY-MM
+
+        if (!monthlyArchive[monthKey]) monthlyArchive[monthKey] = [];
+        const existingIdx = monthlyArchive[monthKey].findIndex(item => item.pcId === pc.pcId || item.pcName === pc.pcName);
+        if (existingIdx !== -1) {
+          monthlyArchive[monthKey][existingIdx] = pc;
+        } else {
+          monthlyArchive[monthKey].push(pc);
+        }
+      }
+
+      const jsonStr = JSON.stringify(monthlyArchive, null, 2);
+      fs.writeFileSync(MONTHLY_ARCHIVE_PATH, jsonStr, 'utf8');
+      fs.writeFileSync(path.join(process.cwd(), 'monthly_reports_archive.json'), jsonStr, 'utf8');
+      console.log(`[MONTHLY ARCHIVE] Updated monthly store with ${records.length} records.`);
+    } catch (e) {
+      console.error('[MONTHLY ARCHIVE ERROR]:', e);
+    }
+  };
+
+  // Generate real Excel (.xlsx) workbook containing reported PCs (supports custom records list)
+  const generateConsolidatedExcelWorkbook = (customRecords?: any[], isMonthlyMaster: boolean = false) => {
     const reportsDir = path.join(process.cwd(), 'public', 'reports');
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
-    // Deduplicate by pcId to capture the latest state of each unique PC
+    const sourceLogs = (customRecords && customRecords.length > 0) ? customRecords : telemetryLogsStore;
+
+    // Deduplicate by pcId to capture the latest state of each unique real PC
     const uniquePcMap = new Map<string, any>();
-    for (const record of telemetryLogsStore) {
+    for (const record of sourceLogs) {
+      if (!isRealPcRecord(record)) continue; // Exclude dummy test records
       const key = String(record.pcId || record.pcName || '').toUpperCase().trim();
       if (!uniquePcMap.has(key)) {
         uniquePcMap.set(key, record);
@@ -1022,14 +1029,19 @@ async function startServer() {
 
     const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
     const dateStr = nowIST.toISOString().slice(0, 10);
+    const monthYearStr = nowIST.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase();
     const timestampIST = nowIST.toISOString().replace('T', ' ').slice(0, 19) + ' IST';
 
+    const reportTitle = isMonthlyMaster 
+      ? `E-Vedhika UBD Deployment Tool - All-Month Cumulative Master Report (${monthYearStr})`
+      : `E-Vedhika UBD Deployment Tool - Rolling 24-Hour PC Installation Report (${dateStr})`;
+
     const summaryRows = [
-      { 'Metric': 'Report Name', 'Value': 'E-Vedhika UBD Deployment Tool - Daily Consolidated PC Status Report' },
-      { 'Metric': 'Scheduled Report Time', 'Value': 'Daily at 7:00 PM IST (19:00 IST)' },
+      { 'Metric': 'Report Name', 'Value': reportTitle },
+      { 'Metric': 'Report Type', 'Value': isMonthlyMaster ? 'Monthly Master Cumulative Workbook (30th/31st End of Month)' : 'Rolling 24-Hour Automated Report (19:01 to 19:00 IST)' },
       { 'Metric': 'Report Generated At', 'Value': timestampIST },
       { 'Metric': 'Target Administrator Email', 'Value': emailConfig.recipientEmail },
-      { 'Metric': 'Total Unique Computers Deployed', 'Value': totalPcs },
+      { 'Metric': 'Total Authentic PCs Installed/Reported', 'Value': totalPcs },
       { 'Metric': 'Successful PCs (17/17 Steps Verified)', 'Value': passedPcs },
       { 'Metric': 'Action Required / Failed PCs', 'Value': failedPcs },
       { 'Metric': 'Active USB DSC Tokens Verified', 'Value': activeTokens },
@@ -1040,10 +1052,10 @@ async function startServer() {
     // Build XLSX Workbook
     const wb = XLSX.utils.book_new();
     const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-    const wsDetails = XLSX.utils.json_to_sheet(detailRows.length > 0 ? detailRows : [{ 'Notice': 'No PC telemetry records available yet.' }]);
+    const wsDetails = XLSX.utils.json_to_sheet(detailRows.length > 0 ? detailRows : [{ 'Notice': 'No authentic PC telemetry records available yet.' }]);
 
     // Set column widths for clean readability
-    wsSummary['!cols'] = [{ wch: 35 }, { wch: 65 }];
+    wsSummary['!cols'] = [{ wch: 38 }, { wch: 65 }];
     wsDetails['!cols'] = [
       { wch: 8 }, { wch: 20 }, { wch: 22 }, { wch: 32 }, { wch: 18 }, { wch: 36 },
       { wch: 18 }, { wch: 24 }, { wch: 18 }, { wch: 35 }, { wch: 22 }, { wch: 15 },
@@ -1054,8 +1066,11 @@ async function startServer() {
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Executive Summary');
     XLSX.utils.book_append_sheet(wb, wsDetails, 'All PCs Live Audit Matrix');
 
-    const fileName = `EVedhika_UBD_Daily_PC_Report_${dateStr}.xlsx`;
-    const standardPath = path.join(reportsDir, 'EVedhika_UBD_Daily_PC_Report.xlsx');
+    const fileName = isMonthlyMaster 
+      ? `EVedhika_UBD_Monthly_Master_Report_${monthYearStr.replace(/\s+/g, '_')}.xlsx`
+      : `EVedhika_UBD_Daily_PC_Report_${dateStr}.xlsx`;
+
+    const standardPath = path.join(reportsDir, isMonthlyMaster ? 'EVedhika_UBD_Monthly_Master_Report.xlsx' : 'EVedhika_UBD_Daily_PC_Report.xlsx');
     const datedPath = path.join(reportsDir, fileName);
 
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -1072,16 +1087,62 @@ async function startServer() {
       failedPcs,
       activeTokens,
       dateStr,
+      monthYearStr,
       timestampIST
     };
   };
 
-  // Dispatch daily 7:00 PM email with Excel attachment to administrator
+  // Dispatch daily 7:00 PM email with Excel attachment to administrator (Enforces >= 5 PC Threshold & 24h Rolling Window)
   const sendDailyExcelReportToAdmin = async (isManualTrigger: boolean = false) => {
     try {
-      const excelInfo = generateConsolidatedExcelWorkbook();
+      const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+      const yesterdayIST = new Date(nowIST.getTime() - 24 * 60 * 60 * 1000);
+
+      // 24-Hour Rolling Window: Records from yesterday 19:01 IST to today 19:00 IST
+      const rolling24hRecords = telemetryLogsStore.filter(r => {
+        if (!isRealPcRecord(r)) return false;
+        const recDate = new Date(r.lastSeenEpoch || Date.parse(`${r.date} ${r.time}`) || Date.now());
+        const recIST = new Date(recDate.getTime() + 5.5 * 60 * 60 * 1000);
+        return recIST >= yesterdayIST && recIST <= nowIST;
+      });
+
+      // Deduplicate authentic PCs in 24h rolling window
+      const unique24hPcMap = new Map<string, any>();
+      rolling24hRecords.forEach(r => {
+        const key = String(r.pcId || r.pcName || '').toUpperCase().trim();
+        if (!unique24hPcMap.has(key)) unique24hPcMap.set(key, r);
+      });
+
+      // Also ensure all live authentic PCs from telemetry store are buffered & archived
+      archivePcReportsToMonthlyStore(telemetryLogsStore);
+
+      const realPcCount = unique24hPcMap.size;
+      const allRealPcsCount = telemetryLogsStore.filter(r => isRealPcRecord(r)).length;
+
+      console.log(`[DAILY 7 PM CHECK] 24h Rolling Window Authentic PCs: ${realPcCount} (Total Real PCs: ${allRealPcsCount})`);
+
+      // SMART THRESHOLDING RULE:
+      // If manual trigger, generate and send regardless.
+      // If automated trigger and real PC count < 5:
+      // SUPPRESS daily email spam to admin, push all reports silently to website store.
+      if (!isManualTrigger && realPcCount < 5) {
+        console.log(`[DAILY EMAIL SUPPRESSED] Installed PCs in last 24h (${realPcCount}) < 5 threshold. Pushed reports silently to website store.`);
+        emailConfig.lastSentTimestamp = nowIST.toISOString().replace('T', ' ').slice(0, 19) + ' IST';
+        emailConfig.lastSentResult = `Suppressed email (<5 PCs: ${realPcCount} in 24h window). Reports pushed silently to website store.`;
+        saveEmailConfig();
+        return {
+          success: true,
+          emailSent: false,
+          suppressed: true,
+          realPcCount,
+          message: `Daily email suppressed because only ${realPcCount} authentic PCs were installed in the 24h window (< 5 PC threshold). Reports pushed silently to website archive.`
+        };
+      }
+
+      // Generate daily Excel report for the authentic PCs
+      const excelInfo = generateConsolidatedExcelWorkbook(Array.from(unique24hPcMap.values()), false);
       const targetEmail = emailConfig.recipientEmail || 'Rakeshkumardhawan123@gmail.com';
-      const triggerLabel = isManualTrigger ? 'Manual Dispatch' : 'Daily 7:00 PM IST Scheduled Run';
+      const triggerLabel = isManualTrigger ? 'Manual Dispatch' : 'Daily 7:00 PM IST Rolling 24h Run';
 
       const emailSubject = `📊 E-Vedhika UBD Deployment Tool - Daily 7:00 PM Consolidated PC Status Report [${excelInfo.dateStr}]`;
       const emailHtml = `
@@ -1092,12 +1153,12 @@ async function startServer() {
           </div>
           <div style="padding: 24px; background: #ffffff;">
             <p style="color: #334155; font-size: 15px; margin-top: 0;">
-              నమస్కారం! ఆంధ్రప్రదేశ్ & తెలంగాణ గ్రామ పంచాయతీ మరియు మండల ఆఫీస్ కంప్యూటర్లలో రన్ అయిన E-Vedhika UBD Deployment Tool యొక్క డైలీ కన్సాలిడేటెడ్ స్టేటస్ ఎక్సెల్ రిపోర్ట్ సిద్ధంగా ఉంది.
+              నమస్కారం! ఆంధ్రప్రదేశ్ & తెలంగాణ గ్రామ పంచాయతీ మరియు మండల ఆఫీస్ కంప్యూటర్లలో గత 24 గంటల వ్యవధిలో (19:01 నుండి 19:00 IST వరకు) ఇన్స్టాల్ అయిన E-Vedhika UBD Deployment Tool యొక్క డైలీ కన్సాలిడేటెడ్ స్టేటస్ ఎక్సెల్ రిపోర్ట్ సిద్ధంగా ఉంది.
             </p>
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
               <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                <tr><td style="padding: 6px 0; color: #64748b;">📅 <b>Report Date:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${excelInfo.timestampIST}</td></tr>
-                <tr><td style="padding: 6px 0; color: #64748b;">🖥️ <b>Total PCs Deployed:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${excelInfo.totalPcs} Computers</td></tr>
+                <tr><td style="padding: 6px 0; color: #64748b;">📅 <b>Report Timestamp:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${excelInfo.timestampIST}</td></tr>
+                <tr><td style="padding: 6px 0; color: #64748b;">🖥️ <b>24h Authentic PCs Deployed:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${excelInfo.totalPcs} Computers</td></tr>
                 <tr><td style="padding: 6px 0; color: #64748b;">✅ <b>Successful (17/17 Steps):</b></td><td style="padding: 6px 0; font-weight: bold; color: #16a34a;">${excelInfo.passedPcs} PCs (100% Verified)</td></tr>
                 <tr><td style="padding: 6px 0; color: #64748b;">⚠️ <b>Action Required:</b></td><td style="padding: 6px 0; font-weight: bold; color: ${excelInfo.failedPcs > 0 ? '#dc2626' : '#16a34a'};">${excelInfo.failedPcs} PCs</td></tr>
                 <tr><td style="padding: 6px 0; color: #64748b;">🔐 <b>Active DSC Tokens:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${excelInfo.activeTokens} Tokens Ready</td></tr>
@@ -1108,7 +1169,7 @@ async function startServer() {
             </p>
             <div style="margin-top: 24px; text-align: center;">
               <a href="https://www.e-vedhika.in/api/reports/download-excel" style="display: inline-block; background: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
-                📥 Download Latest Excel Report (.xlsx)
+                📥 Download Latest Daily Excel Report (.xlsx)
               </a>
             </div>
           </div>
@@ -1119,9 +1180,8 @@ async function startServer() {
       `;
 
       let emailSent = false;
-      let emailError = '';
 
-      // Check if SMTP is configured
+      // Send email via Nodemailer SMTP
       if (emailConfig.smtpHost && emailConfig.smtpUser && emailConfig.smtpPass) {
         try {
           const transporter = nodemailer.createTransport({
@@ -1150,18 +1210,17 @@ async function startServer() {
           emailSent = true;
           console.log(`[EMAIL SUCCESS] Daily 7:00 PM Excel report sent to ${targetEmail}`);
         } catch (smtpErr: any) {
-          emailError = smtpErr.message;
-          console.warn(`[EMAIL SMTP WARNING] SMTP dispatch failed (${smtpErr.message}). Recording outgoing archive.`);
+          console.warn(`[EMAIL SMTP WARNING] SMTP dispatch failed (${smtpErr.message}). Report saved locally.`);
         }
       }
 
-      // Also dispatch Daily 7 PM Executive Summary with direct Excel download link to Telegram Admin Channel
+      // Also dispatch summary to Telegram Admin Channel
       try {
         const tgReportText = `📊 <b>E-Vedhika UBD Deployment Tool - Daily 7:00 PM Consolidated Status Report</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
           `📅 <b>Date & Time:</b> ${excelInfo.timestampIST}\n` +
           `📧 <b>Target Admin Email:</b> ${targetEmail}\n` +
-          `🖥️ <b>Total PCs Deployed:</b> <b>${excelInfo.totalPcs} Computers</b>\n` +
+          `🖥️ <b>24h PCs Deployed:</b> <b>${excelInfo.totalPcs} Computers</b>\n` +
           `✅ <b>100% Verified (17/17):</b> ${excelInfo.passedPcs} PCs\n` +
           `⚠️ <b>Failed / Attention:</b> ${excelInfo.failedPcs} PCs\n` +
           `🔐 <b>Active DSC Tokens:</b> ${excelInfo.activeTokens} Tokens Ready\n\n` +
@@ -1173,7 +1232,7 @@ async function startServer() {
       } catch (e) {}
 
       emailConfig.lastSentTimestamp = excelInfo.timestampIST;
-      emailConfig.lastSentResult = emailSent ? `Sent to ${targetEmail}` : `Saved & Dispatched to Telegram (Download Ready: ${excelInfo.fileName})`;
+      emailConfig.lastSentResult = emailSent ? `Sent to ${targetEmail}` : `Saved (Download Ready: ${excelInfo.fileName})`;
       saveEmailConfig();
 
       return {
@@ -1193,8 +1252,125 @@ async function startServer() {
     }
   };
 
-  // Automated Daily 7:00 PM IST Scheduler (Runs every 30 seconds)
+  // Dispatch Monthly Master Excel Report (30th, 31st, or 28th/29th Feb) containing all authentic PC records for the entire month
+  const sendMonthlyMasterExcelReportToAdmin = async () => {
+    try {
+      // Gather all authentic non-dummy records across telemetry store & monthly archive
+      const allRealRecordsMap = new Map<string, any>();
+      for (const rec of telemetryLogsStore) {
+        if (!isRealPcRecord(rec)) continue;
+        const key = String(rec.pcId || rec.pcName || '').toUpperCase().trim();
+        if (!allRealRecordsMap.has(key)) allRealRecordsMap.set(key, rec);
+      }
+
+      if (fs.existsSync(MONTHLY_ARCHIVE_PATH)) {
+        try {
+          const archiveData = JSON.parse(fs.readFileSync(MONTHLY_ARCHIVE_PATH, 'utf8'));
+          Object.values(archiveData).forEach((monthList: any) => {
+            if (Array.isArray(monthList)) {
+              monthList.forEach((rec: any) => {
+                if (!isRealPcRecord(rec)) return;
+                const key = String(rec.pcId || rec.pcName || '').toUpperCase().trim();
+                if (!allRealRecordsMap.has(key)) allRealRecordsMap.set(key, rec);
+              });
+            }
+          });
+        } catch (e) {}
+      }
+
+      const allRealRecords = Array.from(allRealRecordsMap.values());
+      const masterExcelInfo = generateConsolidatedExcelWorkbook(allRealRecords, true);
+      const targetEmail = emailConfig.recipientEmail || 'Rakeshkumardhawan123@gmail.com';
+
+      const emailSubject = `📅 E-Vedhika UBD Deployment Tool - MONTHLY MASTER EXCEL REPORT [${masterExcelInfo.monthYearStr}]`;
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #0284c7; border-radius: 8px; overflow: hidden;">
+          <div style="background: linear-gradient(135deg, #0f172a, #0284c7); padding: 22px; color: white;">
+            <h2 style="margin: 0 0 6px 0; font-size: 20px;">🏆 E-Vedhika UBD Deployment Tool</h2>
+            <p style="margin: 0; font-size: 14px; opacity: 0.9;">All-Month Cumulative Master Excel Report (${masterExcelInfo.monthYearStr})</p>
+          </div>
+          <div style="padding: 24px; background: #ffffff;">
+            <p style="color: #334155; font-size: 15px; margin-top: 0;">
+              నమస్కారం! ఈ నెల (${masterExcelInfo.monthYearStr}) మొత్తం కాలంలో ఆంధ్రప్రదేశ్ & తెలంగాణ గ్రామ పంచాయతీ మరియు మండల ఆఫీస్ కంప్యూటర్లలో రన్ అయిన E-Vedhika UBD Deployment Tool యొక్క <b>నెలవారీ ఆల్-మొత్తం మాస్టర్ ఎక్సెల్ రిపోర్ట్</b> సిద్ధంగా ఉంది.
+            </p>
+            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 16px; margin: 20px 0;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <tr><td style="padding: 6px 0; color: #0369a1;">📅 <b>Month & Year:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${masterExcelInfo.monthYearStr}</td></tr>
+                <tr><td style="padding: 6px 0; color: #0369a1;">🖥️ <b>Total Authentic Monthly PCs:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${masterExcelInfo.totalPcs} Computers</td></tr>
+                <tr><td style="padding: 6px 0; color: #0369a1;">✅ <b>Fully Verified (17/17):</b></td><td style="padding: 6px 0; font-weight: bold; color: #16a34a;">${masterExcelInfo.passedPcs} PCs (100% Verified)</td></tr>
+                <tr><td style="padding: 6px 0; color: #0369a1;">⚠️ <b>Action Required:</b></td><td style="padding: 6px 0; font-weight: bold; color: ${masterExcelInfo.failedPcs > 0 ? '#dc2626' : '#16a34a'};">${masterExcelInfo.failedPcs} PCs</td></tr>
+                <tr><td style="padding: 6px 0; color: #0369a1;">🔐 <b>Active DSC Tokens:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${masterExcelInfo.activeTokens} Tokens Operational</td></tr>
+              </table>
+            </div>
+            <p style="color: #475569; font-size: 13px;">
+              ఈ మాస్టర్ ఇమెయిల్‌కు జతచేయబడిన <b>${masterExcelInfo.fileName}</b> ఫైల్‌లో నెలకు సంబంధించిన ప్రతి పంచాయతీ PC యొక్క పూర్తి ఆడిట్ సమాచారం పొందుపరచబడింది (డమ్మీ టెస్ట్ రికార్డులు మినహాయించబడ్డాయి).
+            </p>
+            <div style="margin-top: 24px; text-align: center;">
+              <a href="https://www.e-vedhika.in/api/reports/monthly-excel" style="display: inline-block; background: #0284c7; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
+                📥 Download Monthly Master Excel Report (.xlsx)
+              </a>
+            </div>
+          </div>
+          <div style="background: #f1f5f9; padding: 14px; text-align: center; color: #64748b; font-size: 12px;">
+            E-Vedhika Central Telemetry Gateway • <a href="https://www.e-vedhika.in" style="color: #0284c7;">www.e-vedhika.in</a>
+          </div>
+        </div>
+      `;
+
+      let emailSent = false;
+      if (emailConfig.smtpHost && emailConfig.smtpUser && emailConfig.smtpPass) {
+        try {
+          const transporter = nodemailer.createTransport({
+            host: emailConfig.smtpHost,
+            port: emailConfig.smtpPort,
+            secure: emailConfig.smtpPort === 465,
+            auth: {
+              user: emailConfig.smtpUser,
+              pass: emailConfig.smtpPass
+            }
+          });
+
+          await transporter.sendMail({
+            from: `"E-Vedhika Central Reports" <${emailConfig.senderEmail}>`,
+            to: targetEmail,
+            subject: emailSubject,
+            html: emailHtml,
+            attachments: [
+              {
+                filename: masterExcelInfo.fileName,
+                content: masterExcelInfo.buffer,
+                contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              }
+            ]
+          });
+          emailSent = true;
+          console.log(`[MONTHLY MASTER EMAIL SUCCESS] Sent to ${targetEmail}`);
+        } catch (smtpErr: any) {
+          console.warn(`[MONTHLY EMAIL SMTP ERROR]: ${smtpErr.message}`);
+        }
+      }
+
+      emailConfig.lastMonthlySentTimestamp = masterExcelInfo.timestampIST;
+      saveEmailConfig();
+
+      return {
+        success: true,
+        emailSent,
+        targetEmail,
+        fileName: masterExcelInfo.fileName,
+        totalPcs: masterExcelInfo.totalPcs,
+        downloadUrl: '/api/reports/monthly-excel'
+      };
+    } catch (err: any) {
+      console.error('[MONTHLY MASTER REPORT ERROR]:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Automated Daily 7:00 PM IST & End of Month Scheduler (Runs every 30 seconds)
   let lastDailyReportDate = '';
+  let lastMonthlyReportKey = '';
+
   const checkDaily7PmSchedule = () => {
     try {
       const now = new Date();
@@ -1204,13 +1380,29 @@ async function startServer() {
       const hours = istDate.getUTCHours();
       const minutes = istDate.getUTCMinutes();
       const todayStr = istDate.toISOString().slice(0, 10);
+      const year = istDate.getUTCFullYear();
+      const month = istDate.getUTCMonth();
+      
+      // Calculate last day of current month in IST
+      const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+      const currentDay = istDate.getUTCDate();
+      const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-      // Trigger at 19:00 IST (7:00 PM IST)
+      // 1. Daily 19:00 IST Trigger
       if (hours === 19 && minutes >= 0 && minutes <= 5 && lastDailyReportDate !== todayStr) {
         lastDailyReportDate = todayStr;
         console.log(`[DAILY 7 PM SCHEDULER] Triggering scheduled 7:00 PM IST Excel Report for ${todayStr}...`);
         sendDailyExcelReportToAdmin(false).catch(err => {
           console.error('[DAILY 7 PM SCHEDULER FAILED]:', err);
+        });
+      }
+
+      // 2. End of Month Master Excel Dispatcher Trigger (On 30th/31st/28th/29th at 23:55-23:59 IST)
+      if (currentDay === lastDayOfMonth && hours === 23 && minutes >= 55 && lastMonthlyReportKey !== monthKey) {
+        lastMonthlyReportKey = monthKey;
+        console.log(`[MONTHLY MASTER SCHEDULER] Triggering End-of-Month Master Excel Report for ${monthKey}...`);
+        sendMonthlyMasterExcelReportToAdmin().catch(err => {
+          console.error('[MONTHLY MASTER SCHEDULER FAILED]:', err);
         });
       }
     } catch (e) {
@@ -1354,7 +1546,7 @@ async function startServer() {
     releaseNotes: 'v1.0.8 Release: Daily 7 PM Consolidated Excel Report, Full DSC Execution Gate, and 1 PC = 1 Report Anti-Spam Protection.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.10.26-R5',
+    latestResourceBuild: '2026.10.26-R6',
     resourceBuildDate: '2026-10-26'
   };
 
@@ -2289,7 +2481,7 @@ ${aiAnalysis || 'Analysis in progress.'}
     }
   });
 
-  // API Route: Download Consolidated Excel Report (.xlsx)
+  // API Route: Download Consolidated Daily Excel Report (.xlsx)
   app.get('/api/reports/download-excel', (req, res) => {
     try {
       const excelInfo = generateConsolidatedExcelWorkbook();
@@ -2302,6 +2494,55 @@ ${aiAnalysis || 'Analysis in progress.'}
     }
   });
 
+  // API Route: Download All-Month Cumulative Master Excel Report (.xlsx)
+  app.get('/api/reports/monthly-excel', (req, res) => {
+    try {
+      const allRealRecordsMap = new Map<string, any>();
+      for (const rec of telemetryLogsStore) {
+        if (!isRealPcRecord(rec)) continue;
+        const key = String(rec.pcId || rec.pcName || '').toUpperCase().trim();
+        if (!allRealRecordsMap.has(key)) allRealRecordsMap.set(key, rec);
+      }
+
+      if (fs.existsSync(MONTHLY_ARCHIVE_PATH)) {
+        try {
+          const archiveData = JSON.parse(fs.readFileSync(MONTHLY_ARCHIVE_PATH, 'utf8'));
+          Object.values(archiveData).forEach((monthList: any) => {
+            if (Array.isArray(monthList)) {
+              monthList.forEach((rec: any) => {
+                if (!isRealPcRecord(rec)) return;
+                const key = String(rec.pcId || rec.pcName || '').toUpperCase().trim();
+                if (!allRealRecordsMap.has(key)) allRealRecordsMap.set(key, rec);
+              });
+            }
+          });
+        } catch (e) {}
+      }
+
+      const allRealRecords = Array.from(allRealRecordsMap.values());
+      const masterExcelInfo = generateConsolidatedExcelWorkbook(allRealRecords, true);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${masterExcelInfo.fileName}"`);
+      return res.send(masterExcelInfo.buffer);
+    } catch (err: any) {
+      console.error('Failed to generate Monthly Master Excel download:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // API Route: Get Monthly Master Reports Archive
+  app.get('/api/reports/monthly-archive', (req, res) => {
+    try {
+      if (fs.existsSync(MONTHLY_ARCHIVE_PATH)) {
+        const archiveData = JSON.parse(fs.readFileSync(MONTHLY_ARCHIVE_PATH, 'utf8'));
+        return res.json({ success: true, archive: archiveData });
+      }
+      return res.json({ success: true, archive: {} });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // API Route: Trigger Daily 7:00 PM Excel Status Email to Admin
   app.post('/api/reports/send-daily-email', async (req, res) => {
     try {
@@ -2309,6 +2550,17 @@ ${aiAnalysis || 'Analysis in progress.'}
       return res.json(result);
     } catch (err: any) {
       console.error('Failed to trigger daily email:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // API Route: Trigger Monthly Master Excel Email to Admin
+  app.post('/api/reports/send-monthly-email', async (req, res) => {
+    try {
+      const result = await sendMonthlyMasterExcelReportToAdmin();
+      return res.json(result);
+    } catch (err: any) {
+      console.error('Failed to trigger monthly email:', err);
       return res.status(500).json({ success: false, error: err.message });
     }
   });

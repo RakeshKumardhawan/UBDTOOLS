@@ -393,6 +393,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
             _guardianThread.Start();
         }
 
+        public static void Stop24x7BackgroundGuardian()
+        {
+            _isGuardianRunning = false;
+            if (_guardianThread != null && _guardianThread.IsAlive)
+            {
+                try { _guardianThread.Abort(); } catch { }
+                _guardianThread = null;
+            }
+        }
+
         public static bool PerformSelfHealingAudit(Action<string> logCallback)
         {
             bool repairedSomething = false;
@@ -6234,6 +6244,46 @@ namespace EVedhikaUBDDeploymentTool.Engine
             if (logCallback != null) logCallback("  Target: Reverting all registry, zone settings, policies & files to original state.");
             if (logCallback != null) logCallback("==========================================================================");
 
+            // 0. TERMINATE ALL RUNNING BACKGROUND INSTANCES & TRAY GUARDIANS
+            try
+            {
+                if (logCallback != null) logCallback("[0/10] Stopping System Tray Guardians & terminating running application processes...");
+                AutoRepairEngine.Stop24x7BackgroundGuardian();
+
+                int currentPid = Process.GetCurrentProcess().Id;
+                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
+
+                foreach (var pName in processNames)
+                {
+                    try
+                    {
+                        Process[] procs = Process.GetProcessesByName(pName);
+                        foreach (var p in procs)
+                        {
+                            if (p.Id != currentPid)
+                            {
+                                try { p.Kill(); p.WaitForExit(2000); } catch { }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                try
+                {
+                    ProcessStartInfo psiKill = new ProcessStartInfo("taskkill", "/F /IM EVedhikaUBDDeploymentTool.exe /T")
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    using (Process pKill = Process.Start(psiKill)) { pKill?.WaitForExit(2000); }
+                }
+                catch { }
+
+                if (logCallback != null) logCallback("[0/10] Stopped background processes and removed System Tray icon.");
+            }
+            catch { }
+
             // 1. REVERT REGISTRY SECURITY ZONES VIA PRE-DEPLOYMENT BACKUP SNAPSHOT
             try
             {
@@ -7412,17 +7462,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
             });
 
-            // 2. Anti-Spam Batching & Debouncing Logic for Telegram
-            if (isExplicitSuppress || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend))
-            {
-                // Strictly suppress routine pings, token presence polls, and app startups from Telegram
-                return;
-            }
+            // 2. Anti-Spam Batching & Strict Telegram Filter
+            bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
+                || (data.ContainsKey("verification") && data["verification"].Contains("17/17"))
+                || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"));
 
-            // ONE PC = ONE REPORT STRICT RULE:
-            if (alreadyReported && !force)
+            if (isExplicitSuppress || !isDscFinished || (alreadyReported && !force) || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend))
             {
-                try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM 1-PC-1-REPORT] PC {machineId} already sent official report. Suppressing queue to keep 1 report per PC.\\r\\n"); } catch { }
+                // Strictly suppress intermediate checks, routine heartbeats, token presence polls, and duplicate reports from Telegram
                 return;
             }
 

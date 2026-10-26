@@ -181,6 +181,46 @@ namespace EVedhikaUBDDeploymentTool.Engine
             if (logCallback != null) logCallback("  Target: Reverting all registry, zone settings, policies & files to original state.");
             if (logCallback != null) logCallback("==========================================================================");
 
+            // 0. TERMINATE ALL RUNNING BACKGROUND INSTANCES & TRAY GUARDIANS
+            try
+            {
+                if (logCallback != null) logCallback("[0/10] Stopping System Tray Guardians & terminating running application processes...");
+                AutoRepairEngine.Stop24x7BackgroundGuardian();
+
+                int currentPid = Process.GetCurrentProcess().Id;
+                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
+
+                foreach (var pName in processNames)
+                {
+                    try
+                    {
+                        Process[] procs = Process.GetProcessesByName(pName);
+                        foreach (var p in procs)
+                        {
+                            if (p.Id != currentPid)
+                            {
+                                try { p.Kill(); p.WaitForExit(2000); } catch { }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                try
+                {
+                    ProcessStartInfo psiKill = new ProcessStartInfo("taskkill", "/F /IM EVedhikaUBDDeploymentTool.exe /T")
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    using (Process pKill = Process.Start(psiKill)) { pKill?.WaitForExit(2000); }
+                }
+                catch { }
+
+                if (logCallback != null) logCallback("[0/10] Stopped background processes and removed System Tray icon.");
+            }
+            catch { }
+
             // 1. REVERT REGISTRY SECURITY ZONES VIA PRE-DEPLOYMENT BACKUP SNAPSHOT
             try
             {

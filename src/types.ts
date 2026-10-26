@@ -99,6 +99,7 @@ export type NavigationTab =
   | 'downloads'
   | 'backups'
   | 'pcboost'
+  | 'github-dashboard'
   | 'settings'
   | 'help'
   | 'about';

@@ -23,6 +23,7 @@ import { HelpView } from './components/HelpView';
 import { AboutView } from './components/AboutView';
 import { AdminPostPublisherView } from './components/AdminPostPublisherView';
 import { PostDetailView } from './components/PostDetailView';
+import { GithubDashboardView } from './components/GithubDashboardView';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
@@ -667,6 +668,7 @@ Report Timestamp: ${reportDate}
               logs={logs}
             />
           )}
+          {activeTab === 'github-dashboard' && <GithubDashboardView />}
           {activeTab === 'posts' && <AdminPostPublisherView onOpenPost={openPostDetail} />}
           {activeTab === 'post-detail' && (
             <PostDetailView

@@ -768,8 +768,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         return updated;
       });
 
-      // Dispatch to Telegram & Local Endpoints
-      sendDirectTelegramAlert(newRecord);
+      // Local dashboard update without spamming Telegram
 
       try {
         await Promise.all([
@@ -890,8 +889,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         return updated;
       });
 
-      // Dispatch to Telegram & Local Endpoints
-      sendDirectTelegramAlert(newRecord);
+      // Local dashboard update without spamming Telegram
 
       try {
         await Promise.all([

@@ -253,17 +253,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
             });
 
-            // 2. Anti-Spam Batching & Debouncing Logic for Telegram
-            if (isExplicitSuppress || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend))
-            {
-                // Strictly suppress routine pings, token presence polls, and app startups from Telegram
-                return;
-            }
+            // 2. Anti-Spam Batching & Strict Telegram Filter
+            bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
+                || (data.ContainsKey("verification") && data["verification"].Contains("17/17"))
+                || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"));
 
-            // ONE PC = ONE REPORT STRICT RULE:
-            if (alreadyReported && !force)
+            if (isExplicitSuppress || !isDscFinished || (alreadyReported && !force) || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend))
             {
-                try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM 1-PC-1-REPORT] PC {machineId} already sent official report. Suppressing queue to keep 1 report per PC.\r\n"); } catch { }
+                // Strictly suppress intermediate checks, routine heartbeats, token presence polls, and duplicate reports from Telegram
                 return;
             }
 

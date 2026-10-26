@@ -1,12 +1,12 @@
 {
   "recipientEmail": "Rakeshkumardhawan123@gmail.com",
-  "senderEmail": "evedhika.reports@gmail.com",
-  "smtpHost": "",
+  "senderEmail": "evedhikasupport@gmail.com",
+  "smtpHost": "smtp.gmail.com",
   "smtpPort": 587,
-  "smtpUser": "",
-  "smtpPass": "",
+  "smtpUser": "evedhikasupport@gmail.com",
+  "smtpPass": "hemgrcqnkugrhytg",
   "scheduleTimeIST": "19:00",
   "autoSendEnabled": true,
-  "lastSentTimestamp": "2026-10-26 17:30:29 IST",
-  "lastSentResult": "Saved & Dispatched to Telegram (Download Ready: EVedhika_UBD_Daily_PC_Report_2026-10-26.xlsx)"
+  "lastSentTimestamp": "2026-10-26 19:41:22 IST",
+  "lastSentResult": "Sent to Rakeshkumardhawan123@gmail.com"
 }
