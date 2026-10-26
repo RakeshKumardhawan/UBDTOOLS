@@ -1346,16 +1346,16 @@ async function startServer() {
     currentVersion: 'v1.0.8',
     latestVersion: 'v1.0.8',
     versionCode: 10080,
-    releaseDate: '2026-10-25',
+    releaseDate: '2026-10-26',
     downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.8.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'v1.0.8 Release: 17-Step Audit Matrix, System Tray Guardian, and Direct Cloud Sync integration.',
+    releaseNotes: 'v1.0.8 Release: Daily 7 PM Consolidated Excel Report, Full DSC Execution Gate, and 1 PC = 1 Report Anti-Spam Protection.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.10.21-R4',
-    resourceBuildDate: '2026-10-21'
+    latestResourceBuild: '2026.10.26-R5',
+    resourceBuildDate: '2026-10-26'
   };
 
 
