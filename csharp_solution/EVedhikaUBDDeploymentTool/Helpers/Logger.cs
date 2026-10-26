@@ -254,10 +254,6 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             });
 
             // 2. Anti-Spam Batching & Strict Telegram Filter
-            bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
-                || (data.ContainsKey("verification") && data["verification"].Contains("17/17"))
-                || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"));
-
             if (isExplicitSuppress || !isDscFinished || (alreadyReported && !force) || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend))
             {
                 // Strictly suppress intermediate checks, routine heartbeats, token presence polls, and duplicate reports from Telegram
