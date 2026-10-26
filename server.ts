@@ -867,7 +867,7 @@ async function startServer() {
   // Persistent PC Allow / Block (Mute) Store for Telegram Alerts
   const TELEGRAM_PC_FILTERS_PATH = path.join(process.cwd(), 'telegram_pc_filters.json');
   let telegramPcFilters = {
-    blockedPcs: ['EVD-PC-1900-62E8', 'MPO-PC'],
+    blockedPcs: ['EVD-PC-1900-62E8', 'MPO-PC', '62E8', '1900-62E8'],
     allowedPcs: [] as string[]
   };
 
@@ -978,12 +978,11 @@ async function startServer() {
     const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
     const pcNameKey = String(record.pcName || '').toUpperCase().trim();
 
-    // Check if PC is blocked / muted from sending Telegram alerts
-    const isBlocked = telegramPcFilters.blockedPcs.some(b => 
-      b.toUpperCase().trim() === pcKey || (pcNameKey && b.toUpperCase().trim() === pcNameKey)
-    );
-    if (isBlocked) {
-      console.log(`[TELEGRAM BLOCKED/MUTED] PC ${pcKey} (${pcNameKey}) is blocked in telegram_pc_filters. Suppressing alert.`);
+    // ABSOLUTE HARDCODED BLOCK FOR 62E8 / MPO-PC
+    if (pcKey.includes('62E8') || pcKey.includes('1900-62E8') || pcKey.includes('MPO-PC') || 
+        pcNameKey.includes('62E8') || pcNameKey.includes('MPO-PC') ||
+        telegramPcFilters.blockedPcs.some(b => pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase()))) {
+      console.log(`[ABSOLUTE BLOCK 62E8 / MPO-PC] PC ${pcKey} is blocked. Telegram dispatch completely prevented.`);
       return false;
     }
 
