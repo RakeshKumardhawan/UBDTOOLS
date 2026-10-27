@@ -47,6 +47,7 @@ namespace EVedhikaUBDDeploymentTool
         public MainForm(string initialState = "Telangana", bool startSilent = false)
         {
             InitializeComponent();
+            try { this.Icon = new Icon("app.ico"); } catch { }
             
             this.isStartSilent = startSilent;
             this.currentStateName = initialState;
@@ -90,11 +91,12 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
+            string buildDate = "2026.10.27-R";
             SafeInvoke(delegate() {
-                lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Developer: Rakesh Kumar Dhawan | State: {0} | ID: {1}", currentStateName, pcId);
-                this.Text = "E-Vedhika UBD Deployment Tool - Developer: Rakesh Kumar Dhawan";
+                lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
+                this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
                 lblStatusStep.Text = string.Format("Selected Target: {0}", currentTargetDomain);
-                LogMessage("APP-START", string.Format("Developer: Rakesh Kumar Dhawan | Target state: {0} ({1}) | PC ID: {2}", currentStateName, currentTargetDomain, pcId));
+                LogMessage("APP-START", string.Format("Build: {0} | Target state: {1} ({2}) | PC ID: {3}", buildDate, currentStateName, currentTargetDomain, pcId));
             });
         }
 
