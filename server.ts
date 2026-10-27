@@ -46,6 +46,27 @@ async function startServer() {
     });
   };
 
+  function safeReadJson(filePath: string, fallback: any): any {
+    if (!fs.existsSync(filePath)) return fallback;
+    try {
+      const content = fs.readFileSync(filePath, 'utf8').trim();
+      if (!content) return fallback;
+      try {
+        return JSON.parse(content);
+      } catch (parseErr) {
+        if (content.startsWith('"') || content.startsWith('{')) {
+          try {
+            return JSON.parse('[' + content + ']');
+          } catch (e2) {}
+        }
+        console.warn(`[JSON SAFE READ] Repairing malformed JSON in ${filePath}`);
+        return fallback;
+      }
+    } catch (e) {
+      return fallback;
+    }
+  }
+
   // In-memory Telemetry Storage & Remote Desktop Queue Store
   const ANNOUNCEMENTS_FILE_PATH = path.join(process.cwd(), 'public', 'admin', 'announcements.json');
   let liveAnnouncements: any[] = [];
@@ -968,6 +989,11 @@ async function startServer() {
   };
 
   const shouldServerDispatchTelegram = (record: any, body: any): boolean => {
+    // MASTER TOGGLE: If Telegram notifications are disabled, never dispatch
+    if (!telegramConfig.autoNotifyOnTelemetry) {
+      console.log(`[TELEGRAM MASTER OFF] Telegram auto-notifications are turned OFF. Dispatch prevented.`);
+      return false;
+    }
     if (body.directTelegramSent === 'true' || body.directTelegramSent === true) return false;
     if (body.suppressTelegram === 'true' || body.suppressTelegram === true) return false;
     if (body.pcAlreadyReported === 'true' || body.pcAlreadyReported === true) return false;
@@ -1023,6 +1049,20 @@ async function startServer() {
   };
 
   const sendTelegramMessage = async (text: string, customToken?: string, customChatId?: string) => {
+    // FAIL-SAFE 1: If autoNotifyOnTelemetry is false, drop immediately
+    if (!telegramConfig.autoNotifyOnTelemetry) {
+      console.log('[TELEGRAM DROP] Telegram notifications are globally turned OFF.');
+      return { success: false, message: 'Telegram globally disabled in settings.' };
+    }
+
+    // FAIL-SAFE 2: Absolute block for 62E8 / MPO-PC / blocked PCs
+    const upperText = (text || '').toUpperCase();
+    if (upperText.includes('62E8') || upperText.includes('1900-62E8') || upperText.includes('MPO-PC') ||
+        telegramPcFilters.blockedPcs.some(b => b && upperText.includes(b.toUpperCase()))) {
+      console.log('[TELEGRAM FAIL-SAFE DROP] Blocked PC detected in message text. Message NOT dispatched to Telegram.');
+      return { success: false, message: 'PC is blocked from Telegram alerts.' };
+    }
+
     const token = customToken || telegramConfig.botToken || '8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE';
     const chatId = customChatId || telegramConfig.chatId || '431228008';
     if (!token || !chatId) {
@@ -1594,16 +1634,14 @@ async function startServer() {
   };
 
   try {
-    if (fs.existsSync(TELEMETRY_FILE_PATH)) {
-      const diskData = JSON.parse(fs.readFileSync(TELEMETRY_FILE_PATH, 'utf8'));
-      if (Array.isArray(diskData)) {
-        telemetryLogsStore.length = 0;
-        telemetryLogsStore.push(...diskData);
-        console.log(`[BOOT] Loaded ${telemetryLogsStore.length} telemetry logs.`);
-      }
+    const diskData = safeReadJson(TELEMETRY_FILE_PATH, []);
+    if (Array.isArray(diskData) && diskData.length > 0) {
+      telemetryLogsStore.length = 0;
+      telemetryLogsStore.push(...diskData);
+      console.log(`[BOOT] Loaded ${telemetryLogsStore.length} telemetry logs safely.`);
     }
-  } catch (err) {
-    console.error('Failed to load telemetry from file:', err);
+  } catch (err: any) {
+    console.warn('Failed to load telemetry from file (using defaults):', err?.message);
   }
 
   const remoteQueueStore: any[] = [
@@ -1855,7 +1893,7 @@ async function startServer() {
       liveAnnouncements.unshift(newPost);
       saveAnnouncements();
 
-      if (sendTelegram && telegramConfig.botToken && telegramConfig.chatId) {
+      if (telegramConfig.autoNotifyOnTelemetry && sendTelegram && telegramConfig.botToken && telegramConfig.chatId) {
         const teleMsg = `📢 <b>NEW OFFICIAL ANNOUNCEMENT / BROADCAST</b>\n` +
           `━━━━━━━━━━━━━━━━━━━\n` +
           `📌 <b>Title:</b> ${newPost.title}\n` +

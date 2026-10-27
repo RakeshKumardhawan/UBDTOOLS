@@ -235,66 +235,8 @@ namespace EVedhikaUBDDeploymentTool
 
         private static void SendSyncTelegramInstallNotification(string pcName, string userName, string location, string os, string dsc)
         {
-            try
-            {
-                string pcId = Logger.GetUniqueMachineId();
-                string ramInfo = SystemInfoHelper.GetRamInfo();
-                string diskInfo = SystemInfoHelper.GetDiskSpace();
-                string cpuInfo = SystemInfoHelper.GetProcessorInfo();
-                string ipInfo = SystemInfoHelper.GetIpAddress();
-                
-                string text = "📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>\n" +
-                              "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                              "🖥️ <b>Machine & Office Details</b>\n" +
-                              $"<b>Machine IDs:</b> <code>{Logger.EscapeTelegramHtml(pcId)}</code>\n" +
-                              $"<b>Office Locations:</b> {Logger.EscapeTelegramHtml(location)}\n" +
-                              $"<b>PC Name:</b> <code>{Logger.EscapeTelegramHtml(pcName)}</code>\n" +
-                              "<b>User Privileges:</b> Elevated Administrator Mode (UAC Verified)\n" +
-                              $"<b>IP Address:</b> <code>{Logger.EscapeTelegramHtml(ipInfo)}</code>\n\n" +
-                              "⚙️ <b>System Resources</b>\n" +
-                              $"<b>RAM:</b> {ramInfo}\n" +
-                              $"<b>Disc Rom:</b> {diskInfo}\n" +
-                              $"<b>CPU:</b> {cpuInfo}\n\n" +
-                              "📊 <b>Deployment Status & Health</b>\n" +
-                              "<b>Overall Status:</b> <b>SUCCESS</b>\n" +
-                              "<b>Versions:</b> v1.0.8 (24*7 Guardian Build)\n" +
-                              "<b>Health Score:</b> 100%\n" +
-                              "<b>Successful Steps/Checks:</b> 17/17 steps passed.\n" +
-                              $"<b>DSC Token Patch:</b> SHA256 v2.0.0.0 (Applied), though hardware DSC status shows \"{Logger.EscapeTelegramHtml(dsc)}\"\n" +
-                              "<b>Guardian Status:</b> Active Report (System Tray)\n\n" +
-                              "🛠️ <b>17 Steps Real-Time Audit Matrix</b>\n" +
-                              "Admin Elevation & DISM: Active\n" +
-                              ".NET Framework 3.5: Active\n" +
-                              "Repaired Visual C++ Runtime: -\n" +
-                              "Edge Enterprise Site List: Active\n" +
-                              "Emulation Mode (IE5): Active\n" +
-                              "Zone 2 Trusted Sites: Active\n" +
-                              "Unsigned ActiveX Controls: Active\n" +
-                              "SmartCard Service (SCardSvr): Active\n" +
-                              "USB DSC Token Drivers: Active\n" +
-                              "NIC DigiSigner Bridge: Active\n" +
-                              "SSL & DNS Cache: Active\n" +
-                              "Security Protocols: Active\n" +
-                              "Popups & Content Rules: Active\n" +
-                              "Dual Browser Routing: Active\n" +
-                              "Backup & Telemetry Sync: Active\n" +
-                              "Final Handshake: Verified\n\n" +
-                              "📌 <b>Remarks & Portals</b>\n" +
-                              "<b>Remarks:</b> 17/17 Deployment steps executed and verified with zero manual clicks!\n" +
-                              "<b>Target Portal:</b> https://ubd.telangana.gov.in\n" +
-                              "<b>Central Live Dashboard:</b> https://www.e-vedhika.in/admin/exe_ubd_live\n" +
-                              $"<b>Report Timestamp:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-
-                string tgUrl = "https://api.telegram.org/bot8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE/sendMessage";
-                using (var wc = new TimeoutWebClient(5000))
-                {
-                    wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                    wc.Encoding = System.Text.Encoding.UTF8;
-                    string json = $"{{\"chat_id\":\"431228008\",\"text\":\"{Logger.EscapeJson(text)}\",\"parse_mode\":\"HTML\"}}";
-                    wc.UploadString(tgUrl, "POST", json);
-                }
-            }
-            catch { }
+            // All Telegram alerts are managed and controlled centrally via the website (www.e-vedhika.in)
+            // to allow administrators full web-based ON/OFF control and prevent spam.
         }
     }
 }

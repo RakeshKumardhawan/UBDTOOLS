@@ -344,64 +344,20 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static void DispatchConsolidatedTelegram(Dictionary<string, string> data)
         {
             string pcId = data.ContainsKey("pcId") ? data["pcId"] : GetUniqueMachineId();
-            bool force = data.ContainsKey("forceTelegram") && (data["forceTelegram"] == "true" || data["forceTelegram"] == "True");
+            string pcName = data.ContainsKey("pcName") ? data["pcName"] : Environment.MachineName;
 
-            // ONE PC = ONE REPORT STRICT ENFORCEMENT:
-            if (!force && HasAlreadyReportedToTelegram(pcId))
+            // ABSOLUTE HARD BLOCK FOR 62E8 / MPO-PC
+            if ((pcId != null && (pcId.ToUpper().Contains("62E8") || pcId.ToUpper().Contains("1900-62E8"))) ||
+                (pcName != null && (pcName.ToUpper().Contains("62E8") || pcName.ToUpper().Contains("MPO-PC"))))
             {
-                try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM 1-PC-1-REPORT] PC {pcId} already reported to Telegram. Suppressing duplicate to enforce exactly 1 report per PC.\r\n"); } catch { }
+                try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM BLOCKED] PC {pcId} ({pcName}) is blocked/muted. Telegram dispatch aborted.\r\n"); } catch { }
                 return;
             }
 
-            // Full DSC Execution Gate: Ensure full DSC run is completed before sending Telegram report
-            bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
-                || (data.ContainsKey("verification") && data["verification"].Contains("17/17"))
-                || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"));
-
-            if (!isDscFinished && !force)
-            {
-                try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM DSC CHECK] PC {pcId} full DSC run not finished yet. Telegram report withheld until complete DSC execution.\r\n"); } catch { }
-                return;
-            }
-
-            lock (_bufferLock)
-            {
-                double elapsedMs = (DateTime.UtcNow - _lastTelegramSentUtc).TotalMilliseconds;
-                if (elapsedMs < MinTelegramIntervalMs && !data.ContainsKey("isFinalReport"))
-                {
-                    // Drop burst duplicates within 15 seconds
-                    return;
-                }
-                _lastTelegramSentUtc = DateTime.UtcNow;
-            }
-
-            try
-            {
-                string botToken = "8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE";
-                string chatId = "431228008";
-
-                string formattedMsg = ConstructTelegramMessage(data);
-
-                using (var tgClient = new TimeoutWebClient(5000))
-                {
-                    tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                    tgClient.Encoding = System.Text.Encoding.UTF8;
-                    tgClient.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                    tgClient.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-
-                    string tgJson = $"{{\"chat_id\":\"{chatId}\",\"text\":\"{EscapeJson(formattedMsg)}\",\"parse_mode\":\"HTML\",\"disable_web_page_preview\":true}}";
-                    tgClient.UploadString($"https://api.telegram.org/bot{botToken}/sendMessage", "POST", tgJson);
-
-                    // Successfully sent -> mark this PC as reported so it NEVER sends again!
-                    MarkAsReportedToTelegram(pcId);
-
-                    try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM 1-PC-1-REPORT] Consolidated report sent successfully for PC {pcId}. Marked 1-report-per-PC.\r\n"); } catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM ERROR] {ex.Message}\r\n"); } catch { }
-            }
+            // All Telegram alerts are now routed exclusively through the Central Web Gateway (www.e-vedhika.in)
+            // where administrators have full web-based ON/OFF control and PC Mute management.
+            try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM ROUTING] Telemetry report routed via Central Gateway.\r\n"); } catch { }
+            return;
         }
 
         public static string ConstructTelegramMessage(Dictionary<string, string> data)

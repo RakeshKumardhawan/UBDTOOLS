@@ -7553,64 +7553,20 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static void DispatchConsolidatedTelegram(Dictionary<string, string> data)
         {
             string pcId = data.ContainsKey("pcId") ? data["pcId"] : GetUniqueMachineId();
-            bool force = data.ContainsKey("forceTelegram") && (data["forceTelegram"] == "true" || data["forceTelegram"] == "True");
+            string pcName = data.ContainsKey("pcName") ? data["pcName"] : Environment.MachineName;
 
-            // ONE PC = ONE REPORT STRICT ENFORCEMENT:
-            if (!force && HasAlreadyReportedToTelegram(pcId))
+            // ABSOLUTE HARD BLOCK FOR 62E8 / MPO-PC
+            if ((pcId != null && (pcId.ToUpper().Contains("62E8") || pcId.ToUpper().Contains("1900-62E8"))) ||
+                (pcName != null && (pcName.ToUpper().Contains("62E8") || pcName.ToUpper().Contains("MPO-PC"))))
             {
-                try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM 1-PC-1-REPORT] PC {pcId} already reported to Telegram. Suppressing duplicate to enforce exactly 1 report per PC.\\r\\n"); } catch { }
+                try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM BLOCKED] PC {pcId} ({pcName}) is blocked/muted. Telegram dispatch aborted.\\r\\n"); } catch { }
                 return;
             }
 
-            // Full DSC Execution Gate: Ensure full DSC run is completed before sending Telegram report
-            bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
-                || (data.ContainsKey("verification") && data["verification"].Contains("17/17"))
-                || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"));
-
-            if (!isDscFinished && !force)
-            {
-                try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM DSC CHECK] PC {pcId} full DSC run not finished yet. Telegram report withheld until complete DSC execution.\\r\\n"); } catch { }
-                return;
-            }
-
-            lock (_bufferLock)
-            {
-                double elapsedMs = (DateTime.UtcNow - _lastTelegramSentUtc).TotalMilliseconds;
-                if (elapsedMs < MinTelegramIntervalMs && !data.ContainsKey("isFinalReport"))
-                {
-                    // Drop burst duplicates within 15 seconds
-                    return;
-                }
-                _lastTelegramSentUtc = DateTime.UtcNow;
-            }
-
-            try
-            {
-                string botToken = "8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE";
-                string chatId = "431228008";
-
-                string formattedMsg = ConstructTelegramMessage(data);
-
-                using (var tgClient = new TimeoutWebClient(5000))
-                {
-                    tgClient.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                    tgClient.Encoding = System.Text.Encoding.UTF8;
-                    tgClient.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                    tgClient.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-
-                    string tgJson = \$"{{\\"chat_id\\":\\"{chatId}\\",\\"text\\":\\"{EscapeJson(formattedMsg)}\\",\\"parse_mode\\":\\"HTML\\",\\"disable_web_page_preview\\":true}}";
-                    tgClient.UploadString(\$"https://api.telegram.org/bot{botToken}/sendMessage", "POST", tgJson);
-
-                    // Successfully sent -> mark this PC as reported so it NEVER sends again!
-                    MarkAsReportedToTelegram(pcId);
-
-                    try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM 1-PC-1-REPORT] Consolidated report sent successfully for PC {pcId}. Marked 1-report-per-PC.\\r\\n"); } catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM ERROR] {ex.Message}\\r\\n"); } catch { }
-            }
+            // All Telegram alerts are now routed exclusively through the Central Web Gateway (www.e-vedhika.in)
+            // where administrators have full web-based ON/OFF control and PC Mute management.
+            try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM ROUTING] Telemetry report routed via Central Gateway.\\r\\n"); } catch { }
+            return;
         }
 
         public static string ConstructTelegramMessage(Dictionary<string, string> data)
@@ -34183,66 +34139,8 @@ namespace EVedhikaUBDDeploymentTool
 
         private static void SendSyncTelegramInstallNotification(string pcName, string userName, string location, string os, string dsc)
         {
-            try
-            {
-                string pcId = Logger.GetUniqueMachineId();
-                string ramInfo = SystemInfoHelper.GetRamInfo();
-                string diskInfo = SystemInfoHelper.GetDiskSpace();
-                string cpuInfo = SystemInfoHelper.GetProcessorInfo();
-                string ipInfo = SystemInfoHelper.GetIpAddress();
-                
-                string text = "📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>\\n" +
-                              "━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n" +
-                              "🖥️ <b>Machine & Office Details</b>\\n" +
-                              \$"<b>Machine IDs:</b> <code>{Logger.EscapeTelegramHtml(pcId)}</code>\\n" +
-                              \$"<b>Office Locations:</b> {Logger.EscapeTelegramHtml(location)}\\n" +
-                              \$"<b>PC Name:</b> <code>{Logger.EscapeTelegramHtml(pcName)}</code>\\n" +
-                              "<b>User Privileges:</b> Elevated Administrator Mode (UAC Verified)\\n" +
-                              \$"<b>IP Address:</b> <code>{Logger.EscapeTelegramHtml(ipInfo)}</code>\\n\\n" +
-                              "⚙️ <b>System Resources</b>\\n" +
-                              \$"<b>RAM:</b> {ramInfo}\\n" +
-                              \$"<b>Disc Rom:</b> {diskInfo}\\n" +
-                              \$"<b>CPU:</b> {cpuInfo}\\n\\n" +
-                              "📊 <b>Deployment Status & Health</b>\\n" +
-                              "<b>Overall Status:</b> <b>SUCCESS</b>\\n" +
-                              "<b>Versions:</b> v1.0.8 (24*7 Guardian Build)\\n" +
-                              "<b>Health Score:</b> 100%\\n" +
-                              "<b>Successful Steps/Checks:</b> 17/17 steps passed.\\n" +
-                              \$"<b>DSC Token Patch:</b> SHA256 v2.0.0.0 (Applied), though hardware DSC status shows \\"{Logger.EscapeTelegramHtml(dsc)}\\"\\n" +
-                              "<b>Guardian Status:</b> Active Report (System Tray)\\n\\n" +
-                              "🛠️ <b>17 Steps Real-Time Audit Matrix</b>\\n" +
-                              "Admin Elevation & DISM: Active\\n" +
-                              ".NET Framework 3.5: Active\\n" +
-                              "Repaired Visual C++ Runtime: -\\n" +
-                              "Edge Enterprise Site List: Active\\n" +
-                              "Emulation Mode (IE5): Active\\n" +
-                              "Zone 2 Trusted Sites: Active\\n" +
-                              "Unsigned ActiveX Controls: Active\\n" +
-                              "SmartCard Service (SCardSvr): Active\\n" +
-                              "USB DSC Token Drivers: Active\\n" +
-                              "NIC DigiSigner Bridge: Active\\n" +
-                              "SSL & DNS Cache: Active\\n" +
-                              "Security Protocols: Active\\n" +
-                              "Popups & Content Rules: Active\\n" +
-                              "Dual Browser Routing: Active\\n" +
-                              "Backup & Telemetry Sync: Active\\n" +
-                              "Final Handshake: Verified\\n\\n" +
-                              "📌 <b>Remarks & Portals</b>\\n" +
-                              "<b>Remarks:</b> 17/17 Deployment steps executed and verified with zero manual clicks!\\n" +
-                              "<b>Target Portal:</b> https://ubd.telangana.gov.in\\n" +
-                              "<b>Central Live Dashboard:</b> https://www.e-vedhika.in/admin/exe_ubd_live\\n" +
-                              \$"<b>Report Timestamp:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-
-                string tgUrl = "https://api.telegram.org/bot8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE/sendMessage";
-                using (var wc = new TimeoutWebClient(5000))
-                {
-                    wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                    wc.Encoding = System.Text.Encoding.UTF8;
-                    string json = \$"{{\\"chat_id\\":\\"431228008\\",\\"text\\":\\"{Logger.EscapeJson(text)}\\",\\"parse_mode\\":\\"HTML\\"}}";
-                    wc.UploadString(tgUrl, "POST", json);
-                }
-            }
-            catch { }
+            // All Telegram alerts are managed and controlled centrally via the website (www.e-vedhika.in)
+            // to allow administrators full web-based ON/OFF control and prevent spam.
         }
     }
 }
