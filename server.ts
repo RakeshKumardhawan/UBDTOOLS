@@ -702,7 +702,7 @@ async function startServer() {
   const TELEGRAM_CONFIG_PATH = path.join(process.cwd(), 'telegram_config.json');
 
   let telegramConfig = {
-    botToken: process.env.TELEGRAM_BOT_TOKEN || '8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE',
+    botToken: process.env.TELEGRAM_BOT_TOKEN || '8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE',
     chatId: process.env.TELEGRAM_CHAT_ID || '431228008',
     autoNotifyOnTelemetry: true
   };
@@ -909,7 +909,7 @@ async function startServer() {
       return { success: false, message: 'PC is blocked from Telegram alerts.' };
     }
 
-    const token = customToken || telegramConfig.botToken || '8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE';
+    const token = customToken || telegramConfig.botToken || '8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE';
     const chatId = customChatId || telegramConfig.chatId || '431228008';
     if (!token || !chatId) {
       return { success: false, message: 'Telegram Bot Token or Chat ID not configured.' };
