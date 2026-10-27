@@ -865,11 +865,13 @@ async function startServer() {
 
     const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
     const pcNameKey = String(record.pcName || '').toUpperCase().trim();
+    const officeKey = String(record.officeLocation || '').toUpperCase().trim();
 
-    // ABSOLUTE HARDCODED BLOCK FOR 62E8 / MPO-PC
+    // ABSOLUTE HARDCODED BLOCK FOR 62E8 / MPO-PC / BLOCKED PCS
     if (pcKey.includes('62E8') || pcKey.includes('1900-62E8') || pcKey.includes('MPO-PC') || 
         pcNameKey.includes('62E8') || pcNameKey.includes('MPO-PC') ||
-        telegramPcFilters.blockedPcs.some(b => pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase()))) {
+        officeKey.includes('62E8') || officeKey.includes('MPO-PC') ||
+        telegramPcFilters.blockedPcs.some(b => pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase()) || officeKey.includes(b.toUpperCase()))) {
       console.log(`[ABSOLUTE BLOCK 62E8 / MPO-PC] PC ${pcKey} is blocked. Telegram dispatch completely prevented.`);
       return false;
     }
@@ -919,8 +921,8 @@ async function startServer() {
 
     // FAIL-SAFE 2: Absolute block for 62E8 / MPO-PC / blocked PCs
     const upperText = (text || '').toUpperCase();
-    if (upperText.includes('62E8') || upperText.includes('1900-62E8') || upperText.includes('MPO-PC') ||
-        telegramPcFilters.blockedPcs.some(b => b && upperText.includes(b.toUpperCase()))) {
+    const blockedKeywords = ['62E8', '1900-62E8', 'MPO-PC', 'EVD-PC-1900-62E8', ...(telegramPcFilters.blockedPcs || [])];
+    if (blockedKeywords.some(b => b && upperText.includes(b.toUpperCase()))) {
       console.log('[TELEGRAM FAIL-SAFE DROP] Blocked PC detected in message text. Message NOT dispatched to Telegram.');
       return { success: false, message: 'PC is blocked from Telegram alerts.' };
     }
@@ -2266,8 +2268,11 @@ ${aiAnalysis || 'Analysis in progress.'}
         }
       }
 
-      // 5. Send Telegram Alert if configured
-      if (telegramConfig.autoNotifyOnTelemetry && telegramConfig.botToken && telegramConfig.chatId) {
+      // 5. Send Telegram Alert if configured (with blocked PC check)
+      const isBlockedIssuePc = pcName.toUpperCase().includes('62E8') || pcName.toUpperCase().includes('MPO-PC') || officeLocation.toUpperCase().includes('62E8') || officeLocation.toUpperCase().includes('MPO-PC') || telegramPcFilters.blockedPcs.some(b => pcName.toUpperCase().includes(b.toUpperCase()) || officeLocation.toUpperCase().includes(b.toUpperCase()));
+      if (isBlockedIssuePc) {
+        console.log(`[BLOCKED PC ISSUE TELEGRAM SUPPRESSED] PC ${pcName} is blocked. Telegram bug report alert suppressed.`);
+      } else if (telegramConfig.autoNotifyOnTelemetry && telegramConfig.botToken && telegramConfig.chatId) {
         const teleAlert = `🚨 <b>NEW UBD BUG REPORT (100% AUTOMATED)</b>\n` +
           `━━━━━━━━━━━━━━━━━━━\n` +
           `🏢 <b>Office:</b> ${officeLocation}\n` +

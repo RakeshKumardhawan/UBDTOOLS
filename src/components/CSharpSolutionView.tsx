@@ -58,7 +58,12 @@ EndGlobal
       - Windows 8, Windows 10, Windows 11 (Built-in .NET Framework 4.8)
     -->
     <startup> 
+        <!-- Universal Support for all .NET 4.x Versions (4.0, 4.5, 4.6, 4.7, 4.8) -->
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8" />
+        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.7.2" />
+        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.6.1" />
+        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5.2" />
+        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.0" />
     </startup>
     <runtime>
         <!-- Security hardened runtime configuration -->
@@ -80,7 +85,7 @@ EndGlobal
     content: `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net48</TargetFramework>
+    <TargetFramework>net45</TargetFramework>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
