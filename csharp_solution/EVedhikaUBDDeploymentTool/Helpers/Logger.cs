@@ -234,8 +234,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry",
                     "https://www.e-vedhika.in/api/telemetry",
-                    "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://ais-pre-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/telemetry"
+                    "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry"
                 };
 
                 bool delivered = false;

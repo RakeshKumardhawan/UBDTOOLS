@@ -7449,8 +7449,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry",
                     "https://www.e-vedhika.in/api/telemetry",
-                    "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://ais-pre-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/telemetry"
+                    "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry"
                 };
 
                 bool delivered = false;
@@ -7981,7 +7981,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static Thread commandThread = null;
         private static string[] serverUrls = new string[]
         {
-            "https://www.e-vedhika.in"
+            "https://www.e-vedhika.in",
+            "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app",
+            "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app"
         };
         private static string sessionPcName = Environment.MachineName;
         private static string activeServerUrl = null;
@@ -9799,7 +9801,7 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.10.27-R";
+            string buildDate = "2026.10.27-R2";
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;

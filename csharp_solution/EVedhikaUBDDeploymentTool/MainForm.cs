@@ -91,7 +91,7 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.10.27-R";
+            string buildDate = "2026.10.27-R2";
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
