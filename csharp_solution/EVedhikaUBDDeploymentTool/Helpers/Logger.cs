@@ -69,23 +69,17 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             try
             {
-                using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
-                {
-                    if (key != null)
-                    {
-                        object val = key.GetValue("MachineGuid");
-                        if (val != null && !string.IsNullOrEmpty(val.ToString()))
-                        {
-                            string guid = val.ToString().Replace("-", "").ToUpper();
-                            return $"EVD-PC-{guid.Substring(0, 4)}-{guid.Substring(4, 4)}";
-                        }
-                    }
-                }
+                return SystemInfoHelper.GetHardwareMachineFingerprint();
             }
-            catch { }
-
-            string fallback = Math.Abs((Environment.MachineName + "_" + Environment.UserName).GetHashCode()).ToString("X8");
-            return $"EVD-PC-{fallback.Substring(0, 4)}-{fallback.Substring(4)}";
+            catch
+            {
+                string pcName = Environment.MachineName ?? "PC";
+                string userName = Environment.UserName ?? "USER";
+                string compositeSeed = $"{pcName}_{userName}";
+                int hash = Math.Abs(compositeSeed.GetHashCode());
+                string hex = hash.ToString("X8");
+                return $"EVD-PC-{hex.Substring(0, 4)}-{hex.Substring(4)}";
+            }
         }
 
         public static bool HasAlreadyReportedToTelegram(string pcId)
@@ -155,6 +149,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             if (data == null) return;
             if (!data.ContainsKey("pcId")) data["pcId"] = GetUniqueMachineId();
+            if (!data.ContainsKey("macAddress")) data["macAddress"] = SystemInfoHelper.GetPrimaryMacAddress();
+            if (!data.ContainsKey("hardwareUuid")) data["hardwareUuid"] = SystemInfoHelper.GetHardwareUuid();
 
             string machineId = data["pcId"];
             string pcNameVal = data.ContainsKey("pcName") ? data["pcName"] : "";
@@ -394,11 +390,16 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 return defaultStat;
             };
 
+            string macAddr = data.ContainsKey("macAddress") && !string.IsNullOrEmpty(data["macAddress"]) ? data["macAddress"] : SystemInfoHelper.GetPrimaryMacAddress();
+            string hwUuid = data.ContainsKey("hardwareUuid") && !string.IsNullOrEmpty(data["hardwareUuid"]) ? data["hardwareUuid"] : SystemInfoHelper.GetHardwareUuid();
+
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>");
             sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             sb.AppendLine("🖥️ <b>Machine & Office Details</b>");
             sb.AppendLine($"<b>Machine IDs:</b> <code>{EscapeTelegramHtml(pcId)}</code>");
+            if (!string.IsNullOrEmpty(hwUuid)) sb.AppendLine($"<b>Hardware UUID:</b> <code>{EscapeTelegramHtml(hwUuid)}</code>");
+            if (!string.IsNullOrEmpty(macAddr)) sb.AppendLine($"<b>MAC Address:</b> <code>{EscapeTelegramHtml(macAddr)}</code>");
             sb.AppendLine($"<b>Office Locations:</b> {EscapeTelegramHtml(officeLoc)}");
             sb.AppendLine($"<b>PC Name:</b> <code>{EscapeTelegramHtml(pcName)}</code>");
             sb.AppendLine($"<b>User Privileges:</b> {EscapeTelegramHtml(userPriv)}");

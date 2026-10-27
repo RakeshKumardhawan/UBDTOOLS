@@ -467,5 +467,95 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             catch { }
             return 264;
         }
+
+        public static string GetPrimaryMacAddress()
+        {
+            try
+            {
+                foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up &&
+                        nic.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback &&
+                        nic.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Tunnel)
+                    {
+                        string mac = nic.GetPhysicalAddress() != null ? nic.GetPhysicalAddress().ToString() : "";
+                        if (!string.IsNullOrEmpty(mac) && mac.Length >= 10 && mac != "000000000000")
+                        {
+                            var sb = new System.Text.StringBuilder();
+                            for (int i = 0; i < mac.Length; i++)
+                            {
+                                if (i > 0 && i % 2 == 0) sb.Append(":");
+                                sb.Append(mac[i]);
+                            }
+                            return sb.ToString().ToUpper();
+                        }
+                    }
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        public static string GetHardwareUuid()
+        {
+            try
+            {
+                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        if (obj["UUID"] != null)
+                        {
+                            string uuid = obj["UUID"].ToString().Trim();
+                            if (!string.IsNullOrEmpty(uuid) && uuid != "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" && uuid != "00000000-0000-0000-0000-000000000000")
+                            {
+                                return uuid.ToUpper();
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        public static string GetMotherboardSerial()
+        {
+            try
+            {
+                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        if (obj["SerialNumber"] != null)
+                        {
+                            string sn = obj["SerialNumber"].ToString().Trim();
+                            if (!string.IsNullOrEmpty(sn) && !sn.Equals("To be filled by O.E.M.", StringComparison.OrdinalIgnoreCase) && !sn.Equals("None", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return sn.ToUpper();
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        public static string GetHardwareMachineFingerprint()
+        {
+            string mac = GetPrimaryMacAddress();
+            string uuid = GetHardwareUuid();
+            string mbSerial = GetMotherboardSerial();
+            string pcName = Environment.MachineName ?? "PC";
+            string userName = Environment.UserName ?? "USER";
+
+            string composite = $"{mac}_{uuid}_{mbSerial}_{pcName}_{userName}";
+            int hash = Math.Abs(composite.GetHashCode());
+            string hex = hash.ToString("X8");
+
+            string macPart = !string.IsNullOrEmpty(mac) ? mac.Replace(":", "").Substring(Math.Max(0, mac.Replace(":", "").Length - 4)) : hex.Substring(0, 4);
+            return $"HW-{pcName.ToUpper()}-{macPart}-{hex.Substring(4)}";
+        }
     }
 }

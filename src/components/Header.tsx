@@ -1,8 +1,10 @@
-import React from 'react';
-import { Menu, X, Terminal, ShieldCheck, ChevronDown, Github, Megaphone } from 'lucide-react';
+import React, { useState } from 'react';
+import { Menu, X, ShieldCheck, ChevronDown, Github, Megaphone, Cpu, QrCode } from 'lucide-react';
 import { EnvironmentStatus, DepartmentProfile, NavigationTab } from '../types';
 import { EVedhikaLogo } from './EVedhikaLogo';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
+import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
+import { DeviceIdentityCard } from './DeviceIdentityCard';
 
 interface HeaderProps {
   activeTab: NavigationTab;
@@ -27,9 +29,10 @@ export const Header: React.FC<HeaderProps> = ({
   departmentProfiles,
   mobileMenuOpen = false,
   setMobileMenuOpen,
-  systemPanelOpen = false,
-  setSystemPanelOpen,
 }) => {
+  const deviceHw = getDeviceHardwareIdentity();
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+
   return (
     <header className="border-b-[1.5px] border-ink px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center z-20 bg-bg shrink-0">
       {/* Left: Hamburger (mobile/tablet) + Logo & App Title */}
@@ -107,12 +110,40 @@ export const Header: React.FC<HeaderProps> = ({
           <span>UBDTOOLS</span>
         </a>
 
+        {/* Device Hardware Identity Badge Pill (Clickable) */}
+        <button 
+          onClick={() => setShowBadgeModal(true)}
+          className="pill text-emerald-300 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-400 transition-all font-mono text-[0.62rem] inline-flex items-center gap-1.5 cursor-pointer"
+          title={`Click to open printable hardware verification badge for ${deviceHw.hardwareId}`}
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <Cpu size={11} className="text-emerald-400" />
+          <span className="hidden xl:inline text-slate-400">Device ID:</span>
+          <span className="font-bold text-emerald-300">{deviceHw.hardwareId}</span>
+          <QrCode size={11} className="text-emerald-400 ml-0.5" />
+        </button>
+
         {/* Admin Badge */}
         <div className="pill text-accent border-accent font-bold hidden md:inline-flex items-center gap-1">
           <ShieldCheck size={11} />
           <span>ADMIN_MODE</span>
         </div>
       </div>
+
+      {/* Badge Modal Overlay */}
+      {showBadgeModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <DeviceIdentityCard
+            deviceIdentity={deviceHw}
+            officeLocation={selectedProfile.name}
+            onClose={() => setShowBadgeModal(false)}
+            isModal={true}
+          />
+        </div>
+      )}
     </header>
   );
 };

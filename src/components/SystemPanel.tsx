@@ -1,5 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Cpu, QrCode, ExternalLink } from 'lucide-react';
 import { EnvironmentStatus, LogEntry } from '../types';
+import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
+import { DeviceIdentityCard } from './DeviceIdentityCard';
 
 interface SystemPanelProps {
   envStatus: EnvironmentStatus;
@@ -8,6 +11,8 @@ interface SystemPanelProps {
 
 export const SystemPanel: React.FC<SystemPanelProps> = ({ envStatus, logs }) => {
   const consoleRef = useRef<HTMLDivElement>(null);
+  const deviceHw = getDeviceHardwareIdentity();
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
 
   useEffect(() => {
     if (consoleRef.current) {
@@ -17,6 +22,54 @@ export const SystemPanel: React.FC<SystemPanelProps> = ({ envStatus, logs }) => 
 
   return (
     <aside className="border-l border-ink-faint p-5 sm:p-6 lg:p-7 bg-[rgba(0,240,255,0.02)] flex flex-col gap-5 sm:gap-6 h-full overflow-y-auto custom-scrollbar">
+      {/* Device Hardware Identity Badge */}
+      <div 
+        onClick={() => setShowBadgeModal(true)}
+        className="status-card p-3.5 bg-emerald-500/5 border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer rounded-xl space-y-2 group"
+        title="Click to view, print, or download hardware verification badge & QR code"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[0.62rem] font-mono text-emerald-400 font-bold uppercase tracking-wider">
+            <Cpu size={13} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span>Device Identity</span>
+          </div>
+          <span className="text-[0.52rem] bg-emerald-500/20 text-emerald-300 font-mono font-bold px-1.5 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+            <QrCode size={10} />
+            {deviceHw.status}
+          </span>
+        </div>
+        <div className="space-y-1 font-mono text-[0.68rem]">
+          <div className="flex justify-between text-slate-300">
+            <span className="text-slate-500">Hardware ID:</span>
+            <span className="font-bold text-emerald-300">{deviceHw.hardwareId}</span>
+          </div>
+          <div className="flex justify-between text-slate-300">
+            <span className="text-slate-500">MAC Address:</span>
+            <span className="text-slate-300 font-semibold">{deviceHw.macSuffix}</span>
+          </div>
+          <div className="flex justify-between text-slate-300">
+            <span className="text-slate-500">BIOS UUID:</span>
+            <span className="text-slate-400 text-[0.62rem] truncate max-w-[120px]" title={deviceHw.hardwareUuid}>{deviceHw.hardwareUuid}</span>
+          </div>
+        </div>
+
+        <div className="pt-1.5 border-t border-emerald-500/20 flex items-center justify-between text-[0.6rem] font-mono text-emerald-400 font-semibold group-hover:text-emerald-300">
+          <span>🖨️ Print / Save Badge</span>
+          <ExternalLink size={10} />
+        </div>
+      </div>
+
+      {/* Badge Modal Overlay */}
+      {showBadgeModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <DeviceIdentityCard
+            deviceIdentity={deviceHw}
+            onClose={() => setShowBadgeModal(false)}
+            isModal={true}
+          />
+        </div>
+      )}
+
       <div>
         <p className="label mb-3 text-[0.6rem] sm:text-[0.65rem]">System Health Monitor</p>
         <div className="space-y-2">

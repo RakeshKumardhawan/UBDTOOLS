@@ -24,6 +24,7 @@ import { AboutView } from './components/AboutView';
 import { AdminPostPublisherView } from './components/AdminPostPublisherView';
 import { PostDetailView } from './components/PostDetailView';
 import { GithubDashboardView } from './components/GithubDashboardView';
+import { TelemetryDashboard } from './components/TelemetryDashboard';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
@@ -759,6 +760,7 @@ Report Timestamp: ${reportDate}
             />
           )}
           {activeTab === 'pcboost' && <PCBoostView />}
+          {activeTab === 'telemetry-dashboard' && <TelemetryDashboard />}
           {activeTab === 'settings' && (
             <SettingsView
               selectedProfile={selectedProfile}

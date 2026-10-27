@@ -730,7 +730,11 @@ async function startServer() {
   const reportedTelegramPcs = new Set<string>();
 
   reportedTelegramPcs.add('EVD-PC-1900-62E8');
+  reportedTelegramPcs.add('1900-62E8');
+  reportedTelegramPcs.add('62E8');
   reportedTelegramPcs.add('MPO-PC');
+  reportedTelegramPcs.add('UNKNOWN-PC');
+  reportedTelegramPcs.add('UNKNOWN');
 
   try {
     if (fs.existsSync(TELEGRAM_REPORTED_PCS_FILE)) {
@@ -806,10 +810,15 @@ async function startServer() {
     hours = hours % 12 || 12;
     const formattedTimestamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}, ${pad(hours)}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${ampm}`;
 
+    const hwUuid = newRecord.hardwareUuid || newRecord.uuid || '';
+    const macAddr = newRecord.macAddress || newRecord.mac || '';
+
     return `📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🖥️ <b>Machine & Office Details</b>\n` +
       `<b>Machine IDs:</b> <code>${machineId}</code>\n` +
+      (hwUuid ? `<b>Hardware UUID:</b> <code>${hwUuid}</code>\n` : '') +
+      (macAddr ? `<b>MAC Address:</b> <code>${macAddr}</code>\n` : '') +
       `<b>Office Locations:</b> ${officeLoc}\n` +
       `<b>PC Name:</b> <code>${pcName}</code>\n` +
       `<b>User Privileges:</b> ${userPriv}\n` +
@@ -859,20 +868,15 @@ async function startServer() {
     if (body.directTelegramSent === 'true' || body.directTelegramSent === true) return false;
     if (body.suppressTelegram === 'true' || body.suppressTelegram === true) return false;
     if (body.pcAlreadyReported === 'true' || body.pcAlreadyReported === true) return false;
-    
-    const statusStr = String(record.status || '').toUpperCase();
-    if (statusStr.includes('ONLINE') && !statusStr.includes('FAIL')) return false;
 
     const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
     const pcNameKey = String(record.pcName || '').toUpperCase().trim();
-    const officeKey = String(record.officeLocation || '').toUpperCase().trim();
 
-    // ABSOLUTE HARDCODED BLOCK FOR 62E8 / MPO-PC / BLOCKED PCS
-    if (pcKey.includes('62E8') || pcKey.includes('1900-62E8') || pcKey.includes('MPO-PC') || 
-        pcNameKey.includes('62E8') || pcNameKey.includes('MPO-PC') ||
-        officeKey.includes('62E8') || officeKey.includes('MPO-PC') ||
-        telegramPcFilters.blockedPcs.some(b => pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase()) || officeKey.includes(b.toUpperCase()))) {
-      console.log(`[ABSOLUTE BLOCK 62E8 / MPO-PC] PC ${pcKey} is blocked. Telegram dispatch completely prevented.`);
+    // ABSOLUTE HARDCODED BLOCK FOR 62E8 / MPO-PC / UNKNOWN-PC
+    if (pcKey.includes('62E8') || pcKey.includes('1900-62E8') || pcKey.includes('MPO-PC') || pcKey.includes('UNKNOWN-PC') ||
+        pcNameKey.includes('62E8') || pcNameKey.includes('MPO-PC') || pcNameKey.includes('UNKNOWN-PC') ||
+        telegramPcFilters.blockedPcs.some(b => b && (pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase())))) {
+      console.log(`[ABSOLUTE BLOCK 62E8 / MPO-PC / UNKNOWN] PC ${pcKey} is blocked. Telegram dispatch completely prevented.`);
       return false;
     }
 
@@ -882,34 +886,12 @@ async function startServer() {
       return false;
     }
 
-    // MANDATORY REQUIREMENT: Only dispatch Telegram report after full DSC run has completely finished on this PC
-    const isDscFinished = record.dscRunCompleted === 'true' || record.dscRunCompleted === true ||
-                          String(record.verification || '').includes('17/17') ||
-                          String(record.verificationCompleted || '').includes('COMPLETED');
-    if (!isDscFinished) {
-      console.log(`[TELEGRAM SKIP] PC ${pcKey} has not completed full DSC run yet. Waiting for full DSC completion.`);
-      return false;
-    }
-
-    const isCompletedDeployment = (
-      String(record.verification || '').includes('16/16') || 
-      String(record.verification || '').includes('17/17') || 
-      String(record.verificationCompleted || '').includes('COMPLETED') ||
-      body.isFinalReport === 'true' ||
-      body.isFinalReport === true ||
-      body.sendTelegram === true ||
-      body.sendTelegram === 'true'
-    );
-
-    if (isCompletedDeployment) {
-      // Permanently record this PC so it never gets reported again
-      reportedTelegramPcs.add(pcKey);
-      if (pcNameKey) reportedTelegramPcs.add(pcNameKey);
-      saveReportedTelegramPcs();
-      console.log(`[TELEGRAM DISPATCH] First & only official report dispatched for PC ${pcKey}. Permanently locked.`);
-      return true;
-    }
-    return false;
+    // PERMANENTLY MARK THIS PC AS REPORTED IMMEDIATELY BEFORE DISPATCHING (1 PC = 1 REPORT EVER)
+    reportedTelegramPcs.add(pcKey);
+    if (pcNameKey) reportedTelegramPcs.add(pcNameKey);
+    saveReportedTelegramPcs();
+    console.log(`[TELEGRAM DISPATCH] First & only official report dispatched for PC ${pcKey}. Permanently locked.`);
+    return true;
   };
 
   const sendTelegramMessage = async (text: string, customToken?: string, customChatId?: string) => {
@@ -919,10 +901,10 @@ async function startServer() {
       return { success: false, message: 'Telegram globally disabled in settings.' };
     }
 
-    // FAIL-SAFE 2: Absolute block for 62E8 / MPO-PC / blocked PCs
+    // FAIL-SAFE 2: Absolute block for 62E8 / MPO-PC / UNKNOWN-PC / blocked PCs
     const upperText = (text || '').toUpperCase();
-    const blockedKeywords = ['62E8', '1900-62E8', 'MPO-PC', 'EVD-PC-1900-62E8', ...(telegramPcFilters.blockedPcs || [])];
-    if (blockedKeywords.some(b => b && upperText.includes(b.toUpperCase()))) {
+    if (upperText.includes('62E8') || upperText.includes('1900-62E8') || upperText.includes('MPO-PC') || upperText.includes('UNKNOWN-PC') ||
+        telegramPcFilters.blockedPcs.some(b => b && upperText.includes(b.toUpperCase()))) {
       console.log('[TELEGRAM FAIL-SAFE DROP] Blocked PC detected in message text. Message NOT dispatched to Telegram.');
       return { success: false, message: 'PC is blocked from Telegram alerts.' };
     }
@@ -2268,11 +2250,24 @@ ${aiAnalysis || 'Analysis in progress.'}
         }
       }
 
-      // 5. Send Telegram Alert if configured (with blocked PC check)
-      const isBlockedIssuePc = pcName.toUpperCase().includes('62E8') || pcName.toUpperCase().includes('MPO-PC') || officeLocation.toUpperCase().includes('62E8') || officeLocation.toUpperCase().includes('MPO-PC') || telegramPcFilters.blockedPcs.some(b => pcName.toUpperCase().includes(b.toUpperCase()) || officeLocation.toUpperCase().includes(b.toUpperCase()));
-      if (isBlockedIssuePc) {
-        console.log(`[BLOCKED PC ISSUE TELEGRAM SUPPRESSED] PC ${pcName} is blocked. Telegram bug report alert suppressed.`);
+      // 5. Send Telegram Alert if configured (Strict 1-Report-Per-PC Ever Check)
+      const issuePcKey = String(body.pcId || pcName).toUpperCase().trim();
+      const issuePcNameKey = String(pcName).toUpperCase().trim();
+
+      const isBlockedIssuePc = issuePcKey.includes('62E8') || issuePcKey.includes('1900-62E8') || issuePcKey.includes('MPO-PC') || issuePcKey.includes('UNKNOWN-PC') ||
+        issuePcNameKey.includes('62E8') || issuePcNameKey.includes('MPO-PC') || issuePcNameKey.includes('UNKNOWN-PC') ||
+        telegramPcFilters.blockedPcs.some(b => b && (issuePcKey.includes(b.toUpperCase()) || issuePcNameKey.includes(b.toUpperCase())));
+
+      const isAlreadyReportedIssuePc = reportedTelegramPcs.has(issuePcKey) || (issuePcNameKey && reportedTelegramPcs.has(issuePcNameKey));
+
+      if (isBlockedIssuePc || isAlreadyReportedIssuePc) {
+        console.log(`[TELEGRAM ISSUE REPORT SUPPRESSED] PC ${pcName} is blocked or already reported to Telegram.`);
       } else if (telegramConfig.autoNotifyOnTelemetry && telegramConfig.botToken && telegramConfig.chatId) {
+        // Mark as reported so this PC NEVER sends another message
+        reportedTelegramPcs.add(issuePcKey);
+        if (issuePcNameKey) reportedTelegramPcs.add(issuePcNameKey);
+        saveReportedTelegramPcs();
+
         const teleAlert = `🚨 <b>NEW UBD BUG REPORT (100% AUTOMATED)</b>\n` +
           `━━━━━━━━━━━━━━━━━━━\n` +
           `🏢 <b>Office:</b> ${officeLocation}\n` +
