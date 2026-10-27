@@ -148,7 +148,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                    string.Format("CPU Information     : {0}\r\n", cpuInfo) +
                    string.Format("RAM Installed       : {0}\r\n", ramInfo) +
                    string.Format("System Drive (C:)   : {0}\r\n", diskSpace) +
-                   string.Format(".NET CLR Runtime    : {0} (Target: .NET Framework 4.8)\r\n", dotNetVer) +
+                   string.Format(".NET CLR Runtime    : {0} (Target: .NET Framework 4.5+)\r\n", dotNetVer) +
                    string.Format("Process Elev. State : {0}\r\n", (isAdmin ? "Administrator (Elevated Rights Active) [OK]" : "Standard User (Elevation Required) [WARNING]")) +
                    "-------------------------------------------------------------------------\r\n" +
                    "PORTAL & SECURITY REGISTRY CONFIGURATION\r\n" +
@@ -170,24 +170,26 @@ namespace EVedhikaUBDDeploymentTool.Engine
     
         public static bool VerifyDscPin(System.Windows.Forms.IWin32Window owner)
         {
+            var store = new System.Security.Cryptography.X509Certificates.X509Store(System.Security.Cryptography.X509Certificates.StoreName.My, System.Security.Cryptography.X509Certificates.StoreLocation.CurrentUser);
             try
             {
-                using (var store = new System.Security.Cryptography.X509Certificates.X509Store(System.Security.Cryptography.X509Certificates.StoreName.My, System.Security.Cryptography.X509Certificates.StoreLocation.CurrentUser))
+                store.Open(System.Security.Cryptography.X509Certificates.OpenFlags.ReadOnly);
+                var certs = store.Certificates;
+                var selected = System.Security.Cryptography.X509Certificates.X509Certificate2UI.SelectFromCollection(
+                    certs, "DSC Token PIN Verification", "దయచేసి మీ DSC సర్టిఫికెట్‌ను ఎంచుకుని OK నొక్కండి, ఆపై టోకెన్ PIN ఎంటర్ చేయండి.",
+                    System.Security.Cryptography.X509Certificates.X509SelectionFlag.SingleSelection);
+                
+                if (selected.Count > 0)
                 {
-                    store.Open(System.Security.Cryptography.X509Certificates.OpenFlags.ReadOnly);
-                    var certs = store.Certificates;
-                    var selected = System.Security.Cryptography.X509Certificates.X509Certificate2UI.SelectFromCollection(
-                        certs, "DSC Token PIN Verification", "దయచేసి మీ DSC సర్టిఫికెట్‌ను ఎంచుకుని OK నొక్కండి, ఆపై టోకెన్ PIN ఎంటర్ చేయండి.",
-                        System.Security.Cryptography.X509Certificates.X509SelectionFlag.SingleSelection);
-                    
-                    if (selected.Count > 0)
-                    {
-                        var key = selected[0].PrivateKey;
-                        return true;
-                    }
+                    var key = selected[0].PrivateKey;
+                    return true;
                 }
             }
             catch { }
+            finally
+            {
+                try { store.Close(); } catch { }
+            }
             return false;
         }
     }
