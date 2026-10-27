@@ -727,8 +727,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         public const string CurrentVersion = "v1.0.8";
         public const int CurrentVersionCode = 10008; // (1 * 10000) + (0 * 100) + 8
-        public const string CurrentResourceBuild = "2026.10.26-R5";
-        public const string ResourceDate = "2026-10-26";
+        public const string CurrentResourceBuild = "2026.10.27-R2";
+        public const string ResourceDate = "2026-10-27";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 

@@ -182,6 +182,14 @@ export const AdminPostPublisherView: React.FC<AdminPostPublisherViewProps> = ({ 
           </button>
           
           <button
+            onClick={() => onOpenPost && onOpenPost('ubd_monitoring')}
+            className="px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs border border-amber-500/40"
+          >
+            <Database className="w-4 h-4" />
+            <span>UBD Setting Manager (Telemetry)</span>
+          </button>
+          
+          <button
             onClick={fetchPosts}
             className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs"
           >

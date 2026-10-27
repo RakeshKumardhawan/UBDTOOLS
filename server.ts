@@ -729,12 +729,12 @@ async function startServer() {
   const TELEGRAM_REPORTED_PCS_FILE = path.join(process.cwd(), 'reported_telegram_pcs.json');
   const reportedTelegramPcs = new Set<string>();
 
-  reportedTelegramPcs.add('EVD-PC-1900-62E8');
-  reportedTelegramPcs.add('1900-62E8');
-  reportedTelegramPcs.add('62E8');
-  reportedTelegramPcs.add('MPO-PC');
-  reportedTelegramPcs.add('UNKNOWN-PC');
-  reportedTelegramPcs.add('UNKNOWN');
+  // reportedTelegramPcs.add('EVD-PC-1900-62E8');
+  // reportedTelegramPcs.add('1900-62E8');
+  // reportedTelegramPcs.add('62E8');
+  // reportedTelegramPcs.add('MPO-PC');
+  // reportedTelegramPcs.add('UNKNOWN-PC');
+  // reportedTelegramPcs.add('UNKNOWN');
 
   try {
     if (fs.existsSync(TELEGRAM_REPORTED_PCS_FILE)) {
@@ -865,7 +865,7 @@ async function startServer() {
       console.log(`[TELEGRAM MASTER OFF] Telegram auto-notifications are turned OFF. Dispatch prevented.`);
       return false;
     }
-    if (body.directTelegramSent === 'true' || body.directTelegramSent === true) return false;
+    // if (body.directTelegramSent === 'true' || body.directTelegramSent === true) return false;
     if (body.suppressTelegram === 'true' || body.suppressTelegram === true) return false;
     if (body.pcAlreadyReported === 'true' || body.pcAlreadyReported === true) return false;
 
@@ -1591,8 +1591,8 @@ async function startServer() {
     releaseNotes: 'v1.0.8 Release: Daily 7 PM Consolidated Excel Report, Full DSC Execution Gate, and 1 PC = 1 Report Anti-Spam Protection.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.10.26-R11',
-    resourceBuildDate: '2026-10-26'
+    latestResourceBuild: '2026.10.27-R2',
+    resourceBuildDate: '2026-10-27'
   };
 
 

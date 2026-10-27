@@ -47,7 +47,7 @@ export const LiveUpdatesView: React.FC = () => {
     try {
       const now = new Date();
       // Re-broadcast the exact same current resource build version as requested by user
-      const currentBuild = versionConfig?.latestResourceBuild || `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}-R11`;
+      const currentBuild = versionConfig?.latestResourceBuild || `${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}-R4`;
       const newDate = now.toISOString().slice(0, 10);
 
       const res = await fetch('/api/version', {

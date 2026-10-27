@@ -25,6 +25,7 @@ import { AdminPostPublisherView } from './components/AdminPostPublisherView';
 import { PostDetailView } from './components/PostDetailView';
 import { GithubDashboardView } from './components/GithubDashboardView';
 import { TelemetryDashboard } from './components/TelemetryDashboard';
+import { UbdSettingManagerView } from './components/UbdSettingManagerView';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
@@ -144,6 +145,12 @@ function MainAppContent() {
         }
       }
 
+      if (path.includes('/admin/ubd_monitoring')) {
+        setSelectedPostSlug('ubd_monitoring');
+        setActiveTab('post-detail');
+        return;
+      }
+
       // 2. Check search params
       const params = new URLSearchParams(window.location.search);
       const slugParam = params.get('slug') || params.get('postId');
@@ -195,7 +202,11 @@ function MainAppContent() {
     setIsMobileMenuOpen(false);
     try {
       const url = new URL(window.location.href);
-      url.pathname = `/home/post/${slug}`;
+      if (slug === 'ubd_monitoring') {
+        url.pathname = `/admin/ubd_monitoring`;
+      } else {
+        url.pathname = `/home/post/${slug}`;
+      }
       url.searchParams.delete('tab');
       window.history.pushState({}, '', url.toString());
     } catch { }
@@ -211,7 +222,11 @@ function MainAppContent() {
       } else if (tab === 'posts') {
         url.searchParams.set('tab', 'admin/post');
       } else if (tab === 'post-detail') {
-        url.pathname = `/home/post/${selectedPostSlug}`;
+        if (selectedPostSlug === 'ubd_monitoring') {
+          url.pathname = `/admin/ubd_monitoring`;
+        } else {
+          url.pathname = `/home/post/${selectedPostSlug}`;
+        }
         url.searchParams.delete('tab');
       } else {
         url.searchParams.set('tab', tab);
@@ -547,7 +562,7 @@ Final Handshake: Verified
 📌 Remarks & Portals
 Remarks: 17/17 Deployment steps executed and verified with zero manual clicks!
 Target Portal: ${selectedProfile.url}
-Central Live Dashboard: https://www.e-vedhika.in/admin/exe_ubd_live
+Central Live Dashboard: https://www.e-vedhika.in/admin/ubd_monitoring
 Report Timestamp: ${reportDate}
 `;
 
@@ -672,11 +687,15 @@ Report Timestamp: ${reportDate}
           {activeTab === 'github-dashboard' && <GithubDashboardView />}
           {activeTab === 'posts' && <AdminPostPublisherView onOpenPost={openPostDetail} />}
           {activeTab === 'post-detail' && (
-            <PostDetailView
-              onBack={() => changeTab('posts')}
-              setActiveTab={changeTab}
-              slug={selectedPostSlug}
-            />
+            selectedPostSlug === 'ubd_monitoring' ? (
+              <UbdSettingManagerView />
+            ) : (
+              <PostDetailView
+                onBack={() => changeTab('posts')}
+                setActiveTab={changeTab}
+                slug={selectedPostSlug}
+              />
+            )
           )}
           {activeTab === 'deploy' && (
             <DeployView
