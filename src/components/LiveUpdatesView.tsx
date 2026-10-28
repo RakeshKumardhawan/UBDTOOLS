@@ -100,7 +100,7 @@ export const LiveUpdatesView: React.FC = () => {
       <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Current Build Info */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col justify-between">
               <div className="flex justify-between items-start mb-4">
                 <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
@@ -109,7 +109,7 @@ export const LiveUpdatesView: React.FC = () => {
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Software Version</span>
               </div>
               <div>
-                <div className="text-2xl font-black text-slate-900">{versionConfig?.latestVersion || 'v1.0.7'}</div>
+                <div className="text-2xl font-black text-slate-900">{versionConfig?.latestVersion || 'v1.0.8'}</div>
                 <p className="text-[10px] text-slate-500 mt-1">Requires Restart for Update</p>
               </div>
             </div>
@@ -122,8 +122,23 @@ export const LiveUpdatesView: React.FC = () => {
                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Live Resource Build</span>
               </div>
               <div>
-                <div className="text-2xl font-black text-emerald-900">{versionConfig?.latestResourceBuild || '2026.10.25-R1'}</div>
+                <div className="text-2xl font-black text-emerald-900">{versionConfig?.latestResourceBuild || '2026.10.28-R1'}</div>
                 <p className="text-[10px] text-emerald-600/70 mt-1">Applied Background (No Restart)</p>
+              </div>
+            </div>
+
+            <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 flex flex-col justify-between">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Unique Installs</span>
+              </div>
+              <div>
+                <div className="text-2xl font-black text-indigo-900 font-mono">
+                  {localStorage.getItem('evedhika_installation_count') || '0'}
+                </div>
+                <p className="text-[10px] text-indigo-600/70 mt-1">Verified Unique PCs</p>
               </div>
             </div>
           </div>

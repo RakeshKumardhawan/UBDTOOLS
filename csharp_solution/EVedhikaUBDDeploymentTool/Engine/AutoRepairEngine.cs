@@ -266,6 +266,26 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback("[Audit Repair] SignatureDemoLib check error: " + ex.Message);
             }
 
+            // 4c. Verify Microsoft Edge presence and trigger auto-install/update if missing or outdated
+            try
+            {
+                EdgeManagementEngine.EnsureEdgeInstalledAndUpdated(logCallback);
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback("[Audit Repair] Edge check/install notice: " + ex.Message);
+            }
+
+            // 4d. Wake up sleeping USB DSC Token Drivers & SmartCard Services
+            try
+            {
+                DriverInstaller.WakeUpAndKeepDriversAlive(logCallback);
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback("[Audit Repair] Driver wakeup notice: " + ex.Message);
+            }
+
             // 5. POST-REPAIR VERIFICATION STEP (Strict 10-Step Workflow)
             string postRepairVerification = "N/A";
             string postRepairStatus = "HEALTHY";

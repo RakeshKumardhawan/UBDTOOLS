@@ -29,6 +29,7 @@ import { UbdSettingManagerView } from './components/UbdSettingManagerView';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
+import { getDeviceHardwareIdentity } from './utils/hardwareIdentity';
 
 import { 
   NavigationTab, 
@@ -133,8 +134,25 @@ function MainAppContent() {
   // Sync tab from URL search parameters on load & popstate
   React.useEffect(() => {
     const handleUrlTab = () => {
-      // 1. Check pathname (e.g., /home/post/ubd-setting-issues-one-click-all-in-one-setup or /post/...)
-      const path = window.location.pathname;
+      const path = window.location.pathname.toLowerCase();
+      
+      // 1. Check for Telemetry / UBD Monitoring path variations
+      if (
+        path.includes('telemetry') || 
+        path.includes('monitoring') || 
+        path.includes('ubd_monitoring') || 
+        path.includes('ubdlivemonitoring') || 
+        path.includes('/admin/ubd') ||
+        path.includes('/admin/telemetry') ||
+        path.includes('/admin/monitoring') ||
+        path.includes('telemetry-dashboar') ||
+        path.includes('telemetry-dashboard')
+      ) {
+        setActiveTab('telemetry-dashboard');
+        return;
+      }
+
+      // 2. Check for Blog Post routes
       if (path.includes('/post/')) {
         const parts = path.split('/post/');
         if (parts[1]) {
@@ -145,16 +163,10 @@ function MainAppContent() {
         }
       }
 
-      if (path.includes('/admin/ubd_monitoring')) {
-        setSelectedPostSlug('ubd_monitoring');
-        setActiveTab('post-detail');
-        return;
-      }
-
-      // 2. Check search params
+      // 3. Check search params & tab parameters
       const params = new URLSearchParams(window.location.search);
       const slugParam = params.get('slug') || params.get('postId');
-      if (slugParam) {
+      if (slugParam && !path.includes('monitoring') && !path.includes('telemetry')) {
         setSelectedPostSlug(slugParam);
         setActiveTab('post-detail');
         return;
@@ -164,12 +176,13 @@ function MainAppContent() {
       if (tabParam) {
         const normalized = tabParam.toLowerCase();
         if (
-          normalized === 'admin/ubdlivemonitoring' || 
+          normalized.includes('monitoring') ||
+          normalized.includes('telemetry') ||
+          normalized === 'ubd_monitoring' ||
           normalized === 'ubdlivemonitoring' || 
-          normalized === 'telemetry' || 
           normalized === 'livemonitoring'
         ) {
-          setActiveTab('backups');
+          setActiveTab('telemetry-dashboard');
         } else if (
           normalized === 'admin/post' ||
           normalized === 'admin/posts' ||
@@ -184,7 +197,7 @@ function MainAppContent() {
         } else if ([
           'dashboard', 'posts', 'post-detail', 'deploy', 'csharp', 'repair', 'diagnostics', 'remote',
           'drivers', 'browser', 'registry', 'auditor', 'dsc', 'ai', 
-          'downloads', 'backups', 'pcboost', 'settings', 'help', 'about'
+          'downloads', 'backups', 'pcboost', 'settings', 'help', 'about', 'telemetry-dashboard'
         ].includes(normalized)) {
           setActiveTab(normalized as NavigationTab);
         }
@@ -337,6 +350,7 @@ function MainAppContent() {
           diskSpace: '120GB Free',
           cpuInfo: 'Intel(R) Core(TM) i5-12500H',
           ipAddress: '183.82.98.11',
+          deviceInstallationId: getDeviceHardwareIdentity().deviceInstallationId,
           detailedSteps: {
             step1: 'Active',
             step2: envStatus.dotNet35Installed ? 'Installed' : 'Repaired',
@@ -518,10 +532,12 @@ function MainAppContent() {
     const diskInfo = '120 GB Free';
     const cpuInfo = 'Intel(R) Core(TM) i5-12500H';
     const ipInfo = '183.82.98.11';
+    const deviceId = getDeviceHardwareIdentity().deviceInstallationId;
     
     const reportText = `📋 E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🖥️ Machine & Office Details
+Installation ID: ${deviceId}
 Machine IDs: ${pcId}
 Office Locations: ${selectedProfile.name} (Panchayat Office)
 PC Name: E-VEDHIKA-WEB-CLIENT
@@ -582,9 +598,9 @@ Report Timestamp: ${reportDate}
     const webhookUrl = localStorage.getItem('webhook_url');
     if (webhookUrl) {
       const reportJson = {
-        id: `audit_${Date.now()}`,
         timestamp: new Date().toISOString(),
         profile: selectedProfile.name,
+        deviceInstallationId: deviceId,
         deploySteps: latestSteps.map(s => ({ id: s.id, status: s.status, title: s.title })),
         logs: latestLogs
       };

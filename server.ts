@@ -185,113 +185,24 @@ async function startServer() {
     activeIssue: ActiveIssueRecord | null;
     issueHistory: ActiveIssueRecord[];
     lastTelegramAlertEpoch: number;
+    deviceInstallationId?: string;
   }
 
   const consolidatedMachineStore = new Map<string, ConsolidatedMachineRecord>();
 
-  if (fs.existsSync(CONSOLIDATED_HEALTH_FILE_PATH)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(CONSOLIDATED_HEALTH_FILE_PATH, 'utf8'));
-      if (Array.isArray(data)) {
-        data.forEach(item => {
-          if (item.pcId) consolidatedMachineStore.set(item.pcId, item);
-        });
-      }
-    } catch (e) {
-      console.warn('[CONSOLIDATED HEALTH] Failed to load consolidated_health.json:', e);
-    }
+  const consolidatedHealth = safeReadJson(CONSOLIDATED_HEALTH_FILE_PATH, null) || 
+                             safeReadJson(path.join(process.cwd(), 'public', 'admin', 'pc_consolidated_health.json'), null) ||
+                             safeReadJson(path.join(process.cwd(), 'public', 'consolidated_health.json'), []);
+
+  if (Array.isArray(consolidatedHealth)) {
+    consolidatedHealth.forEach(item => {
+      if (item.pcId) consolidatedMachineStore.set(item.pcId, item);
+    });
+    console.log(`[CONSOLIDATED HEALTH] Loaded ${consolidatedMachineStore.size} machine records from disk.`);
   }
 
   if (consolidatedMachineStore.size === 0) {
-    const sampleMachines: ConsolidatedMachineRecord[] = [
-      {
-        pcId: 'EVD-TS-4A9B-12EF',
-        pcName: 'TS-GP-KHAMMAM-01',
-        userName: 'Srinivas Rao (Panchayat Secretary)',
-        officeLocation: 'Khammam Urban Grama Panchayat Office',
-        district: 'Khammam',
-        state: 'Telangana',
-        osVersion: 'Windows 11 Pro (64-Bit)',
-        winBuild: '10.0.22631',
-        appVersion: 'v1.0.8',
-        machineIdentifier: 'EVD-TS-4A9B-12EF',
-        firstSeen: new Date(Date.now() - 3600000 * 24).toISOString().replace('T', ' ').slice(0, 19),
-        lastSeenEpoch: Date.now(),
-        lastTelemetryUpdate: new Date().toISOString().replace('T', ' ').slice(0, 19),
-        overallStatus: 'HEALTHY',
-        deployment: {
-          totalSteps: 17,
-          verifiedSteps: 17,
-          failedSteps: 0,
-          skippedSteps: 0,
-          verificationPercentage: 100,
-          failedStepNames: [],
-          lastDeploymentTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          deployResult: 'SUCCESS',
-          deployProfile: '17/17 Telangana UBD Guardian Profile'
-        },
-        technicalHealth: {
-          edgeVersion: 'Edge 128.0 (64-Bit)',
-          edgeIeModeStatus: 'PASS',
-          sitesXmlStatus: 'PASS',
-          registryPoliciesStatus: 'PASS',
-          ubdWebsiteStatus: 'PASS',
-          dotNetStatus: 'PASS',
-          internetConnectivity: 'PASS',
-          digiSignerStatus: 'PASS',
-          dscDriverStatus: 'PASS',
-          dscTokenConnected: 'PASS',
-          certValidity: 'PASS'
-        },
-        activeIssue: null,
-        issueHistory: [],
-        lastTelegramAlertEpoch: 0
-      },
-      {
-        pcId: 'EVD-AP-88F3-90CC',
-        pcName: 'AP-GP-VIZAG-02',
-        userName: 'Venkatesh (Panchayat Operator)',
-        officeLocation: 'Bheemunipatnam Mandal Office, Visakhapatnam',
-        district: 'Visakhapatnam',
-        state: 'Andhra Pradesh',
-        osVersion: 'Windows 10 Pro (64-Bit)',
-        winBuild: '10.0.19045',
-        appVersion: 'v1.0.8',
-        machineIdentifier: 'EVD-AP-88F3-90CC',
-        firstSeen: new Date(Date.now() - 3600000 * 12).toISOString().replace('T', ' ').slice(0, 19),
-        lastSeenEpoch: Date.now(),
-        lastTelemetryUpdate: new Date().toISOString().replace('T', ' ').slice(0, 19),
-        overallStatus: 'HEALTHY',
-        deployment: {
-          totalSteps: 17,
-          verifiedSteps: 17,
-          failedSteps: 0,
-          skippedSteps: 0,
-          verificationPercentage: 100,
-          failedStepNames: [],
-          lastDeploymentTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          deployResult: 'SUCCESS',
-          deployProfile: '17/17 Andhra Pradesh UBD Guardian Profile'
-        },
-        technicalHealth: {
-          edgeVersion: 'Edge 128.0 (64-Bit)',
-          edgeIeModeStatus: 'PASS',
-          sitesXmlStatus: 'PASS',
-          registryPoliciesStatus: 'PASS',
-          ubdWebsiteStatus: 'PASS',
-          dotNetStatus: 'PASS',
-          internetConnectivity: 'PASS',
-          digiSignerStatus: 'PASS',
-          dscDriverStatus: 'PASS',
-          dscTokenConnected: 'PASS',
-          certValidity: 'PASS'
-        },
-        activeIssue: null,
-        issueHistory: [],
-        lastTelegramAlertEpoch: 0
-      }
-    ];
-    sampleMachines.forEach(m => consolidatedMachineStore.set(m.pcId, m));
+    // Clean initial state with zero dummy machines as requested by user
   }
 
   const saveConsolidatedHealthStore = () => {
@@ -320,16 +231,24 @@ async function startServer() {
     const totalSteps = 17;
 
     let pcId = body.pcId;
+    const deviceInstallationId = body.deviceInstallationId || body.installationId;
+    
     if (!pcId) {
-      const rawSeed = `${pcName}_${userName}_${officeLoc}`;
-      let hash = 0;
-      for (let i = 0; i < rawSeed.length; i++) {
-        hash = (hash << 5) - hash + rawSeed.charCodeAt(i);
-        hash |= 0;
+      if (deviceInstallationId) {
+        pcId = deviceInstallationId;
+      } else {
+        // Prioritize hardware identifiers for truly unique PC ID
+        const hwId = body.hardwareUuid || body.uuid || body.macAddress || body.mac;
+        const rawSeed = hwId ? `${hwId}_${pcName}` : `${pcName}_${userName}_${officeLoc}`;
+        let hash = 0;
+        for (let i = 0; i < rawSeed.length; i++) {
+          hash = (hash << 5) - hash + rawSeed.charCodeAt(i);
+          hash |= 0;
+        }
+        const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+        const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
+        pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4)}`;
       }
-      const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
-      const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
-      pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4)}`;
     }
 
     const nowEpoch = Date.now();
@@ -378,10 +297,13 @@ async function startServer() {
         },
         activeIssue: null,
         issueHistory: [],
-        lastTelegramAlertEpoch: 0
+        lastTelegramAlertEpoch: 0,
+        deviceInstallationId: deviceInstallationId
       };
       consolidatedMachineStore.set(pcId, record);
     }
+
+    if (deviceInstallationId) record.deviceInstallationId = deviceInstallationId;
 
     record.pcName = pcName;
     record.userName = userName;
@@ -754,7 +676,7 @@ async function startServer() {
   // Persistent PC Allow / Block (Mute) Store for Telegram Alerts
   const TELEGRAM_PC_FILTERS_PATH = path.join(process.cwd(), 'telegram_pc_filters.json');
   let telegramPcFilters = {
-    blockedPcs: ['EVD-PC-1900-62E8', 'MPO-PC', '62E8', '1900-62E8'],
+    blockedPcs: [] as string[],
     allowedPcs: [] as string[]
   };
 
@@ -855,7 +777,7 @@ async function startServer() {
       `📌 <b>Remarks.i.e ...</b>\n` +
       `<b>Remarks:</b> ${newRecord.remarks || (isFail ? 'Audit checks failed. Please inspect.' : '17/17 Deployment steps executed and verified with zero manual clicks!')}\n` +
       `<b>Target Portal:</b> ${targetPortal}\n` +
-      `<b>Central Live Dashboard:</b> https://www.e-vedhika.in\n` +
+      `<b>Central Live Dashboard:</b> https://www.e-vedhika.in/admin/ubd_monitoring\n` +
       `<b>Report Timestamp:</b> ${formattedTimestamp}`;
   };
 
@@ -872,25 +794,27 @@ async function startServer() {
     const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
     const pcNameKey = String(record.pcName || '').toUpperCase().trim();
 
-    // ABSOLUTE HARDCODED BLOCK FOR 62E8 / MPO-PC / UNKNOWN-PC
-    if (pcKey.includes('62E8') || pcKey.includes('1900-62E8') || pcKey.includes('MPO-PC') || pcKey.includes('UNKNOWN-PC') ||
-        pcNameKey.includes('62E8') || pcNameKey.includes('MPO-PC') || pcNameKey.includes('UNKNOWN-PC') ||
-        telegramPcFilters.blockedPcs.some(b => b && (pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase())))) {
-      console.log(`[ABSOLUTE BLOCK 62E8 / MPO-PC / UNKNOWN] PC ${pcKey} is blocked. Telegram dispatch completely prevented.`);
+    // HARDCODED BLOCK REMOVED - Allowing all PCs for testing as per user request
+    if (telegramPcFilters.blockedPcs.some(b => b && (pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase())))) {
+      console.log(`[ABSOLUTE BLOCK] PC ${pcKey} is blocked in settings. Telegram dispatch prevented.`);
       return false;
     }
 
-    // STRICT ABSOLUTE 1 PC = 1 TELEGRAM REPORT EVER (NO REPEATS, NO SPAM)
+    // STRICT 1-REPORT-PER-PC EVER RULE
     if (reportedTelegramPcs.has(pcKey) || (pcNameKey && reportedTelegramPcs.has(pcNameKey))) {
-      console.log(`[TELEGRAM STRICT 1-REPORT-PER-PC] PC ${pcKey} (${pcNameKey}) already reported to Telegram. Suppressed duplicate spam.`);
+      console.log(`[STRICT 1-REPORT-PER-PC] PC ${pcKey} has already dispatched its 1 official Telegram report. Suppressed duplicate.`);
       return false;
     }
 
-    // PERMANENTLY MARK THIS PC AS REPORTED IMMEDIATELY BEFORE DISPATCHING (1 PC = 1 REPORT EVER)
+    const now = Date.now();
+    lastTelegramSentPerPc.set(pcKey, now);
+    if (pcNameKey) lastTelegramSentPerPc.set(pcNameKey, now);
+    
     reportedTelegramPcs.add(pcKey);
     if (pcNameKey) reportedTelegramPcs.add(pcNameKey);
+    
     saveReportedTelegramPcs();
-    console.log(`[TELEGRAM DISPATCH] First & only official report dispatched for PC ${pcKey}. Permanently locked.`);
+    console.log(`[TELEGRAM DISPATCH] Official initial report dispatched for PC ${pcKey}.`);
     return true;
   };
 
@@ -901,11 +825,10 @@ async function startServer() {
       return { success: false, message: 'Telegram globally disabled in settings.' };
     }
 
-    // FAIL-SAFE 2: Absolute block for 62E8 / MPO-PC / UNKNOWN-PC / blocked PCs
+    // FAIL-SAFE 2: Block only if explicitly in blockedPcs list
     const upperText = (text || '').toUpperCase();
-    if (upperText.includes('62E8') || upperText.includes('1900-62E8') || upperText.includes('MPO-PC') || upperText.includes('UNKNOWN-PC') ||
-        telegramPcFilters.blockedPcs.some(b => b && upperText.includes(b.toUpperCase()))) {
-      console.log('[TELEGRAM FAIL-SAFE DROP] Blocked PC detected in message text. Message NOT dispatched to Telegram.');
+    if (telegramPcFilters.blockedPcs.some(b => b && upperText.includes(b.toUpperCase()))) {
+      console.log('[TELEGRAM FAIL-SAFE DROP] Blocked PC detected in message text.');
       return { success: false, message: 'PC is blocked from Telegram alerts.' };
     }
 
@@ -1997,12 +1920,10 @@ async function startServer() {
       // Generate or retrieve persistent Unique Machine/PC ID
       let pcId = body.pcId;
       if (!pcId) {
-        const rawSeed = `${body.pcName || 'PC'}_${body.userName || 'USER'}_${officeLoc}`;
+        const hwId = body.hardwareUuid || body.uuid || body.macAddress || body.mac;
+        const rawSeed = hwId ? `${hwId}_${body.pcName || 'PC'}` : `${body.pcName || 'PC'}_${body.userName || 'USER'}_${officeLoc}`;
         let hash = 0;
-        for (let i = 0; i < rawSeed.length; i++) {
-          hash = (hash << 5) - hash + rawSeed.charCodeAt(i);
-          hash |= 0;
-        }
+        for (let i = 0; i < rawSeed.length; i++) { hash = (hash << 5) - hash + rawSeed.charCodeAt(i); hash |= 0; }
         const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
         const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
         pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4)}`;
@@ -2047,7 +1968,12 @@ async function startServer() {
 
       telemetryLogsStore.unshift(newRecord);
       saveTelemetryLogs();
-      try { processConsolidatedTelemetry(body); } catch (e) {}
+      try { 
+        processConsolidatedTelemetry(body);
+        saveConsolidatedHealthStore(); 
+      } catch (e) {
+        console.error('[TELEMETRY] Error processing consolidated telemetry:', e);
+      }
       
       console.log(`[CENTRAL TELEMETRY RECEIVED] ${newRecord.pcName} (${newRecord.userName}) -> ${newRecord.status}`);
 

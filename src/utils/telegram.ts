@@ -14,6 +14,8 @@ export interface DeploymentSummaryPayload {
   ipAddress?: string;
   detailedSteps?: Record<string, string>;
   version?: string;
+  deviceInstallationId?: string;
+  errorLogs?: string[];
 }
 
 // Buffering and Batching Queue to prevent spamming Telegram chat with multiple messages
@@ -74,6 +76,7 @@ async function dispatchSingleConsolidatedMessage(summary: DeploymentSummaryPaylo
   const message = `📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
     `🖥️ <b>Machine & Office Details</b>\n` +
+    `<b>Installation ID:</b> <code>${summary.deviceInstallationId || 'INST-UNKNOWN'}</code>\n` +
     `<b>Machine IDs:</b> <code>${summary.pcId || 'EVD-PC-1E41'}</code>\n` +
     `<b>Office Locations:</b> ${summary.profileName || 'Gram Panchayat Office (Telangana)'}\n` +
     `<b>PC Name:</b> <code>${summary.pcName || 'GP-OFFICE-PC'}</code>\n` +
@@ -110,16 +113,38 @@ async function dispatchSingleConsolidatedMessage(summary: DeploymentSummaryPaylo
     `18. 90+ Parameters Report: Passed (90/90 Healthy)\n\n` +
     `📌 <b>Remarks.i.e ...</b>\n` +
     `<b>Remarks:</b> ${summary.remarks || '17/17 Deployment steps executed and verified with zero manual clicks!'}\n` +
-    `<b>Target Portal:</b> ${targetPortal}\n` +
+    (summary.errorLogs && summary.errorLogs.length > 0 ? `\n⚠️ <b>Recent Error Logs:</b>\n<code>${summary.errorLogs.slice(-5).join('\n')}</code>\n` : '') +
+    `\n<b>Target Portal:</b> ${targetPortal}\n` +
     `<b>Central Live Dashboard:</b> https://www.e-vedhika.in\n` +
     `<b>Report Timestamp:</b> ${timestamp}`;
-
   try {
+    // Dispatch to Telegram
     const res = await fetch('/api/telegram-notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message })
     });
+    
+    // Also dispatch to Central Telemetry Server to ensure it's counted in Dashboard
+    try {
+      await fetch('/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pcId: summary.pcId || 'EVD-WEB-CLIENT',
+          pcName: summary.pcName || 'E-VEDHIKA-WEB-CLIENT',
+          userName: 'Web User',
+          officeLocation: summary.profileName || 'Web Portal Client',
+          status: summary.status || 'SUCCESS',
+          deviceInstallationId: summary.deviceInstallationId,
+          healthScore: passRate,
+          version: version,
+          remarks: summary.remarks || 'Web-based deployment completed.',
+          isWebClient: true
+        })
+      });
+    } catch (e) {}
+
     const data = await res.json();
     return data.success;
   } catch (err) {

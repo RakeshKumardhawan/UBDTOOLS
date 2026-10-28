@@ -19,7 +19,8 @@ import {
   Layers,
   Share2,
   Eye,
-  BookOpen
+  BookOpen,
+  Database
 } from 'lucide-react';
 import { useToast } from './Toast';
 

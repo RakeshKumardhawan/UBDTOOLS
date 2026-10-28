@@ -5,6 +5,7 @@ import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
 import { LiveAnnouncementWidget } from './LiveAnnouncementWidget';
 import { LiveUpdatesView } from './LiveUpdatesView';
 import { ReleaseNotes } from './ReleaseNotes';
+import { InstallationCounter } from './InstallationCounter';
 
 interface DashboardViewProps {
   envStatus: EnvironmentStatus;
@@ -40,9 +41,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Hero Section */}
       <div className="mb-8 sm:mb-12 lg:mb-14">
         <p className="label text-accent mb-2 sm:mb-3 tracking-widest">[ SYSTEM_V1.0.2 - TELANGANA PR&RD ]</p>
-        <h2 className="font-syne text-[clamp(1.85rem,4.8vw,3.6rem)] leading-[1.05] sm:leading-[0.95] tracking-[-0.04em] mb-4 sm:mb-6">
-          ALL PROBLEMS,<br />ONE SOLUTION.
-        </h2>
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-4 mb-4 sm:mb-6">
+          <h2 className="font-syne text-[clamp(1.85rem,4.8vw,3.6rem)] leading-[1.05] sm:leading-[0.95] tracking-[-0.04em]">
+            ALL PROBLEMS,<br />ONE SOLUTION.
+          </h2>
+          <div className="shrink-0 scale-110 origin-right">
+            <InstallationCounter />
+          </div>
+        </div>
         <p className="max-w-[560px] text-xs sm:text-sm md:text-base leading-relaxed text-ink-medium">
           Enterprise-grade WinForms deployment framework for Telangana Grama Panchayath & Mandal operations. 
           Automated ActiveX policies, USB token PKCS#11 drivers, and UBD IE5 Quirks Mode integration.

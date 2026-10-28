@@ -604,6 +604,82 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        /// <summary>
+        /// Prevents USB DSC drivers and SmartCard readers from "sleeping" or going into idle/power-saving state.
+        /// Disables USB Selective Suspend in Windows Power Scheme, sets SmartCard services to Automatic,
+        /// forces a Plug-and-Play device rescan (pnputil /scan-devices), and pulses certificate propagation.
+        /// </summary>
+        public static bool WakeUpAndKeepDriversAlive(Action<string> logCallback = null)
+        {
+            try
+            {
+                if (logCallback != null) logCallback("[DRIVERS WAKEUP] Waking up sleeping USB DSC Token drivers and SmartCard services...");
+
+                // 1. Disable USB Selective Suspend in Windows Power Policies so USB Hubs never go to sleep
+                try
+                {
+                    using (var p = Process.Start(new ProcessStartInfo { FileName = "powercfg", Arguments = "/SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e66447-4a86-42a9-87d1-e51097825b4b 0", CreateNoWindow = true, UseShellExecute = false })) { p?.WaitForExit(2000); }
+                    using (var p = Process.Start(new ProcessStartInfo { FileName = "powercfg", Arguments = "/SETACTIVE SCHEME_CURRENT", CreateNoWindow = true, UseShellExecute = false })) { p?.WaitForExit(2000); }
+
+                    using (var usbKey = Registry.LocalMachine.CreateSubKey(@"SYSTEM\CurrentControlSet\Services\USB"))
+                    {
+                        if (usbKey != null)
+                        {
+                            usbKey.SetValue("DisableSelectiveSuspend", 1, RegistryValueKind.DWord);
+                        }
+                    }
+                    if (logCallback != null) logCallback("[DRIVERS WAKEUP] USB Selective Suspend Power-Saving Disabled (Drivers stay awake 24x7).");
+                }
+                catch (Exception ex)
+                {
+                    if (logCallback != null) logCallback($"[DRIVERS WAKEUP] USB power policy notice: {ex.Message}");
+                }
+
+                // 2. Set SmartCard Services to Automatic & Start them immediately
+                string[] targetServices = new string[] { "SCardSvr", "CertPropSvc", "ScDeviceEnum", "PlugPlay" };
+                foreach (string svc in targetServices)
+                {
+                    try
+                    {
+                        using (var pCfg = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = $"config {svc} start= auto", CreateNoWindow = true, UseShellExecute = false })) { pCfg?.WaitForExit(1500); }
+                        using (var pStart = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = $"start {svc}", CreateNoWindow = true, UseShellExecute = false })) { pStart?.WaitForExit(1500); }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[DRIVERS WAKEUP] SmartCard & CertPropSvc services forced to Automatic and Active.");
+
+                // 3. Force Windows Plug-and-Play Device Rescan to wake up USB Token dongles immediately
+                try
+                {
+                    using (var pPnp = Process.Start(new ProcessStartInfo { FileName = "pnputil", Arguments = "/scan-devices", CreateNoWindow = true, UseShellExecute = false }))
+                    {
+                        pPnp?.WaitForExit(3000);
+                    }
+                    if (logCallback != null) logCallback("[DRIVERS WAKEUP] Windows Plug-and-Play Rescan executed (PnP Devices Awakened).");
+                }
+                catch { }
+
+                // 4. Force Certificate Propagation Pulse so Windows reads DSC Token Certificates into Personal Store
+                try
+                {
+                    using (var pCert = Process.Start(new ProcessStartInfo { FileName = "certutil", Arguments = "-pulse", CreateNoWindow = true, UseShellExecute = false }))
+                    {
+                        pCert?.WaitForExit(2000);
+                    }
+                    if (logCallback != null) logCallback("[DRIVERS WAKEUP] Certificate Propagation Pulsed (DSC Token Certificates Synchronized).");
+                }
+                catch { }
+
+                RegisterSmartCardAndCspProviders();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[DRIVERS WAKEUP ERROR] Wakeup notice: {ex.Message}");
+                return false;
+            }
+        }
+
 
         public static bool InstallWDProxKeySilent()
         {

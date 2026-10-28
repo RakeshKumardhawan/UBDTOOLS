@@ -69,16 +69,43 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             try
             {
-                return SystemInfoHelper.GetHardwareMachineFingerprint();
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                string idFile = Path.Combine(dir, "install_id.txt");
+
+                if (File.Exists(idFile))
+                {
+                    string savedId = File.ReadAllText(idFile).Trim();
+                    if (!string.IsNullOrEmpty(savedId) && savedId.Length > 10) return savedId;
+                }
+
+                string newId = SystemInfoHelper.GetHardwareMachineFingerprint();
+                File.WriteAllText(idFile, newId);
+                return newId;
             }
             catch
             {
-                string pcName = Environment.MachineName ?? "PC";
-                string userName = Environment.UserName ?? "USER";
-                string compositeSeed = $"{pcName}_{userName}";
-                int hash = Math.Abs(compositeSeed.GetHashCode());
-                string hex = hash.ToString("X8");
-                return $"EVD-PC-{hex.Substring(0, 4)}-{hex.Substring(4)}";
+                try
+                {
+                    string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                    string idFile = Path.Combine(dir, "install_id.txt");
+                    
+                    string pcName = Environment.MachineName ?? "PC";
+                    string userName = Environment.UserName ?? "USER";
+                    string compositeSeed = $"{pcName}_{userName}_{Guid.NewGuid()}";
+                    int hash = Math.Abs(compositeSeed.GetHashCode());
+                    string hex = hash.ToString("X8");
+                    string newId = $"EVD-PC-{hex.Substring(0, 4)}-{hex.Substring(4)}";
+                    
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    File.WriteAllText(idFile, newId);
+                    return newId;
+                }
+                catch
+                {
+                    string pcName = Environment.MachineName ?? "PC";
+                    return $"EVD-PC-{pcName.ToUpper()}-FALLBACK";
+                }
             }
         }
 
@@ -441,7 +468,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine("📌 <b>Remarks.i.e ...</b>");
             sb.AppendLine($"<b>Remarks:</b> {EscapeTelegramHtml(remarks)}");
             sb.AppendLine($"<b>Target Portal:</b> {targetPortal}");
-            sb.AppendLine("<b>Central Live Dashboard:</b> https://www.e-vedhika.in");
+            sb.AppendLine("<b>Central Live Dashboard:</b> https://www.e-vedhika.in/admin/ubd_monitoring");
             sb.AppendLine($"<b>Report Timestamp:</b> {timestamp}");
 
             return sb.ToString();

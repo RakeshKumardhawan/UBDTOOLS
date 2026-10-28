@@ -3,7 +3,7 @@ import {
   Activity, ShieldCheck, Cpu, HardDrive, Search, Filter, RefreshCw, 
   Download, CheckCircle2, AlertTriangle, XCircle, ChevronRight, 
   BarChart2, PieChart as PieChartIcon, Monitor, Wifi, Key, ExternalLink,
-  Info, Lock, Layers, LayoutGrid, ClipboardList, Database, Wrench
+  Info, Lock, Layers, LayoutGrid, ClipboardList, Database, Wrench, Users
 } from 'lucide-react';
 import { useToast } from './Toast';
 import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
@@ -41,16 +41,18 @@ export const UbdSettingManagerView: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [activeBox, setActiveBox] = useState<'inventory' | 'hardware' | 'policies' | 'dsc'>('inventory');
+  const [activeBox, setActiveBox] = useState<'inventory' | 'hardware' | 'policies' | 'dsc' | 'activity'>('inventory');
 
   const localHw = getDeviceHardwareIdentity();
 
   const fetchTelemetryData = async () => {
     setRefreshing(true);
     try {
-      const res = await fetch('/public/consolidated_health.json');
+      // Fetch from live API instead of static JSON file
+      const res = await fetch('/api/consolidated-health');
       if (res.ok) {
-        const data = await res.json();
+        const json = await res.json();
+        const data = json.machines || [];
         if (Array.isArray(data)) {
           const mapped: MachineRecord[] = data.map((item: any) => ({
             pcId: item.pcId || item.machineIdentifier || 'EVD-PC-UNKNOWN',
@@ -93,18 +95,25 @@ export const UbdSettingManagerView: React.FC = () => {
 
   useEffect(() => {
     fetchTelemetryData();
+    // Auto refresh every 30 seconds
+    const interval = setInterval(fetchTelemetryData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredRecords = records.filter(r => 
     r.pcName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.officeLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.userName.toLowerCase().includes(searchTerm.toLowerCase())
+    r.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.pcId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const uniqueMachines = Array.from(new Map(records.map(r => [r.pcId, r])).values());
   const stats = {
-    total: records.length,
-    healthy: records.filter(r => r.status === 'SUCCESS').length,
-    issues: records.filter(r => r.status !== 'SUCCESS').length
+    total: uniqueMachines.length,
+    healthy: uniqueMachines.filter(r => r.status === 'SUCCESS').length,
+    issues: uniqueMachines.filter(r => r.status !== 'SUCCESS').length,
+    today: uniqueMachines.filter(r => r.date === todayStr).length
   };
 
   return (
@@ -145,7 +154,10 @@ export const UbdSettingManagerView: React.FC = () => {
           </button>
           
           <button
-            onClick={() => showSuccess('Excel రిపోర్ట్ డౌన్‌లోడ్ అవుతోంది...', 'Exporting')}
+            onClick={() => {
+              window.open('/api/reports/download-excel', '_blank');
+              showSuccess('Excel రిపోర్ట్ డౌన్‌లోడ్ అవుతోంది...', 'Exporting');
+            }}
             className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
           >
             <Download className="w-4 h-4" />
@@ -155,14 +167,27 @@ export const UbdSettingManagerView: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl p-5 shadow-lg text-white flex items-center gap-4 relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 transition-transform group-hover:scale-110">
+            <Monitor className="w-24 h-24" />
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Users className="w-6 h-6" />
+          </div>
+          <div className="relative z-10">
+            <div className="text-[0.65rem] font-bold text-indigo-100 uppercase tracking-widest">మొత్తం ఇన్స్టాలేషన్లు (Total Unique Installs)</div>
+            <div className="text-3xl font-black font-mono leading-tight">{stats.total}</div>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
-            <Monitor className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+            <RefreshCw className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">మొత్తం PCలు (Total PCs)</div>
-            <div className="text-2xl font-black text-slate-900 font-mono">{stats.total}</div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">ఈ రోజు కొత్తవి (Today's New Installs)</div>
+            <div className="text-2xl font-black text-blue-600 font-mono">{stats.today}</div>
           </div>
         </div>
 
@@ -171,7 +196,7 @@ export const UbdSettingManagerView: React.FC = () => {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">ఆరోగ్యకరమైనవి (Healthy)</div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">పూర్తిగా సెట్ అయినవి (Healthy)</div>
             <div className="text-2xl font-black text-emerald-600 font-mono">{stats.healthy}</div>
           </div>
         </div>
@@ -181,7 +206,7 @@ export const UbdSettingManagerView: React.FC = () => {
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">సమస్యలు ఉన్నవి (Issues)</div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">సమస్యలు ఉన్నవి (Attention Required)</div>
             <div className="text-2xl font-black text-rose-600 font-mono">{stats.issues}</div>
           </div>
         </div>
@@ -225,6 +250,15 @@ export const UbdSettingManagerView: React.FC = () => {
           <Key className="w-4 h-4" />
           <span>DSC టోకెన్ స్థితి (DSC Status)</span>
         </button>
+        <button
+          onClick={() => setActiveBox('activity')}
+          className={`px-4 py-2 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeBox === 'activity' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>లైవ్ టెలిమెట్రీ (Live Activity)</span>
+        </button>
       </div>
 
       {/* Main Content Box */}
@@ -237,12 +271,14 @@ export const UbdSettingManagerView: React.FC = () => {
               {activeBox === 'hardware' && <Cpu className="w-4 h-4" />}
               {activeBox === 'policies' && <LayoutGrid className="w-4 h-4" />}
               {activeBox === 'dsc' && <Key className="w-4 h-4" />}
+              {activeBox === 'activity' && <Activity className="w-4 h-4" />}
             </div>
             <h2 className="font-bold text-slate-900 text-sm sm:text-base">
               {activeBox === 'inventory' && 'ఇన్స్టాలేషన్ నివేదిక (Installation & Inventory Report)'}
               {activeBox === 'hardware' && 'హార్డ్‌వేర్ & OS వివరాలు (Hardware & System Resources)'}
               {activeBox === 'policies' && 'పాలసీ మరియు ఆడిట్ వివరాలు (Policy & Deployment Audit)'}
               {activeBox === 'dsc' && 'DSC టోకెన్ మరియు డ్రైవర్ స్థితి (DSC Token & Driver Status)'}
+              {activeBox === 'activity' && 'లైవ్ టెలిమెట్రీ మరియు యాక్టివిటీ (Live Telemetry & Activity Feed)'}
             </h2>
           </div>
 
@@ -298,6 +334,15 @@ export const UbdSettingManagerView: React.FC = () => {
                   <th className="py-3 px-4 text-right">సర్టిఫికేట్</th>
                 </tr>
               )}
+              {activeBox === 'activity' && (
+                <tr>
+                  <th className="py-3 px-4">సమయం (Time)</th>
+                  <th className="py-3 px-4">PC పేరు</th>
+                  <th className="py-3 px-4">యాక్షన్ (Action)</th>
+                  <th className="py-3 px-4">రిమార్క్స్ (Remarks)</th>
+                  <th className="py-3 px-4 text-right">హెల్త్ స్కోర్</th>
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {filteredRecords.length === 0 ? (
@@ -322,7 +367,7 @@ export const UbdSettingManagerView: React.FC = () => {
                         <td className="py-4 px-4 text-slate-600 font-mono">{r.lastSeen}</td>
                         <td className="py-4 px-4">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold border border-slate-200">
-                            v1.0.8
+                            v1.0.9
                           </span>
                         </td>
                         <td className="py-4 px-4 text-right">
@@ -380,6 +425,21 @@ export const UbdSettingManagerView: React.FC = () => {
                         <td className="py-4 px-4 text-right">
                           <span className="text-emerald-600 font-bold">Valid (2028)</span>
                         </td>
+                      </>
+                    )}
+                    {activeBox === 'activity' && (
+                      <>
+                        <td className="py-4 px-4 text-slate-500 font-mono">{r.time}</td>
+                        <td className="py-4 px-4 font-bold text-slate-900">{r.pcName}</td>
+                        <td className="py-4 px-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            r.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {r.status === 'SUCCESS' ? 'TELEMETRY_SYNC' : 'ISSUE_DETECTED'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-slate-600 italic">"{r.remarks}"</td>
+                        <td className="py-4 px-4 text-right font-black text-indigo-600">{r.healthScore}%</td>
                       </>
                     )}
                   </tr>

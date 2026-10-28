@@ -50,19 +50,12 @@ EndGlobal
     type: 'config',
     content: `<?xml version="1.0" encoding="utf-8" ?>
 <configuration>
-    <!--
-      Universal .NET Runtime Compatibility:
-      Enables seamless execution on:
-      - Windows 7 SP1 (Requires .NET Framework 4.8 Runtime)
-      - Windows 8, Windows 10, Windows 11 (Built-in .NET Framework 4.8)
-    -->
-    <startup> 
-        <!-- Universal Support for all .NET 4.x Versions (4.0, 4.5, 4.6, 4.7, 4.8) -->
+    <startup useLegacyV2RuntimeActivationPolicy="true"> 
+        <!-- Support for .NET 4.x (4.0, 4.5, 4.6, 4.7, 4.8) -->
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.7.2" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.6.1" />
-        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5.2" />
         <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.0" />
+        <!-- Support for .NET 2.0 / 3.0 / 3.5 (CLR v2.0.50727) -->
+        <supportedRuntime version="v2.0.50727" />
     </startup>
     <runtime>
         <!-- Security hardened runtime configuration -->
@@ -84,7 +77,7 @@ EndGlobal
     content: `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net45</TargetFramework>
+    <TargetFramework>net40</TargetFramework>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>EVedhikaUBDDeploymentTool</AssemblyName>
@@ -590,6 +583,26 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback("[Audit Repair] SignatureDemoLib check error: " + ex.Message);
+            }
+
+            // 4c. Verify Microsoft Edge presence and trigger auto-install/update if missing or outdated
+            try
+            {
+                EdgeManagementEngine.EnsureEdgeInstalledAndUpdated(logCallback);
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback("[Audit Repair] Edge check/install notice: " + ex.Message);
+            }
+
+            // 4d. Wake up sleeping USB DSC Token Drivers & SmartCard Services
+            try
+            {
+                DriverInstaller.WakeUpAndKeepDriversAlive(logCallback);
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback("[Audit Repair] Driver wakeup notice: " + ex.Message);
             }
 
             // 5. POST-REPAIR VERIFICATION STEP (Strict 10-Step Workflow)
@@ -2516,6 +2529,82 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch (Exception ex)
             {
                 Logger.LogWarn("Drivers", "CSP Provider notice: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Prevents USB DSC drivers and SmartCard readers from "sleeping" or going into idle/power-saving state.
+        /// Disables USB Selective Suspend in Windows Power Scheme, sets SmartCard services to Automatic,
+        /// forces a Plug-and-Play device rescan (pnputil /scan-devices), and pulses certificate propagation.
+        /// </summary>
+        public static bool WakeUpAndKeepDriversAlive(Action<string> logCallback = null)
+        {
+            try
+            {
+                if (logCallback != null) logCallback("[DRIVERS WAKEUP] Waking up sleeping USB DSC Token drivers and SmartCard services...");
+
+                // 1. Disable USB Selective Suspend in Windows Power Policies so USB Hubs never go to sleep
+                try
+                {
+                    using (var p = Process.Start(new ProcessStartInfo { FileName = "powercfg", Arguments = "/SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e66447-4a86-42a9-87d1-e51097825b4b 0", CreateNoWindow = true, UseShellExecute = false })) { p?.WaitForExit(2000); }
+                    using (var p = Process.Start(new ProcessStartInfo { FileName = "powercfg", Arguments = "/SETACTIVE SCHEME_CURRENT", CreateNoWindow = true, UseShellExecute = false })) { p?.WaitForExit(2000); }
+
+                    using (var usbKey = Registry.LocalMachine.CreateSubKey(@"SYSTEM\\CurrentControlSet\\Services\\USB"))
+                    {
+                        if (usbKey != null)
+                        {
+                            usbKey.SetValue("DisableSelectiveSuspend", 1, RegistryValueKind.DWord);
+                        }
+                    }
+                    if (logCallback != null) logCallback("[DRIVERS WAKEUP] USB Selective Suspend Power-Saving Disabled (Drivers stay awake 24x7).");
+                }
+                catch (Exception ex)
+                {
+                    if (logCallback != null) logCallback(\$"[DRIVERS WAKEUP] USB power policy notice: {ex.Message}");
+                }
+
+                // 2. Set SmartCard Services to Automatic & Start them immediately
+                string[] targetServices = new string[] { "SCardSvr", "CertPropSvc", "ScDeviceEnum", "PlugPlay" };
+                foreach (string svc in targetServices)
+                {
+                    try
+                    {
+                        using (var pCfg = Process.Start(new ProcessStartInfo { FileName = "sc", Arguments = \$"config {svc} start= auto", CreateNoWindow = true, UseShellExecute = false })) { pCfg?.WaitForExit(1500); }
+                        using (var pStart = Process.Start(new ProcessStartInfo { FileName = "net", Arguments = \$"start {svc}", CreateNoWindow = true, UseShellExecute = false })) { pStart?.WaitForExit(1500); }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[DRIVERS WAKEUP] SmartCard & CertPropSvc services forced to Automatic and Active.");
+
+                // 3. Force Windows Plug-and-Play Device Rescan to wake up USB Token dongles immediately
+                try
+                {
+                    using (var pPnp = Process.Start(new ProcessStartInfo { FileName = "pnputil", Arguments = "/scan-devices", CreateNoWindow = true, UseShellExecute = false }))
+                    {
+                        pPnp?.WaitForExit(3000);
+                    }
+                    if (logCallback != null) logCallback("[DRIVERS WAKEUP] Windows Plug-and-Play Rescan executed (PnP Devices Awakened).");
+                }
+                catch { }
+
+                // 4. Force Certificate Propagation Pulse so Windows reads DSC Token Certificates into Personal Store
+                try
+                {
+                    using (var pCert = Process.Start(new ProcessStartInfo { FileName = "certutil", Arguments = "-pulse", CreateNoWindow = true, UseShellExecute = false }))
+                    {
+                        pCert?.WaitForExit(2000);
+                    }
+                    if (logCallback != null) logCallback("[DRIVERS WAKEUP] Certificate Propagation Pulsed (DSC Token Certificates Synchronized).");
+                }
+                catch { }
+
+                RegisterSmartCardAndCspProviders();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[DRIVERS WAKEUP ERROR] Wakeup notice: {ex.Message}");
+                return false;
             }
         }
 
@@ -7284,16 +7373,43 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             try
             {
-                return SystemInfoHelper.GetHardwareMachineFingerprint();
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                string idFile = Path.Combine(dir, "install_id.txt");
+
+                if (File.Exists(idFile))
+                {
+                    string savedId = File.ReadAllText(idFile).Trim();
+                    if (!string.IsNullOrEmpty(savedId) && savedId.Length > 10) return savedId;
+                }
+
+                string newId = SystemInfoHelper.GetHardwareMachineFingerprint();
+                File.WriteAllText(idFile, newId);
+                return newId;
             }
             catch
             {
-                string pcName = Environment.MachineName ?? "PC";
-                string userName = Environment.UserName ?? "USER";
-                string compositeSeed = \$"{pcName}_{userName}";
-                int hash = Math.Abs(compositeSeed.GetHashCode());
-                string hex = hash.ToString("X8");
-                return \$"EVD-PC-{hex.Substring(0, 4)}-{hex.Substring(4)}";
+                try
+                {
+                    string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                    string idFile = Path.Combine(dir, "install_id.txt");
+                    
+                    string pcName = Environment.MachineName ?? "PC";
+                    string userName = Environment.UserName ?? "USER";
+                    string compositeSeed = \$"{pcName}_{userName}_{Guid.NewGuid()}";
+                    int hash = Math.Abs(compositeSeed.GetHashCode());
+                    string hex = hash.ToString("X8");
+                    string newId = \$"EVD-PC-{hex.Substring(0, 4)}-{hex.Substring(4)}";
+                    
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    File.WriteAllText(idFile, newId);
+                    return newId;
+                }
+                catch
+                {
+                    string pcName = Environment.MachineName ?? "PC";
+                    return \$"EVD-PC-{pcName.ToUpper()}-FALLBACK";
+                }
             }
         }
 
@@ -7656,7 +7772,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine("📌 <b>Remarks.i.e ...</b>");
             sb.AppendLine(\$"<b>Remarks:</b> {EscapeTelegramHtml(remarks)}");
             sb.AppendLine(\$"<b>Target Portal:</b> {targetPortal}");
-            sb.AppendLine("<b>Central Live Dashboard:</b> https://www.e-vedhika.in");
+            sb.AppendLine("<b>Central Live Dashboard:</b> https://www.e-vedhika.in/admin/ubd_monitoring");
             sb.AppendLine(\$"<b>Report Timestamp:</b> {timestamp}");
 
             return sb.ToString();
@@ -9801,7 +9917,7 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.10.27-R2";
+            string buildDate = "2026.10.28-R1";
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
@@ -10554,7 +10670,7 @@ namespace EVedhikaUBDDeploymentTool
                             { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                             { "status", "ONLINE & READY (v1.0.8)" },
                             { "version", "v1.0.8" },
-                            { "suppressTelegram", "true" },
+                            { "suppressTelegram", "false" }, // Allow Telegram report on startup for new installs visibility
                             { "remarks", "⚡ App Opened: E-Vedhika v1.0.8 running and ready for deployment." }
                         };
                         Logger.SendCentralTelemetry(startupData);

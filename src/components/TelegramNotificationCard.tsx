@@ -314,14 +314,17 @@ export function TelegramNotificationCard() {
               ఏ సిస్టమ్ (PC) నుండి టెలిగ్రామ్ మెసేజ్‌లు రావాలి, ఏ సిస్టమ్ నుండి రాకూడదో (Mute) ఇక్కడ మీరు సింగిల్ క్లిక్‌తో కంట్రోల్ చేయవచ్చు.
             </p>
           </div>
-          <button
-            onClick={fetchPcFilters}
-            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5"
-          >
+          <div className="flex flex-col items-end gap-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Registered PCs: {pcFilters.allPcs.length}</span>
+            <button
+              onClick={fetchPcFilters}
+              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5"
+            >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Refresh PCs</span>
           </button>
         </div>
+      </div>
 
         {pcFilters.allPcs.length === 0 ? (
           <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-500 border border-slate-200">

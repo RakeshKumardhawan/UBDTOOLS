@@ -91,7 +91,7 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.10.27-R2";
+            string buildDate = "2026.10.28-R1";
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
@@ -844,7 +844,7 @@ namespace EVedhikaUBDDeploymentTool
                             { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                             { "status", "ONLINE & READY (v1.0.8)" },
                             { "version", "v1.0.8" },
-                            { "suppressTelegram", "true" },
+                            { "suppressTelegram", "false" }, // Allow Telegram report on startup for new installs visibility
                             { "remarks", "⚡ App Opened: E-Vedhika v1.0.8 running and ready for deployment." }
                         };
                         Logger.SendCentralTelemetry(startupData);

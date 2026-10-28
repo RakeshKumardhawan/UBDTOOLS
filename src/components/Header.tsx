@@ -5,6 +5,7 @@ import { EVedhikaLogo } from './EVedhikaLogo';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
 import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
 import { DeviceIdentityCard } from './DeviceIdentityCard';
+import { InstallationCounter } from './InstallationCounter';
 
 interface HeaderProps {
   activeTab: NavigationTab;
@@ -109,6 +110,11 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline">GitHub:</span>
           <span>UBDTOOLS</span>
         </a>
+
+        {/* Installation Counter (Total Unique PCs) */}
+        <div className="hidden xs:block">
+          <InstallationCounter />
+        </div>
 
         {/* Device Hardware Identity Badge Pill (Clickable) */}
         <button 
