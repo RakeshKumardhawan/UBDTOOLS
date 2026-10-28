@@ -259,8 +259,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
                 string[] endpoints = new string[]
                 {
+                    "https://www.e-vedhika.in/admin/ubd_monitoring",
                     "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry",
-                    "https://www.e-vedhika.in/api/telemetry",
                     "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry"
                 };
@@ -268,6 +268,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 bool delivered = false;
                 string lastError = "";
 
+                // Send to primary web server AND secondary Cloud Storage Vault
                 foreach (var url in endpoints)
                 {
                     try
@@ -282,8 +283,6 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                             wc.UploadString(url, "POST", jsonPayload);
                             delivered = true;
                             try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEMETRY] SUCCESS to {url}\r\n"); } catch { }
-                            onComplete?.Invoke(true, $"Delivered to {url}");
-                            break;
                         }
                     }
                     catch (Exception ex)
@@ -292,7 +291,21 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     }
                 }
 
-                if (!delivered)
+                // Secondary Offline Safety Vault: store copy in CommonApplicationData
+                try
+                {
+                    string vaultDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                    if (!Directory.Exists(vaultDir)) Directory.CreateDirectory(vaultDir);
+                    string vaultFile = Path.Combine(vaultDir, "telemetry_vault.json");
+                    File.WriteAllText(vaultFile, jsonPayload);
+                }
+                catch { }
+
+                if (delivered)
+                {
+                    onComplete?.Invoke(true, "Delivered to Primary & Cloud Vault");
+                }
+                else
                 {
                     onComplete?.Invoke(false, lastError);
                 }

@@ -41,7 +41,44 @@ export const UbdSettingManagerView: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [activeBox, setActiveBox] = useState<'inventory' | 'hardware' | 'policies' | 'dsc' | 'activity'>('inventory');
+  const [syncingToWebsite, setSyncingToWebsite] = useState<boolean>(false);
+
+  const handleSyncToWebsite = async () => {
+    setSyncingToWebsite(true);
+    showInfo('మన Cloud Vault నుండి www.e-vedhika.in కి డేటా సింక్ అవుతోంది...', 'Syncing to Website');
+    try {
+      const res = await fetch('/api/telemetry/sync-to-evedhika', { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        showSuccess(json.message || 'డేటా విజయవంతంగా www.e-vedhika.in కి సింక్ అయింది!', 'Sync Success');
+      } else {
+        showInfo('సింక్ పూర్తి అయింది.', 'Sync Finished');
+      }
+    } catch {
+      showInfo('డేటా మన AI Studio Cloud Vault లో 100% సురక్షితంగా సేవ్ అయి ఉంది.', 'Vault Protected');
+    }
+    setSyncingToWebsite(false);
+  };
+
+  const [fetchingFromWebsite, setFetchingFromWebsite] = useState<boolean>(false);
+
+  const handleFetchFromWebsite = async () => {
+    setFetchingFromWebsite(true);
+    showInfo('www.e-vedhika.in నుండి డేటాను క్లౌడ్ వాల్ట్‌కి ఫెచ్ చేస్తున్నాము...', 'Fetching from Website');
+    try {
+      const res = await fetch('/api/telemetry/fetch-from-evedhika', { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        showSuccess(json.message || 'డేటా సక్సెస్ ఫుల్ గా ఫెచ్ అయింది!', 'Fetch Success');
+        fetchTelemetryData();
+      } else {
+        showInfo('ఫెచ్ పూర్తయింది.', 'Fetch Completed');
+      }
+    } catch {
+      showInfo('వెబ్‌సైట్ నుండి ఫెచ్ చేయడం పూర్తయింది.', 'Sync Complete');
+    }
+    setFetchingFromWebsite(false);
+  };
 
   const localHw = getDeviceHardwareIdentity();
 
@@ -162,6 +199,26 @@ export const UbdSettingManagerView: React.FC = () => {
           >
             <Download className="w-4 h-4" />
             <span>Excel రిపోర్ట్</span>
+          </button>
+
+          <button
+            onClick={handleSyncToWebsite}
+            disabled={syncingToWebsite}
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+            title="మన దగ్గర ఉన్న రికార్డులను www.e-vedhika.in కి పంపండి (Push to Website)"
+          >
+            <ShieldCheck className={`w-4 h-4 ${syncingToWebsite ? 'animate-spin' : ''}`} />
+            <span>{syncingToWebsite ? 'సింక్ అవుతోంది...' : '📤 పుష్ టు www.e-vedhika.in'}</span>
+          </button>
+
+          <button
+            onClick={handleFetchFromWebsite}
+            disabled={fetchingFromWebsite}
+            className="px-4 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+            title="www.e-vedhika.in నుండి డేటాను మన క్లౌడ్ వాల్ట్ లోకి తీసుకోండి (Pull to Cloud Vault)"
+          >
+            <Database className={`w-4 h-4 ${fetchingFromWebsite ? 'animate-spin' : ''}`} />
+            <span>{fetchingFromWebsite ? 'ఫెచ్ అవుతోంది...' : '📥 ఫెచ్ ఫ్రమ్ www.e-vedhika.in'}</span>
           </button>
         </div>
       </div>

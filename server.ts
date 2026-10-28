@@ -214,6 +214,8 @@ async function startServer() {
       fs.writeFileSync(CONSOLIDATED_HEALTH_FILE_PATH, jsonStr, 'utf8');
       fs.writeFileSync(path.join(adminDir, 'pc_consolidated_health.json'), jsonStr, 'utf8');
       fs.writeFileSync(path.join(process.cwd(), 'public', 'consolidated_health.json'), jsonStr, 'utf8');
+      fs.writeFileSync(path.join(adminDir, 'telemetry_vault.json'), jsonStr, 'utf8');
+      fs.writeFileSync(path.join(process.cwd(), 'public', 'telemetry_vault.json'), jsonStr, 'utf8');
     } catch (e) {
       console.error('[CONSOLIDATED HEALTH] Failed to save store:', e);
     }
@@ -2018,6 +2020,93 @@ async function startServer() {
         success: true,
         message: 'Telemetry logged successfully at www.e-vedhika.in',
         record: newRecord
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // API Route: Dual-Storage Vault Status
+  app.get('/api/telemetry/vault', (req, res) => {
+    const list = Array.from(consolidatedMachineStore.values());
+    return res.json({
+      success: true,
+      vaultActive: true,
+      vaultCount: list.length,
+      machines: list,
+      backupFile: '/public/admin/telemetry_vault.json',
+      lastUpdated: new Date().toISOString()
+    });
+  });
+
+  // API Route: Manual / Auto Replay Vault Records to www.e-vedhika.in
+  app.post('/api/telemetry/sync-to-evedhika', async (req, res) => {
+    try {
+      const list = Array.from(consolidatedMachineStore.values());
+      if (list.length === 0) {
+        return res.json({ success: true, message: 'Vault is clean. No records to sync.', syncedCount: 0 });
+      }
+
+      let synced = 0;
+      for (const m of list) {
+        try {
+          const fetchRes = await fetch('https://www.e-vedhika.in/admin/ubd_monitoring', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(m)
+          });
+          if (fetchRes.ok) synced++;
+        } catch { }
+      }
+
+      return res.json({
+        success: true,
+        message: `Successfully synchronized ${synced}/${list.length} machine records to www.e-vedhika.in`,
+        syncedCount: synced,
+        totalVaultRecords: list.length
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // API Route: Pull / Fetch from www.e-vedhika.in to our Cloud Vault (2-Way Sync)
+  app.post('/api/telemetry/fetch-from-evedhika', async (req, res) => {
+    try {
+      const urls = [
+        'https://www.e-vedhika.in/admin/ubd_monitoring?action=export',
+        'https://www.e-vedhika.in/admin/exe_ubd_live?action=export'
+      ];
+      let fetchedMachines: any[] = [];
+      for (const u of urls) {
+        try {
+          const resp = await fetch(u, { headers: { 'Accept': 'application/json' } });
+          if (resp.ok) {
+            const data: any = await resp.json();
+            const list = data.machines || data.logs || [];
+            if (Array.isArray(list) && list.length > 0) {
+              fetchedMachines = list;
+              break;
+            }
+          }
+        } catch { }
+      }
+
+      let imported = 0;
+      for (const item of fetchedMachines) {
+        const id = item.machineId || item.pcId || item.deviceInstallationId || item.pcName;
+        if (id) {
+          processConsolidatedTelemetry(item);
+          imported++;
+        }
+      }
+      saveConsolidatedHealthStore();
+
+      return res.json({
+        success: true,
+        message: `Fetched and imported ${imported} records from www.e-vedhika.in into Cloud Storage Vault.`,
+        importedCount: imported,
+        totalVaultRecords: consolidatedMachineStore.size
       });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });

@@ -23,7 +23,7 @@ $consolidatedFile = $storageDir . '/pc_consolidated_health.json';
 $issuesFile = $storageDir . '/active_issues.json';
 
 // Application Version
-$version = 'v1.0.8';
+$version = 'v1.0.9';
 
 // Central Telegram Bot Credentials
 $botToken = "8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE";
@@ -352,13 +352,13 @@ if ($action === 'check_update' || $action === 'version') {
         'executableName' => "EVedhika_Setup_{$version}.exe",
         'currentVersion' => $version,
         'latestVersion' => $version,
-        'versionCode' => 10080,
+        'versionCode' => 10090,
         'releaseDate' => date('Y-m-d'),
         'downloadUrl' => "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_{$version}.exe",
         'githubRepo' => 'https://github.com/RakeshKumardhawan/UBDTOOLS',
-        'updateRequired' => false,
-        'releaseNotes' => "Enterprise {$version}: Universal UBD v3.3 Digital Signature Fix & 17-Step Deployment.",
-        'telemetryRelayUrl' => 'https://www.e-vedhika.in/admin/exe_ubd_live'
+        'updateRequired' => true,
+        'releaseNotes' => "Enterprise {$version}: Universal UBD v3.3 Digital Signature Fix, Driver Wakeup Engine & 17-Step Deployment.",
+        'telemetryRelayUrl' => 'https://www.e-vedhika.in/admin/ubd_monitoring'
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
 }
