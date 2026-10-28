@@ -242,7 +242,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string tempInstallerPath = Path.Combine(Path.GetTempPath(), "MicrosoftEdgeSetup.exe");
                 
                 // Ensure TLS 1.2
-                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
 
                 // Official Microsoft Universal Web Bootstrapper
                 // When MicrosoftEdgeSetup.exe runs, it automatically queries the Windows Kernel (GetSystemInfo/IsWow64Process)

@@ -887,7 +887,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
 
             try
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
                 ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
             }
             catch { }
@@ -3363,7 +3363,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string tempInstallerPath = Path.Combine(Path.GetTempPath(), "MicrosoftEdgeSetup.exe");
                 
                 // Ensure TLS 1.2
-                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
 
                 // Official Microsoft Universal Web Bootstrapper
                 // When MicrosoftEdgeSetup.exe runs, it automatically queries the Windows Kernel (GetSystemInfo/IsWow64Process)
@@ -7555,7 +7555,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             {
                 try
                 {
-                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11 | System.Net.SecurityProtocolType.Tls;
+                    System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072 | (System.Net.SecurityProtocolType)768 | System.Net.SecurityProtocolType.Tls;
                     System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
                     System.Net.ServicePointManager.Expect100Continue = false;
                 }
@@ -34205,7 +34205,7 @@ namespace EVedhikaUBDDeploymentTool
                 // Configure TLS 1.2 for modern web API telemetry calls (.NET 4.8 compatibility)
                 try
                 {
-                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+                    System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072 | (System.Net.SecurityProtocolType)768 | System.Net.SecurityProtocolType.Tls;
                     // Removed global SSL validation bypass to prevent MITM attacks. 
                     // Individual WebClient calls in Logger.cs handle their own validation if absolutely necessary for legacy servers.
                 }

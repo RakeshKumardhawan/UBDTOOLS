@@ -251,7 +251,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             {
                 try
                 {
-                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11 | System.Net.SecurityProtocolType.Tls;
+                    System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072 | (System.Net.SecurityProtocolType)768 | System.Net.SecurityProtocolType.Tls;
                     System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
                     System.Net.ServicePointManager.Expect100Continue = false;
                 }

@@ -84,7 +84,7 @@ namespace EVedhikaUBDDeploymentTool
                 // Configure TLS 1.2 for modern web API telemetry calls (.NET 4.8 compatibility)
                 try
                 {
-                    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+                    System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072 | (System.Net.SecurityProtocolType)768 | System.Net.SecurityProtocolType.Tls;
                     // Removed global SSL validation bypass to prevent MITM attacks. 
                     // Individual WebClient calls in Logger.cs handle their own validation if absolutely necessary for legacy servers.
                 }

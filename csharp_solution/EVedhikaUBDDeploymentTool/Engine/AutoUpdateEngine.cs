@@ -157,7 +157,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
 
             try
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
                 ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
             }
             catch { }
