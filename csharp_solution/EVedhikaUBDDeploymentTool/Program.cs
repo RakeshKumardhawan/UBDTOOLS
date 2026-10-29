@@ -96,7 +96,8 @@ namespace EVedhikaUBDDeploymentTool
                     string arg0 = args[0].Trim().ToLowerInvariant();
                     if (arg0 == "--post-install" || arg0 == "/postinstall" || arg0 == "-postinstall")
                     {
-                        // NO report on installation alone. User requested reports ONLY after running 16-step deployment.
+                        // Send immediate installation check-in telemetry report as soon as setup completes
+                        SendPostInstallInstallationTelemetry();
                         return;
                     }
                 }
@@ -229,6 +230,31 @@ namespace EVedhikaUBDDeploymentTool
                     errDetails,
                     "CRASH"
                 );
+            }
+            catch { }
+        }
+
+        private static void SendPostInstallInstallationTelemetry()
+        {
+            try
+            {
+                var data = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "pcId", Logger.GetUniqueMachineId() },
+                    { "pcName", Environment.MachineName ?? "GP-OFFICE-PC" },
+                    { "userName", Environment.UserName ?? "Operator" },
+                    { "officeLocation", "Gram Panchayat Office" },
+                    { "osVersion", Environment.OSVersion.ToString() },
+                    { "version", "v1.0.8" },
+                    { "status", "SUCCESS" },
+                    { "overallStatus", "HEALTHY" },
+                    { "verification", "v1.0.8 Setup Completed" },
+                    { "remarks", "EVedhika_Setup_v1.0.8.exe installed and registered successfully." },
+                    { "isFinalReport", "true" },
+                    { "sendTelegram", "true" },
+                    { "forceTelegram", "true" }
+                };
+                Logger.SendCentralTelemetry(data);
             }
             catch { }
         }
