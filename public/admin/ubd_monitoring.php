@@ -351,7 +351,7 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
         </div>
 
         <!-- Metric Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
                 <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">మొత్తం కనెక్ట్ అయిన PCలు</span>
                 <span class="text-3xl font-black text-white mt-1 block font-mono"><?= $totalPcs ?></span>
@@ -367,13 +367,18 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                 <span class="text-3xl font-black text-amber-400 mt-1 block font-mono"><?= $issueCount ?></span>
                 <span class="text-[10px] text-slate-500 mt-0.5 block">వివరణాత్మక అలర్ట్‌లు</span>
             </div>
+            <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
+                <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">లక్ష్య వెర్షన్ &amp; OTA బిల్డ్</span>
+                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.10.29-R1]</span>
+                <span class="text-[10px] text-emerald-400 mt-0.5 block font-bold">100% ఆటో-అప్‌డేట్ సింకింగ్ యాక్టివ్</span>
+            </div>
         </div>
 
         <!-- Real-Time Live Table -->
         <div class="bg-slate-900/90 rounded-3xl border border-slate-800 shadow-xl overflow-hidden">
             <div class="p-5 border-b border-slate-800 flex justify-between items-center">
                 <h2 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <span class="text-indigo-400">⚡</span> UBD LIVE MONITORING REPORTS
+                    <span class="text-indigo-400">⚡</span> UBD LIVE MONITORING &amp; VERSION MATRIX
                 </h2>
                 <span class="text-xs text-indigo-300 font-mono font-bold"><?= $totalPcs ?> Active Computers</span>
             </div>
@@ -384,6 +389,7 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                             <th class="p-4">PC NAME &amp; ID</th>
                             <th class="p-4">OFFICE LOCATION</th>
                             <th class="p-4">OS &amp; BUILD</th>
+                            <th class="p-4">VERSION &amp; OTA BUILD</th>
                             <th class="p-4">STATUS</th>
                             <th class="p-4">VERIFICATION</th>
                             <th class="p-4">DSC STATUS</th>
@@ -394,7 +400,7 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                     <tbody class="divide-y divide-slate-800/60">
                         <?php if (empty($consolidatedPcs)): ?>
                         <tr>
-                            <td colspan="8" class="p-12 text-center text-slate-500 font-medium italic">
+                            <td colspan="9" class="p-12 text-center text-slate-500 font-medium italic">
                                 డమ్మి రిపోర్టులన్నీ తొలగించబడ్డాయి. కంప్యూటర్ నుండి కొత్త రిపోర్ట్ రాగానే ఇక్కడ ప్రత్యక్షమవుతుంది.
                             </td>
                         </tr>
@@ -409,6 +415,10 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                             </td>
                             <td class="p-4 text-slate-300 font-medium max-w-xs"><?= htmlspecialchars($pc['officeLocation']) ?></td>
                             <td class="p-4 text-slate-400 font-mono text-[11px]"><?= htmlspecialchars($pc['os']) ?></td>
+                            <td class="p-4">
+                                <div class="font-bold text-indigo-400 font-mono text-[11px]"><?= htmlspecialchars($pc['appVersion'] ?? 'v1.0.8') ?></div>
+                                <div class="text-[9px] text-emerald-400 font-mono">OTA: <?= htmlspecialchars($pc['resourceBuild'] ?? '2026.10.29-R1') ?></div>
+                            </td>
                             <td class="p-4 whitespace-nowrap">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-emerald-950 text-emerald-300 border-emerald-800">
                                     <?= htmlspecialchars($pc['overallStatus']) ?>

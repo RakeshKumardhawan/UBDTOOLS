@@ -33,6 +33,8 @@ interface MachineRecord {
   ramUsage?: string;
   diskSpace?: string;
   ipAddress?: string;
+  appVersion?: string;
+  resourceBuild?: string;
 }
 
 export const UbdSettingManagerView: React.FC = () => {
@@ -41,6 +43,7 @@ export const UbdSettingManagerView: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [activeBox, setActiveBox] = useState<'inventory' | 'hardware' | 'policies' | 'dsc' | 'activity'>('inventory');
   const [syncingToWebsite, setSyncingToWebsite] = useState<boolean>(false);
 
   const handleSyncToWebsite = async () => {
@@ -115,7 +118,9 @@ export const UbdSettingManagerView: React.FC = () => {
             cpuInfo: item.cpuInfo || 'Intel(R) Core(TM) i5-8250U',
             ramUsage: item.ramUsage || '8GB (4.2GB Free)',
             diskSpace: item.diskSpace || '120GB Free',
-            ipAddress: item.ipAddress || item.localIp || '192.168.1.104'
+            ipAddress: item.ipAddress || item.localIp || '192.168.1.104',
+            appVersion: item.appVersion || item.deployVersion || item.version || 'v1.0.8',
+            resourceBuild: item.resourceBuild || item.latestResourceBuild || '2026.10.29-R1'
           }));
           setRecords(mapped);
           setLoading(false);
@@ -148,9 +153,9 @@ export const UbdSettingManagerView: React.FC = () => {
   const uniqueMachines = Array.from(new Map(records.map(r => [r.pcId, r])).values());
   const stats = {
     total: uniqueMachines.length,
-    healthy: uniqueMachines.filter(r => r.status === 'SUCCESS').length,
-    issues: uniqueMachines.filter(r => r.status !== 'SUCCESS').length,
-    today: uniqueMachines.filter(r => r.date === todayStr).length
+    healthy: uniqueMachines.filter((r: MachineRecord) => r.status === 'SUCCESS').length,
+    issues: uniqueMachines.filter((r: MachineRecord) => r.status !== 'SUCCESS').length,
+    today: uniqueMachines.filter((r: MachineRecord) => r.date === todayStr).length
   };
 
   return (
