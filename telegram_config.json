@@ -1,5 +1,6 @@
 {
   "botToken": "8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE",
   "chatId": "431228008",
-  "autoNotifyOnTelemetry": true
+  "autoNotifyOnTelemetry": true,
+  "botUsername": "UBD_LIVE_UPDATES_bot"
 }

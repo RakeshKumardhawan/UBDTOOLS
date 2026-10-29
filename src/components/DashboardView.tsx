@@ -6,6 +6,7 @@ import { LiveAnnouncementWidget } from './LiveAnnouncementWidget';
 import { LiveUpdatesView } from './LiveUpdatesView';
 import { ReleaseNotes } from './ReleaseNotes';
 import { InstallationCounter } from './InstallationCounter';
+import { LiveStepMonitoringWidget } from './LiveStepMonitoringWidget';
 
 interface DashboardViewProps {
   envStatus: EnvironmentStatus;
@@ -27,6 +28,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="max-w-5xl mx-auto w-full space-y-6 sm:space-y-10">
       <LiveSystemStatsWidget mode="card" onOpenPcBoost={() => setActiveTab('pcboost')} className="mb-6" />
+
+      {/* Real-time 17-Step Live Deployment Monitoring Visualizer Widget */}
+      <div className="mb-6">
+        <LiveStepMonitoringWidget 
+          isDeploying={isDeploying} 
+          onStartDeployment={onStartDeployment} 
+        />
+      </div>
 
       {/* Live OTA Resource Engine & Update Manager */}
       <div className="mb-6">

@@ -38,6 +38,7 @@ import {
 import { BackupSnapshot } from '../types';
 import { TelegramNotificationCard } from './TelegramNotificationCard';
 import { DailyExcelReportCard } from './DailyExcelReportCard';
+import { ReportingReceiverView } from './ReportingReceiverView';
 import { useToast } from './Toast';
 
 interface BackupsViewProps {
@@ -56,165 +57,14 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   isRestoring,
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
-  const [selectedTab, setSelectedTab] = useState<'telemetry' | 'health' | 'issues' | 'telegram' | 'remote_queue' | 'snapshots'>('health');
+  const [selectedTab, setSelectedTab] = useState<'receiver' | 'telemetry' | 'health' | 'issues' | 'telegram' | 'remote_queue' | 'snapshots'>('receiver');
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<'all' | 'ap' | 'ts'>('all');
 
-  // Master Telemetry State (Pre-seeded with live Grama Panchayat records)
-  const [centralTelemetryLogs, setCentralTelemetryLogs] = useState<any[]>(() => [
-    {
-      id: 'DUMMY-GATEWAY-EXE-01',
-      pcId: 'EVD-TS-4A9B-12EF',
-      slNo: 1,
-      date: new Date().toISOString().slice(0, 10),
-      time: new Date().toLocaleTimeString(),
-      pcName: 'TS-GP-KHAMMAM-01',
-      userName: 'Srinivas Rao (Secretary)',
-      officeLocation: 'Khammam Urban Grama Panchayat Office',
-      state: 'Telangana',
-      gatewayUsed: '/admin/exe_ubd_live',
-      livePresence: 'ONLINE',
-      targetDomain: 'ubd.telangana.gov.in',
-      osVersion: 'Windows 11 Pro (64-Bit)',
-      dscStatus: 'ProxKey USB Token Connected',
-      edgeIeMode: 'IE5 Quirks Active',
-      verification: '17/17 Passed (51/51 Registry Keys)',
-      healthScore: 100,
-      status: 'SUCCESS',
-      remarks: '17/17 Deployment steps executed and verified with zero manual clicks!'
-    },
-    {
-      id: 'DUMMY-API-TELEMETRY-02',
-      pcId: 'EVD-AP-88F3-90CC',
-      slNo: 2,
-      date: new Date().toISOString().slice(0, 10),
-      time: new Date().toLocaleTimeString(),
-      pcName: 'AP-GP-VIZAG-02',
-      userName: 'Venkatesh (Operator)',
-      officeLocation: 'Bheemunipatnam Mandal Office, Visakhapatnam',
-      state: 'Andhra Pradesh',
-      gatewayUsed: '/api/telemetry',
-      livePresence: 'ONLINE',
-      targetDomain: 'ubd.ap.gov.in',
-      osVersion: 'Windows 10 Pro (64-Bit)',
-      dscStatus: 'HYP2003 ePass Token Connected',
-      edgeIeMode: 'IE5 Quirks Active',
-      verification: '17/17 Passed (51/51 Registry Keys)',
-      healthScore: 100,
-      status: 'SUCCESS',
-      remarks: '17/17 Deployment steps executed and verified with zero manual clicks!'
-    }
-  ]);
-  const [consolidatedMachines, setConsolidatedMachines] = useState<any[]>(() => {
-    try {
-      const cached = localStorage.getItem('cached_consolidated_health');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return [
-      {
-        pcId: 'EVD-TS-4A9B-12EF',
-        pcName: 'TS-GP-KHAMMAM-01',
-        userName: 'Srinivas Rao (Secretary)',
-        officeLocation: 'Khammam Urban Grama Panchayat Office',
-        district: 'Khammam',
-        state: 'Telangana',
-        osVersion: 'Windows 11 Pro (64-Bit)',
-        winBuild: '10.0.22631',
-        appVersion: 'v1.0.8',
-        machineIdentifier: 'EVD-TS-4A9B-12EF',
-        firstSeen: '2026-10-25 08:30:00',
-        lastSeenEpoch: Date.now(),
-        lastTelemetryUpdate: '2026-10-25 19:15:00',
-        overallStatus: 'HEALTHY',
-        deployment: {
-          totalSteps: 17,
-          verifiedSteps: 17,
-          failedSteps: 0,
-          skippedSteps: 0,
-          verificationPercentage: 100,
-          failedStepNames: [],
-          lastDeploymentTime: '2026-10-25 08:30:00',
-          deployResult: 'SUCCESS',
-          deployProfile: '17/17 Telangana UBD Guardian Profile'
-        },
-        technicalHealth: {
-          edgeVersion: 'Edge 128.0 (64-Bit)',
-          edgeIeModeStatus: 'PASS',
-          sitesXmlStatus: 'PASS',
-          registryPoliciesStatus: 'PASS',
-          ubdWebsiteStatus: 'PASS',
-          dotNetStatus: 'PASS',
-          internetConnectivity: 'PASS',
-          digiSignerStatus: 'PASS',
-          dscDriverStatus: 'PASS',
-          dscTokenConnected: 'PASS',
-          certValidity: 'PASS'
-        },
-        activeIssue: null,
-        issueHistory: [],
-        lastTelegramAlertEpoch: 0
-      },
-      {
-        pcId: 'EVD-AP-88F3-90CC',
-        pcName: 'AP-GP-VIZAG-02',
-        userName: 'Venkatesh (Operator)',
-        officeLocation: 'Bheemunipatnam Mandal Office, Visakhapatnam',
-        district: 'Visakhapatnam',
-        state: 'Andhra Pradesh',
-        osVersion: 'Windows 10 Pro (64-Bit)',
-        winBuild: '10.0.19045',
-        appVersion: 'v1.0.8',
-        machineIdentifier: 'EVD-AP-88F3-90CC',
-        firstSeen: '2026-10-25 09:15:00',
-        lastSeenEpoch: Date.now(),
-        lastTelemetryUpdate: '2026-10-25 19:14:00',
-        overallStatus: 'DEGRADED',
-        deployment: {
-          totalSteps: 17,
-          verifiedSteps: 12,
-          failedSteps: 5,
-          skippedSteps: 0,
-          verificationPercentage: 70,
-          failedStepNames: ['Edge Enterprise Site List', 'Edge IE5 Quirks Mode Emulation'],
-          lastDeploymentTime: '2026-10-25 09:15:00',
-          deployResult: 'FAIL',
-          deployProfile: '17/17 Andhra Pradesh UBD Guardian Profile'
-        },
-        technicalHealth: {
-          edgeVersion: 'Edge 128.0 (64-Bit)',
-          edgeIeModeStatus: 'FAIL',
-          sitesXmlStatus: 'FAIL',
-          registryPoliciesStatus: 'PASS',
-          ubdWebsiteStatus: 'FAIL',
-          dotNetStatus: 'PASS',
-          internetConnectivity: 'PASS',
-          digiSignerStatus: 'PASS',
-          dscDriverStatus: 'PASS',
-          dscTokenConnected: 'FAIL',
-          certValidity: 'PASS'
-        },
-        activeIssue: {
-          issueId: 'ISS-AP-VIZAG-EDGE-01',
-          issueType: 'Edge IE Mode Policy Drift',
-          firstDetected: '2026-10-25 14:40:00',
-          lastDetected: '2026-10-25 14:44:00',
-          occurrenceCount: 1,
-          severity: 'WARNING',
-          repairAttempts: 1,
-          lastRepairResult: 'AutoRepair applied self-healing policies',
-          postRepairVerification: 'FAIL',
-          status: 'OPEN',
-          summary: 'Edge IE Mode registry policy drift detected. IE Quirks mode inactive.'
-        },
-        issueHistory: [],
-        lastTelegramAlertEpoch: 0
-      }
-    ];
-  });
+  // Master Telemetry & Consolidated Machine State (Authentic real data only)
+  const [centralTelemetryLogs, setCentralTelemetryLogs] = useState<any[]>([]);
+  const [consolidatedMachines, setConsolidatedMachines] = useState<any[]>([]);
 
   const [remoteQueue, setRemoteQueue] = useState<any[]>([]);
   const [selectedLogFor90Params, setSelectedLogFor90Params] = useState<any | null>(null);
@@ -352,54 +202,9 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         setCentralTelemetryLogs(logs);
         localStorage.setItem('cached_telemetry_logs', JSON.stringify(logs));
         setLastSyncTime(new Date().toLocaleTimeString());
-      } else if (centralTelemetryLogs.length === 0) {
-        // High-fidelity pre-seeded data so user never sees empty state on GitHub Pages
-        const defaultSampleLogs = [
-          {
-            id: 'DUMMY-GATEWAY-EXE-01',
-            pcId: 'EVD-TS-4A9B-12EF',
-            slNo: 1,
-            date: new Date().toISOString().slice(0, 10),
-            time: new Date().toLocaleTimeString(),
-            pcName: 'TS-GP-KHAMMAM-01',
-            userName: 'Srinivas Rao (Secretary)',
-            officeLocation: 'Khammam Urban Grama Panchayat',
-            state: 'Telangana',
-            gatewayUsed: '/admin/exe_ubd_live',
-            livePresence: 'ONLINE',
-            targetDomain: 'ubd.telangana.gov.in',
-            osVersion: 'Windows 11 Pro (64-Bit)',
-            dscStatus: 'ProxKey USB Token Connected',
-            edgeIeMode: 'IE5 Quirks Active',
-            verification: '16/16 Passed (48/48 Registry Keys)',
-            healthScore: 100,
-            status: 'SUCCESS',
-            remarks: 'Deployment Successful - Ready for UBD Portal [GATEWAY: /admin/exe_ubd_live]'
-          },
-          {
-            id: 'DUMMY-API-TELEMETRY-02',
-            pcId: 'EVD-AP-88F3-90CC',
-            slNo: 2,
-            date: new Date().toISOString().slice(0, 10),
-            time: new Date().toLocaleTimeString(),
-            pcName: 'AP-GP-VIZAG-02',
-            userName: 'Venkatesh (Panchayat Operator)',
-            officeLocation: 'Bheemunipatnam Mandal Office, Visakhapatnam',
-            state: 'Andhra Pradesh',
-            gatewayUsed: '/api/telemetry',
-            livePresence: 'ONLINE',
-            targetDomain: 'ubd.ap.gov.in',
-            osVersion: 'Windows 10 Pro (64-Bit)',
-            dscStatus: 'HYP2003 ePass Token Connected',
-            edgeIeMode: 'IE5 Quirks Active',
-            verification: '16/16 Passed (48/48 Registry Keys)',
-            healthScore: 100,
-            status: 'SUCCESS',
-            remarks: 'Deployment Successful - Ready for UBD Portal [GATEWAY: /api/telemetry]'
-          }
-        ];
-        setCentralTelemetryLogs(defaultSampleLogs);
-        localStorage.setItem('cached_telemetry_logs', JSON.stringify(defaultSampleLogs));
+      } else {
+        // Zero-mock: keep clean empty state awaiting authentic PC runs
+        setCentralTelemetryLogs([]);
       }
 
       // Load Version configuration
@@ -486,109 +291,9 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         if (machineFetchSuccess && fetchedMachines.length > 0) {
           setConsolidatedMachines(fetchedMachines);
           localStorage.setItem('cached_consolidated_health', JSON.stringify(fetchedMachines));
-        } else if (consolidatedMachines.length === 0) {
-          const defaultMachines = [
-            {
-              pcId: 'EVD-TS-4A9B-12EF',
-              pcName: 'TS-GP-KHAMMAM-01',
-              userName: 'Srinivas Rao (Secretary)',
-              officeLocation: 'Khammam Urban Grama Panchayat Office',
-              district: 'Khammam',
-              state: 'Telangana',
-              osVersion: 'Windows 11 Pro (64-Bit)',
-              winBuild: '10.0.22631',
-              appVersion: 'v1.0.8',
-              machineIdentifier: 'EVD-TS-4A9B-12EF',
-              firstSeen: '2026-10-25 08:30:00',
-              lastSeenEpoch: Date.now(),
-              lastTelemetryUpdate: '2026-10-25 19:15:00',
-              overallStatus: 'HEALTHY',
-              deployment: {
-                totalSteps: 17,
-                verifiedSteps: 17,
-                failedSteps: 0,
-                skippedSteps: 0,
-                verificationPercentage: 100,
-                failedStepNames: [],
-                lastDeploymentTime: '2026-10-25 08:30:00',
-                deployResult: 'SUCCESS',
-                deployProfile: '17/17 Telangana UBD Guardian Profile'
-              },
-              technicalHealth: {
-                edgeVersion: 'Edge 128.0 (64-Bit)',
-                edgeIeModeStatus: 'PASS',
-                sitesXmlStatus: 'PASS',
-                registryPoliciesStatus: 'PASS',
-                ubdWebsiteStatus: 'PASS',
-                dotNetStatus: 'PASS',
-                internetConnectivity: 'PASS',
-                digiSignerStatus: 'PASS',
-                dscDriverStatus: 'PASS',
-                dscTokenConnected: 'PASS',
-                certValidity: 'PASS'
-              },
-              activeIssue: null,
-              issueHistory: [],
-              lastTelegramAlertEpoch: 0
-            },
-            {
-              pcId: 'EVD-AP-88F3-90CC',
-              pcName: 'AP-GP-VIZAG-02',
-              userName: 'Venkatesh (Operator)',
-              officeLocation: 'Bheemunipatnam Mandal Office, Visakhapatnam',
-              district: 'Visakhapatnam',
-              state: 'Andhra Pradesh',
-              osVersion: 'Windows 10 Pro (64-Bit)',
-              winBuild: '10.0.19045',
-              appVersion: 'v1.0.8',
-              machineIdentifier: 'EVD-AP-88F3-90CC',
-              firstSeen: '2026-10-25 09:15:00',
-              lastSeenEpoch: Date.now(),
-              lastTelemetryUpdate: '2026-10-25 19:14:00',
-              overallStatus: 'DEGRADED',
-              deployment: {
-                totalSteps: 17,
-                verifiedSteps: 12,
-                failedSteps: 5,
-                skippedSteps: 0,
-                verificationPercentage: 70,
-                failedStepNames: ['Edge Enterprise Site List', 'Edge IE5 Quirks Mode Emulation'],
-                lastDeploymentTime: '2026-10-25 09:15:00',
-                deployResult: 'FAIL',
-                deployProfile: '17/17 Andhra Pradesh UBD Guardian Profile'
-              },
-              technicalHealth: {
-                edgeVersion: 'Edge 128.0 (64-Bit)',
-                edgeIeModeStatus: 'FAIL',
-                sitesXmlStatus: 'FAIL',
-                registryPoliciesStatus: 'PASS',
-                ubdWebsiteStatus: 'FAIL',
-                dotNetStatus: 'PASS',
-                internetConnectivity: 'PASS',
-                digiSignerStatus: 'PASS',
-                dscDriverStatus: 'PASS',
-                dscTokenConnected: 'FAIL',
-                certValidity: 'PASS'
-              },
-              activeIssue: {
-                issueId: 'ISS-AP-VIZAG-EDGE-01',
-                issueType: 'Edge IE Mode Policy Drift',
-                firstDetected: '2026-10-25 14:40:00',
-                lastDetected: '2026-10-25 14:44:00',
-                occurrenceCount: 1,
-                severity: 'WARNING',
-                repairAttempts: 1,
-                lastRepairResult: 'AutoRepair applied self-healing policies',
-                postRepairVerification: 'FAIL',
-                status: 'OPEN',
-                summary: 'Edge IE Mode registry policy drift detected. IE Quirks mode inactive.'
-              },
-              issueHistory: [],
-              lastTelegramAlertEpoch: 0
-            }
-          ];
-          setConsolidatedMachines(defaultMachines);
-          localStorage.setItem('cached_consolidated_health', JSON.stringify(defaultMachines));
+        } else {
+          // Zero-mock: keep authentic empty state
+          setConsolidatedMachines([]);
         }
       } catch (e) {}
     } catch (e: any) {
@@ -682,265 +387,11 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
     }
   };
 
-  const sendSampleTelemetryReport = async () => {
-    try {
-      const tsRand = Math.floor(10 + Math.random() * 90);
 
-      // Success Report (v1.0.8 Guardian Build - 17/17 Passed)
-      const sample1 = {
-        action: 'telemetry',
-        pcName: `TS-GP-KHAMMAM-${tsRand}`,
-        userName: 'Srinivas_Rao_Sec',
-        officeLocation: 'Khammam Urban Grama Panchayat, Telangana',
-        state: 'Telangana',
-        targetDomain: 'ubd.telangana.gov.in',
-        status: 'SUCCESS',
-        verification: 'Passed (17/17)',
-        healthScore: 100,
-        dscStatus: 'ProxKey Connected (SHA256 v2.0.0.0)',
-        edgeIeMode: 'IE5 Quirks Active',
-        gatewayUsed: 'https://www.e-vedhika.in/admin/exe_ubd_live',
-        remarks: '17/17 Deployment steps executed and verified with zero manual clicks! 24*7 Guardian Active.'
-      };
 
-      const newRecord = {
-        ...sample1,
-        id: `DUMMY-${Date.now()}-PASS`,
-        date: new Date().toISOString().slice(0, 10),
-        time: new Date().toLocaleTimeString()
-      };
 
-      const nowPassStr = `${newRecord.date} ${newRecord.time}`;
-      const passMachine = {
-        pcId: `EVD-TS-4A9B-${tsRand}`,
-        pcName: `TS-GP-KHAMMAM-${tsRand}`,
-        userName: 'Srinivas_Rao_Sec',
-        officeLocation: 'Khammam Urban Grama Panchayat, Telangana',
-        district: 'Khammam',
-        state: 'Telangana',
-        osVersion: 'Windows 11 Pro (64-Bit)',
-        winBuild: '10.0.22631',
-        appVersion: 'v1.0.8',
-        machineIdentifier: `EVD-TS-4A9B-${tsRand}`,
-        firstSeen: nowPassStr,
-        lastSeenEpoch: Date.now(),
-        lastTelemetryUpdate: nowPassStr,
-        overallStatus: 'HEALTHY',
-        deployment: {
-          totalSteps: 17,
-          verifiedSteps: 17,
-          failedSteps: 0,
-          skippedSteps: 0,
-          verificationPercentage: 100,
-          failedStepNames: [],
-          lastDeploymentTime: nowPassStr,
-          deployResult: 'SUCCESS',
-          deployProfile: '17/17 Telangana UBD Guardian Profile'
-        },
-        technicalHealth: {
-          edgeVersion: 'Edge 128.0 (64-Bit)',
-          edgeIeModeStatus: 'PASS',
-          sitesXmlStatus: 'PASS',
-          registryPoliciesStatus: 'PASS',
-          ubdWebsiteStatus: 'PASS',
-          dotNetStatus: 'PASS',
-          internetConnectivity: 'PASS',
-          digiSignerStatus: 'PASS',
-          dscDriverStatus: 'PASS',
-          dscTokenConnected: 'PASS',
-          certValidity: 'PASS'
-        },
-        activeIssue: null,
-        issueHistory: [],
-        lastTelegramAlertEpoch: Date.now()
-      };
 
-      setCentralTelemetryLogs(prev => {
-        const updated = [newRecord, ...prev];
-        localStorage.setItem('cached_telemetry_logs', JSON.stringify(updated));
-        return updated;
-      });
 
-      setConsolidatedMachines(prev => {
-        const filtered = prev.filter(m => m.pcName !== passMachine.pcName);
-        const updated = [passMachine, ...filtered];
-        localStorage.setItem('cached_consolidated_health', JSON.stringify(updated));
-        return updated;
-      });
-
-      // Local dashboard update without spamming Telegram
-
-      try {
-        await Promise.all([
-          fetch('/admin/exe_ubd_live', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sample1)
-          }).catch(() => {}),
-          fetch('/api/telemetry', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sample1)
-          }).catch(() => {})
-        ]);
-      } catch (err) {}
-
-      showSuccess('✅ 17/17 విజయవంతమైన టెస్ట్ రిపోర్ట్ టెలిగ్రామ్ (@DhawanRakesh) కి మరియు వెబ్‌సైట్ లైవ్ డాష్‌బోర్డ్‌కు చేరింది!');
-    } catch (e: any) {
-      showError('డమ్మీ టెస్ట్ ఎర్రర్: ' + e.message);
-    }
-  };
-
-  const sendSampleFailReport = async () => {
-    try {
-      const apRand = Math.floor(10 + Math.random() * 90);
-
-      // Fair Evaluation Failure Report (12/17 Passed, Edge IE Mode Policy Drift FAIL)
-      const failSample = {
-        action: 'telemetry',
-        pcName: `AP-GP-VIZAG-${apRand}`,
-        userName: 'Venkatesh_Operator',
-        officeLocation: 'Bheemunipatnam Mandal Office, Visakhapatnam, AP',
-        state: 'Andhra Pradesh',
-        targetDomain: 'ubd.ap.gov.in',
-        status: 'FAIL',
-        verification: 'Failed (12/17 Passed)',
-        healthScore: 65,
-        dscStatus: 'Token Disconnected',
-        edgeIeMode: 'FAIL (Policy Drift)',
-        gatewayUsed: 'https://www.e-vedhika.in/api/telemetry',
-        remarks: 'E-Vedhika v1.0.8 Audit: Edge IE Mode Policy verification FAILED (IE5 Quirks mode inactive).'
-      };
-
-      const newRecord = {
-        ...failSample,
-        id: `DUMMY-${Date.now()}-FAIL`,
-        date: new Date().toISOString().slice(0, 10),
-        time: new Date().toLocaleTimeString()
-      };
-
-      const nowFailStr = `${newRecord.date} ${newRecord.time}`;
-      const failMachine = {
-        pcId: `EVD-AP-88F3-${apRand}`,
-        pcName: `AP-GP-VIZAG-${apRand}`,
-        userName: 'Venkatesh_Operator',
-        officeLocation: 'Bheemunipatnam Mandal Office, Visakhapatnam, AP',
-        district: 'Visakhapatnam',
-        state: 'Andhra Pradesh',
-        osVersion: 'Windows 10 Pro (64-Bit)',
-        winBuild: '10.0.19045',
-        appVersion: 'v1.0.8',
-        machineIdentifier: `EVD-AP-88F3-${apRand}`,
-        firstSeen: nowFailStr,
-        lastSeenEpoch: Date.now(),
-        lastTelemetryUpdate: nowFailStr,
-        overallStatus: 'DEGRADED',
-        deployment: {
-          totalSteps: 17,
-          verifiedSteps: 12,
-          failedSteps: 5,
-          skippedSteps: 0,
-          verificationPercentage: 70,
-          failedStepNames: ['Edge Enterprise Site List', 'Edge IE5 Quirks Mode Emulation'],
-          lastDeploymentTime: nowFailStr,
-          deployResult: 'FAIL',
-          deployProfile: '17/17 Andhra Pradesh UBD Guardian Profile'
-        },
-        technicalHealth: {
-          edgeVersion: 'Edge 128.0 (64-Bit)',
-          edgeIeModeStatus: 'FAIL',
-          sitesXmlStatus: 'FAIL',
-          registryPoliciesStatus: 'PASS',
-          ubdWebsiteStatus: 'FAIL',
-          dotNetStatus: 'PASS',
-          internetConnectivity: 'PASS',
-          digiSignerStatus: 'PASS',
-          dscDriverStatus: 'PASS',
-          dscTokenConnected: 'FAIL',
-          certValidity: 'PASS'
-        },
-        activeIssue: {
-          issueId: `ISS-AP-VIZAG-${apRand}`,
-          issueType: 'Edge IE Mode Policy Drift',
-          firstDetected: nowFailStr,
-          lastDetected: nowFailStr,
-          occurrenceCount: 1,
-          severity: 'WARNING',
-          repairAttempts: 1,
-          lastRepairResult: 'AutoRepair applied self-healing policies',
-          postRepairVerification: 'FAIL',
-          status: 'OPEN',
-          summary: 'Edge IE Mode registry policy drift detected. IE Quirks mode inactive.'
-        },
-        issueHistory: [],
-        lastTelegramAlertEpoch: Date.now()
-      };
-
-      setCentralTelemetryLogs(prev => {
-        const updated = [newRecord, ...prev];
-        localStorage.setItem('cached_telemetry_logs', JSON.stringify(updated));
-        return updated;
-      });
-
-      setConsolidatedMachines(prev => {
-        const filtered = prev.filter(m => m.pcName !== failMachine.pcName);
-        const updated = [failMachine, ...filtered];
-        localStorage.setItem('cached_consolidated_health', JSON.stringify(updated));
-        return updated;
-      });
-
-      // Local dashboard update without spamming Telegram
-
-      try {
-        await Promise.all([
-          fetch('/admin/exe_ubd_live', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(failSample)
-          }).catch(() => {}),
-          fetch('/api/telemetry', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(failSample)
-          }).catch(() => {})
-        ]);
-      } catch (err) {}
-
-      showSuccess('🚨 ఫెయిల్ రిపోర్ట్ (ఫెయిర్ ఎవాల్యుయేషన్) టెలిగ్రామ్ (@DhawanRakesh) కి మరియు వెబ్‌సైట్ లైవ్ డాష్‌బోర్డ్‌కు చేరింది!');
-    } catch (e: any) {
-      showError('ఫెయిల్ టెస్ట్ ఎర్రర్: ' + e.message);
-    }
-  };
-
-  const sendSampleUbdIssueReport = async () => {
-    try {
-      const sample = {
-        pcName: `GP-PC-${Math.floor(100 + Math.random() * 800)}`,
-        userName: 'Secretary_GramaPanchayat',
-        officeLocation: Math.random() > 0.5 ? 'Vijayawada, Andhra Pradesh' : 'Nalgonda, Telangana',
-        issueTitle: 'UBD Portal DSC Token Signature Failure (ActiveX Error)',
-        issueDescription: 'During document digital signing on ubd.telangana.gov.in, the portal failed with "Automation server cannot create object" and DSC token certificate was not prompted.',
-        dscStatus: 'ProxKey Connected (Class 3)',
-        osVersion: 'Windows 11 Pro 64-Bit',
-        edgeIeMode: 'IE5 Quirks Mode',
-        logs: '[2026-10-09] [ERROR] ActiveX DigiSignHelper execution failed on Port 8080.\n[2026-10-09] [INFO] Token detected but certificate handshake timed out.'
-      };
-
-      const res = await fetch('/api/report-issue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sample)
-      });
-
-      if (res.ok) {
-        showSuccess('UBD Issue reported to Google AI Studio & formatted for GitHub!');
-        fetchLiveCloudData();
-        setSelectedTab('issues');
-      }
-    } catch (err: any) {
-      showError('Failed to simulate issue report: ' + err.message);
-    }
-  };
 
   const handleClearLogs = async () => {
     if (confirm('Clear all logs?')) {
@@ -996,6 +447,9 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
           </div>
         </div>
         <div className="flex items-center p-1 bg-slate-100 rounded-xl border font-bold text-[11px] overflow-x-auto">
+          <button onClick={() => setSelectedTab('receiver')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'receiver' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500'}`}>
+            <Server className="w-3.5 h-3.5" /> రిపోర్టింగ్ రిసీవర్ (Receiver)
+          </button>
           <button onClick={() => setSelectedTab('telemetry')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'telemetry' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>
             <FileText className="w-3.5 h-3.5" /> Telemetry
           </button>
@@ -1023,6 +477,12 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         </div>
       </div>
 
+      {selectedTab === 'receiver' && (
+        <div className="space-y-6 animate-in fade-in duration-500">
+          <ReportingReceiverView />
+        </div>
+      )}
+
       {selectedTab === 'health' && (
         <div className="space-y-6 animate-in fade-in duration-500">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
@@ -1044,12 +504,6 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <button onClick={sendSampleTelemetryReport} className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition-all active:scale-95">
-                  🟢 టెస్ట్ రిపోర్ట్ (17/17 PASS)
-                </button>
-                <button onClick={sendSampleFailReport} className="px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition-all active:scale-95">
-                  🚨 ఫెయిల్ టెస్ట్ (12/17 FAIL)
-                </button>
                 <button onClick={fetchLiveCloudData} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-black flex items-center gap-2 border border-white/10 transition-all active:scale-95 backdrop-blur-sm">
                   <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> Sync Dashboard
                 </button>
@@ -1081,16 +535,10 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                           </div>
                           <div className="space-y-2">
                             <h4 className="text-lg font-black text-slate-900">0 PCs Tracked</h4>
-                            <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto">No machine telemetry has been consolidated yet. Run the C# Tool on any PC or click below to populate active nodes live.</p>
+                            <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto">No machine telemetry has been consolidated yet. Run the C# Tool on any PC to populate active nodes live.</p>
                             <div className="flex flex-wrap gap-2 justify-center pt-3">
                               <button onClick={fetchLiveCloudData} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow flex items-center gap-1.5 active:scale-95">
                                 <RefreshCw className="w-3.5 h-3.5" /> డాష్‌బోర్డ్ సింక్ చేయండి (Sync Dashboard)
-                              </button>
-                              <button onClick={sendSampleTelemetryReport} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow active:scale-95">
-                                🟢 టెస్ట్ రిపోర్ట్ పంపు (17/17 PASS)
-                              </button>
-                              <button onClick={sendSampleFailReport} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow active:scale-95">
-                                🚨 ఫెయిల్ టెస్ట్ (12/17 FAIL)
                               </button>
                             </div>
                           </div>
@@ -1259,12 +707,6 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                   className="px-5 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-black hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-700"
                 >
                   <RotateCcw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> Reload from Disk
-                </button>
-                <button onClick={sendSampleTelemetryReport} className="px-4 py-2 bg-emerald-500 text-slate-950 rounded-xl text-xs font-black hover:scale-105 transition-all shadow-lg active:scale-95 flex items-center gap-1.5">
-                  <span>🟢</span> టెస్ట్ రిపోర్ట్ (17/17 PASS)
-                </button>
-                <button onClick={sendSampleFailReport} className="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-black hover:scale-105 transition-all shadow-lg active:scale-95 flex items-center gap-1.5">
-                  <span>🚨</span> ఫెయిల్ టెస్ట్ (12/17 FAIL)
                 </button>
                 <button onClick={fetchLiveCloudData} disabled={syncing} className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-500 transition-all flex items-center gap-2">
                   <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> Refresh
@@ -1464,13 +906,6 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                   <span>Open GitHub Issues</span>
                   <ExternalLink className="w-3 h-3 opacity-70" />
                 </a>
-                <button
-                  onClick={sendSampleUbdIssueReport}
-                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-rose-200 border border-rose-800/50 rounded-xl text-xs font-black flex items-center gap-2 transition-all active:scale-95"
-                >
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span>Simulate Test UBD Issue</span>
-                </button>
               </div>
             </div>
           </div>
@@ -1482,15 +917,9 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <h4 className="text-lg font-black text-slate-800 mb-1">No Active UBD Website Issues!</h4>
-              <p className="text-xs text-slate-500 max-w-md mx-auto mb-6">
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
                 All client systems are reporting successful execution (16/16 parameters verified). When any Panchayat PC reports an error on the UBD portal, it will display here with AI diagnosis.
               </p>
-              <button
-                onClick={sendSampleUbdIssueReport}
-                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
-              >
-                Simulate a Sample UBD Error Report
-              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6">

@@ -91,7 +91,7 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.10.28-R1";
+            string buildDate = "2026.10.29-R3";
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
@@ -233,7 +233,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", AutoUpdateEngine.CurrentResourceBuild, pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.10.29-R3", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -848,6 +848,7 @@ namespace EVedhikaUBDDeploymentTool
                             { "remarks", "⚡ App Opened: E-Vedhika v1.0.8 running and ready for deployment." }
                         };
                         Logger.SendCentralTelemetry(startupData);
+                        Logger.SendFleetUpdateReport();
                     }
                     catch { }
                 });

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { DeploymentStep, DepartmentProfile, LogEntry } from '../types';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
+import { LiveStepMonitoringWidget } from './LiveStepMonitoringWidget';
 
 interface DeployViewProps {
   steps: DeploymentStep[];
@@ -234,6 +235,13 @@ export const DeployView: React.FC<DeployViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Real-time 17-Step Live Execution Visualizer Widget */}
+      <LiveStepMonitoringWidget 
+        steps={steps} 
+        isDeploying={isDeploying} 
+        onStartDeployment={onStartDeployment} 
+      />
 
       {/* Success Banner */}
       {isFinished && (

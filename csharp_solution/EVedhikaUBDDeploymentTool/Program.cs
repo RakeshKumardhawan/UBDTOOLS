@@ -171,6 +171,13 @@ namespace EVedhikaUBDDeploymentTool
                     }
                 }
 
+                // Immediately dispatch Fleet Update Telemetry report to Reporting Receiver
+                try
+                {
+                    Logger.SendFleetUpdateReport();
+                }
+                catch { }
+
                 // Launch main C# Windows Forms Window with elevated rights, selected state, and silent tray flag
                 Application.Run(new MainForm(selectedState, startSilent));
             }
@@ -255,6 +262,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "forceTelegram", "true" }
                 };
                 Logger.SendCentralTelemetry(data);
+                Logger.SendFleetUpdateReport();
             }
             catch { }
         }
