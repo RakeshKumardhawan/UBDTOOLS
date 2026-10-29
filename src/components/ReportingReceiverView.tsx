@@ -91,15 +91,16 @@ export const ReportingReceiverView: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data && data.success) {
+          const machines = Array.isArray(data.machines) ? data.machines : [];
           setFleetSummary({
-            totalFleetCount: data.totalFleetCount || (data.machines ? data.machines.length : 0),
-            updatedViaThisUpdate: data.updatedViaThisUpdate || 0,
-            freshInstallsCount: data.freshInstallsCount || 0,
-            telanganaCount: data.telanganaCount || 0,
-            andhraCount: data.andhraCount || 0,
-            verifiedStepsPassCount: data.verifiedStepsPassCount || 0,
+            totalFleetCount: data.totalFleetCount || machines.length,
+            updatedViaThisUpdate: data.updatedViaThisUpdate || machines.filter((m: any) => m.installType === 'EXISTING_PC_UPDATED').length,
+            freshInstallsCount: data.freshInstallsCount || machines.filter((m: any) => m.installType !== 'EXISTING_PC_UPDATED').length,
+            telanganaCount: data.telanganaCount || machines.filter((m: any) => String(m.state || m.officeLocation).toLowerCase().includes('telangana')).length,
+            andhraCount: data.andhraCount || machines.filter((m: any) => String(m.state || m.officeLocation).toLowerCase().includes('andhra')).length,
+            verifiedStepsPassCount: data.verifiedStepsPassCount || machines.filter((m: any) => String(m.verification).includes('17/17')).length,
             lastSync: new Date().toLocaleTimeString(),
-            machines: Array.isArray(data.machines) ? data.machines : []
+            machines: machines
           });
           setLoading(false);
           setRefreshing(false);

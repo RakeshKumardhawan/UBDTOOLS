@@ -303,11 +303,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // ====================================================================
                 string[] websiteEndpoints = new string[]
                 {
-                    "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/reporting/receiver",
-                    "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/reporting/receiver",
                     "https://www.e-vedhika.in/api/reporting/receiver",
-                    "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://www.e-vedhika.in/api/telemetry",
                     "https://www.e-vedhika.in/admin/ubd_monitoring",
                     "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry"
@@ -629,8 +625,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "installType", isExisting ? "EXISTING_PC_UPDATED" : "FRESH_INSTALL" },
                         { "initialInstallDate", initialInstallDate },
                         { "updateReceivedDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "version", "v1.0.8-Update" },
-                        { "updateBuild", "2026.10.29-R2" },
+                        { "version", "v1.0.8-Update-R3" },
+                        { "updateBuild", "2026.10.29-R4" },
                         { "status", "SUCCESS" },
                         { "overallStatus", "HEALTHY" },
                         { "verification", "Passed (17/17)" },

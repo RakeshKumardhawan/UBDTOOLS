@@ -52,12 +52,13 @@ export const TelemetryDashboard: React.FC = () => {
   const fetchTelemetryData = async () => {
     setRefreshing(true);
     try {
-      // 1. Try Consolidated Health Store endpoint
-      const res = await fetch('/public/consolidated_health.json');
+      // 1. Try Consolidated Health Store endpoint (Live API)
+      const res = await fetch('/api/consolidated-health?t=' + Date.now());
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped: MachineRecord[] = data.map((item: any) => ({
+        const machinesList = data.machines || (Array.isArray(data) ? data : []);
+        if (Array.isArray(machinesList) && machinesList.length > 0) {
+          const mapped: MachineRecord[] = machinesList.map((item: any) => ({
             pcId: item.pcId || item.machineIdentifier || 'EVD-PC-UNKNOWN',
             pcName: item.pcName || 'GP-OFFICE-PC',
             userName: item.userName || 'Operator',
@@ -67,17 +68,17 @@ export const TelemetryDashboard: React.FC = () => {
             osVersion: item.osVersion || 'Windows 10/11 Pro',
             healthScore: item.overallStatus === 'HEALTHY' ? 100 : item.overallStatus === 'WARNING' ? 80 : 65,
             status: item.overallStatus === 'HEALTHY' ? 'SUCCESS' : item.overallStatus || 'DEGRADED',
-            verification: item.deployment?.deployProfile || '17/17 Steps Verified',
-            dscStatus: item.technicalHealth?.dscDriverStatus === 'PASS' ? 'USB Token Active' : 'Check Token',
-            nicDigiSigner: item.technicalHealth?.digiSignerStatus === 'PASS' ? 'Port 8080 Active' : 'Inactive',
-            edgeIeMode: item.technicalHealth?.edgeIeModeStatus === 'PASS' ? 'IE5 Quirks Active' : 'Policy Reset',
-            sitesXml: item.technicalHealth?.sitesXmlStatus === 'PASS' ? 'sites.xml Valid' : 'Missing',
+            verification: item.deployment?.deployProfile || item.verification || '17/17 Steps Verified',
+            dscStatus: (item.technicalHealth?.dscDriverStatus === 'PASS' || String(item.dscStatus).includes('Active')) ? 'USB Token Active' : 'Check Token',
+            nicDigiSigner: (item.technicalHealth?.digiSignerStatus === 'PASS' || String(item.nicDigiSigner).includes('Active')) ? 'Port 8080 Active' : 'Inactive',
+            edgeIeMode: (item.technicalHealth?.edgeIeModeStatus === 'PASS' || String(item.edgeIeMode).includes('Active')) ? 'IE5 Quirks Active' : 'Policy Reset',
+            sitesXml: (item.technicalHealth?.sitesXmlStatus === 'PASS' || String(item.sitesXml).includes('Active')) ? 'sites.xml Valid' : 'Missing',
             macAddress: item.macAddress || 'A4:BB:6D:88:21:EF',
             hardwareUuid: item.hardwareUuid || localHw.hardwareUuid,
-            lastSeen: item.lastTelemetryUpdate || 'Just Now',
-            date: item.lastTelemetryUpdate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-            time: item.lastTelemetryUpdate?.slice(11) || new Date().toLocaleTimeString(),
-            remarks: item.activeIssue?.summary || 'All 17 deployment steps verified successfully.'
+            lastSeen: item.lastTelemetryUpdate || item.lastSeen || 'Just Now',
+            date: (item.lastTelemetryUpdate || item.date)?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            time: (item.lastTelemetryUpdate || item.time)?.slice(11) || new Date().toLocaleTimeString(),
+            remarks: item.activeIssue?.summary || item.remarks || 'All 17 deployment steps verified successfully.'
           }));
           setRecords(mapped);
           setLoading(false);
@@ -254,7 +255,7 @@ export const TelemetryDashboard: React.FC = () => {
                 TODAY'S INSTALLATIONS REPORT (29 OCTOBER 2026)
               </span>
               <span className="bg-emerald-500 text-slate-950 text-[0.65rem] font-extrabold px-2 py-0.5 rounded-full font-mono">
-                {records.length} PCs VERIFIED TODAY
+                {records.length} PCs SYNCED
               </span>
             </div>
             <h2 className="text-base sm:text-lg font-bold text-white font-mono mt-0.5">
@@ -483,8 +484,22 @@ export const TelemetryDashboard: React.FC = () => {
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500 italic">
-                    No workstations match the selected search criteria.
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="relative">
+                        <Monitor className="w-10 h-10 text-slate-700" />
+                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                      </div>
+                      <h4 className="text-base font-black text-white font-mono uppercase tracking-tight">
+                        ఇంకా కంప్యూటర్ల డేటా నమోదు కాలేదు (Waiting for Real PCs)
+                      </h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto font-mono">
+                        Live Cloud Listening Active. Grama Panchayat / Mandal PCs will appear here automatically upon running the E-Vedhika Tool.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (

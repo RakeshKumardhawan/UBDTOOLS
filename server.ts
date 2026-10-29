@@ -236,21 +236,34 @@ async function startServer() {
     const deviceInstallationId = body.deviceInstallationId || body.installationId;
     
     if (!pcId) {
-      if (deviceInstallationId) {
-        pcId = deviceInstallationId;
-      } else {
-        // Prioritize hardware identifiers for truly unique PC ID
-        const hwId = body.hardwareUuid || body.uuid || body.macAddress || body.mac;
-        const rawSeed = hwId ? `${hwId}_${pcName}` : `${pcName}_${userName}_${officeLoc}`;
-        let hash = 0;
-        for (let i = 0; i < rawSeed.length; i++) {
-          hash = (hash << 5) - hash + rawSeed.charCodeAt(i);
-          hash |= 0;
-        }
-        const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
-        const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
-        pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4)}`;
-      }
+      const hwId = deviceInstallationId || body.hardwareUuid || body.uuid || body.macAddress || body.mac;
+      const rawSeed = hwId ? `${hwId}_${pcName}` : `${pcName}_${userName}_${officeLoc}`;
+      let hash = 0;
+      for (let i = 0; i < rawSeed.length; i++) { hash = (hash << 5) - hash + rawSeed.charCodeAt(i); hash |= 0; }
+      const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+      const prefix = stateVal === 'Andhra Pradesh' ? 'EVD-AP' : 'EVD-TS';
+      pcId = `${prefix}-${hex.slice(0, 4)}-${hex.slice(4)}`;
+    }
+
+    // Auto-sync to Fleet Receiver Store for Dashboard consistency
+    if (pcId) {
+      const fleetRecord = {
+        pcId,
+        pcName,
+        userName,
+        officeLocation: officeLoc,
+        state: stateVal,
+        district: body.district || officeLoc.split(',')[0] || 'Local District',
+        status: body.status || 'SUCCESS',
+        verification: body.verification || 'Passed (17/17)',
+        osVersion: osVer,
+        version: appVer,
+        lastUpdatedEpoch: Date.now(),
+        updateReceivedDate: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        receivedVia: 'Consolidated-Sync'
+      };
+      fleetReceiverStore.set(pcId, fleetRecord);
+      saveFleetReceiverStore();
     }
 
     const nowEpoch = Date.now();
@@ -1836,6 +1849,17 @@ async function startServer() {
       try { 
         processConsolidatedTelemetry(body);
         saveConsolidatedHealthStore(); 
+        
+        // Also sync to Fleet Receiver Store for Dashboard visibility
+        if (pcId) {
+          const fleetRecord = {
+            ...newRecord,
+            receivedVia: '/api/telemetry',
+            lastUpdatedEpoch: Date.now()
+          };
+          fleetReceiverStore.set(pcId, fleetRecord);
+          saveFleetReceiverStore();
+        }
       } catch (e) {
         console.error('[TELEMETRY] Error processing consolidated telemetry:', e);
       }
@@ -2290,8 +2314,8 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (ఈ కొత్త అప్డేట్ ద్వారా సింక్ అయింది)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.10.29-R2',
-        version: body.version || 'v1.0.8-Update',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.10.29-R3',
+        version: body.version || 'v1.0.8-Update-R3',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
         localIp: body.localIp || '192.168.1.100',

@@ -122,7 +122,7 @@ export const LiveUpdatesView: React.FC = () => {
                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Live Resource Build</span>
               </div>
               <div>
-                <div className="text-2xl font-black text-emerald-900">{versionConfig?.latestResourceBuild || '2026.10.29-R3'}</div>
+                <div className="text-2xl font-black text-emerald-900">{versionConfig?.latestResourceBuild || '2026.10.29-R4'}</div>
                 <p className="text-[10px] text-emerald-600/70 mt-1">Applied Background (No Restart)</p>
               </div>
             </div>
