@@ -12,6 +12,7 @@ import { DriversView } from './components/DriversView';
 import { BrowserView } from './components/BrowserView';
 import { RegistryView } from './components/RegistryView';
 import { DscTokenView } from './components/DscTokenView';
+import { DigitalSignatureValidatorView } from './components/DigitalSignatureValidatorView';
 import { AiTroubleshooterView } from './components/AiTroubleshooterView';
 import { RemoteSupportView } from './components/RemoteSupportView';
 import { DownloadsView } from './components/DownloadsView';
@@ -25,6 +26,8 @@ import { AdminPostPublisherView } from './components/AdminPostPublisherView';
 import { PostDetailView } from './components/PostDetailView';
 import { GithubDashboardView } from './components/GithubDashboardView';
 import { TelemetryDashboard } from './components/TelemetryDashboard';
+import { VersionFleetLiveDashboardView } from './components/VersionFleetLiveDashboardView';
+import { NetworkFlowView } from './components/NetworkFlowView';
 import { UbdSettingManagerView } from './components/UbdSettingManagerView';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
@@ -91,6 +94,42 @@ function MainAppContent() {
     showInfo('Application portal configuration reset to default.', 'Configuration Reset');
   };
 
+  const performSystemWipe = async () => {
+    try {
+      const resp = await fetch('/api/panic-wipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pcName: typeof window !== 'undefined' ? window.location.hostname : 'LOCAL-HOST-PC',
+          reason: 'USER_INITIATED_PANIC_BUTTON_WIPE'
+        })
+      });
+      const data = await resp.json();
+
+      // Clear all localStorage entries
+      localStorage.clear();
+
+      // Reset environment status state to its initial default state
+      setEnvStatus(initialEnvironmentState);
+
+      // Reset deployment steps, profile, drivers, and logs
+      setDeploySteps(defaultDeploymentSteps.map(s => ({ ...s, status: 'pending', durationMs: undefined })));
+      setSelectedProfile(departmentProfiles[0]);
+      setDrivers(driverList.map(d => ({ ...d, status: 'Not Installed' })));
+      setLogs([]);
+
+      showSuccess('సిస్టమ్ వైప్ విజయవంతమైంది! LocalStorage ఖాళీ చేయబడింది, రజిస్ట్రీ కీలు తొలగించబడ్డాయి, ఎన్విరాన్‌మెంట్ సెట్టింగ్‌లు రీసెట్ చేయబడ్డాయి.', 'System Wipe Complete');
+      return data;
+    } catch (err: any) {
+      localStorage.clear();
+      setEnvStatus(initialEnvironmentState);
+      setDeploySteps(defaultDeploymentSteps.map(s => ({ ...s, status: 'pending', durationMs: undefined })));
+      setSelectedProfile(departmentProfiles[0]);
+      setLogs([]);
+      showError('సిస్టమ్ వైప్ లోకల్ గా పూర్తయింది: ' + (err?.message || 'కనెక్షన్ లోపం'), 'Local Wipe Executed');
+    }
+  };
+
   useEffect(() => {
     if (selectedProfile) {
       localStorage.setItem('evedhika_selected_profile_id', selectedProfile.id);
@@ -136,7 +175,12 @@ function MainAppContent() {
     const handleUrlTab = () => {
       const path = window.location.pathname.toLowerCase();
       
-      // 1. Check for Telemetry / UBD Monitoring path variations
+      // 1. Check for Version Fleet & Telemetry path variations
+      if (path.includes('version-fleet') || path.includes('fleet') || path.includes('v1-fleet')) {
+        setActiveTab('version-fleet');
+        return;
+      }
+
       if (
         path.includes('telemetry') || 
         path.includes('monitoring') || 
@@ -698,6 +742,7 @@ Report Timestamp: ${reportDate}
               onStartDeployment={startOneClickDeployment}
               isDeploying={isDeploying}
               logs={logs}
+              onAddLog={addLog}
             />
           )}
           {activeTab === 'github-dashboard' && <GithubDashboardView />}
@@ -774,6 +819,7 @@ Report Timestamp: ${reportDate}
               onForceClearToken={handleForceClearToken}
             />
           )}
+          {activeTab === 'digital-signature' && <DigitalSignatureValidatorView />}
           {activeTab === 'ai' && (
             <AiTroubleshooterView
               envStatus={envStatus}
@@ -795,7 +841,10 @@ Report Timestamp: ${reportDate}
             />
           )}
           {activeTab === 'pcboost' && <PCBoostView />}
+          {activeTab === 'version-fleet' && <VersionFleetLiveDashboardView />}
           {activeTab === 'telemetry-dashboard' && <TelemetryDashboard />}
+          {activeTab === 'github-dashboard' && <GithubDashboardView />}
+          {activeTab === 'network-flow' && <NetworkFlowView />}
           {activeTab === 'settings' && (
             <SettingsView
               selectedProfile={selectedProfile}
@@ -806,6 +855,7 @@ Report Timestamp: ${reportDate}
                 addLog('System', 'Logs cleared.', 'info');
               }}
               onResetState={handleResetState}
+              onPerformSystemWipe={performSystemWipe}
             />
           )}
           {activeTab === 'help' && <HelpView />}

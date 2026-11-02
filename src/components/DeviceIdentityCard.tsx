@@ -399,6 +399,61 @@ Portal:        https://www.e-vedhika.in/api/telemetry`;
           </div>
         </div>
 
+        {/* Live Structured ID Generator / Previewer */}
+        <div className="bg-slate-900/90 border border-accent/30 rounded-xl p-3.5 space-y-2 text-xs font-mono">
+          <div className="flex items-center justify-between text-accent font-bold text-[0.7rem]">
+            <span>⚡ LIVE STRUCTURED ID TESTER</span>
+            <span className="text-[0.6rem] bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">EVD-{'{STATE}'}-{'{DIST}'}-01</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[0.68rem]">
+            <div>
+              <label className="text-slate-400 block mb-1">State:</label>
+              <select
+                id="test-state-select"
+                className="w-full bg-slate-950 border border-slate-800 text-white rounded p-1 text-[0.68rem]"
+                onChange={(e) => {
+                  const stateVal = e.target.value;
+                  const distVal = (document.getElementById('test-dist-input') as HTMLInputElement)?.value || 'MNCL';
+                  const isAP = stateVal === 'AP';
+                  const distCode = distVal.toUpperCase().includes('KADAPA') || distVal.toUpperCase().includes('KDP') ? 'KDP' : (distVal.toUpperCase().includes('KHAMMAM') ? 'KMM' : 'MNCL');
+                  const target = document.getElementById('test-id-output');
+                  if (target) target.innerText = `EVD-${stateVal}-${distCode}-01`;
+                }}
+              >
+                <option value="TS">Telangana (TS)</option>
+                <option value="AP">Andhra Pradesh (AP)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">District / Mandal:</label>
+              <input
+                id="test-dist-input"
+                type="text"
+                defaultValue="Mancherial"
+                className="w-full bg-slate-950 border border-slate-800 text-white rounded p-1 text-[0.68rem]"
+                onChange={(e) => {
+                  const stateVal = (document.getElementById('test-state-select') as HTMLSelectElement)?.value || 'TS';
+                  const val = e.target.value.toUpperCase();
+                  let distCode = 'MNCL';
+                  if (val.includes('MANCHERIAL') || val.includes('MANCHIRAL') || val.includes('MNCL')) distCode = 'MNCL';
+                  else if (val.includes('KADAPA') || val.includes('KDP')) distCode = 'KDP';
+                  else if (val.includes('KHAMMAM') || val.includes('KMM')) distCode = 'KMM';
+                  else if (val.includes('SURYAPET') || val.includes('SRPT')) distCode = 'SRPT';
+                  else if (val.includes('VISAKHAPATNAM') || val.includes('VSP')) distCode = 'VSP';
+                  else if (val.length >= 3) distCode = val.replace(/[^A-Z]/g, '').slice(0, 4);
+                  
+                  const target = document.getElementById('test-id-output');
+                  if (target) target.innerText = `EVD-${stateVal}-${distCode}-01`;
+                }}
+              />
+            </div>
+          </div>
+          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+            <span className="text-slate-400 text-[0.65rem]">Generated Machine ID:</span>
+            <span id="test-id-output" className="font-bold text-emerald-400 text-[0.8rem] font-mono">EVD-TS-MNCL-01</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-2 pt-1">
           <button
             onClick={handlePrint}

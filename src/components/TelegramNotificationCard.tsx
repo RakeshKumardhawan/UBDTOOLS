@@ -269,24 +269,24 @@ export function TelegramNotificationCard() {
         <div className="lg:col-span-5 bg-sky-50/50 border border-sky-100 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2 text-sky-900 font-bold text-xs">
             <Bot className="w-4 h-4 text-sky-600" />
-            <span>30 సెకన్లలో Telegram Bot ఎలా తయారుచేయాలి?</span>
+            <span>How to Create a Telegram Bot in 30 Seconds:</span>
           </div>
 
           <ol className="text-[11px] text-slate-700 space-y-2 list-decimal list-inside leading-relaxed">
             <li>
-              Telegram ఓపెన్ చేసి సెర్చ్ బార్‌లో <b>@BotFather</b> అని టైప్ చేయండి.
+              Open Telegram and search for <b>@BotFather</b> in the search bar.
             </li>
             <li>
-              <b>/newbot</b> అని పంపి, మీ బోట్ పేరు (ఉదా: <code>EVedhika_UBD_Bot</code>) ఇవ్వండి.
+              Send <b>/newbot</b> and provide a display name for your bot (e.g. <code>EVedhika_UBD_Bot</code>).
             </li>
             <li>
-              అది ఇచ్చే <b>HTTP API Token</b> ని కాపీ చేసి పక్కనున్న బాక్స్‌లో పేస్ట్ చేయండి.
+              Copy the <b>HTTP API Token</b> provided by BotFather and paste it in the token field on the left.
             </li>
             <li>
-              మీ <b>Chat ID</b> తెలుసుకోవడానికి <b>@userinfobot</b> కి హాయ్ అని పంపితే మీ ID నంబర్ వస్తుంది.
+              To find your <b>Chat ID</b>, send any message to <b>@userinfobot</b> to view your ID number.
             </li>
             <li>
-              మీ కొత్త బోట్ కి ఒక్కసారి <b>/start</b> మెసేజ్ పంపి, ఇక్కడ <b>"Send Test Alert"</b> బటన్ నొక్కండి!
+              Send <b>/start</b> to your new bot once, then click <b>"Send Test Alert"</b> above!
             </li>
           </ol>
 
@@ -308,10 +308,10 @@ export function TelegramNotificationCard() {
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-              <span>🛡️ టెలిగ్రామ్ PC అనుమతి & మ్యూట్ మేనేజర్ (Allow / Block Manager)</span>
+              <span>🛡️ Telegram PC Allow & Mute Manager</span>
             </h4>
             <p className="text-xs text-slate-500">
-              ఏ సిస్టమ్ (PC) నుండి టెలిగ్రామ్ మెసేజ్‌లు రావాలి, ఏ సిస్టమ్ నుండి రాకూడదో (Mute) ఇక్కడ మీరు సింగిల్ క్లిక్‌తో కంట్రోల్ చేయవచ్చు.
+              Control with a single click which workstations can dispatch Telegram notifications and which PCs are muted.
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -328,7 +328,7 @@ export function TelegramNotificationCard() {
 
         {pcFilters.allPcs.length === 0 ? (
           <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-500 border border-slate-200">
-            ఇంకా ఎలాంటి PC టెలిమెట్రీ రికార్డులు రాలేదు.
+            No workstation telemetry records registered yet.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -358,7 +358,7 @@ export function TelegramNotificationCard() {
                         : 'bg-rose-600 hover:bg-rose-500 text-white'
                     }`}
                   >
-                    {pc.isBlocked ? '🟢 Allow (అనుమతించు)' : '🔴 Block / Mute (నిషేధించు)'}
+                    {pc.isBlocked ? '🟢 Allow PC' : '🔴 Block / Mute PC'}
                   </button>
                 </div>
               </div>

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { EnvironmentStatus, DepartmentProfile } from '../types';
 import { detectSystemLocation, SystemLocationInfo } from '../utils/locationHelper';
+import { ThreeStageComparisonReportCard } from './ThreeStageComparisonReportCard';
 
 interface DiagnosticsViewProps {
   envStatus: EnvironmentStatus;
@@ -231,6 +232,9 @@ End of E-Vedhika Diagnostic Report.
           </button>
         </div>
       </div>
+
+      {/* 3-Stage Comparison Report (Before Install vs After Install vs After Uninstall) */}
+      <ThreeStageComparisonReportCard />
 
       {/* System Location & Regional Policy Diagnostics */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">

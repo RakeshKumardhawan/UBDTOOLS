@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { EnvironmentStatus } from '../types';
 import { useToast } from './Toast';
+import { DscExpiryMonitorCard } from './DscExpiryMonitorCard';
 
 interface DscTokenViewProps {
   envStatus: EnvironmentStatus;
@@ -262,6 +263,9 @@ export const DscTokenView: React.FC<DscTokenViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Feature #2: DSC Token Certificate Expiry Monitor (30-Day Advance Warning) */}
+      <DscExpiryMonitorCard />
 
       {/* NEW FEATURE CARD: DSC Token V3.3 Patch & SHA256 Compliance */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 border border-indigo-900/50 shadow-xl text-white space-y-4">

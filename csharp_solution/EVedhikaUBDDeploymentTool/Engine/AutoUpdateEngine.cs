@@ -167,9 +167,10 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json",
                 "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest",
-                "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/version",
-                "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
-                "https://www.e-vedhika.in/version.json"
+                "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/version",
+                "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/version",
+                "https://www.e-vedhika.in/version.json",
+                "http://localhost:3000/api/version"
             };
 
             bool fetched = false;

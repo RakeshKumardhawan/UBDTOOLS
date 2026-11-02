@@ -23,6 +23,7 @@ import {
   Database
 } from 'lucide-react';
 import { useToast } from './Toast';
+import { BroadcastReaderModal } from './BroadcastReaderModal';
 
 export interface PostItem {
   id: number | string;
@@ -57,9 +58,10 @@ export const AdminPostPublisherView: React.FC<AdminPostPublisherViewProps> = ({ 
   const directLinkUrl = `${window.location.origin}/?tab=admin/post`;
   const directFeedUrl = `${window.location.origin}/api/v1/posts/feed`;
 
+  const [selectedReaderPost, setSelectedReaderPost] = useState<PostItem | null>(null);
+
   // Fetch live posts from backend feed
   const fetchPosts = async () => {
-    setIsLoading(true);
     try {
       const res = await fetch('/api/v1/posts/feed');
       if (res.ok) {
@@ -78,6 +80,9 @@ export const AdminPostPublisherView: React.FC<AdminPostPublisherViewProps> = ({ 
 
   useEffect(() => {
     fetchPosts();
+    // 2-second real-time polling interval for live multi-user sync
+    const interval = setInterval(fetchPosts, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const handlePublish = async (e: React.FormEvent) => {
@@ -448,17 +453,12 @@ export const AdminPostPublisherView: React.FC<AdminPostPublisherViewProps> = ({ 
                     <td className="py-3 px-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={() => {
-                            const targetSlug = post.slug || (typeof post.id === 'string' && post.id.includes('ubd') ? post.id : 'ubd-setting-issues-one-click-all-in-one-setup');
-                            if (onOpenPost) {
-                              onOpenPost(targetSlug);
-                            }
-                          }}
-                          className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                          title="View / Read Full Post"
+                          onClick={() => setSelectedReaderPost(post)}
+                          className="px-2.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                          title="చదవండి & వినండి (Read & Voice Reader)"
                         >
-                          <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>View</span>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>చదవండి & వినండి (Read)</span>
                         </button>
 
                         <button
@@ -493,6 +493,14 @@ export const AdminPostPublisherView: React.FC<AdminPostPublisherViewProps> = ({ 
           </div>
         )}
       </div>
+
+      {/* Full Reading & Audio Voice Reader Modal */}
+      {selectedReaderPost && (
+        <BroadcastReaderModal
+          post={selectedReaderPost}
+          onClose={() => setSelectedReaderPost(null)}
+        />
+      )}
     </div>
   );
 };

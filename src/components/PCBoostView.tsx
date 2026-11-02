@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Zap, HardDrive, Wifi, Cpu, Trash2, RefreshCw, CheckCircle2, Shield, ArrowRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PrinterSpoolerFixerCard } from './PrinterSpoolerFixerCard';
 
 const historicalData = [
   { day: 'Mon', reclaimed: 0.2 },
@@ -127,6 +128,9 @@ export function PCBoostView({ embedded = false }: PCBoostViewProps) {
            </div>
         </div>
       </div>
+
+      {/* Feature #4: Printer & Print Spooler Auto-Fixer */}
+      <PrinterSpoolerFixerCard />
 
       {/* Action Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -17,9 +17,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static Thread commandThread = null;
         private static string[] serverUrls = new string[]
         {
+            "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app",
+            "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app",
             "https://www.e-vedhika.in",
-            "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app",
-            "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app"
+            "http://localhost:3000"
         };
         private static string sessionPcName = Environment.MachineName;
         private static string activeServerUrl = null;

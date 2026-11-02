@@ -84,9 +84,22 @@ export const ReportingReceiverView: React.FC = () => {
     machines: []
   });
 
+  const [uninstalledPcs, setUninstalledPcs] = useState<any[]>([]);
+
   const fetchReceiverData = async () => {
     setRefreshing(true);
     try {
+      // Fetch Uninstallation Logs
+      try {
+        const uninsRes = await fetch(`/api/uninstall-report?t=${Date.now()}`);
+        if (uninsRes.ok) {
+          const uninsData = await uninsRes.json();
+          if (Array.isArray(uninsData.logs)) {
+            setUninstalledPcs(uninsData.logs);
+          }
+        }
+      } catch (e) {}
+
       const res = await fetch(`/api/reporting/receiver?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
@@ -466,6 +479,81 @@ export const ReportingReceiverView: React.FC = () => {
                     </tr>
                   );
                 })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 🚨 UNINSTALLATION REPORTS & PANIC WIPES CARD */}
+      <div className="bg-white rounded-3xl border border-rose-200 shadow-sm overflow-hidden">
+        <div className="p-4 bg-rose-50/70 border-b border-rose-200 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
+            <span className="text-xs font-black text-rose-900 uppercase tracking-wider flex items-center gap-2">
+              🚨 అన్ ఇన్స్టాల్ చేసుకున్న PCలు & సిస్టమ్ టియర్ డౌన్ రిపోర్టులు ({uninstalledPcs.length} Event Alerts)
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-rose-700 font-bold bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-300">
+            LIVE WHATSAPP & TELEGRAM ALERT ACTIVE
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse table-auto">
+            <thead className="bg-rose-50/30 text-rose-800 text-[10px] font-black uppercase tracking-wider border-b border-rose-100">
+              <tr>
+                <th className="p-3.5 pl-6">PC ID & కంప్యూటర్ పేరు</th>
+                <th className="p-3.5">ఆపరేటర్ & లొకేషన్</th>
+                <th className="p-3.5">అన్ ఇన్స్టాలేషన్ రకం (Event)</th>
+                <th className="p-3.5">కారణం / వివరాలు (Reason)</th>
+                <th className="p-3.5">తేదీ & సమయం</th>
+                <th className="p-3.5 text-center">వాట్సాప్ అలర్ట్ స్టేటస్</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-rose-100 text-xs font-mono">
+              {uninstalledPcs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center bg-rose-50/10">
+                    <div className="flex flex-col items-center justify-center gap-2 text-slate-500">
+                      <p className="text-xs font-bold text-slate-700">
+                        ఇప్పటివరకు ఏ కంప్యూటర్ కూడా అన్ ఇన్స్టాల్ చేసుకోలేదు (No Uninstallation Events Recorded)
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        ఎవరైనా యూజర్ అప్లికేషన్ అన్ ఇన్స్టాల్ చేసినా లేదా పేనిక్ వైప్ చేసినా తక్షణమే వారి లైవ్ రిపోర్ట్ మీ వాట్సాప్‌కి వస్తుంది మరియు ఇక్కడ రికార్డ్ అవుతుంది.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                uninstalledPcs.map((u, idx) => (
+                  <tr key={u.id || idx} className="hover:bg-rose-50/40 transition-colors">
+                    <td className="p-3.5 pl-6 font-bold text-slate-900">
+                      <div>{u.pcName}</div>
+                      <div className="text-[10px] text-rose-600 font-normal">{u.pcId}</div>
+                    </td>
+                    <td className="p-3.5">
+                      <div className="font-bold text-slate-800">{u.userName}</div>
+                      <div className="text-[10px] text-slate-500">{u.officeLocation}</div>
+                    </td>
+                    <td className="p-3.5">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">
+                        {u.eventType || u.status || 'APP UNINSTALLED'}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-slate-700 max-w-xs truncate" title={u.reason}>
+                      {u.reason || 'Complete uninstallation & system reversion executed.'}
+                    </td>
+                    <td className="p-3.5 text-slate-600 font-bold">
+                      {u.timestamp ? new Date(u.timestamp).toLocaleString() : `${u.date} ${u.time}`}
+                    </td>
+                    <td className="p-3.5 text-center">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        🟢 SENT TO WHATSAPP
+                      </span>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

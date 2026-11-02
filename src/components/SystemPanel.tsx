@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Cpu, QrCode, ExternalLink } from 'lucide-react';
+import { Cpu, QrCode, ExternalLink, ShieldCheck } from 'lucide-react';
 import { EnvironmentStatus, LogEntry } from '../types';
 import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
 import { DeviceIdentityCard } from './DeviceIdentityCard';
+import { SystemHealthMonitorWidget } from './SystemHealthMonitorWidget';
 
 interface SystemPanelProps {
   envStatus: EnvironmentStatus;
@@ -21,7 +22,7 @@ export const SystemPanel: React.FC<SystemPanelProps> = ({ envStatus, logs }) => 
   }, [logs]);
 
   return (
-    <aside className="border-l border-ink-faint p-5 sm:p-6 lg:p-7 bg-[rgba(0,240,255,0.02)] flex flex-col gap-5 sm:gap-6 h-full overflow-y-auto custom-scrollbar">
+    <aside className="border-l border-ink-faint p-4 sm:p-5 lg:p-6 bg-[rgba(0,240,255,0.02)] flex flex-col gap-5 h-full overflow-y-auto custom-scrollbar">
       {/* Device Hardware Identity Badge */}
       <div 
         onClick={() => setShowBadgeModal(true)}
@@ -70,28 +71,35 @@ export const SystemPanel: React.FC<SystemPanelProps> = ({ envStatus, logs }) => 
         </div>
       )}
 
+      {/* Real-time System Health Monitor Widget with D3 Sparkline charts for CPU, RAM, & Disk */}
+      <SystemHealthMonitorWidget />
+
+      {/* UBD Environment Policy Status Checks */}
       <div>
-        <p className="label mb-3 text-[0.6rem] sm:text-[0.65rem]">System Health Monitor</p>
-        <div className="space-y-2">
-          <div className="status-card p-3 sm:p-4">
-            <div className="flex justify-between items-center text-[0.7rem] sm:text-[0.75rem] font-mono">
-              <span className="truncate pr-2">REGISTRY SHIM</span>
+        <p className="label mb-2 text-[0.6rem] sm:text-[0.65rem] flex items-center gap-1">
+          <ShieldCheck size={11} className="text-accent" />
+          <span>UBD Policy Verification</span>
+        </p>
+        <div className="space-y-1.5">
+          <div className="status-card p-2.5 sm:p-3">
+            <div className="flex justify-between items-center text-[0.68rem] sm:text-[0.72rem] font-mono">
+              <span className="truncate pr-2 text-slate-300">REGISTRY SHIM</span>
               <span className={`font-bold shrink-0 ${envStatus.registryConfigured ? "text-accent" : "text-amber-400"}`}>
                 {envStatus.registryConfigured ? "SECURE" : "PENDING"}
               </span>
             </div>
           </div>
-          <div className="status-card p-3 sm:p-4">
-            <div className="flex justify-between items-center text-[0.7rem] sm:text-[0.75rem] font-mono">
-              <span className="truncate pr-2">IE MODE POLICY</span>
+          <div className="status-card p-2.5 sm:p-3">
+            <div className="flex justify-between items-center text-[0.68rem] sm:text-[0.72rem] font-mono">
+              <span className="truncate pr-2 text-slate-300">IE MODE POLICY</span>
               <span className={`font-bold shrink-0 ${envStatus.edgeIEModeConfigured ? "text-accent" : "text-amber-400"}`}>
                 {envStatus.edgeIEModeConfigured ? "ENFORCED" : "PENDING"}
               </span>
             </div>
           </div>
-          <div className="status-card p-3 sm:p-4">
-            <div className="flex justify-between items-center text-[0.7rem] sm:text-[0.75rem] font-mono">
-              <span className="truncate pr-2">DSC TOKEN</span>
+          <div className="status-card p-2.5 sm:p-3">
+            <div className="flex justify-between items-center text-[0.68rem] sm:text-[0.72rem] font-mono">
+              <span className="truncate pr-2 text-slate-300">DSC TOKEN</span>
               <span className={`font-bold shrink-0 ${envStatus.proxKeyInstalled ? "text-accent" : "text-amber-400"}`}>
                 {envStatus.proxKeyInstalled ? "ACTIVE" : "MISSING"}
               </span>

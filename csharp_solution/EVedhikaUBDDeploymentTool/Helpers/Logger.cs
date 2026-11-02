@@ -262,9 +262,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // ====================================================================
                 string[] coldServerEndpoints = new string[]
                 {
-                    "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
-                    "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
-                    "https://www.e-vedhika.in/api/cold-server/telemetry"
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
+                    "https://www.e-vedhika.in/api/cold-server/telemetry",
+                    "http://localhost:3000/api/cold-server/telemetry"
                 };
 
                 foreach (var coldUrl in coldServerEndpoints)
@@ -303,10 +304,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // ====================================================================
                 string[] websiteEndpoints = new string[]
                 {
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://www.e-vedhika.in/api/reporting/receiver",
                     "https://www.e-vedhika.in/api/telemetry",
-                    "https://www.e-vedhika.in/admin/ubd_monitoring",
-                    "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry"
+                    "http://localhost:3000/api/reporting/receiver",
+                    "http://localhost:3000/api/telemetry"
                 };
 
                 bool delivered = false;
@@ -664,10 +669,12 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     // Dedicated Fleet Reporting Receiver Endpoints
                     string[] receiverUrls = new string[]
                     {
-                        "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/reporting/receiver",
-                        "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                        "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                        "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
                         "https://www.e-vedhika.in/api/reporting/receiver",
-                        "https://www.e-vedhika.in/api/telemetry"
+                        "https://www.e-vedhika.in/api/telemetry",
+                        "http://localhost:3000/api/reporting/receiver",
+                        "http://localhost:3000/api/telemetry"
                     };
 
                     bool reported = false;

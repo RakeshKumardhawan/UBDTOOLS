@@ -112,8 +112,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             innoExists = true;
                             string icoPath = Path.Combine(Path.GetDirectoryName(exePath) ?? "", "app.ico");
                             string iconVal = File.Exists(icoPath) ? icoPath : string.Format("\"{0}\",0", exePath);
-                            k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
-                            k.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
+                            k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
+                            k.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
                             k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                             k.SetValue("DisplayIcon", iconVal, RegistryValueKind.String);
                         }
@@ -124,7 +124,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 // If Inno Setup key exists, we are DONE! Strictly 1 entry exists in Control Panel.
                 if (innoExists)
                 {
-                    if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.0.8).");
+                    if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.0.9).");
                     return true;
                 }
 
@@ -144,8 +144,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (keyLM != null)
                     {
-                        keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\"{0}\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\"{0}\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -446,6 +446,24 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback($"[5/10 WARN] Advanced Internet Settings restore notice: {ex.Message}");
+            }
+
+            // 5b. REVOKE FIPS 140 ALGORITHM BYPASS & RESTORE STRICT FIPS ENFORCEMENT
+            try
+            {
+                using (var key = Registry.LocalMachine.OpenSubKey(@"System\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy", true))
+                {
+                    key?.SetValue("Enabled", 1, RegistryValueKind.DWord);
+                }
+                using (var key = Registry.LocalMachine.OpenSubKey(@"System\CurrentControlSet\Control\Lsa", true))
+                {
+                    key?.SetValue("fipsalgorithmpolicy", 1, RegistryValueKind.DWord);
+                }
+                if (logCallback != null) logCallback("[5b/10] Revoked FIPS 140-3 algorithm policy bypass. Strict Windows FIPS enforcement (FipsAlgorithmPolicy=1) restored!");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[5b/10 WARN] FIPS policy revocation notice: {ex.Message}");
             }
 
             // 6. RESTORE FEATURE CONTROL LOCKDOWN & POP-UP BLOCKER

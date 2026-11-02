@@ -94,13 +94,16 @@ export type NavigationTab =
   | 'browser'
   | 'registry'
   | 'dsc'
+  | 'digital-signature'
   | 'ai'
   | 'auditor'
   | 'downloads'
   | 'backups'
   | 'pcboost'
   | 'telemetry-dashboard'
+  | 'version-fleet'
   | 'github-dashboard'
+  | 'network-flow'
   | 'settings'
   | 'help'
   | 'about';
@@ -134,6 +137,16 @@ export interface SystemResourceStats {
     cores: number;
     model: string;
     loadAvg: number[];
+    percentage?: number;
+    status?: string;
+  };
+  disk?: {
+    totalGB: number;
+    usedGB: number;
+    freeGB: number;
+    percentage: number;
+    status: 'Healthy' | 'Warning' | 'Critical';
+    statusTelugu?: string;
   };
   os?: {
     platform: string;

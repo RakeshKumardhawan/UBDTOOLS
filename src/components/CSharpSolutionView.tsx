@@ -143,7 +143,7 @@ EndGlobal
     path: 'csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss',
     type: 'iss',
     content: `#define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.8"
+#define MyAppVersion "1.0.9"
 #define MyAppPublisher "E-Vedhika Development Community"
 #define MyAppURL "https://www.e-vedhika.in"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
@@ -897,9 +897,10 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json",
                 "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest",
-                "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/version",
-                "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update",
-                "https://www.e-vedhika.in/version.json"
+                "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/version",
+                "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/version",
+                "https://www.e-vedhika.in/version.json",
+                "http://localhost:3000/api/version"
             };
 
             bool fetched = false;
@@ -6270,8 +6271,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             innoExists = true;
                             string icoPath = Path.Combine(Path.GetDirectoryName(exePath) ?? "", "app.ico");
                             string iconVal = File.Exists(icoPath) ? icoPath : string.Format("\\"{0}\\",0", exePath);
-                            k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
-                            k.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
+                            k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
+                            k.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
                             k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                             k.SetValue("DisplayIcon", iconVal, RegistryValueKind.String);
                         }
@@ -6282,7 +6283,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 // If Inno Setup key exists, we are DONE! Strictly 1 entry exists in Control Panel.
                 if (innoExists)
                 {
-                    if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.0.8).");
+                    if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.0.9).");
                     return true;
                 }
 
@@ -6302,8 +6303,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (keyLM != null)
                     {
-                        keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.8)", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.8", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\\"{0}\\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\\"{0}\\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -6604,6 +6605,24 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback(\$"[5/10 WARN] Advanced Internet Settings restore notice: {ex.Message}");
+            }
+
+            // 5b. REVOKE FIPS 140 ALGORITHM BYPASS & RESTORE STRICT FIPS ENFORCEMENT
+            try
+            {
+                using (var key = Registry.LocalMachine.OpenSubKey(@"System\\CurrentControlSet\\Control\\Lsa\\FipsAlgorithmPolicy", true))
+                {
+                    key?.SetValue("Enabled", 1, RegistryValueKind.DWord);
+                }
+                using (var key = Registry.LocalMachine.OpenSubKey(@"System\\CurrentControlSet\\Control\\Lsa", true))
+                {
+                    key?.SetValue("fipsalgorithmpolicy", 1, RegistryValueKind.DWord);
+                }
+                if (logCallback != null) logCallback("[5b/10] Revoked FIPS 140-3 algorithm policy bypass. Strict Windows FIPS enforcement (FipsAlgorithmPolicy=1) restored!");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback(\$"[5b/10 WARN] FIPS policy revocation notice: {ex.Message}");
             }
 
             // 6. RESTORE FEATURE CONTROL LOCKDOWN & POP-UP BLOCKER
@@ -7022,6 +7041,121 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch (Exception ex)
             {
                 if (logCallback != null) logCallback(string.Format("[slmgr error] {0}", ex.Message));
+            }
+        }
+    }
+}
+`
+  },
+  {
+    id: 'helpers_antivirusresolver_cs',
+    name: 'AntivirusResolver.cs',
+    path: 'csharp_solution/EVedhikaUBDDeploymentTool/Helpers/AntivirusResolver.cs',
+    type: 'cs',
+    content: `using System;
+using System.Diagnostics;
+using System.IO;
+using System.Management;
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace EVedhikaUBDDeploymentTool.Helpers
+{
+    public static class AntivirusResolver
+    {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DeleteFile(string lpFileName);
+
+        /// <summary>
+        /// Strips the Zone.Identifier alternate data stream attached by web browsers (SmartScreen / Defender Block)
+        /// </summary>
+        public static bool UnblockCurrentExecutable()
+        {
+            try {
+                string currentExePath = Process.GetCurrentProcess().MainModule.FileName;
+                string zoneStream = currentExePath + ":Zone.Identifier";
+
+                if (File.Exists(zoneStream)) {
+                    DeleteFile(zoneStream);
+                    Logger.Log("AntivirusResolver", "Successfully removed Zone.Identifier stream from executable.", LogType.Success);
+                }
+
+                // Also execute PowerShell Unblock-File
+                string psCommand = \$"Unblock-File -Path '{currentExePath}' -ErrorAction SilentlyContinue";
+                ExecutePowerShellSilent(psCommand);
+                return true;
+            } catch (Exception ex) {
+                Logger.Log("AntivirusResolver", "Unblock file warning: " + ex.Message, LogType.Warning);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Adds Windows Defender exclusions for E-Vedhika folder and process
+        /// </summary>
+        public static bool AddWindowsDefenderExclusions()
+        {
+            try {
+                string currentDirectory = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\\\');
+                string exeName = Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);
+
+                string psCommand = 
+                    \$"Add-MpPreference -ExclusionPath '{currentDirectory}' -ErrorAction SilentlyContinue; " +
+                    \$"Add-MpPreference -ExclusionPath 'C:\\\\EVedhikaUBD' -ErrorAction SilentlyContinue; " +
+                    \$"Add-MpPreference -ExclusionProcess '{exeName}' -ErrorAction SilentlyContinue";
+
+                int exitCode = ExecutePowerShellSilent(psCommand);
+                if (exitCode == 0) {
+                    Logger.Log("AntivirusResolver", "Added E-Vedhika to Windows Defender Exclusions.", LogType.Success);
+                    return true;
+                }
+            } catch (Exception ex) {
+                Logger.Log("AntivirusResolver", "Defender exclusion warning: " + ex.Message, LogType.Warning);
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Detects installed 3rd party Antivirus software (QuickHeal, NPAV, Avast, Kaspersky, Defender, etc.)
+        /// </summary>
+        public static string GetInstalledAntivirusName()
+        {
+            StringBuilder sb = new StringBuilder();
+            try {
+                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher(@"root\\SecurityCenter2", "SELECT * FROM AntiVirusProduct")) {
+                    foreach (ManagementObject obj in searcher.Get()) {
+                        string name = obj["displayName"]?.ToString();
+                        if (!string.IsNullOrEmpty(name)) {
+                            if (sb.Length > 0) sb.Append(", ");
+                            sb.Append(name);
+                        }
+                    }
+                }
+            } catch {
+                return "Windows Defender (Default)";
+            }
+
+            return sb.Length > 0 ? sb.ToString() : "Windows Defender / Standard Security";
+        }
+
+        private static int ExecutePowerShellSilent(string script)
+        {
+            try {
+                ProcessStartInfo psi = new ProcessStartInfo {
+                    FileName = "powershell.exe",
+                    Arguments = \$"-NoProfile -ExecutionPolicy Bypass -Command \\"{script}\\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+
+                using (Process p = Process.Start(psi)) {
+                    p.WaitForExit(3000);
+                    return p.ExitCode;
+                }
+            } catch {
+                return -1;
             }
         }
     }
@@ -7566,9 +7700,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // ====================================================================
                 string[] coldServerEndpoints = new string[]
                 {
-                    "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
-                    "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
-                    "https://www.e-vedhika.in/api/cold-server/telemetry"
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/cold-server/telemetry",
+                    "https://www.e-vedhika.in/api/cold-server/telemetry",
+                    "http://localhost:3000/api/cold-server/telemetry"
                 };
 
                 foreach (var coldUrl in coldServerEndpoints)
@@ -7607,10 +7742,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // ====================================================================
                 string[] websiteEndpoints = new string[]
                 {
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
                     "https://www.e-vedhika.in/api/reporting/receiver",
                     "https://www.e-vedhika.in/api/telemetry",
-                    "https://www.e-vedhika.in/admin/ubd_monitoring",
-                    "https://www.e-vedhika.in/admin/exe_ubd_live?action=telemetry"
+                    "http://localhost:3000/api/reporting/receiver",
+                    "http://localhost:3000/api/telemetry"
                 };
 
                 bool delivered = false;
@@ -7968,10 +8107,12 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     // Dedicated Fleet Reporting Receiver Endpoints
                     string[] receiverUrls = new string[]
                     {
-                        "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/reporting/receiver",
-                        "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                        "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                        "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
                         "https://www.e-vedhika.in/api/reporting/receiver",
-                        "https://www.e-vedhika.in/api/telemetry"
+                        "https://www.e-vedhika.in/api/telemetry",
+                        "http://localhost:3000/api/reporting/receiver",
+                        "http://localhost:3000/api/telemetry"
                     };
 
                     bool reported = false;
@@ -8319,9 +8460,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static Thread commandThread = null;
         private static string[] serverUrls = new string[]
         {
+            "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app",
+            "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app",
             "https://www.e-vedhika.in",
-            "https://ais-dev-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app",
-            "https://ais-pre-gmy2jhxrsujhkl43rtfgnx-585783354343.asia-southeast1.run.app"
+            "http://localhost:3000"
         };
         private static string sessionPcName = Environment.MachineName;
         private static string activeServerUrl = null;
@@ -9124,6 +9266,87 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             return "";
         }
 
+        public static string GetShortDistrictMandalCode(string districtOrOffice)
+        {
+            if (string.IsNullOrEmpty(districtOrOffice)) return "MNCL";
+            string str = districtOrOffice.ToUpper();
+
+            if (str.Contains("MANCHERIAL") || str.Contains("MANCHIRAL") || str.Contains("MNCL")) return "MNCL";
+            if (str.Contains("KADAPA") || str.Contains("CUDDAPAH") || str.Contains("YSR") || str.Contains("KDP")) return "KDP";
+            if (str.Contains("KHAMMAM") || str.Contains("KMM")) return "KMM";
+            if (str.Contains("SURYAPET") || str.Contains("SRPT")) return "SRPT";
+            if (str.Contains("HYDERABAD") || str.Contains("HYD")) return "HYD";
+            if (str.Contains("RANGAREDDY") || str.Contains("RANGA REDDY") || str.Contains("RNG")) return "RNG";
+            if (str.Contains("MEDCHAL") || str.Contains("MALKAJGIRI") || str.Contains("MDC")) return "MDC";
+            if (str.Contains("NALGONDA") || str.Contains("NLG")) return "NLG";
+            if (str.Contains("WARANGAL") || str.Contains("WGL")) return "WGL";
+            if (str.Contains("KARIMNAGAR") || str.Contains("KMR")) return "KMR";
+            if (str.Contains("NIZAMABAD") || str.Contains("NZB")) return "NZB";
+            if (str.Contains("MAHABUBNAGAR") || str.Contains("MBNR")) return "MBNR";
+            if (str.Contains("MEDAK") || str.Contains("MDK")) return "MDK";
+            if (str.Contains("SANGAREDDY") || str.Contains("SRD")) return "SRD";
+            if (str.Contains("SIDDIPET") || str.Contains("SDPT")) return "SDPT";
+            if (str.Contains("KAMAREDDY") || str.Contains("KMRD")) return "KMRD";
+            if (str.Contains("ADILABAD") || str.Contains("ADB")) return "ADB";
+            if (str.Contains("NIRMAL") || str.Contains("NRML")) return "NRML";
+            if (str.Contains("JAGTIAL") || str.Contains("JGTL")) return "JGTL";
+            if (str.Contains("PEDDAPALLI") || str.Contains("PDPL")) return "PDPL";
+            if (str.Contains("BHUPALPALLY") || str.Contains("BHPL")) return "BHPL";
+            if (str.Contains("MULUGU") || str.Contains("MLG")) return "MLG";
+            if (str.Contains("KOTHAGUDEM") || str.Contains("BHADRADRI") || str.Contains("KTGM")) return "KTGM";
+            if (str.Contains("MAHABUBABAD") || str.Contains("MHBD")) return "MHBD";
+            if (str.Contains("JANGAON") || str.Contains("JNG")) return "JNG";
+            if (str.Contains("BHUVANAGIRI") || str.Contains("YADADRI") || str.Contains("YDD")) return "YDD";
+            if (str.Contains("VIKARABAD") || str.Contains("VKBD")) return "VKBD";
+            if (str.Contains("NARAYANPET") || str.Contains("NRNP")) return "NRNP";
+            if (str.Contains("GADWAL") || str.Contains("GDWL")) return "GDWL";
+            if (str.Contains("WANAPARTHY") || str.Contains("WNPR")) return "WNPR";
+            if (str.Contains("NAGARKURNOOL") || str.Contains("NGKL")) return "NGKL";
+
+            // AP Districts
+            if (str.Contains("VISAKHAPATNAM") || str.Contains("VIZAG") || str.Contains("VSP")) return "VSP";
+            if (str.Contains("VIJAYAWADA") || str.Contains("VJA")) return "VJA";
+            if (str.Contains("GUNTUR") || str.Contains("GNT")) return "GNT";
+            if (str.Contains("KURNOOL") || str.Contains("KNL")) return "KNL";
+            if (str.Contains("ANANTAPUR") || str.Contains("ANANTHAPURAMU") || str.Contains("ATP")) return "ATP";
+            if (str.Contains("CHITTOOR") || str.Contains("CTR")) return "CTR";
+            if (str.Contains("TIRUPATI") || str.Contains("TPT")) return "TPT";
+            if (str.Contains("NELLORE") || str.Contains("NLR")) return "NLR";
+            if (str.Contains("PRAKASAM") || str.Contains("ONGOLE") || str.Contains("OGL")) return "OGL";
+            if (str.Contains("KAKINADA") || str.Contains("EAST GODAVARI") || str.Contains("KKD")) return "KKD";
+            if (str.Contains("RAJAHMUNDRY") || str.Contains("RJY")) return "RJY";
+            if (str.Contains("ELURU") || str.Contains("WEST GODAVARI") || str.Contains("ELR")) return "ELR";
+            if (str.Contains("MACHILIPATNAM") || str.Contains("KRISHNA") || str.Contains("MTM")) return "MTM";
+            if (str.Contains("SRIKAKULAM") || str.Contains("SKLM")) return "SKLM";
+            if (str.Contains("VIZIANAGARAM") || str.Contains("VZM")) return "VZM";
+
+            string clean = System.Text.RegularExpressions.Regex.Replace(str, @"GRAM|PANCHAYAT|OFFICE|MANDAL|DISTRICT|TELANGANA|ANDHRA|PRADESH|SPECIAL|TOWN", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            clean = System.Text.RegularExpressions.Regex.Replace(clean, @"[^A-Z]", "");
+            if (clean.Length >= 3) return clean.Substring(0, Math.Min(4, clean.Length));
+            return "MNCL";
+        }
+
+        public static string GetStructuredPcId(string state, string officeLocation, string hwSeed = null, string sequenceNumber = "01")
+        {
+            bool isAP = !string.IsNullOrEmpty(state) && (state.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0 || state.IndexOf("AP", StringComparison.OrdinalIgnoreCase) >= 0);
+            string stateCode = isAP ? "AP" : "TS";
+            string distCode = GetShortDistrictMandalCode(officeLocation);
+
+            string hwCode = "01";
+            if (!string.IsNullOrEmpty(hwSeed))
+            {
+                int hash = Math.Abs(hwSeed.GetHashCode());
+                string hex = hash.ToString("X4");
+                hwCode = !string.IsNullOrEmpty(sequenceNumber) && sequenceNumber != "01" ? sequenceNumber : hex.Substring(0, Math.Min(2, hex.Length));
+            }
+            else if (!string.IsNullOrEmpty(sequenceNumber))
+            {
+                hwCode = sequenceNumber;
+            }
+
+            return \$"EVD-{stateCode}-{distCode}-{hwCode}";
+        }
+
         public static string GetHardwareMachineFingerprint()
         {
             string mac = GetPrimaryMacAddress();
@@ -9133,12 +9356,12 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string userName = Environment.UserName ?? "USER";
 
             string composite = \$"{mac}_{uuid}_{mbSerial}_{pcName}_{userName}";
-            int hash = Math.Abs(composite.GetHashCode());
-            string hex = hash.ToString("X8");
+            string state = NativeRemoteAgent.CurrentState ?? "Telangana";
+            string loc = GetLiveLocation(state);
 
-            string macPart = !string.IsNullOrEmpty(mac) ? mac.Replace(":", "").Substring(Math.Max(0, mac.Replace(":", "").Length - 4)) : hex.Substring(0, 4);
-            return \$"HW-{pcName.ToUpper()}-{macPart}-{hex.Substring(4)}";
+            return GetStructuredPcId(state, loc, composite, "01");
         }
+
     }
 }
 `

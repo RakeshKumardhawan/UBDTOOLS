@@ -26,9 +26,16 @@ export function getDeviceHardwareIdentity(): DeviceIdentity {
     }
     const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
     
-    if (!savedId) savedId = `HW-EVD-${hex.slice(0, 4)}-${hex.slice(4)}`;
+    const profileId = (localStorage.getItem('evedhika_selected_profile_id') || '').toLowerCase();
+    const isAP = profileId.includes('andhra') || profileId.includes('ap');
+    const stateCode = isAP ? 'AP' : 'TS';
+    const distCode = profileId.includes('kadapa') || profileId.includes('kdp') ? 'KDP' : 'MNCL';
+
+    if (!savedId || savedId.startsWith('HW-EVD-') || savedId.startsWith('EVD-PC-')) {
+      savedId = `EVD-${stateCode}-${distCode}-01`;
+    }
     if (!savedMac) savedMac = `${hex.slice(0, 2)}:${hex.slice(2, 4)}:${hex.slice(4, 6)}:${hex.slice(6, 8)}`;
-    if (!savedUuid) savedUuid = `EVD-${hex.slice(0, 4)}-438F-${hex.slice(4, 8)}-${Date.now().toString(16).toUpperCase().slice(-4)}`;
+    if (!savedUuid) savedUuid = `EVD-${stateCode}-${distCode}-${hex.slice(0, 4)}`;
     
     if (!savedInstallationId) {
       // Generate a truly unique Installation ID

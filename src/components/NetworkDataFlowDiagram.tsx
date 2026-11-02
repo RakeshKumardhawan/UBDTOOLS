@@ -15,7 +15,9 @@ import {
   ExternalLink,
   Layers,
   Activity,
-  HardDrive
+  HardDrive,
+  MessageCircle,
+  Phone
 } from 'lucide-react';
 import { useToast } from './Toast';
 
@@ -24,6 +26,7 @@ export const NetworkDataFlowDiagram: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [testingTg, setTestingTg] = useState(false);
+  const [testingWa, setTestingWa] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<any>(null);
 
@@ -57,22 +60,51 @@ export const NetworkDataFlowDiagram: React.FC = () => {
         body: JSON.stringify({
           text: `🔔 <b>E-Vedhika Network Pipeline Test</b>\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `✅ <b>Pipeline 3: Telegram Bot Verified</b>\n` +
-                `🤖 <b>Bot:</b> @UBD_LIVE_UPDATES_bot\n` +
-                `📡 <b>Network Architecture:</b> 3-Pillar Data Flow Online\n` +
+                `✅ <b>Pillar 4: Telegram Bot Relay Active</b>\n` +
+                `🤖 <b>Bot:</b> @ubd_installation_alerts_bot\n` +
+                `📡 <b>Architecture:</b> 4-Pillar Network Data Flow Online\n` +
                 `⏰ <b>Timestamp:</b> ${new Date().toLocaleString('en-IN')}`
         })
       });
       const data = await res.json();
       if (data.success) {
-        showSuccess('Test report delivered to Telegram Admin Chat (431228008)', 'Telegram Pipeline Active');
+        showSuccess('Test report delivered to Telegram Admin Chat', 'Pillar 4 Telegram Active');
       } else {
-        showError(data.error || 'Telegram dispatch failed', 'Pipeline 3 Error');
+        showError(data.error || 'Telegram dispatch failed', 'Pillar 4 Error');
       }
     } catch (e: any) {
       showError(e.message, 'Telegram Error');
     } finally {
       setTestingTg(false);
+      fetchStatus();
+    }
+  };
+
+  const handleTestWhatsApp = async () => {
+    setTestingWa(true);
+    try {
+      const res = await fetch('/api/reporting/receiver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pcName: 'NETWORK-FLOW-TEST-PC',
+          userName: 'Admin Operator',
+          officeLocation: 'E-Vedhika Central Command',
+          state: 'Telangana',
+          district: 'Hyderabad',
+          status: 'SUCCESS',
+          remarks: 'Instant Live WhatsApp Alert Test from 4-Pillar Network Flow Architecture!'
+        })
+      });
+      if (res.ok) {
+        showSuccess('WhatsApp test notification sent to Admin mobile!', 'Pillar 3 WhatsApp Active');
+      } else {
+        showError('WhatsApp dispatch failed. Please verify API key & phone.', 'Pillar 3 Error');
+      }
+    } catch (e: any) {
+      showError(e.message, 'WhatsApp Error');
+    } finally {
+      setTestingWa(false);
       fetchStatus();
     }
   };
@@ -115,6 +147,8 @@ export const NetworkDataFlowDiagram: React.FC = () => {
 
   const coldCount = networkStatus?.pipelines?.coldServer?.totalRecords ?? 0;
   const webActive = networkStatus?.pipelines?.website?.activeMachineCount ?? 0;
+  const waPhone = networkStatus?.pipelines?.whatsapp?.phone || '+919989922310';
+  const waStatus = networkStatus?.pipelines?.whatsapp?.status === 'ONLINE';
   const tgStatus = networkStatus?.pipelines?.telegram?.status === 'ONLINE';
 
   return (
@@ -128,11 +162,11 @@ export const NetworkDataFlowDiagram: React.FC = () => {
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-cyan-400" />
             <h2 className="font-syne font-bold text-lg sm:text-xl text-white tracking-wide">
-              Application Data Flow — Network Architecture
+              4-Pillar Network Flow Architecture & Real-Time Gateway
             </h2>
           </div>
           <p className="text-xs text-ink-medium mt-1">
-            Real-time live multi-channel data distribution pipeline across Cold Database, Web Central, and Telegram.
+            Real-time multi-channel telemetry distribution across Cold Database, Central Web Portal, WhatsApp Personal Messenger, and Telegram Bot.
           </p>
         </div>
 
@@ -143,65 +177,74 @@ export const NetworkDataFlowDiagram: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#16161A] hover:bg-ink-faint text-xs text-ink-light font-mono rounded border border-ink-faint transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Pipelines
+            Refresh 4 Pipelines
           </button>
         </div>
       </div>
 
-      {/* Embedded Original Architecture Reference Toggle & View */}
+      {/* Embedded Live Architecture Visualizer */}
       <div className="mb-6 p-4 bg-black/40 border border-ink-faint/80 rounded-lg">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-mono text-cyan-400 font-semibold uppercase tracking-wider flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Live Network Topology (User Blueprint Specification)
+            Live 4-Pillar Network Topology (Admin Dashboard Dynamic Control)
           </span>
-          <span className="text-[11px] text-ink-muted font-mono">3-Pillar Data Pipeline</span>
+          <span className="text-[11px] text-ink-muted font-mono">4-Pillar Data & Messenger Architecture</span>
         </div>
 
-        {/* 3-Pillars Visual Network Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+        {/* 4-Pillars Network Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
           
-          {/* Node 0: E-Vedhika Tool (C# Client) */}
-          <div className="lg:col-span-3 bg-[#131419] border-2 border-blue-500/40 rounded-xl p-4 relative shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                <Monitor className="w-6 h-6" />
+          {/* Node 0: E-Vedhika Client Tool */}
+          <div className="lg:col-span-3 bg-[#131419] border-2 border-blue-500/40 rounded-xl p-4 relative shadow-lg flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <Monitor className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-blue-400">E-Vedhika Tool</h3>
+                  <span className="text-[10px] text-ink-muted font-mono">Client Engine v1.0.8</span>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-sm text-blue-400">E-Vedhika Tool</h3>
-                <span className="text-[10px] text-ink-muted font-mono">C# WinForms Client v1.0.8</span>
+              <p className="text-xs text-ink-medium mb-3 leading-relaxed">
+                Client workstations running in Grama Panchayat & Mandal Offices (Telangana / AP).
+              </p>
+              <div className="space-y-1.5 text-[11px] font-mono text-ink-light">
+                <div className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>1. Cold Vault Ingest</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-blue-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                  <span>2. Web Telemetry & Receiver</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>3. Personal WhatsApp Alert</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-rose-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                  <span>4. Telegram Bot Relay</span>
+                </div>
               </div>
             </div>
-            <p className="text-xs text-ink-medium mb-3">
-              Client execution engine running in GP & Mandal offices (Telangana/AP).
-            </p>
-            <div className="space-y-1.5 text-[11px] font-mono text-ink-light">
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>1. Direct Cold Ingest</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-blue-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                <span>2. Web Live Telemetry</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-rose-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                <span>3. Direct Telegram Alert</span>
-              </div>
+            <div className="mt-4 pt-3 border-t border-ink-faint/40 text-[10px] font-mono text-cyan-300">
+              ⚡ Instant 4-Way Broadcast
             </div>
           </div>
 
-          {/* Connectors & 3 Target Nodes */}
+          {/* 4 Target Pillars Stack */}
           <div className="lg:col-span-9 space-y-3">
 
-            {/* Pipeline 1: Cold Server */}
+            {/* Pillar 1: Cold Server */}
             <div className="bg-[#0f1b16] border-2 border-emerald-500/40 rounded-xl p-3.5 sm:p-4 transition-all hover:border-emerald-500/70">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2.5">
                   <span className="w-6 h-6 rounded-full bg-emerald-500 text-black font-bold text-xs flex items-center justify-center">1</span>
                   <div className="flex items-center gap-2">
                     <Database className="w-4 h-4 text-emerald-400" />
-                    <h4 className="font-bold text-sm text-emerald-400">Cold Server (Database / Data Storage)</h4>
+                    <h4 className="font-bold text-sm text-emerald-400">Pillar 1: Cold Server Database & Storage</h4>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -212,10 +255,10 @@ export const NetworkDataFlowDiagram: React.FC = () => {
                 </div>
               </div>
               <p className="text-xs text-emerald-200/80 mb-2">
-                • Store Application Data &nbsp;• Backup &nbsp;• Data Processing & Integrity Audits
+                • Store Application Data &nbsp;• Backup & Snapshot Archive &nbsp;• Data Processing & Integrity Audits
               </p>
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-emerald-500/20 text-[11px]">
-                <span className="text-ink-muted font-mono">Vault: cold_server_storage.json</span>
+                <span className="text-ink-muted font-mono">Storage: cold_server_storage.json</span>
                 <button
                   onClick={handleCreateColdBackup}
                   disabled={creatingBackup}
@@ -227,7 +270,7 @@ export const NetworkDataFlowDiagram: React.FC = () => {
               </div>
             </div>
 
-            {/* Bidirectional Connector 1 */}
+            {/* Bidirectional Sync: Cold ⟷ Web */}
             <div className="flex items-center justify-center -my-1">
               <button
                 onClick={handleSyncColdWithWebsite}
@@ -236,73 +279,114 @@ export const NetworkDataFlowDiagram: React.FC = () => {
                 title="Bidirectional sync between Cold Server and Website"
               >
                 <ArrowLeftRight className={`w-3.5 h-3.5 ${syncing ? 'animate-spin text-purple-400' : ''}`} />
-                <span>Data Sync / API (Bidirectional: Cold Server ⟷ Website)</span>
+                <span>Bidirectional Sync: Cold Server Database ⟷ Web Central</span>
               </button>
             </div>
 
-            {/* Pipeline 2: Website */}
+            {/* Pillar 2: Web Central & Fleet Receiver */}
             <div className="bg-[#0e1726] border-2 border-blue-500/40 rounded-xl p-3.5 sm:p-4 transition-all hover:border-blue-500/70">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2.5">
                   <span className="w-6 h-6 rounded-full bg-blue-500 text-white font-bold text-xs flex items-center justify-center">2</span>
                   <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4 text-blue-400" />
-                    <h4 className="font-bold text-sm text-blue-400">Website (www.e-vedhika.in)</h4>
+                    <h4 className="font-bold text-sm text-blue-400">Pillar 2: Web Central & Fleet Receiver</h4>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                    Live Dashboard Active
+                    {webActive} Nodes Live
                   </span>
                   <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
                 </div>
               </div>
               <p className="text-xs text-blue-200/80 mb-2">
-                • Display Data &nbsp;• Admin Panel &nbsp;• Real-time Updates & Step Matrix Monitoring
+                • Admin Dashboard &nbsp;• Continuous Telemetry Receiver & Vault &nbsp;• Continuous Website Upload
               </p>
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-blue-500/20 text-[11px]">
-                <span className="text-ink-muted font-mono">Gateway: /admin/ubd_monitoring & /api/telemetry</span>
-                <span className="text-blue-300 font-mono font-medium">Synced With Cold Storage</span>
+                <span className="text-ink-muted font-mono truncate max-w-[280px]">https://www.e-vedhika.in/api/reporting/receiver</span>
+                <span className="text-blue-300 font-mono font-medium">Vault: telemetry_vault.json</span>
               </div>
             </div>
 
-            {/* Bidirectional Connector 2 */}
+            {/* Pipeline Connector to Personal Messenger */}
+            <div className="flex items-center justify-center -my-1">
+              <div className="flex items-center gap-2 px-3 py-1 bg-[#0f241a] border border-emerald-500/40 text-emerald-300 rounded-full text-xs font-mono">
+                <ArrowLeftRight className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Personal Messenger Pipeline: Admin Phone & Key Dynamic Live Sync</span>
+              </div>
+            </div>
+
+            {/* Pillar 3: WhatsApp Personal Messenger Gateway */}
+            <div className="bg-[#0f241a] border-2 border-emerald-500/50 rounded-xl p-3.5 sm:p-4 transition-all hover:border-emerald-500/80">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">3</span>
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4 text-emerald-400" />
+                    <h4 className="font-bold text-sm text-emerald-400">Pillar 3: WhatsApp Personal Messenger Gateway</h4>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> {waPhone}
+                  </span>
+                  <span className={`w-2 h-2 rounded-full ${waStatus ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`} />
+                </div>
+              </div>
+              <p className="text-xs text-emerald-200/80 mb-2">
+                • Direct Admin Phone Alerts &nbsp;• CallMeBot / UltraMsg API &nbsp;• Live Settings Dynamic Sync from Dashboard
+              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-emerald-500/20 text-[11px]">
+                <span className="text-ink-muted font-mono truncate">CallMeBot / UltraMsg API Gateway</span>
+                <button
+                  onClick={handleTestWhatsApp}
+                  disabled={testingWa}
+                  className="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 rounded font-mono text-[11px] flex items-center gap-1 transition-colors"
+                >
+                  <Send className="w-3 h-3" />
+                  {testingWa ? 'Dispatching...' : 'Test WhatsApp Alert'}
+                </button>
+              </div>
+            </div>
+
+            {/* Pipeline Connector to Telegram */}
             <div className="flex items-center justify-center -my-1">
               <div className="flex items-center gap-2 px-3 py-1 bg-[#26101d] border border-pink-500/40 text-pink-300 rounded-full text-xs font-mono">
                 <ArrowLeftRight className="w-3.5 h-3.5 text-pink-400" />
-                <span>Notifications / Reports (Bidirectional: Website ⟷ Telegram)</span>
+                <span>Cloud Relay Pipeline: Telegram Webhook (Port 3000 Listener)</span>
               </div>
             </div>
 
-            {/* Pipeline 3: Telegram */}
+            {/* Pillar 4: Telegram Bot & Cloud Relay */}
             <div className="bg-[#200f13] border-2 border-rose-500/40 rounded-xl p-3.5 sm:p-4 transition-all hover:border-rose-500/70">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-rose-500 text-white font-bold text-xs flex items-center justify-center">3</span>
+                  <span className="w-6 h-6 rounded-full bg-rose-500 text-white font-bold text-xs flex items-center justify-center">4</span>
                   <div className="flex items-center gap-2">
                     <Send className="w-4 h-4 text-rose-400" />
-                    <h4 className="font-bold text-sm text-rose-400">Telegram (Bot / Channel / Group)</h4>
+                    <h4 className="font-bold text-sm text-rose-400">Pillar 4: Telegram Bot & Cloud Relay</h4>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                    @UBD_LIVE_UPDATES_bot
+                    @ubd_installation_alerts_bot
                   </span>
                   <span className={`w-2 h-2 rounded-full ${tgStatus ? 'bg-emerald-400' : 'bg-rose-400'} animate-pulse`} />
                 </div>
               </div>
               <p className="text-xs text-rose-200/80 mb-2">
-                • Send Reports &nbsp;• Notifications &nbsp;• Alerts & Instant Mobile Delivery (Chat ID: 431228008)
+                • Automated Diagnostic Reports &nbsp;• Emergency Failure Alerts &nbsp;• Admin Interactive Chat Commands (/status, /stats)
               </p>
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-rose-500/20 text-[11px]">
-                <span className="text-ink-muted font-mono">Target: @DhawanRakesh (Admin)</span>
+                <span className="text-ink-muted font-mono truncate">Chat ID: {networkStatus?.pipelines?.telegram?.adminChatId || '431228008'}</span>
                 <button
                   onClick={handleTestTelegram}
                   disabled={testingTg}
                   className="px-2.5 py-1 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 rounded font-mono text-[11px] flex items-center gap-1 transition-colors"
                 >
                   <Send className="w-3 h-3" />
-                  {testingTg ? 'Broadcasting...' : 'Test Telegram Broadcast'}
+                  {testingTg ? 'Broadcasting...' : 'Broadcast Telegram Test'}
                 </button>
               </div>
             </div>
@@ -311,24 +395,28 @@ export const NetworkDataFlowDiagram: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Status Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-black/60 p-3 rounded-lg border border-ink-faint font-mono">
-        <div className="flex items-center gap-4">
+      {/* Quick Status Bar for 4 Channels */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-black/60 p-3.5 rounded-lg border border-ink-faint font-mono">
+        <div className="flex flex-wrap items-center gap-4">
           <span className="flex items-center gap-1.5 text-emerald-400">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Cold Database: ONLINE</span>
+            <span>Pillar 1 Cold Storage: ONLINE</span>
           </span>
           <span className="flex items-center gap-1.5 text-blue-400">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Website Portal: ONLINE</span>
+            <span>Pillar 2 Web Central: ONLINE</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Pillar 3 WhatsApp: ACTIVE ({waPhone})</span>
           </span>
           <span className="flex items-center gap-1.5 text-rose-400">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Telegram Bot: VERIFIED</span>
+            <span>Pillar 4 Telegram: VERIFIED (@ubd_installation_alerts_bot)</span>
           </span>
         </div>
         <div className="text-ink-muted">
-          All 3 Channels Active in C# Client v1.0.8 & Web Core
+          All 4 Pillars Connected in Real-Time
         </div>
       </div>
     </div>

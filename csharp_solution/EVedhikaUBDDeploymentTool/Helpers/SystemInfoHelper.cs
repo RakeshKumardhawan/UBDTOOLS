@@ -542,6 +542,87 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             return "";
         }
 
+        public static string GetShortDistrictMandalCode(string districtOrOffice)
+        {
+            if (string.IsNullOrEmpty(districtOrOffice)) return "MNCL";
+            string str = districtOrOffice.ToUpper();
+
+            if (str.Contains("MANCHERIAL") || str.Contains("MANCHIRAL") || str.Contains("MNCL")) return "MNCL";
+            if (str.Contains("KADAPA") || str.Contains("CUDDAPAH") || str.Contains("YSR") || str.Contains("KDP")) return "KDP";
+            if (str.Contains("KHAMMAM") || str.Contains("KMM")) return "KMM";
+            if (str.Contains("SURYAPET") || str.Contains("SRPT")) return "SRPT";
+            if (str.Contains("HYDERABAD") || str.Contains("HYD")) return "HYD";
+            if (str.Contains("RANGAREDDY") || str.Contains("RANGA REDDY") || str.Contains("RNG")) return "RNG";
+            if (str.Contains("MEDCHAL") || str.Contains("MALKAJGIRI") || str.Contains("MDC")) return "MDC";
+            if (str.Contains("NALGONDA") || str.Contains("NLG")) return "NLG";
+            if (str.Contains("WARANGAL") || str.Contains("WGL")) return "WGL";
+            if (str.Contains("KARIMNAGAR") || str.Contains("KMR")) return "KMR";
+            if (str.Contains("NIZAMABAD") || str.Contains("NZB")) return "NZB";
+            if (str.Contains("MAHABUBNAGAR") || str.Contains("MBNR")) return "MBNR";
+            if (str.Contains("MEDAK") || str.Contains("MDK")) return "MDK";
+            if (str.Contains("SANGAREDDY") || str.Contains("SRD")) return "SRD";
+            if (str.Contains("SIDDIPET") || str.Contains("SDPT")) return "SDPT";
+            if (str.Contains("KAMAREDDY") || str.Contains("KMRD")) return "KMRD";
+            if (str.Contains("ADILABAD") || str.Contains("ADB")) return "ADB";
+            if (str.Contains("NIRMAL") || str.Contains("NRML")) return "NRML";
+            if (str.Contains("JAGTIAL") || str.Contains("JGTL")) return "JGTL";
+            if (str.Contains("PEDDAPALLI") || str.Contains("PDPL")) return "PDPL";
+            if (str.Contains("BHUPALPALLY") || str.Contains("BHPL")) return "BHPL";
+            if (str.Contains("MULUGU") || str.Contains("MLG")) return "MLG";
+            if (str.Contains("KOTHAGUDEM") || str.Contains("BHADRADRI") || str.Contains("KTGM")) return "KTGM";
+            if (str.Contains("MAHABUBABAD") || str.Contains("MHBD")) return "MHBD";
+            if (str.Contains("JANGAON") || str.Contains("JNG")) return "JNG";
+            if (str.Contains("BHUVANAGIRI") || str.Contains("YADADRI") || str.Contains("YDD")) return "YDD";
+            if (str.Contains("VIKARABAD") || str.Contains("VKBD")) return "VKBD";
+            if (str.Contains("NARAYANPET") || str.Contains("NRNP")) return "NRNP";
+            if (str.Contains("GADWAL") || str.Contains("GDWL")) return "GDWL";
+            if (str.Contains("WANAPARTHY") || str.Contains("WNPR")) return "WNPR";
+            if (str.Contains("NAGARKURNOOL") || str.Contains("NGKL")) return "NGKL";
+
+            // AP Districts
+            if (str.Contains("VISAKHAPATNAM") || str.Contains("VIZAG") || str.Contains("VSP")) return "VSP";
+            if (str.Contains("VIJAYAWADA") || str.Contains("VJA")) return "VJA";
+            if (str.Contains("GUNTUR") || str.Contains("GNT")) return "GNT";
+            if (str.Contains("KURNOOL") || str.Contains("KNL")) return "KNL";
+            if (str.Contains("ANANTAPUR") || str.Contains("ANANTHAPURAMU") || str.Contains("ATP")) return "ATP";
+            if (str.Contains("CHITTOOR") || str.Contains("CTR")) return "CTR";
+            if (str.Contains("TIRUPATI") || str.Contains("TPT")) return "TPT";
+            if (str.Contains("NELLORE") || str.Contains("NLR")) return "NLR";
+            if (str.Contains("PRAKASAM") || str.Contains("ONGOLE") || str.Contains("OGL")) return "OGL";
+            if (str.Contains("KAKINADA") || str.Contains("EAST GODAVARI") || str.Contains("KKD")) return "KKD";
+            if (str.Contains("RAJAHMUNDRY") || str.Contains("RJY")) return "RJY";
+            if (str.Contains("ELURU") || str.Contains("WEST GODAVARI") || str.Contains("ELR")) return "ELR";
+            if (str.Contains("MACHILIPATNAM") || str.Contains("KRISHNA") || str.Contains("MTM")) return "MTM";
+            if (str.Contains("SRIKAKULAM") || str.Contains("SKLM")) return "SKLM";
+            if (str.Contains("VIZIANAGARAM") || str.Contains("VZM")) return "VZM";
+
+            string clean = System.Text.RegularExpressions.Regex.Replace(str, @"GRAM|PANCHAYAT|OFFICE|MANDAL|DISTRICT|TELANGANA|ANDHRA|PRADESH|SPECIAL|TOWN", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            clean = System.Text.RegularExpressions.Regex.Replace(clean, @"[^A-Z]", "");
+            if (clean.Length >= 3) return clean.Substring(0, Math.Min(4, clean.Length));
+            return "MNCL";
+        }
+
+        public static string GetStructuredPcId(string state, string officeLocation, string hwSeed = null, string sequenceNumber = "01")
+        {
+            bool isAP = !string.IsNullOrEmpty(state) && (state.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0 || state.IndexOf("AP", StringComparison.OrdinalIgnoreCase) >= 0);
+            string stateCode = isAP ? "AP" : "TS";
+            string distCode = GetShortDistrictMandalCode(officeLocation);
+
+            string hwCode = "01";
+            if (!string.IsNullOrEmpty(hwSeed))
+            {
+                int hash = Math.Abs(hwSeed.GetHashCode());
+                string hex = hash.ToString("X4");
+                hwCode = !string.IsNullOrEmpty(sequenceNumber) && sequenceNumber != "01" ? sequenceNumber : hex.Substring(0, Math.Min(2, hex.Length));
+            }
+            else if (!string.IsNullOrEmpty(sequenceNumber))
+            {
+                hwCode = sequenceNumber;
+            }
+
+            return $"EVD-{stateCode}-{distCode}-{hwCode}";
+        }
+
         public static string GetHardwareMachineFingerprint()
         {
             string mac = GetPrimaryMacAddress();
@@ -551,11 +632,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string userName = Environment.UserName ?? "USER";
 
             string composite = $"{mac}_{uuid}_{mbSerial}_{pcName}_{userName}";
-            int hash = Math.Abs(composite.GetHashCode());
-            string hex = hash.ToString("X8");
+            string state = NativeRemoteAgent.CurrentState ?? "Telangana";
+            string loc = GetLiveLocation(state);
 
-            string macPart = !string.IsNullOrEmpty(mac) ? mac.Replace(":", "").Substring(Math.Max(0, mac.Replace(":", "").Length - 4)) : hex.Substring(0, 4);
-            return $"HW-{pcName.ToUpper()}-{macPart}-{hex.Substring(4)}";
+            return GetStructuredPcId(state, loc, composite, "01");
         }
+
     }
 }

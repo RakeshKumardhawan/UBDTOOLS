@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Megaphone, PlusCircle, Radio, Calendar, ArrowRight, ShieldAlert } from 'lucide-react';
+import { Megaphone, PlusCircle, Radio, Calendar, ArrowRight, Volume2, Eye } from 'lucide-react';
 import { NavigationTab } from '../types';
-
-interface PostItem {
-  id: number | string;
-  slug?: string;
-  title: string;
-  content: string;
-  date: string;
-  importance: 'High' | 'Normal' | 'Low';
-  category?: string;
-}
+import { BroadcastReaderModal, BroadcastPost } from './BroadcastReaderModal';
 
 interface LiveAnnouncementWidgetProps {
   setActiveTab: (tab: NavigationTab) => void;
@@ -18,8 +9,9 @@ interface LiveAnnouncementWidgetProps {
 }
 
 export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ setActiveTab, onOpenPost }) => {
-  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [posts, setPosts] = useState<BroadcastPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedPost, setSelectedPost] = useState<BroadcastPost | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -41,7 +33,8 @@ export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ 
     };
 
     fetchAnnouncements();
-    const interval = setInterval(fetchAnnouncements, 15000);
+    // 2-second real-time polling interval for instant publish/delete reflection
+    const interval = setInterval(fetchAnnouncements, 2000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -96,14 +89,7 @@ export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ 
           {posts.slice(0, 2).map((post) => (
             <div
               key={post.id}
-              onClick={() => {
-                const targetSlug = post.slug || (typeof post.id === 'string' && post.id.includes('ubd') ? post.id : 'ubd-setting-issues-one-click-all-in-one-setup');
-                if (onOpenPost) {
-                  onOpenPost(targetSlug);
-                } else {
-                  setActiveTab('post-detail');
-                }
-              }}
+              onClick={() => setSelectedPost(post)}
               className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-indigo-400 hover:bg-slate-900 transition-all space-y-1.5 cursor-pointer group"
             >
               <div className="flex items-center justify-between text-[10px]">
@@ -127,13 +113,27 @@ export const LiveAnnouncementWidget: React.FC<LiveAnnouncementWidgetProps> = ({ 
               <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
                 {post.content}
               </p>
-              <div className="pt-1 flex items-center gap-1 text-[10px] text-indigo-400 font-bold group-hover:text-indigo-300">
-                <span>చదవండి (Read Full Post)</span>
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              <div className="pt-1.5 flex items-center justify-between text-[10px]">
+                <span className="text-indigo-400 font-bold group-hover:text-indigo-300 flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  <span>పూర్తి సమాచారం చదవండి (Read Full)</span>
+                </span>
+                <span className="text-amber-300 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  <Volume2 className="w-3 h-3 text-amber-400 animate-pulse" />
+                  <span>వినండి (Listen)</span>
+                </span>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Full Reading & Audio Voice Reader Modal */}
+      {selectedPost && (
+        <BroadcastReaderModal
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+        />
       )}
     </div>
   );

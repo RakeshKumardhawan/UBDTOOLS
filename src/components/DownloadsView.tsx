@@ -13,6 +13,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { DepartmentProfile } from '../types';
+import { AntivirusBypassCard } from './AntivirusBypassCard';
 
 interface DownloadsViewProps {
   selectedProfile: DepartmentProfile;
@@ -168,6 +169,9 @@ Write-Host "========================================================" -Foregroun
           </button>
         </div>
       </div>
+
+      {/* Antivirus Auto-Whitelister & False Positive Resolver */}
+      <AntivirusBypassCard />
 
       {/* Grid: Left PowerShell Code Preview, Right Offline Manual Instructions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

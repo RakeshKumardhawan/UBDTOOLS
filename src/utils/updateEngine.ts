@@ -43,6 +43,17 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
+    version: 'v1.0.9',
+    date: 'November 2026',
+    changes: [
+      'Full English localization across all system modules and UI components',
+      '4-Pillar Network Flow Architecture with dynamic personal WhatsApp & Telegram gateway sync',
+      'DigiSigner Bridge Service v2.0.4.1 certificate whitelist verification',
+      'Enhanced System Status & Software Version control widget with live System Console logging',
+      'Clean 1-Click System Wipe and Revert Engine'
+    ]
+  },
+  {
     version: 'v1.0.8',
     date: 'October 2026',
     changes: [

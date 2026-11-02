@@ -24,6 +24,8 @@ import {
 import { DepartmentProfile } from '../types';
 import { useToast } from './Toast';
 import { TelegramNotificationCard } from './TelegramNotificationCard';
+import { WhatsAppAndGoogleChatCard } from './WhatsAppAndGoogleChatCard';
+import { PanicButtonCard } from './PanicButtonCard';
 import { 
   getLocalResourceManifest, 
   checkResourceManifestUpdates, 
@@ -38,6 +40,7 @@ interface SettingsViewProps {
   departmentProfiles: DepartmentProfile[];
   onClearLogs: () => void;
   onResetState: () => void;
+  onPerformSystemWipe?: () => Promise<void>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -46,6 +49,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   departmentProfiles,
   onClearLogs,
   onResetState,
+  onPerformSystemWipe,
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
   const [autoUpdate, setAutoUpdate] = useState(true);
@@ -295,6 +299,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </div>
 
+      {/* Emergency Panic Button: Full System Wipe & Revocation */}
+      <PanicButtonCard onPerformSystemWipe={onPerformSystemWipe} />
+
       {/* Telegram Gateway & PC Allow / Block Manager */}
       <TelegramNotificationCard />
 
@@ -424,6 +431,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Multi-Channel Notification Card for WhatsApp & Google Chat */}
+      <WhatsAppAndGoogleChatCard />
 
       {/* Settings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
