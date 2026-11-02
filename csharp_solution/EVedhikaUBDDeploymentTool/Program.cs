@@ -245,12 +245,18 @@ namespace EVedhikaUBDDeploymentTool
         {
             try
             {
+                string state = "Telangana";
+                string loc = SystemInfoHelper.GetLiveLocation(state);
+                string officeLoc = (string.IsNullOrEmpty(loc) || loc == "Unknown Location")
+                    ? "Gram Panchayat Office (Telangana)"
+                    : $"{loc} (Telangana)";
+
                 var data = new System.Collections.Generic.Dictionary<string, string>
                 {
                     { "pcId", Logger.GetUniqueMachineId() },
                     { "pcName", Environment.MachineName ?? "GP-OFFICE-PC" },
                     { "userName", Environment.UserName ?? "Operator" },
-                    { "officeLocation", "Gram Panchayat Office" },
+                    { "officeLocation", officeLoc },
                     { "osVersion", Environment.OSVersion.ToString() },
                     { "version", "v1.0.9" },
                     { "status", "SUCCESS" },
@@ -259,12 +265,23 @@ namespace EVedhikaUBDDeploymentTool
                     { "remarks", "EVedhika_Setup_v1.0.9.exe installed and registered successfully." },
                     { "isFinalReport", "true" },
                     { "sendTelegram", "true" },
-                    { "forceTelegram", "true" }
+                    { "forceTelegram", "true" },
+                    { "isInstallation", "true" },
+                    { "isPostInstallHook", "true" }
                 };
-                Logger.SendCentralTelemetry(data);
-                Logger.SendFleetUpdateReport();
+
+                // Synchronous delivery ensures the process does not terminate before HTTP sockets complete
+                Logger.SendSynchronousInstallationReport(data);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                try
+                {
+                    string crashLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup.log");
+                    File.AppendAllText(crashLog, $"[{DateTime.Now}] PostInstall Telemetry Error: {ex.Message}\r\n");
+                }
+                catch { }
+            }
         }
 
         private static void SendSyncTelegramInstallNotification(string pcName, string userName, string location, string os, string dsc)

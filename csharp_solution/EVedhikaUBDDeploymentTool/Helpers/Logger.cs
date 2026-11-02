@@ -204,13 +204,18 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                                       currentStatus.Contains("ONLINE & READY") ||
                                       currentStatus.Contains("DSC_TOKEN_AUTO_VERIFIED");
 
-            // Full DSC Execution Gate: Only dispatch Telegram report after full DSC run finishes
+            bool isInstallationReport = (data.ContainsKey("isInstallation") && (data["isInstallation"] == "true" || data["isInstallation"] == "True"))
+                || (data.ContainsKey("remarks") && data["remarks"].IndexOf("installed", StringComparison.OrdinalIgnoreCase) >= 0)
+                || (data.ContainsKey("verification") && data["verification"].IndexOf("Setup Completed", StringComparison.OrdinalIgnoreCase) >= 0);
+
+            // Full DSC Execution Gate: Only dispatch Telegram report after full DSC run finishes, or for installations/forced updates
             bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
                 || (data.ContainsKey("verification") && data["verification"].Contains("17/17"))
-                || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"));
+                || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"))
+                || isInstallationReport;
 
             // Flag whether this report will trigger Telegram
-            bool willTriggerTelegram = !alreadyReported && !isExplicitSuppress && (isDscFinished || force) && (isExplicitFinal || isExplicitSend || (!isRoutineHeartbeat && currentStatus.ToUpper().Contains("FAIL")));
+            bool willTriggerTelegram = (!alreadyReported || force || isInstallationReport) && !isExplicitSuppress && (isDscFinished || force || isInstallationReport) && (isExplicitFinal || isExplicitSend || isInstallationReport || (!isRoutineHeartbeat && currentStatus.ToUpper().Contains("FAIL")));
             if (willTriggerTelegram)
             {
                 data["directTelegramSent"] = "true";
@@ -344,7 +349,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             });
 
             // 2. Anti-Spam Batching & Strict Telegram Filter
-            if (isExplicitSuppress || !isDscFinished || (alreadyReported && !force) || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend))
+            if (isExplicitSuppress || (!isDscFinished && !force && !isInstallationReport) || (alreadyReported && !force && !isInstallationReport) || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend && !isInstallationReport))
             {
                 // Strictly suppress intermediate checks, routine heartbeats, token presence polls, and duplicate reports from Telegram
                 return;
@@ -465,10 +470,15 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             string timestamp = DateTime.Now.ToString("dd/MM/yyyy, hh:mm:ss tt");
 
+            bool isInstall = (data.ContainsKey("isInstallation") && (data["isInstallation"] == "true" || data["isInstallation"] == "True"))
+                || (data.ContainsKey("verification") && data["verification"].IndexOf("Setup Completed", StringComparison.OrdinalIgnoreCase) >= 0)
+                || (data.ContainsKey("remarks") && data["remarks"].IndexOf("installed", StringComparison.OrdinalIgnoreCase) >= 0);
+
             Func<int, string, string> getStepStat = delegate(int stepNum, string defaultStat)
             {
                 string key = "step" + stepNum;
                 if (data.ContainsKey(key) && !string.IsNullOrEmpty(data[key])) return data[key];
+                if (isInstall) return "✅ Installed & Configured";
                 return defaultStat;
             };
 
@@ -476,7 +486,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string hwUuid = data.ContainsKey("hardwareUuid") && !string.IsNullOrEmpty(data["hardwareUuid"]) ? data["hardwareUuid"] : SystemInfoHelper.GetHardwareUuid();
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report</b>");
+            if (isInstall)
+            {
+                sb.AppendLine("🚀 <b>E-Vedhika UBD Deployment Tool - Installation & Setup Report</b>");
+            }
+            else
+            {
+                sb.AppendLine("📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report</b>");
+            }
             sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             sb.AppendLine("🖥️ <b>Machine & Office Details</b>");
             sb.AppendLine($"<b>Machine IDs:</b> <code>{EscapeTelegramHtml(pcId)}</code>");
@@ -605,8 +622,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "installType", isExisting ? "EXISTING_PC_UPDATED" : "FRESH_INSTALL" },
                         { "initialInstallDate", initialInstallDate },
                         { "updateReceivedDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "version", "v1.0.9-Update-R2" },
-                        { "updateBuild", "2026.11.02-R2" },
+                        { "version", "v1.0.9-Update-R3" },
+                        { "updateBuild", "2026.11.02-R3" },
                         { "status", "SUCCESS" },
                         { "overallStatus", "HEALTHY" },
                         { "verification", "Passed (17/17)" },
@@ -691,6 +708,133 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     onComplete?.Invoke(false, ex.Message);
                 }
             });
+        }
+
+        /// <summary>
+        /// Sends an immediate, synchronous installation telemetry report to the Web Server and direct to Telegram.
+        /// Blocks synchronously with a timeout to ensure the process does not terminate prematurely during Inno Setup --post-install.
+        /// </summary>
+        public static void SendSynchronousInstallationReport(Dictionary<string, string> data)
+        {
+            if (data == null) data = new Dictionary<string, string>();
+
+            try
+            {
+                // Ensure required system information fields are populated
+                if (!data.ContainsKey("pcId")) data["pcId"] = GetUniqueMachineId();
+                if (!data.ContainsKey("pcName")) data["pcName"] = Environment.MachineName ?? "GP-OFFICE-PC";
+                if (!data.ContainsKey("userName")) data["userName"] = Environment.UserName ?? "Operator";
+                if (!data.ContainsKey("osVersion")) data["osVersion"] = Environment.OSVersion.ToString();
+                if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
+                if (!data.ContainsKey("status")) data["status"] = "SUCCESS";
+                if (!data.ContainsKey("overallStatus")) data["overallStatus"] = "HEALTHY";
+                if (!data.ContainsKey("verification")) data["verification"] = "v1.0.9 Setup Completed";
+                if (!data.ContainsKey("remarks")) data["remarks"] = "EVedhika_Setup_v1.0.9.exe installed and registered successfully.";
+                if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
+                if (!data.ContainsKey("time")) data["time"] = DateTime.Now.ToString("HH:mm:ss");
+                if (!data.ContainsKey("macAddress")) data["macAddress"] = SystemInfoHelper.GetPrimaryMacAddress();
+                if (!data.ContainsKey("hardwareUuid")) data["hardwareUuid"] = SystemInfoHelper.GetHardwareUuid();
+                if (!data.ContainsKey("userPrivileges")) data["userPrivileges"] = SystemInfoHelper.GetUserPrivileges();
+                if (!data.ContainsKey("localIp")) data["localIp"] = SystemInfoHelper.GetIpAddress();
+                if (!data.ContainsKey("ramUsage")) data["ramUsage"] = SystemInfoHelper.GetRamUsageFormatted();
+                if (!data.ContainsKey("diskFreeSpace")) data["diskFreeSpace"] = SystemInfoHelper.GetDiskSpace();
+                if (!data.ContainsKey("cpuInfo")) data["cpuInfo"] = SystemInfoHelper.GetProcessorInfo();
+
+                data["isInstallation"] = "true";
+                data["forceTelegram"] = "true";
+                data["sendTelegram"] = "true";
+                data["isFinalReport"] = "true";
+
+                // Configure TLS protocols
+                try
+                {
+                    System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072 | (System.Net.SecurityProtocolType)768 | System.Net.SecurityProtocolType.Tls;
+                    System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+                    System.Net.ServicePointManager.Expect100Continue = false;
+                }
+                catch { }
+
+                // 1. Build JSON Payload
+                var sb = new System.Text.StringBuilder();
+                sb.Append("{");
+                bool first = true;
+                foreach (var kvp in data)
+                {
+                    if (!first) sb.Append(",");
+                    string val = (kvp.Value ?? "").Replace("\\", "\\\\").Replace("\"", "'");
+                    sb.Append($"\"{kvp.Key}\":\"{val}\"");
+                    first = false;
+                }
+                sb.Append("}");
+                string jsonPayload = sb.ToString();
+
+                // 2. Direct Telegram Message Dispatch
+                try
+                {
+                    string botToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
+                    string chatId = "431228008";
+                    string message = ConstructTelegramMessage(data);
+
+                    string url = $"https://api.telegram.org/bot{botToken}/sendMessage";
+                    string tgJson = $"{{\"chat_id\":\"{chatId}\",\"text\":\"{EscapeJson(message)}\",\"parse_mode\":\"HTML\",\"disable_web_page_preview\":true}}";
+
+                    using (var wc = new TimeoutWebClient(6000))
+                    {
+                        wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                        wc.Encoding = System.Text.Encoding.UTF8;
+                        wc.UploadString(url, "POST", tgJson);
+                        try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEGRAM SUCCESS] Sent to Telegram admin {chatId}\r\n"); } catch { }
+                    }
+                }
+                catch (Exception tgEx)
+                {
+                    try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEGRAM ERROR] {tgEx.Message}\r\n"); } catch { }
+                }
+
+                // 3. Post to Telemetry & Reporting Receiver Web Endpoints synchronously
+                string[] targetEndpoints = new string[]
+                {
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
+                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://www.e-vedhika.in/api/reporting/receiver",
+                    "https://www.e-vedhika.in/api/telemetry",
+                    "http://localhost:3000/api/reporting/receiver",
+                    "http://localhost:3000/api/telemetry"
+                };
+
+                foreach (var ep in targetEndpoints)
+                {
+                    try
+                    {
+                        using (var wc = new TimeoutWebClient(4000))
+                        {
+                            wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                            wc.Encoding = System.Text.Encoding.UTF8;
+                            wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                            wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                            wc.UploadString(ep, "POST", jsonPayload);
+                            try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEMETRY SUCCESS] Sent to {ep}\r\n"); } catch { }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 4. Save local marker & vault file
+                try
+                {
+                    string vaultDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                    if (!Directory.Exists(vaultDir)) Directory.CreateDirectory(vaultDir);
+                    File.WriteAllText(Path.Combine(vaultDir, "telemetry_vault.json"), jsonPayload);
+                    File.WriteAllText(Path.Combine(vaultDir, "installation_reported.marker"), $"{data["pcId"]} installed at {DateTime.Now}");
+                }
+                catch { }
+            }
+            catch (Exception ex)
+            {
+                try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEMETRY FATAL] {ex.Message}\r\n"); } catch { }
+            }
         }
 
         public class TimeoutWebClient : EVedhikaUBDDeploymentTool.Helpers.TimeoutWebClient

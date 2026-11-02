@@ -756,22 +756,39 @@ async function startServer() {
       console.log(`[TELEGRAM MASTER OFF] Telegram auto-notifications are turned OFF. Dispatch prevented.`);
       return false;
     }
-    // if (body.directTelegramSent === 'true' || body.directTelegramSent === true) return false;
     if (body.suppressTelegram === 'true' || body.suppressTelegram === true) return false;
-    if (body.pcAlreadyReported === 'true' || body.pcAlreadyReported === true) return false;
+
+    // Check if installation report or forced
+    const isInstallationReport = body.isInstallationReport === 'true' || body.isInstallationReport === true ||
+                                 body.isInstallation === 'true' || body.isInstallation === true ||
+                                 body.isPostInstall === 'true' || body.isPostInstall === true ||
+                                 body.isPostInstallHook === 'true' || body.isPostInstallHook === true ||
+                                 body.installType === 'FRESH_INSTALL' ||
+                                 String(body.remarks || '').toLowerCase().includes('installed') ||
+                                 String(body.verification || '').toLowerCase().includes('installed') ||
+                                 String(body.verification || '').toLowerCase().includes('setup completed') ||
+                                 String(body.status || '').toLowerCase().includes('install');
+
+    const isForced = isInstallationReport ||
+                     body.forceTelegram === 'true' || body.forceTelegram === true || 
+                     body.sendTelegram === 'true' || body.sendTelegram === true || 
+                     body.isTest === true || body.isTest === 'true';
+
+    // Drop already-reported PCs ONLY if NOT forced and NOT an installation report
+    if (!isForced && (body.pcAlreadyReported === 'true' || body.pcAlreadyReported === true)) {
+      console.log(`[TELEGRAM DUPLICATE SUPPRESS] PC already reported marker present.`);
+      return false;
+    }
 
     const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
     const pcNameKey = String(record.pcName || '').toUpperCase().trim();
 
-    // HARDCODED BLOCK REMOVED - Allowing all PCs for testing as per user request
     if (telegramPcFilters.blockedPcs.some(b => b && (pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase())))) {
       console.log(`[ABSOLUTE BLOCK] PC ${pcKey} is blocked in settings. Telegram dispatch prevented.`);
       return false;
     }
 
-    const isForced = body.forceTelegram === 'true' || body.forceTelegram === true || body.sendTelegram === 'true' || body.sendTelegram === true || body.isTest === true || body.isTest === 'true';
-
-    // STRICT 1-REPORT-PER-PC EVER RULE (Unless forced/test/explicit dispatch)
+    // STRICT 1-REPORT-PER-PC EVER RULE (Bypassed if forced or installation report)
     if (!isForced && (reportedTelegramPcs.has(pcKey) || (pcNameKey && reportedTelegramPcs.has(pcNameKey)))) {
       console.log(`[STRICT 1-REPORT-PER-PC] PC ${pcKey} has already dispatched its 1 official Telegram report. Suppressed duplicate.`);
       return false;
@@ -785,7 +802,7 @@ async function startServer() {
     if (pcNameKey) reportedTelegramPcs.add(pcNameKey);
     
     saveReportedTelegramPcs();
-    console.log(`[TELEGRAM DISPATCH] Official initial report dispatched for PC ${pcKey}.`);
+    console.log(`[TELEGRAM DISPATCH] Official report dispatched for PC ${pcKey} (Installation: ${isInstallationReport}).`);
     return true;
   };
 
@@ -1734,10 +1751,10 @@ async function startServer() {
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'v1.0.9 Release: Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, and 24x7 System Guardian.',
+    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.02-R3): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Live OTA Update Support, and 24x7 System Guardian.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.02-R2',
+    latestResourceBuild: '2026.11.02-R3',
     resourceBuildDate: '2026-11-02'
   };
 
@@ -3223,11 +3240,11 @@ async function startServer() {
         targetDomain: targetDom,
         isExistingInstall: isExisting,
         installType,
-        installTypeDisplay: isExisting ? 'Existing PC (ఈ కొత్త అప్డేట్ ద్వారా సింక్ అయింది)' : 'Fresh Installation',
+        installTypeDisplay: isExisting ? 'Existing PC (Synced via New Update)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.02-R2',
-        version: body.version || 'v1.0.9-Update-R2',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.02-R3',
+        version: body.version || 'v1.0.9-Update-R3',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
         localIp: body.localIp || '192.168.1.100',
