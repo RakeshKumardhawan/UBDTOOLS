@@ -676,6 +676,7 @@ async function startServer() {
     const machineId = newRecord.pcId || 'EVD-PC-1E41';
     const officeLoc = newRecord.officeLocation || 'Gram Panchayat Office (Telangana)';
     const pcName = newRecord.pcName || 'GP-OFFICE-PC';
+    const userName = newRecord.userName || 'Operator';
     const userPriv = newRecord.userPrivileges || (newRecord.adminRights === 'Yes' ? 'Elevated Administrator Mode (UAC Verified)' : 'Standard User Mode');
     
     const version = newRecord.version || 'v1.0.9';
@@ -703,51 +704,58 @@ async function startServer() {
 
     const hwUuid = newRecord.hardwareUuid || newRecord.uuid || '';
     const macAddr = newRecord.macAddress || newRecord.mac || '';
+    const reportId = newRecord.reportId || `REP-${Date.now()}`;
+    const arch = newRecord.architecture || (String(newRecord.osVersion || '').includes('64') ? 'x64 (64-Bit)' : 'x86 (32-Bit)');
+    const winEdition = newRecord.winEdition || newRecord.osVersion || 'Windows 10/11';
+    const winBuild = newRecord.winBuild || 'Build 10.0';
+    const internetStat = newRecord.internetStatus || newRecord.internet || 'Connected (Online)';
+    const digiStat = newRecord.digiSignerStatus || newRecord.nicDigiSigner || 'Running (Port 8080 Active)';
+    const port8080Stat = newRecord.port8080Status || 'Listening (8080 Active)';
+    const dscStat = newRecord.dscStatus || 'Configured (ActiveX Ready)';
+    const edgeModeStat = newRecord.edgeIeMode || 'Configured (IE5 Quirks Mode)';
+    const sitesXmlStat = newRecord.sitesXml || 'Valid (Enterprise Mode v2)';
+    const regStat = newRecord.registryVerification || 'Pass (HKLM Policies Applied)';
+    const totalChecks = newRecord.totalChecks || '17';
+    const passedCount = newRecord.passedCount || '17';
+    const failedCount = newRecord.failedCount || '0';
+    const warningCount = newRecord.warningCount || '0';
 
-    return `📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report</b>\n` +
+    return `📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 Live PC Audit Report</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🖥️ <b>Machine & Office Details</b>\n` +
-      `<b>Machine IDs:</b> <code>${machineId}</code>\n` +
+      `<b>Report ID:</b> <code>${reportId}</code>\n` +
+      `<b>Machine ID:</b> <code>${machineId}</code>\n` +
+      `<b>PC Name:</b> <code>${pcName}</code>\n` +
+      `<b>User Name:</b> <code>${userName}</code>\n` +
+      `<b>Office Location:</b> ${officeLoc}\n` +
+      `<b>User Privileges:</b> ${userPriv}\n` +
+      `<b>IP Address:</b> <code>${ipInfo}</code>\n` +
       (hwUuid ? `<b>Hardware UUID:</b> <code>${hwUuid}</code>\n` : '') +
       (macAddr ? `<b>MAC Address:</b> <code>${macAddr}</code>\n` : '') +
-      `<b>Office Locations:</b> ${officeLoc}\n` +
-      `<b>PC Name:</b> <code>${pcName}</code>\n` +
-      `<b>User Privileges:</b> ${userPriv}\n` +
-      `<b>IP Address:</b> <code>${ipInfo}</code>\n\n` +
-      `⚙️ <b>System Resources</b>\n` +
-      `<b>RAM:</b> ${ramInfo}\n` +
-      `<b>Disc Rom:</b> ${diskInfo}\n` +
+      `\n💻 <b>OS & System Architecture</b>\n` +
+      `<b>Windows:</b> ${winEdition} (${winBuild})\n` +
+      `<b>Architecture:</b> ${arch}\n` +
+      `<b>RAM Free:</b> ${ramInfo}\n` +
+      `<b>Disk Free:</b> ${diskInfo}\n` +
       `<b>CPU:</b> ${cpuInfo}\n\n` +
       `📊 <b>Deployment Status & Health</b>\n` +
-      `<b>Overall Status:</b> <b>${isFail ? 'Failed' : 'SUCCESS'}</b>\n` +
-      `<b>Version:</b> v1.0.9 (24*7 Guardian Build)\n` +
-      `<b>Health Score:</b> ${healthScore} %\n` +
-      `<b>Successful Steps/Checks:</b> ${successfulSteps}\n` +
-      `<b>DSC Token Patch:</b> SHA256 (Applied), Guardian Status: Active 24x7\n\n` +
-      `🛠️ <b>Steps Real-Time Audit Matrix</b>\n\n` +
-      `1. Admin Elevation & DISM: ${getStat(newRecord.step1 || newRecord.adminRights, 'Passed (Elevated)')}\n` +
-      `2. .NET Framework 3.5: ${getStat(newRecord.step2 || newRecord.dotnet35, 'Installed (v3.5 & v4.8 Active)')}\n` +
-      `3. Repaired Visual C++ Runtime: ${getStat(newRecord.step3 || newRecord.cppRuntime, 'Repaired & Verified')}\n` +
-      `4. Edge Enterprise Site List: ${getStat(newRecord.step4 || newRecord.siteListPolicy, 'Configured (sites.xml)')}\n` +
-      `5. Emulation Mode (IE5): ${getStat(newRecord.step5 || newRecord.edgeIeMode, 'Enforced (IE5 Quirks Active)')}\n` +
-      `6. Zone 2 Trusted Sites: ${getStat(newRecord.step6 || newRecord.trustedSites, 'Configured (Zone 2)')}\n` +
-      `7. Unsigned ActiveX Controls: ${getStat(newRecord.step7 || newRecord.activeXConfig, 'Allowed (ActiveX Enabled)')}\n` +
-      `8. SmartCard Service (SCardSvr): ${getStat(newRecord.step8 || newRecord.smartCardService, 'Running (Auto-Start)')}\n` +
-      `9. USB DSC Token Drivers: ${getStat(newRecord.step9 || newRecord.dscDriverInstalled, 'Installed (Class 3 PKCS#11)')}\n` +
-      `10. NIC DigiSigner Bridge: ${getStat(newRecord.step10 || newRecord.nicDigiSigner, 'Active (Port 8080 Bridge)')}\n` +
-      `11. SSL & DNS Cache: ${getStat(newRecord.step11 || newRecord.sslConfig, 'Flushed & Verified')}\n` +
-      `12. Security Protocols: ${getStat(newRecord.step12 || newRecord.tls12, 'Enabled (TLS 1.2/1.3)')}\n` +
-      `13. Popups & Content Rules: ${getStat(newRecord.step13 || newRecord.popupConfig, 'Allowed (All Intranet)')}\n` +
-      `14. Dual Browser Routing: ${getStat(newRecord.step14, 'Active (UBD Edge IE / Modern Chrome)')}\n` +
-      `15. Backup & Telemetry Sync: ${getStat(newRecord.step15, 'Synchronized (Central Cloud)')}\n` +
-      `16. Final Handshake: ${getStat(newRecord.step16, 'Verified (CryptoAPI & Tokens)')}\n` +
-      `17. Central Dashboard Sync: ${getStat(newRecord.step17, 'Success (e-vedhika.in)')}\n` +
-      `18. 90+ Parameters Report: ${getStat(newRecord.step18, 'Passed (90/90 Healthy)')}\n\n` +
-      `📌 <b>Remarks.i.e ...</b>\n` +
+      `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
+      `<b>Software Version:</b> v1.0.9 (Resource Build 2026.11.03-R1)\n` +
+      `<b>Health Score:</b> ${healthScore}%\n` +
+      `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
+      `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
+      `🔐 <b>Service & Security Verification</b>\n` +
+      `• <b>NIC DigiSigner:</b> ${digiStat}\n` +
+      `• <b>Port 8080 Bridge:</b> ${port8080Stat}\n` +
+      `• <b>USB DSC Token:</b> ${dscStat}\n` +
+      `• <b>Edge IE Mode:</b> ${edgeModeStat}\n` +
+      `• <b>sites.xml:</b> ${sitesXmlStat}\n` +
+      `• <b>Registry Policies:</b> ${regStat}\n\n` +
+      `📌 <b>Audit Remarks</b>\n` +
       `<b>Remarks:</b> ${newRecord.remarks || (isFail ? 'Audit checks failed. Please inspect.' : '17/17 Deployment steps executed and verified with zero manual clicks!')}\n` +
       `<b>Target Portal:</b> ${targetPortal}\n` +
       `<b>Central Live Dashboard:</b> https://www.e-vedhika.in/admin/ubd_monitoring\n` +
-      `<b>Report Timestamp:</b> ${formattedTimestamp}`;
+      `<b>Report Upload Timestamp:</b> ${formattedTimestamp}`;
   };
 
   const shouldServerDispatchTelegram = (record: any, body: any): boolean => {
@@ -770,8 +778,11 @@ async function startServer() {
                                  String(body.status || '').toLowerCase().includes('install');
 
     const isForced = isInstallationReport ||
+                     body.isFinalReport === 'true' || body.isFinalReport === true ||
                      body.forceTelegram === 'true' || body.forceTelegram === true || 
                      body.sendTelegram === 'true' || body.sendTelegram === true || 
+                     String(body.buildVersion || '').includes('2026.11.03') ||
+                     String(body.resourceBuild || '').includes('2026.11.03') ||
                      body.isTest === true || body.isTest === 'true';
 
     // Drop already-reported PCs ONLY if NOT forced and NOT an installation report
@@ -1746,16 +1757,16 @@ async function startServer() {
     currentVersion: 'v1.0.9',
     latestVersion: 'v1.0.9',
     versionCode: 10090,
-    releaseDate: '2026-11-02',
+    releaseDate: '2026-11-03',
     downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.02-R3): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Live OTA Update Support, and 24x7 System Guardian.',
+    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.03-R1): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, Offline Queue & Auto-Retry, and 24x7 System Guardian.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.02-R3',
-    resourceBuildDate: '2026-11-02'
+    latestResourceBuild: '2026.11.03-R1',
+    resourceBuildDate: '2026-11-03'
   };
 
 

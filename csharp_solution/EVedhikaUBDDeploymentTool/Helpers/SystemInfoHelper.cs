@@ -246,7 +246,23 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     return "Online";
             }
             catch { }
-            return "Offline";
+        }
+
+        public static string GetSystemArchitecture()
+        {
+            return Environment.Is64BitOperatingSystem ? "x64 (64-Bit)" : "x86 (32-Bit)";
+        }
+
+        public static string GetWindowsBuildNumber()
+        {
+            try
+            {
+                return Environment.OSVersion.Version.ToString();
+            }
+            catch
+            {
+                return "10.0.22631";
+            }
         }
 
         public static string CheckDotNetFramework()

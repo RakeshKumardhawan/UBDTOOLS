@@ -111,6 +111,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         public static bool PerformSelfHealingAudit(Action<string> logCallback)
         {
+            // Flush any queued offline reports if network is now available
+            try
+            {
+                Logger.FlushOfflineQueue();
+            }
+            catch { }
+
             bool repairedSomething = false;
             string detectedIssue = null;
             string issueDetails = null;
