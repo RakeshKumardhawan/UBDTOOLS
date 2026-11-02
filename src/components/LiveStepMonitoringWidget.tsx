@@ -397,13 +397,13 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
           <button
             onClick={() => setVersionFilter('v1.0.8')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-mono font-medium transition-all flex items-center justify-center gap-1.5 ${
-              versionFilter === 'v1.0.8'
+              versionFilter === 'v1.0.8' || versionFilter === 'ALL'
                 ? 'bg-cyan-500/20 text-cyan-300 shadow border border-cyan-500/40'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            v1.0.8 (New Release)
+            v1.0.9 (Latest Release)
           </button>
           <button
             onClick={() => setVersionFilter('v1.0.7')}
@@ -414,7 +414,7 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-            v1.0.7 (Old Entry)
+            v1.0.0 - v1.0.8 (Legacy OTA)
           </button>
         </div>
 
@@ -439,23 +439,23 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
           <div className="text-right">
             <span className="text-[10px] font-mono text-slate-500 uppercase block">Active Version</span>
             <span className="text-xs font-mono font-bold text-cyan-300">
-              {versionFilter === 'v1.0.7' ? 'v1.0.7 (14 Steps)' : 'v1.0.8 (17 Steps)'}
+              {versionFilter === 'v1.0.7' ? 'v1.0.0-v1.0.8 (14 Steps)' : 'v1.0.9 (17 Steps Master)'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Version Delta Banner when v1.0.8 is selected */}
-      {versionFilter === 'v1.0.8' && (
+      {/* Version Delta Banner when v1.0.9 is selected */}
+      {(versionFilter === 'v1.0.8' || versionFilter === 'ALL') && (
         <div className="mb-6 p-3.5 bg-cyan-950/40 border border-cyan-800/50 rounded-2xl flex items-center justify-between gap-3 text-xs text-cyan-200">
           <div className="flex items-center gap-2.5">
             <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>
-              <strong>v1.0.8 Update Delta:</strong> Added 3 Critical Steps since v1.0.7 — Step 10 (DLL SHA256 Checksum Patch), Step 15 (Direct Telegram Dispatch), and Step 16 (OTA Auto-Update Engine).
+              <strong>v1.0.9 OTA Global Release:</strong> Full Over-The-Air auto-update support enabled for all legacy client builds (v1.0.0 through v1.0.8). Automatic background installation, SHA256 DSC patch, and 24x7 Silent Guardian deployment.
             </span>
           </div>
           <span className="px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 font-mono text-[10px] shrink-0 font-semibold">
-            +3 NEW STEPS
+            v1.0.9 OTA ACTIVE
           </span>
         </div>
       )}

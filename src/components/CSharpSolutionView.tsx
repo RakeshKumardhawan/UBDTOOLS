@@ -227,8 +227,13 @@ begin
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.0');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.2');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.3');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.5');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.6');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.7');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.8');
     
@@ -237,8 +242,13 @@ begin
       RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDTool');
       RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool');
       RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.0');
       RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.2');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.3');
       RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.5');
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.6');
       RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.7');
       RegDeleteKeyIncludingSubkeys(HKLM64, 'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.8');
     end;
@@ -738,10 +748,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.8";
-        public const int CurrentVersionCode = 10080;
-        public const string CurrentResourceBuild = "2026.10.29-R4";
-        public const string ResourceDate = "2026-10-29";
+        public const string CurrentVersion = "v1.0.9";
+        public const int CurrentVersionCode = 10090;
+        public const string CurrentResourceBuild = "2026.11.02-R2";
+        public const string ResourceDate = "2026-11-02";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
@@ -911,7 +921,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.8";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.9";
                         wc.Encoding = System.Text.Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
@@ -996,7 +1006,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                             info.Success = true;
                             info.LatestVersion = latestVer;
                             info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Portal and UBD deployment updates." : releaseNotes;
-                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.8.exe" : downloadUrl;
+                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe" : downloadUrl;
                             info.IsSilent = isSilent;
                             info.VersionCode = serverCode > 0 ? serverCode : ParseVersionToWeight(latestVer);
 
@@ -1010,6 +1020,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                                 info.IsUpdateAvailable = true;
                                 info.Message = \$"✨ New Cumulative Software Update Available: {info.LatestVersion}!\\n\\nRelease Notes: {info.ReleaseNotes}\\n\\n(Note: This single update pack includes all cumulative driver, ActiveX, and policy updates)";
                                 logCallback?.Invoke(\$"[AUTO-UPDATE] NEW UPDATE DETECTED: {info.LatestVersion} (Weight {latestWeight} > {currentWeight}) from {url}");
+                                OtaNotificationService.SendOtaTriggeredNotification(CurrentVersion, info.LatestVersion, info.DownloadUrl, info.ReleaseNotes);
                             }
                             else
                             {
@@ -1084,6 +1095,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 }
 
                 logCallback?.Invoke(\$"[AUTO-UPDATE SUCCESS] Downloaded. Initiating Self-Update...");
+                OtaNotificationService.SendStatusChangedNotification("OTA_PAYLOAD_DOWNLOADED", CurrentVersion, "v1.0.9", "DOWNLOAD_SUCCESS", \$"Downloaded {fileName} to temp directory. Launching self-updater...");
 
                 string currentExePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
                 string currentAppDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\\\', '/');
@@ -6186,8 +6198,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhikaUBDDeploymentTool",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EVedhika_UBD_Deployment_Tool",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.0",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.1",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.2",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.3",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.4",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.5",
+                    @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.6",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.7",
                     @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\E-Vedhika UBD Tool 1.0.8"
                 };
@@ -6347,7 +6364,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 AutoRepairEngine.Stop24x7BackgroundGuardian();
 
                 int currentPid = Process.GetCurrentProcess().Id;
-                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
+                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.0.9", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
 
                 foreach (var pName in processNames)
                 {
@@ -7619,23 +7636,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             string machineId = data["pcId"];
             string pcNameVal = data.ContainsKey("pcName") ? data["pcName"] : "";
-            if (machineId == "EVD-PC-1900-62E8" || pcNameVal.ToUpper().Contains("MPO-PC") || (data.ContainsKey("status") && data["status"].ToUpper().Contains("FAIL")))
-            {
-                data["status"] = "SUCCESS";
-                data["healthScore"] = "100";
-                data["verification"] = "Passed (17/17)";
-                data["verificationCompleted"] = "COMPLETED";
-                data["sitesXmlStatus"] = "PASS";
-                data["edgeIeModeStatus"] = "PASS";
-                data["registryPoliciesStatus"] = "PASS";
-                data["remarks"] = "Auto-Repair Guardian verified: UBD Edge Policy & sites.xml fully operational (17/17).";
-            }
 
-            if (machineId == "EVD-PC-1900-62E8" || pcNameVal.ToUpper().Contains("MPO-PC"))
-            {
-                data["suppressTelegram"] = "true";
-                data["pcAlreadyReported"] = "true";
-            }
 
             if (!data.ContainsKey("livePresence")) data["livePresence"] = "ONLINE";
             if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
@@ -7867,19 +7868,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             string pcId = data.ContainsKey("pcId") ? data["pcId"] : GetUniqueMachineId();
             string pcName = data.ContainsKey("pcName") ? data["pcName"] : Environment.MachineName;
-
-            // ABSOLUTE HARD BLOCK FOR 62E8 / MPO-PC
-            if ((pcId != null && (pcId.ToUpper().Contains("62E8") || pcId.ToUpper().Contains("1900-62E8"))) ||
-                (pcName != null && (pcName.ToUpper().Contains("62E8") || pcName.ToUpper().Contains("MPO-PC"))))
-            {
-                try { File.AppendAllText(logFilePath, \$"[{DateTime.Now}] [TELEGRAM BLOCKED] PC {pcId} ({pcName}) is blocked/muted. Telegram dispatch aborted.\\r\\n"); } catch { }
-                return;
-            }
-
             // Direct Telegram Dispatch to Admin (@DhawanRakesh / 431228008)
             try
             {
-                string botToken = "8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE";
+                string botToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
                 string chatId = "431228008";
                 string message = ConstructTelegramMessage(data);
 
@@ -7939,7 +7931,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string hwUuid = data.ContainsKey("hardwareUuid") && !string.IsNullOrEmpty(data["hardwareUuid"]) ? data["hardwareUuid"] : SystemInfoHelper.GetHardwareUuid();
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>");
+            sb.AppendLine("📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report</b>");
             sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             sb.AppendLine("🖥️ <b>Machine & Office Details</b>");
             sb.AppendLine(\$"<b>Machine IDs:</b> <code>{EscapeTelegramHtml(pcId)}</code>");
@@ -7957,7 +7949,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine();
             sb.AppendLine("📊 <b>Deployment Status & Health</b>");
             sb.AppendLine(\$"<b>Overall Status:</b> <b>{overallStatus}</b>");
-            sb.AppendLine("<b>Version:</b> v1.0.8 (24*7 Guardian Build)");
+            sb.AppendLine("<b>Version:</b> v1.0.9 (24*7 Guardian Build)");
             sb.AppendLine(\$"<b>Health Score:</b> {health} %");
             sb.AppendLine(\$"<b>Successful Steps/Checks:</b> {verif}");
             sb.AppendLine("<b>DSC Token Patch:</b> SHA256 (Applied), Guardian Status: Active 24x7");
@@ -8068,8 +8060,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "installType", isExisting ? "EXISTING_PC_UPDATED" : "FRESH_INSTALL" },
                         { "initialInstallDate", initialInstallDate },
                         { "updateReceivedDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "version", "v1.0.8-Update-R3" },
-                        { "updateBuild", "2026.10.29-R4" },
+                        { "version", "v1.0.9-Update-R2" },
+                        { "updateBuild", "2026.11.02-R2" },
                         { "status", "SUCCESS" },
                         { "overallStatus", "HEALTHY" },
                         { "verification", "Passed (17/17)" },
@@ -8714,6 +8706,156 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         }
     }
 
+}
+`
+  },
+  {
+    id: 'helpers_otanotificationservice_cs',
+    name: 'OtaNotificationService.cs',
+    path: 'csharp_solution/EVedhikaUBDDeploymentTool/Helpers/OtaNotificationService.cs',
+    type: 'cs',
+    content: `using System;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Threading;
+
+namespace EVedhikaUBDDeploymentTool.Helpers
+{
+    public static class OtaNotificationService
+    {
+        private const string TelegramBotToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
+        private const string TelegramChatId = "431228008";
+
+        private static readonly string[] WebEndpoints = new string[]
+        {
+            "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry/ota-event",
+            "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry/ota-event",
+            "https://www.e-vedhika.in/api/telemetry/ota-event",
+            "http://localhost:3000/api/telemetry/ota-event"
+        };
+
+        public static void SendOtaTriggeredNotification(string oldVersion, string targetVersion, string downloadUrl, string releaseNotes)
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    string pcId = Logger.GetUniqueMachineId();
+                    string pcName = Environment.MachineName;
+                    string officeLoc = SystemInfoHelper.GetLiveLocation("Telangana");
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("🚀 <b>E-VEDHIKA OTA UPDATE TRIGGERED</b>");
+                    sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    sb.AppendLine(\$"<b>PC Name:</b> <code>{EscapeHtml(pcName)}</code>");
+                    sb.AppendLine(\$"<b>Machine ID:</b> <code>{EscapeHtml(pcId)}</code>");
+                    sb.AppendLine(\$"<b>Office Location:</b> {EscapeHtml(officeLoc)}");
+                    sb.AppendLine(\$"<b>Version Transition:</b> <code>{EscapeHtml(oldVersion)}</code> ➔ <b>{EscapeHtml(targetVersion)}</b>");
+                    sb.AppendLine(\$"<b>Payload URL:</b> <a href=\\"{EscapeHtml(downloadUrl)}\\">{EscapeHtml(Path.GetFileName(downloadUrl))}</a>");
+                    if (!string.IsNullOrEmpty(releaseNotes))
+                    {
+                        sb.AppendLine(\$"<b>Release Notes:</b> {EscapeHtml(releaseNotes)}");
+                    }
+                    sb.AppendLine(\$"<b>Timestamp:</b> {DateTime.Now:dd/MM/yyyy, hh:mm:ss tt}");
+
+                    DispatchTelegramMessage(sb.ToString());
+                    DispatchWebOtaEvent("OTA_TRIGGERED", oldVersion, targetVersion, downloadUrl, releaseNotes);
+                }
+                catch { }
+            });
+        }
+
+        public static void SendStatusChangedNotification(string eventType, string oldVersion, string newVersion, string status, string details = "")
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    string pcId = Logger.GetUniqueMachineId();
+                    string pcName = Environment.MachineName;
+                    string officeLoc = SystemInfoHelper.GetLiveLocation("Telangana");
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("🔄 <b>E-VEDHIKA VERSION & STATUS CHANGED</b>");
+                    sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    sb.AppendLine(\$"<b>Event Type:</b> <code>{EscapeHtml(eventType)}</code>");
+                    sb.AppendLine(\$"<b>PC Name:</b> <code>{EscapeHtml(pcName)}</code>");
+                    sb.AppendLine(\$"<b>Machine ID:</b> <code>{EscapeHtml(pcId)}</code>");
+                    sb.AppendLine(\$"<b>Office Location:</b> {EscapeHtml(officeLoc)}");
+                    sb.AppendLine(\$"<b>Version Status:</b> <code>{EscapeHtml(oldVersion)}</code> ➔ <b>{EscapeHtml(newVersion)}</b>");
+                    sb.AppendLine(\$"<b>Status:</b> <b>{EscapeHtml(status)}</b>");
+                    if (!string.IsNullOrEmpty(details))
+                    {
+                        sb.AppendLine(\$"<b>Details:</b> {EscapeHtml(details)}");
+                    }
+                    sb.AppendLine(\$"<b>Timestamp:</b> {DateTime.Now:dd/MM/yyyy, hh:mm:ss tt}");
+
+                    DispatchTelegramMessage(sb.ToString());
+                    DispatchWebOtaEvent(eventType, oldVersion, newVersion, "", details, status);
+                }
+                catch { }
+            });
+        }
+
+        private static void DispatchTelegramMessage(string message)
+        {
+            try
+            {
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
+                ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+
+                string url = \$"https://api.telegram.org/bot{TelegramBotToken}/sendMessage";
+                string jsonPayload = \$"{{\\"chat_id\\":\\"{TelegramChatId}\\",\\"text\\":\\"{EscapeJson(message)}\\",\\"parse_mode\\":\\"HTML\\",\\"disable_web_page_preview\\":true}}";
+
+                using (var wc = new Logger.TimeoutWebClient(6000))
+                {
+                    wc.Headers[HttpRequestHeader.ContentType] = "application/json";
+                    wc.Encoding = Encoding.UTF8;
+                    wc.UploadString(url, "POST", jsonPayload);
+                }
+            }
+            catch { }
+        }
+
+        private static void DispatchWebOtaEvent(string eventType, string oldVersion, string newVersion, string downloadUrl, string details, string status = "SUCCESS")
+        {
+            try
+            {
+                string pcId = Logger.GetUniqueMachineId();
+                string pcName = Environment.MachineName;
+                string jsonPayload = \$"{{\\"eventType\\":\\"{EscapeJson(eventType)}\\",\\"pcId\\":\\"{EscapeJson(pcId)}\\",\\"pcName\\":\\"{EscapeJson(pcName)}\\",\\"oldVersion\\":\\"{EscapeJson(oldVersion)}\\",\\"newVersion\\":\\"{EscapeJson(newVersion)}\\",\\"downloadUrl\\":\\"{EscapeJson(downloadUrl)}\\",\\"details\\":\\"{EscapeJson(details)}\\",\\"status\\":\\"{EscapeJson(status)}\\",\\"timestamp\\":\\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\\"}}";
+
+                foreach (var ep in WebEndpoints)
+                {
+                    try
+                    {
+                        using (var wc = new Logger.TimeoutWebClient(4000))
+                        {
+                            wc.Headers[HttpRequestHeader.ContentType] = "application/json";
+                            wc.Encoding = Encoding.UTF8;
+                            wc.UploadString(ep, "POST", jsonPayload);
+                            break;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        private static string EscapeHtml(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+        }
+
+        private static string EscapeJson(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Replace("\\\\", "\\\\\\\\").Replace("\\"", "\\\\\\"").Replace("\\r", "").Replace("\\n", "\\\\n");
+        }
+    }
 }
 `
   },
@@ -10113,7 +10255,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.8)";
+            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.0.9)";
             // 
             // lblHeaderSubtitle
             // 
@@ -10166,7 +10308,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             this.toolStripStatusLabel.Name = "toolStripStatusLabel";
             this.toolStripStatusLabel.Size = new System.Drawing.Size(420, 17);
-            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 | Status: Ready";
+            this.toolStripStatusLabel.Text = "Developer: Rakesh Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 | Status: Ready";
             // 
             // MainForm
             // 
@@ -10362,9 +10504,9 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.10.29-R4";
+            string buildDate = "2026.11.02-R2";
             SafeInvoke(delegate() {
-                lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
+                lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.9) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
                 lblStatusStep.Text = string.Format("Selected Target: {0}", currentTargetDomain);
                 LogMessage("APP-START", string.Format("Build: {0} | Target state: {1} ({2}) | PC ID: {3}", buildDate, currentStateName, currentTargetDomain, pcId));
@@ -10504,7 +10646,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.10.29-R4", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.11.02-R2", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -10685,7 +10827,7 @@ namespace EVedhikaUBDDeploymentTool
 
             ApplyExtraModernDarkTheme();
 
-            // Auto-register in Control Panel (Programs and Features) for v1.0.8
+            // Auto-register in Control Panel (Programs and Features) for v1.0.9
             try
             {
                 UninstallEngine.RegisterControlPanelUninstall(Application.ExecutablePath);
@@ -11067,7 +11209,7 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.8");
+            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.9");
             LogMessage("SYSTEM", "Department: Enterprise Web Administration");
             try
             {
@@ -11113,10 +11255,10 @@ namespace EVedhikaUBDDeploymentTool
                             { "officeLocation", SystemInfoHelper.GetLiveLocation(currentStateName) },
                             { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                             { "dscStatus", SystemInfoHelper.CheckDscStatus() },
-                            { "status", "ONLINE & READY (v1.0.8)" },
-                            { "version", "v1.0.8" },
+                            { "status", "ONLINE & READY (v1.0.9)" },
+                            { "version", "v1.0.9" },
                             { "suppressTelegram", "false" }, // Allow Telegram report on startup for new installs visibility
-                            { "remarks", "⚡ App Opened: E-Vedhika v1.0.8 running and ready for deployment." }
+                            { "remarks", "⚡ App Opened: E-Vedhika v1.0.9 running and ready for deployment." }
                         };
                         Logger.SendCentralTelemetry(startupData);
                         Logger.SendFleetUpdateReport();
@@ -11334,7 +11476,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : EVedhika_Setup_v1.0.8.exe");
+                LogMessage("DEPLOY", "Software Version    : EVedhika_Setup_v1.0.9.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -11438,14 +11580,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.8" },
+                { "deployVersion", "v1.0.9" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
                 { "verification", "17/17 steps passed." },
-                { "version", "v1.0.8" },
+                { "version", "v1.0.9" },
                 { "isFinalReport", "true" },
                 { "sendTelegram", "true" },
                 { "dscRunCompleted", "true" },
@@ -12346,7 +12488,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (toolStripStatusLabel != null)
                     {
                         string pcId = Helpers.Logger.GetUniqueMachineId();
-                        toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", AutoUpdateEngine.ActiveResourceBuild, pcId);
+                        toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", AutoUpdateEngine.ActiveResourceBuild, pcId);
                     }
 
                     if (info.IsUpdateAvailable)
@@ -12466,7 +12608,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
                 { "verification", "17/17 steps passed." },
-                { "version", "v1.0.8" },
+                { "version", "v1.0.9" },
                 { "status", "SUCCESS" },
                 { "healthScore", "100" },
                 { "isFinalReport", "true" },
@@ -12630,7 +12772,7 @@ namespace EVedhikaUBDDeploymentTool
             this.Hide();
             if (trayNotifyIcon != null)
             {
-                trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.8 - Silent Guardian Active";
+                trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.9 - Silent Guardian Active";
             }
         }
 
@@ -12682,7 +12824,7 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (trayNotifyIcon != null)
                     {
-                        trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.8 - DSC Token Removed";
+                        trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.9 - DSC Token Removed";
                     }
                     LogMessage("DSC-GUARDIAN", "[INFO] USB DSC Token unplugged. Application running silently in background.");
                 });
@@ -12734,7 +12876,7 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (trayNotifyIcon != null)
                     {
-                        string iconText = \$"E-Vedhika v1.0.8 - DSC: {dscStatus}";
+                        string iconText = \$"E-Vedhika v1.0.9 - DSC: {dscStatus}";
                         if (iconText.Length > 63) iconText = iconText.Substring(0, 63);
                         trayNotifyIcon.Text = iconText;
                     }
@@ -34819,11 +34961,11 @@ namespace EVedhikaUBDDeploymentTool
                     { "userName", Environment.UserName ?? "Operator" },
                     { "officeLocation", "Gram Panchayat Office" },
                     { "osVersion", Environment.OSVersion.ToString() },
-                    { "version", "v1.0.8" },
+                    { "version", "v1.0.9" },
                     { "status", "SUCCESS" },
                     { "overallStatus", "HEALTHY" },
-                    { "verification", "v1.0.8 Setup Completed" },
-                    { "remarks", "EVedhika_Setup_v1.0.8.exe installed and registered successfully." },
+                    { "verification", "v1.0.9 Setup Completed" },
+                    { "remarks", "EVedhika_Setup_v1.0.9.exe installed and registered successfully." },
                     { "isFinalReport", "true" },
                     { "sendTelegram", "true" },
                     { "forceTelegram", "true" }
@@ -34882,8 +35024,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.8.0")]
-[assembly: AssemblyFileVersion("1.0.8.0")]
+[assembly: AssemblyVersion("1.0.9.0")]
+[assembly: AssemblyFileVersion("1.0.9.0")]
 `
   },
   {
@@ -34893,7 +35035,7 @@ using System.Runtime.InteropServices;
     type: 'manifest',
     content: `<?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.0.0" name="EVedhikaUBDDeploymentTool.app"/>
+  <assemblyIdentity version="1.0.9.0" name="EVedhikaUBDDeploymentTool.app"/>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
@@ -35068,7 +35210,7 @@ namespace EVedhikaUBDDeploymentTool
     type: 'manifest',
     content: `<?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.8.0" name="EVedhikaUBDDeploymentTool.app"/>
+  <assemblyIdentity version="1.0.9.0" name="EVedhikaUBDDeploymentTool.app"/>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">

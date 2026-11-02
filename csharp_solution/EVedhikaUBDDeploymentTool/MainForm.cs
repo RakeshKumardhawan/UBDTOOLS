@@ -91,9 +91,9 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.10.29-R4";
+            string buildDate = "2026.11.02-R2";
             SafeInvoke(delegate() {
-                lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.8) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
+                lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.9) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
                 lblStatusStep.Text = string.Format("Selected Target: {0}", currentTargetDomain);
                 LogMessage("APP-START", string.Format("Build: {0} | Target state: {1} ({2}) | PC ID: {3}", buildDate, currentStateName, currentTargetDomain, pcId));
@@ -233,7 +233,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.10.29-R4", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.11.02-R2", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -414,7 +414,7 @@ namespace EVedhikaUBDDeploymentTool
 
             ApplyExtraModernDarkTheme();
 
-            // Auto-register in Control Panel (Programs and Features) for v1.0.8
+            // Auto-register in Control Panel (Programs and Features) for v1.0.9
             try
             {
                 UninstallEngine.RegisterControlPanelUninstall(Application.ExecutablePath);
@@ -796,7 +796,7 @@ namespace EVedhikaUBDDeploymentTool
             catch { }
 
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.8");
+            LogMessage("SYSTEM", "E-Vedhika UBD C# .NET 4.8 Deployment Engine v1.0.9");
             LogMessage("SYSTEM", "Department: Enterprise Web Administration");
             try
             {
@@ -842,10 +842,10 @@ namespace EVedhikaUBDDeploymentTool
                             { "officeLocation", SystemInfoHelper.GetLiveLocation(currentStateName) },
                             { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                             { "dscStatus", SystemInfoHelper.CheckDscStatus() },
-                            { "status", "ONLINE & READY (v1.0.8)" },
-                            { "version", "v1.0.8" },
+                            { "status", "ONLINE & READY (v1.0.9)" },
+                            { "version", "v1.0.9" },
                             { "suppressTelegram", "false" }, // Allow Telegram report on startup for new installs visibility
-                            { "remarks", "⚡ App Opened: E-Vedhika v1.0.8 running and ready for deployment." }
+                            { "remarks", "⚡ App Opened: E-Vedhika v1.0.9 running and ready for deployment." }
                         };
                         Logger.SendCentralTelemetry(startupData);
                         Logger.SendFleetUpdateReport();
@@ -1063,7 +1063,7 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", "Deployment Status   : SUCCESS");
                 LogMessage("DEPLOY", "Verification        : COMPLETED");
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
-                LogMessage("DEPLOY", "Software Version    : EVedhika_Setup_v1.0.8.exe");
+                LogMessage("DEPLOY", "Software Version    : EVedhika_Setup_v1.0.9.exe");
                 LogMessage("DEPLOY", "==========================================");
             });
             
@@ -1167,14 +1167,14 @@ namespace EVedhikaUBDDeploymentTool
                 { "passedCount", "90" },
                 { "warningCount", "0" },
                 { "failedCount", "0" },
-                { "deployVersion", "v1.0.8" },
+                { "deployVersion", "v1.0.9" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
                 { "autoFixStatus", "Completed" },
                 { "verificationCompleted", "COMPLETED" },
                 { "verification", "17/17 steps passed." },
-                { "version", "v1.0.8" },
+                { "version", "v1.0.9" },
                 { "isFinalReport", "true" },
                 { "sendTelegram", "true" },
                 { "dscRunCompleted", "true" },
@@ -2075,7 +2075,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (toolStripStatusLabel != null)
                     {
                         string pcId = Helpers.Logger.GetUniqueMachineId();
-                        toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.8 (Resource Build: {0}) | PC ID: {1} | Status: Ready", AutoUpdateEngine.ActiveResourceBuild, pcId);
+                        toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", AutoUpdateEngine.ActiveResourceBuild, pcId);
                     }
 
                     if (info.IsUpdateAvailable)
@@ -2195,7 +2195,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "edgeIeMode", "IE5 Quirks Active" },
                 { "sitesXml", "Active" },
                 { "verification", "17/17 steps passed." },
-                { "version", "v1.0.8" },
+                { "version", "v1.0.9" },
                 { "status", "SUCCESS" },
                 { "healthScore", "100" },
                 { "isFinalReport", "true" },
@@ -2359,7 +2359,7 @@ namespace EVedhikaUBDDeploymentTool
             this.Hide();
             if (trayNotifyIcon != null)
             {
-                trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.8 - Silent Guardian Active";
+                trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.9 - Silent Guardian Active";
             }
         }
 
@@ -2411,7 +2411,7 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (trayNotifyIcon != null)
                     {
-                        trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.8 - DSC Token Removed";
+                        trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.9 - DSC Token Removed";
                     }
                     LogMessage("DSC-GUARDIAN", "[INFO] USB DSC Token unplugged. Application running silently in background.");
                 });
@@ -2463,7 +2463,7 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (trayNotifyIcon != null)
                     {
-                        string iconText = $"E-Vedhika v1.0.8 - DSC: {dscStatus}";
+                        string iconText = $"E-Vedhika v1.0.9 - DSC: {dscStatus}";
                         if (iconText.Length > 63) iconText = iconText.Substring(0, 63);
                         trayNotifyIcon.Text = iconText;
                     }

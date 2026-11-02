@@ -181,23 +181,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             string machineId = data["pcId"];
             string pcNameVal = data.ContainsKey("pcName") ? data["pcName"] : "";
-            if (machineId == "EVD-PC-1900-62E8" || pcNameVal.ToUpper().Contains("MPO-PC") || (data.ContainsKey("status") && data["status"].ToUpper().Contains("FAIL")))
-            {
-                data["status"] = "SUCCESS";
-                data["healthScore"] = "100";
-                data["verification"] = "Passed (17/17)";
-                data["verificationCompleted"] = "COMPLETED";
-                data["sitesXmlStatus"] = "PASS";
-                data["edgeIeModeStatus"] = "PASS";
-                data["registryPoliciesStatus"] = "PASS";
-                data["remarks"] = "Auto-Repair Guardian verified: UBD Edge Policy & sites.xml fully operational (17/17).";
-            }
 
-            if (machineId == "EVD-PC-1900-62E8" || pcNameVal.ToUpper().Contains("MPO-PC"))
-            {
-                data["suppressTelegram"] = "true";
-                data["pcAlreadyReported"] = "true";
-            }
 
             if (!data.ContainsKey("livePresence")) data["livePresence"] = "ONLINE";
             if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
@@ -429,19 +413,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             string pcId = data.ContainsKey("pcId") ? data["pcId"] : GetUniqueMachineId();
             string pcName = data.ContainsKey("pcName") ? data["pcName"] : Environment.MachineName;
-
-            // ABSOLUTE HARD BLOCK FOR 62E8 / MPO-PC
-            if ((pcId != null && (pcId.ToUpper().Contains("62E8") || pcId.ToUpper().Contains("1900-62E8"))) ||
-                (pcName != null && (pcName.ToUpper().Contains("62E8") || pcName.ToUpper().Contains("MPO-PC"))))
-            {
-                try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [TELEGRAM BLOCKED] PC {pcId} ({pcName}) is blocked/muted. Telegram dispatch aborted.\r\n"); } catch { }
-                return;
-            }
-
             // Direct Telegram Dispatch to Admin (@DhawanRakesh / 431228008)
             try
             {
-                string botToken = "8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE";
+                string botToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
                 string chatId = "431228008";
                 string message = ConstructTelegramMessage(data);
 
@@ -501,7 +476,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string hwUuid = data.ContainsKey("hardwareUuid") && !string.IsNullOrEmpty(data["hardwareUuid"]) ? data["hardwareUuid"] : SystemInfoHelper.GetHardwareUuid();
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>");
+            sb.AppendLine("📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report</b>");
             sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             sb.AppendLine("🖥️ <b>Machine & Office Details</b>");
             sb.AppendLine($"<b>Machine IDs:</b> <code>{EscapeTelegramHtml(pcId)}</code>");
@@ -519,7 +494,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine();
             sb.AppendLine("📊 <b>Deployment Status & Health</b>");
             sb.AppendLine($"<b>Overall Status:</b> <b>{overallStatus}</b>");
-            sb.AppendLine("<b>Version:</b> v1.0.8 (24*7 Guardian Build)");
+            sb.AppendLine("<b>Version:</b> v1.0.9 (24*7 Guardian Build)");
             sb.AppendLine($"<b>Health Score:</b> {health} %");
             sb.AppendLine($"<b>Successful Steps/Checks:</b> {verif}");
             sb.AppendLine("<b>DSC Token Patch:</b> SHA256 (Applied), Guardian Status: Active 24x7");
@@ -630,8 +605,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "installType", isExisting ? "EXISTING_PC_UPDATED" : "FRESH_INSTALL" },
                         { "initialInstallDate", initialInstallDate },
                         { "updateReceivedDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "version", "v1.0.8-Update-R3" },
-                        { "updateBuild", "2026.10.29-R4" },
+                        { "version", "v1.0.9-Update-R2" },
+                        { "updateBuild", "2026.11.02-R2" },
                         { "status", "SUCCESS" },
                         { "overallStatus", "HEALTHY" },
                         { "verification", "Passed (17/17)" },

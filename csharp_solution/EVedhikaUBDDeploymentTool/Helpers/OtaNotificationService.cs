@@ -1,0 +1,143 @@
+using System;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Threading;
+
+namespace EVedhikaUBDDeploymentTool.Helpers
+{
+    public static class OtaNotificationService
+    {
+        private const string TelegramBotToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
+        private const string TelegramChatId = "431228008";
+
+        private static readonly string[] WebEndpoints = new string[]
+        {
+            "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry/ota-event",
+            "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry/ota-event",
+            "https://www.e-vedhika.in/api/telemetry/ota-event",
+            "http://localhost:3000/api/telemetry/ota-event"
+        };
+
+        public static void SendOtaTriggeredNotification(string oldVersion, string targetVersion, string downloadUrl, string releaseNotes)
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    string pcId = Logger.GetUniqueMachineId();
+                    string pcName = Environment.MachineName;
+                    string officeLoc = SystemInfoHelper.GetLiveLocation("Telangana");
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("🚀 <b>E-VEDHIKA OTA UPDATE TRIGGERED</b>");
+                    sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    sb.AppendLine($"<b>PC Name:</b> <code>{EscapeHtml(pcName)}</code>");
+                    sb.AppendLine($"<b>Machine ID:</b> <code>{EscapeHtml(pcId)}</code>");
+                    sb.AppendLine($"<b>Office Location:</b> {EscapeHtml(officeLoc)}");
+                    sb.AppendLine($"<b>Version Transition:</b> <code>{EscapeHtml(oldVersion)}</code> ➔ <b>{EscapeHtml(targetVersion)}</b>");
+                    sb.AppendLine($"<b>Payload URL:</b> <a href=\"{EscapeHtml(downloadUrl)}\">{EscapeHtml(Path.GetFileName(downloadUrl))}</a>");
+                    if (!string.IsNullOrEmpty(releaseNotes))
+                    {
+                        sb.AppendLine($"<b>Release Notes:</b> {EscapeHtml(releaseNotes)}");
+                    }
+                    sb.AppendLine($"<b>Timestamp:</b> {DateTime.Now:dd/MM/yyyy, hh:mm:ss tt}");
+
+                    DispatchTelegramMessage(sb.ToString());
+                    DispatchWebOtaEvent("OTA_TRIGGERED", oldVersion, targetVersion, downloadUrl, releaseNotes);
+                }
+                catch { }
+            });
+        }
+
+        public static void SendStatusChangedNotification(string eventType, string oldVersion, string newVersion, string status, string details = "")
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    string pcId = Logger.GetUniqueMachineId();
+                    string pcName = Environment.MachineName;
+                    string officeLoc = SystemInfoHelper.GetLiveLocation("Telangana");
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("🔄 <b>E-VEDHIKA VERSION & STATUS CHANGED</b>");
+                    sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    sb.AppendLine($"<b>Event Type:</b> <code>{EscapeHtml(eventType)}</code>");
+                    sb.AppendLine($"<b>PC Name:</b> <code>{EscapeHtml(pcName)}</code>");
+                    sb.AppendLine($"<b>Machine ID:</b> <code>{EscapeHtml(pcId)}</code>");
+                    sb.AppendLine($"<b>Office Location:</b> {EscapeHtml(officeLoc)}");
+                    sb.AppendLine($"<b>Version Status:</b> <code>{EscapeHtml(oldVersion)}</code> ➔ <b>{EscapeHtml(newVersion)}</b>");
+                    sb.AppendLine($"<b>Status:</b> <b>{EscapeHtml(status)}</b>");
+                    if (!string.IsNullOrEmpty(details))
+                    {
+                        sb.AppendLine($"<b>Details:</b> {EscapeHtml(details)}");
+                    }
+                    sb.AppendLine($"<b>Timestamp:</b> {DateTime.Now:dd/MM/yyyy, hh:mm:ss tt}");
+
+                    DispatchTelegramMessage(sb.ToString());
+                    DispatchWebOtaEvent(eventType, oldVersion, newVersion, "", details, status);
+                }
+                catch { }
+            });
+        }
+
+        private static void DispatchTelegramMessage(string message)
+        {
+            try
+            {
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
+                ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+
+                string url = $"https://api.telegram.org/bot{TelegramBotToken}/sendMessage";
+                string jsonPayload = $"{{\"chat_id\":\"{TelegramChatId}\",\"text\":\"{EscapeJson(message)}\",\"parse_mode\":\"HTML\",\"disable_web_page_preview\":true}}";
+
+                using (var wc = new Logger.TimeoutWebClient(6000))
+                {
+                    wc.Headers[HttpRequestHeader.ContentType] = "application/json";
+                    wc.Encoding = Encoding.UTF8;
+                    wc.UploadString(url, "POST", jsonPayload);
+                }
+            }
+            catch { }
+        }
+
+        private static void DispatchWebOtaEvent(string eventType, string oldVersion, string newVersion, string downloadUrl, string details, string status = "SUCCESS")
+        {
+            try
+            {
+                string pcId = Logger.GetUniqueMachineId();
+                string pcName = Environment.MachineName;
+                string jsonPayload = $"{{\"eventType\":\"{EscapeJson(eventType)}\",\"pcId\":\"{EscapeJson(pcId)}\",\"pcName\":\"{EscapeJson(pcName)}\",\"oldVersion\":\"{EscapeJson(oldVersion)}\",\"newVersion\":\"{EscapeJson(newVersion)}\",\"downloadUrl\":\"{EscapeJson(downloadUrl)}\",\"details\":\"{EscapeJson(details)}\",\"status\":\"{EscapeJson(status)}\",\"timestamp\":\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"}}";
+
+                foreach (var ep in WebEndpoints)
+                {
+                    try
+                    {
+                        using (var wc = new Logger.TimeoutWebClient(4000))
+                        {
+                            wc.Headers[HttpRequestHeader.ContentType] = "application/json";
+                            wc.Encoding = Encoding.UTF8;
+                            wc.UploadString(ep, "POST", jsonPayload);
+                            break;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        private static string EscapeHtml(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+        }
+
+        private static string EscapeJson(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n");
+        }
+    }
+}

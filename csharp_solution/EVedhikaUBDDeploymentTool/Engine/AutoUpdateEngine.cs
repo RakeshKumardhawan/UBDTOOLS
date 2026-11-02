@@ -8,10 +8,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.8";
-        public const int CurrentVersionCode = 10080;
-        public const string CurrentResourceBuild = "2026.10.29-R4";
-        public const string ResourceDate = "2026-10-29";
+        public const string CurrentVersion = "v1.0.9";
+        public const int CurrentVersionCode = 10090;
+        public const string CurrentResourceBuild = "2026.11.02-R2";
+        public const string ResourceDate = "2026-11-02";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
 
@@ -181,7 +181,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.8";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.9";
                         wc.Encoding = System.Text.Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
@@ -266,7 +266,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                             info.Success = true;
                             info.LatestVersion = latestVer;
                             info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Portal and UBD deployment updates." : releaseNotes;
-                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.8.exe" : downloadUrl;
+                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe" : downloadUrl;
                             info.IsSilent = isSilent;
                             info.VersionCode = serverCode > 0 ? serverCode : ParseVersionToWeight(latestVer);
 
@@ -280,6 +280,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                                 info.IsUpdateAvailable = true;
                                 info.Message = $"✨ New Cumulative Software Update Available: {info.LatestVersion}!\n\nRelease Notes: {info.ReleaseNotes}\n\n(Note: This single update pack includes all cumulative driver, ActiveX, and policy updates)";
                                 logCallback?.Invoke($"[AUTO-UPDATE] NEW UPDATE DETECTED: {info.LatestVersion} (Weight {latestWeight} > {currentWeight}) from {url}");
+                                OtaNotificationService.SendOtaTriggeredNotification(CurrentVersion, info.LatestVersion, info.DownloadUrl, info.ReleaseNotes);
                             }
                             else
                             {
@@ -354,6 +355,7 @@ public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
                 }
 
                 logCallback?.Invoke($"[AUTO-UPDATE SUCCESS] Downloaded. Initiating Self-Update...");
+                OtaNotificationService.SendStatusChangedNotification("OTA_PAYLOAD_DOWNLOADED", CurrentVersion, "v1.0.9", "DOWNLOAD_SUCCESS", $"Downloaded {fileName} to temp directory. Launching self-updater...");
 
                 string currentExePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
                 string currentAppDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');

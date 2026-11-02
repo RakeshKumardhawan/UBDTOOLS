@@ -6,13 +6,13 @@
   "latestVersion": "v1.0.9",
   "versionCode": 10090,
   "releaseDate": "2026-11-02",
-  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/v1.0.9/EVedhika_Setup_v1.0.9.exe",
+  "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.9.exe",
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": true,
   "silent": false,
-  "releaseNotes": "v1.0.9 Release: Complete uninstallation setting/benefit revocation engine (48 registry bypasses, Edge IE Mode XML, TLS options, ActiveX DLLs) including automatic FIPS 140-3 policy restoration, D3 Real-Time System Pulse Widget, and enhanced multi-PC telemetry.",
+  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector & Universal ActiveX Automation.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live",
-  "latestResourceBuild": "2026.11.02-R1",
+  "latestResourceBuild": "2026.11.02-R2",
   "resourceBuildDate": "2026-11-02"
 }

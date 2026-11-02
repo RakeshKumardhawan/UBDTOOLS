@@ -129,7 +129,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Hero Section */}
       <div className="mb-8 sm:mb-12 lg:mb-14">
-        <p className="label text-accent mb-2 sm:mb-3 tracking-widest">[ SYSTEM_V1.0.8 - TELANGANA PR&RD ]</p>
+        <p className="label text-accent mb-2 sm:mb-3 tracking-widest">[ SYSTEM_V1.0.9 - TELANGANA PR&RD ]</p>
         <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-4 mb-4 sm:mb-6">
           <h2 className="font-syne text-[clamp(1.85rem,4.8vw,3.6rem)] leading-[1.05] sm:leading-[0.95] tracking-[-0.04em]">
             ALL PROBLEMS,<br />ONE SOLUTION.

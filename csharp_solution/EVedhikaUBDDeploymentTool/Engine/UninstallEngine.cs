@@ -27,8 +27,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhika_UBD_Deployment_Tool",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.0",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.1",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.2",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.3",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.4",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.5",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.6",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.7",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.8"
                 };
@@ -188,7 +193,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 AutoRepairEngine.Stop24x7BackgroundGuardian();
 
                 int currentPid = Process.GetCurrentProcess().Id;
-                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
+                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.0.9", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
 
                 foreach (var pName in processNames)
                 {

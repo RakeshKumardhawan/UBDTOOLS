@@ -1,1 +1,45 @@
-[]
+[
+  {
+    "pcId": "EVD-TS-KMM-01",
+    "pcName": "OFFICE-HOST-PC",
+    "userName": "Rakesh Dhawan (Admin)",
+    "officeLocation": "Khammam Mandal Praja Parishad Office",
+    "district": "Khammam",
+    "state": "Telangana",
+    "osVersion": "Windows 11 Pro 64-bit",
+    "winBuild": "Build 22631",
+    "appVersion": "v1.0.8",
+    "machineIdentifier": "EVD-TS-KMM-01",
+    "firstSeen": "2026-11-02 11:47:14",
+    "lastSeenEpoch": 1793620034854,
+    "lastTelemetryUpdate": "2026-11-02 11:47:14",
+    "overallStatus": "HEALTHY",
+    "deployment": {
+      "totalSteps": 17,
+      "verifiedSteps": 17,
+      "failedSteps": 0,
+      "skippedSteps": 0,
+      "verificationPercentage": 100,
+      "failedStepNames": [],
+      "lastDeploymentTime": "2026-11-02 11:47:14",
+      "deployResult": "SUCCESS",
+      "deployProfile": "17/17 Standard Telangana/AP Profile"
+    },
+    "technicalHealth": {
+      "edgeVersion": "Edge 126.0 (64-Bit)",
+      "edgeIeModeStatus": "PASS",
+      "sitesXmlStatus": "PASS",
+      "registryPoliciesStatus": "PASS",
+      "ubdWebsiteStatus": "PASS",
+      "dotNetStatus": "PASS",
+      "internetConnectivity": "PASS",
+      "digiSignerStatus": "PASS",
+      "dscDriverStatus": "PASS",
+      "dscTokenConnected": "PASS",
+      "certValidity": "PASS"
+    },
+    "activeIssue": null,
+    "issueHistory": [],
+    "lastTelegramAlertEpoch": 0
+  }
+]

@@ -308,7 +308,7 @@ async function startServer() {
     const officeLoc = body.officeLocation || body.office || 'Gram Panchayat Office';
     const osVer = body.osVersion || body.winEdition || body.winVersion || 'Windows 11 Home';
     const winBuild = body.winBuild || '10.0.26300';
-    const appVer = body.version || body.deployVersion || 'v1.0.8';
+    const appVer = body.version || body.deployVersion || 'v1.0.9';
     const totalSteps = 17;
 
     let pcId = body.pcId;
@@ -395,6 +395,7 @@ async function startServer() {
 
     if (deviceInstallationId) record.deviceInstallationId = deviceInstallationId;
 
+    const oldAppVersion = record.appVersion || 'v1.0.8';
     record.pcName = pcName;
     record.userName = userName;
     record.officeLocation = officeLoc;
@@ -403,6 +404,20 @@ async function startServer() {
     record.appVersion = appVer;
     record.lastSeenEpoch = nowEpoch;
     record.lastTelemetryUpdate = nowStr;
+
+    // Real-time Version Status Changed Telegram Alert
+    if (oldAppVersion && oldAppVersion !== appVer) {
+      console.log(`[VERSION STATUS CHANGED] PC ${pcName} (${pcId}): ${oldAppVersion} -> ${appVer}`);
+      const otaTelegramMsg = `🎉 <b>E-VEDHIKA VERSION STATUS CHANGED</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `<b>PC Name:</b> <code>${pcName}</code>\n` +
+        `<b>Machine ID:</b> <code>${pcId}</code>\n` +
+        `<b>Office Location:</b> ${officeLoc}\n` +
+        `<b>Version Transition:</b> <code>${oldAppVersion}</code> ➔ <b>${appVer}</b>\n` +
+        `<b>Status:</b> <b>ONLINE & UPGRADED</b>\n` +
+        `<b>Timestamp:</b> ${nowStr}`;
+      sendTelegramMessage(otaTelegramMsg).catch(() => {});
+    }
 
     if (body.sitesXmlStatus) record.technicalHealth.sitesXmlStatus = body.sitesXmlStatus;
     if (body.edgeIeModeStatus) record.technicalHealth.edgeIeModeStatus = body.edgeIeModeStatus;
@@ -663,7 +678,7 @@ async function startServer() {
     const pcName = newRecord.pcName || 'GP-OFFICE-PC';
     const userPriv = newRecord.userPrivileges || (newRecord.adminRights === 'Yes' ? 'Elevated Administrator Mode (UAC Verified)' : 'Standard User Mode');
     
-    const version = newRecord.version || 'v1.0.8';
+    const version = newRecord.version || 'v1.0.9';
     const healthScore = newRecord.healthScore || (isFail ? '65' : '100');
     const successfulSteps = newRecord.verification || (isFail ? '12/17 steps passed.' : '17/17 steps passed.');
 
@@ -689,7 +704,7 @@ async function startServer() {
     const hwUuid = newRecord.hardwareUuid || newRecord.uuid || '';
     const macAddr = newRecord.macAddress || newRecord.mac || '';
 
-    return `📋 <b>E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report</b>\n` +
+    return `📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🖥️ <b>Machine & Office Details</b>\n` +
       `<b>Machine IDs:</b> <code>${machineId}</code>\n` +
@@ -705,7 +720,7 @@ async function startServer() {
       `<b>CPU:</b> ${cpuInfo}\n\n` +
       `📊 <b>Deployment Status & Health</b>\n` +
       `<b>Overall Status:</b> <b>${isFail ? 'Failed' : 'SUCCESS'}</b>\n` +
-      `<b>Version:</b> v1.0.8 (24*7 Guardian Build)\n` +
+      `<b>Version:</b> v1.0.9 (24*7 Guardian Build)\n` +
       `<b>Health Score:</b> ${healthScore} %\n` +
       `<b>Successful Steps/Checks:</b> ${successfulSteps}\n` +
       `<b>DSC Token Patch:</b> SHA256 (Applied), Guardian Status: Active 24x7\n\n` +
@@ -754,8 +769,10 @@ async function startServer() {
       return false;
     }
 
-    // STRICT 1-REPORT-PER-PC EVER RULE
-    if (reportedTelegramPcs.has(pcKey) || (pcNameKey && reportedTelegramPcs.has(pcNameKey))) {
+    const isForced = body.forceTelegram === 'true' || body.forceTelegram === true || body.sendTelegram === 'true' || body.sendTelegram === true || body.isTest === true || body.isTest === 'true';
+
+    // STRICT 1-REPORT-PER-PC EVER RULE (Unless forced/test/explicit dispatch)
+    if (!isForced && (reportedTelegramPcs.has(pcKey) || (pcNameKey && reportedTelegramPcs.has(pcNameKey)))) {
       console.log(`[STRICT 1-REPORT-PER-PC] PC ${pcKey} has already dispatched its 1 official Telegram report. Suppressed duplicate.`);
       return false;
     }
@@ -786,7 +803,7 @@ async function startServer() {
       return { success: false, message: 'PC is blocked from Telegram alerts.' };
     }
 
-    const token = customToken || telegramConfig.botToken || '8911539519:AAEbxtgt-OymCGXG43pQMrwU_cKLhR8dEBE';
+    const token = customToken || telegramConfig.botToken || '9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E';
     const chatId = customChatId || telegramConfig.chatId || '431228008';
     if (!token || !chatId) {
       return { success: false, message: 'Telegram Bot Token or Chat ID not configured.' };
@@ -1709,10 +1726,10 @@ async function startServer() {
     name: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     appName: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     executableName: 'EVedhika_Setup_v1.0.9.exe',
-    currentVersion: 'v1.0.8',
+    currentVersion: 'v1.0.9',
     latestVersion: 'v1.0.9',
     versionCode: 10090,
-    releaseDate: '2026-11-01',
+    releaseDate: '2026-11-02',
     downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
@@ -1720,8 +1737,8 @@ async function startServer() {
     releaseNotes: 'v1.0.9 Release: Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, and 24x7 System Guardian.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.01-R1',
-    resourceBuildDate: '2026-11-01'
+    latestResourceBuild: '2026.11.02-R2',
+    resourceBuildDate: '2026-11-02'
   };
 
 
@@ -1754,10 +1771,10 @@ async function startServer() {
       if (response.ok) {
         const data = await response.json();
         if (data) {
-          let highestVer = 'v1.0.8';
-          let highestWeight = 10080;
-          let highestDownloadUrl = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.8.exe';
-          let highestExeName = 'EVedhika_Setup_v1.0.8.exe';
+          let highestVer = 'v1.0.9';
+          let highestWeight = 10090;
+          let highestDownloadUrl = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.9.exe';
+          let highestExeName = 'EVedhika_Setup_v1.0.9.exe';
 
           // Scan all assets to find highest versioned installer (e.g. EVedhika_Setup_v1.0.7.exe over v1.0.1.exe)
           if (data.assets && Array.isArray(data.assets)) {
@@ -1817,6 +1834,69 @@ async function startServer() {
   app.get('/api/version', handleGetVersion);
   app.get('/exe/api/version', handleGetVersion);
   app.get('/version.json', handleGetVersion);
+
+  // Dedicated API Route: Real-Time OTA & Status Changed Telegram Notification Service Hook
+  app.post(['/api/telemetry/ota-event', '/api/ota/notify'], async (req, res) => {
+    try {
+      const body = req.body || {};
+      const eventType = body.eventType || 'STATUS_CHANGED';
+      const pcId = body.pcId || 'EVD-PC-UNKNOWN';
+      const pcName = body.pcName || body.machineName || 'GP-OFFICE-PC';
+      const oldVersion = body.oldVersion || 'v1.0.8';
+      const newVersion = body.newVersion || body.targetVersion || 'v1.0.9';
+      const downloadUrl = body.downloadUrl || '';
+      const details = body.details || body.releaseNotes || 'Real-time OTA update event triggered';
+      const status = body.status || 'SUCCESS';
+
+      console.log(`[OTA EVENT RECEIVED] ${eventType} for ${pcName} (${pcId}): ${oldVersion} -> ${newVersion}`);
+
+      const botToken = telegramConfig.botToken || '9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E';
+      const chatId = telegramConfig.chatId || '431228008';
+
+      let eventIcon = '🔄';
+      let title = 'VERSION & STATUS CHANGED';
+
+      if (eventType === 'OTA_TRIGGERED') {
+        eventIcon = '🚀';
+        title = 'OTA UPDATE TRIGGERED';
+      } else if (eventType === 'OTA_PAYLOAD_DOWNLOADED') {
+        eventIcon = '⚡';
+        title = 'OTA PAYLOAD DOWNLOADED';
+      } else if (eventType === 'VERSION_UPGRADED') {
+        eventIcon = '🎉';
+        title = 'VERSION UPGRADED';
+      }
+
+      const telegramMsg = `${eventIcon} <b>E-VEDHIKA ${title}</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `<b>Event Type:</b> <code>${eventType}</code>\n` +
+        `<b>PC Name:</b> <code>${pcName}</code>\n` +
+        `<b>Machine ID:</b> <code>${pcId}</code>\n` +
+        `<b>Version Transition:</b> <code>${oldVersion}</code> ➔ <b>${newVersion}</b>\n` +
+        `<b>Status:</b> <b>${status}</b>\n` +
+        (downloadUrl ? `<b>Payload URL:</b> ${downloadUrl}\n` : '') +
+        (details ? `<b>Details:</b> ${details}\n` : '') +
+        `<b>Timestamp:</b> ${new Date().toLocaleString()}`;
+
+      if (botToken && chatId) {
+        sendTelegramMessage(telegramMsg, botToken, chatId).catch(e => {
+          console.warn('[OTA TELEGRAM DISPATCH ERROR]', e?.message || e);
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Real-time OTA status change notification dispatched to Telegram & Admin console',
+        eventType,
+        pcId,
+        pcName,
+        oldVersion,
+        newVersion
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
 
   // API Routes: Live News & Announcements & Feed (GET, POST, DELETE)
   app.get(['/api/v1/posts/feed', '/api/announcements', '/api/news'], (req, res) => {
@@ -2633,7 +2713,7 @@ async function startServer() {
     return res.json({
       success: true,
       status: 'ONLINE',
-      engine: 'E-Vedhika Cold Storage Engine v1.0.8',
+      engine: 'E-Vedhika Cold Storage Engine v1.0.9',
       totalRecords: coldMachineRecords.size,
       historyCount: coldAuditHistory.length,
       backupFilesCount,
@@ -2712,7 +2792,7 @@ async function startServer() {
 
   // =========================================================================
   // LIVE VERSION FLEET API (/api/version-fleet/live)
-  // Consolidates real-time PC telemetry for all versions from v1.0 to v1.0.8
+  // Consolidates real-time PC telemetry for all versions from v1.0 to v1.0.9
   // =========================================================================
   app.get('/api/version-fleet/live', (req, res) => {
     try {
@@ -2751,7 +2831,7 @@ async function startServer() {
             officeLocation: r.officeLocation || 'Gram Panchayat Office',
             district: r.district || 'Mancherial',
             state: r.state || 'Telangana',
-            appVersion: r.appVersion || r.version || 'v1.0.8',
+            appVersion: r.appVersion || r.version || 'v1.0.9',
             osVersion: r.osVersion || 'Windows 11 Pro 64-bit',
             winBuild: r.winBuild || 'Build 22631',
             lastSeenEpoch: r.lastSeenEpoch || Date.parse(r.timestamp || r.date) || Date.now() - 120000,
@@ -3146,8 +3226,8 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (ఈ కొత్త అప్డేట్ ద్వారా సింక్ అయింది)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.10.29-R3',
-        version: body.version || 'v1.0.8-Update-R3',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.02-R2',
+        version: body.version || 'v1.0.9-Update-R2',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
         localIp: body.localIp || '192.168.1.100',
@@ -3454,9 +3534,8 @@ ${aiAnalysis || 'Analysis in progress.'}
       // 5. Send Telegram Alert if configured (Strict 1-Report-Per-PC Ever Check)
       const issuePcKey = String(body.pcId || pcName).toUpperCase().trim();
       const issuePcNameKey = String(pcName).toUpperCase().trim();
-
-      const isBlockedIssuePc = issuePcKey.includes('62E8') || issuePcKey.includes('1900-62E8') || issuePcKey.includes('MPO-PC') || issuePcKey.includes('UNKNOWN-PC') ||
-        issuePcNameKey.includes('62E8') || issuePcNameKey.includes('MPO-PC') || issuePcNameKey.includes('UNKNOWN-PC') ||
+      const isBlockedIssuePc = issuePcKey.includes('UNKNOWN-PC') ||
+        issuePcNameKey.includes('UNKNOWN-PC') ||
         telegramPcFilters.blockedPcs.some(b => b && (issuePcKey.includes(b.toUpperCase()) || issuePcNameKey.includes(b.toUpperCase())));
 
       const isAlreadyReportedIssuePc = reportedTelegramPcs.has(issuePcKey) || (issuePcNameKey && reportedTelegramPcs.has(issuePcNameKey));

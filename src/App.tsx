@@ -578,7 +578,7 @@ function MainAppContent() {
     const ipInfo = '183.82.98.11';
     const deviceId = getDeviceHardwareIdentity().deviceInstallationId;
     
-    const reportText = `📋 E-Vedhika UBD Deployment Tool v1.0.8 and Installation Report
+    const reportText = `📋 E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🖥️ Machine & Office Details
 Installation ID: ${deviceId}
@@ -595,7 +595,7 @@ CPU: ${cpuInfo}
 
 📊 Deployment Status & Health
 Overall Status: SUCCESS
-Versions: v1.0.8 (24*7 Guardian Build)
+Versions: v1.0.9 (24*7 Guardian Build)
 Health Score: 100%
 Successful Steps/Checks: 17/17 steps passed.
 DSC Token Patch: SHA256 v2.0.0.0 (Applied), though hardware DSC status shows "Detected"
