@@ -11,6 +11,15 @@ namespace EVedhikaUBDDeploymentTool
         public StateSelectionDialog()
         {
             InitializeComponent();
+            try
+            {
+                string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.ico");
+                if (System.IO.File.Exists(iconPath))
+                    this.Icon = new Icon(iconPath);
+                else
+                    this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch { }
         }
 
         private void InitializeComponent()

@@ -30,8 +30,36 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                 }
 
-                // 2. Create Desktop Shortcut for UBD Portal (Edge IE Mode) - REMOVED
-                // 3. Create Windows Native .lnk Shortcut for E-Vedhika Deployment Tool EXE - REMOVED
+                // 2. Ensure Desktop Shortcut exists and points to the official EV app.ico
+                try
+                {
+                    string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                    string shortcutPath = Path.Combine(desktopDir, "E-Vedhika UBD Tool.lnk");
+                    string icoPath = Path.Combine(appDir, "app.ico");
+                    string iconTarget = File.Exists(icoPath) ? icoPath : exePath;
+
+                    string psCommand = string.Format(
+                        "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('{0}'); $s.TargetPath = '{1}'; $s.WorkingDirectory = '{2}'; $s.IconLocation = '{3},0'; $s.Description = 'E-Vedhika UBD Deployment Tool'; $s.Save();",
+                        shortcutPath.Replace("'", "''"),
+                        exePath.Replace("'", "''"),
+                        appDir.Replace("'", "''"),
+                        iconTarget.Replace("'", "''")
+                    );
+
+                    using (Process proc = new Process())
+                    {
+                        proc.StartInfo.FileName = "powershell.exe";
+                        proc.StartInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"" + psCommand + "\"";
+                        proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                        proc.StartInfo.CreateNoWindow = true;
+                        proc.StartInfo.UseShellExecute = false;
+                        proc.Start();
+                        proc.WaitForExit(3000);
+                    }
+                    if (logCallback != null) logCallback("[AutoRepair] Verified Desktop Shortcut with official EV Application Icon.");
+                }
+                catch { }
+
                 return true;
             }
             catch (Exception ex)

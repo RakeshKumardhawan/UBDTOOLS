@@ -47,7 +47,19 @@ namespace EVedhikaUBDDeploymentTool
         public MainForm(string initialState = "Telangana", bool startSilent = false)
         {
             InitializeComponent();
-            try { this.Icon = new Icon("app.ico"); } catch { }
+            try
+            {
+                string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.ico");
+                if (File.Exists(iconPath))
+                {
+                    this.Icon = new Icon(iconPath);
+                }
+                else
+                {
+                    this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                }
+            }
+            catch { }
             
             this.isStartSilent = startSilent;
             this.currentStateName = initialState;
