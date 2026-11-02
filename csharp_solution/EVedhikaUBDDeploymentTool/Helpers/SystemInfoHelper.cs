@@ -238,14 +238,68 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             return "120.00 GB Free";
         }
 
+        public static string GetWindowsEdition()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion"))
+                {
+                    if (key != null)
+                    {
+                        object prodName = key.GetValue("ProductName");
+                        if (prodName != null && !string.IsNullOrEmpty(prodName.ToString()))
+                        {
+                            string edition = prodName.ToString();
+                            object displayVer = key.GetValue("DisplayVersion") ?? key.GetValue("ReleaseId");
+                            if (displayVer != null && !string.IsNullOrEmpty(displayVer.ToString()))
+                            {
+                                return string.Format("{0} ({1})", edition, displayVer);
+                            }
+                            return edition;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return GetWindowsVersion();
+        }
+
         public static string CheckInternetConnection()
         {
             try
             {
                 if (System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
-                    return "Online";
+                {
+                    try
+                    {
+                        using (var ping = new System.Net.NetworkInformation.Ping())
+                        {
+                            var reply = ping.Send("8.8.8.8", 1500);
+                            if (reply != null && reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                            {
+                                return "Connected (Online)";
+                            }
+                        }
+                    }
+                    catch { }
+
+                    try
+                    {
+                        var addresses = System.Net.Dns.GetHostAddresses("ubd.telangana.gov.in");
+                        if (addresses != null && addresses.Length > 0)
+                        {
+                            return "Connected (Online)";
+                        }
+                    }
+                    catch { }
+
+                    return "Connected (Local Network)";
+                }
             }
             catch { }
+
+            return "Disconnected (Offline)";
         }
 
         public static string GetSystemArchitecture()

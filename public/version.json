@@ -10,7 +10,7 @@
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": false,
-  "releaseNotes": "v1.0.9 Release (Resource Build 2026.11.03-R1): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, Offline Queue & Auto-Retry, and 24x7 System Guardian.",
+  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.8 Guardian Build - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector & Universal ActiveX Automation.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live",
   "latestResourceBuild": "2026.11.03-R1",
