@@ -7078,7 +7078,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
                 if (File.Exists(zoneStream)) {
                     DeleteFile(zoneStream);
-                    Logger.Log("AntivirusResolver", "Successfully removed Zone.Identifier stream from executable.", LogType.Success);
+                    Logger.LogInfo("AntivirusResolver", "Successfully removed Zone.Identifier stream from executable.");
                 }
 
                 // Also execute PowerShell Unblock-File
@@ -7086,7 +7086,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 ExecutePowerShellSilent(psCommand);
                 return true;
             } catch (Exception ex) {
-                Logger.Log("AntivirusResolver", "Unblock file warning: " + ex.Message, LogType.Warning);
+                Logger.LogWarning("AntivirusResolver", "Unblock file warning: " + ex.Message);
                 return false;
             }
         }
@@ -7107,11 +7107,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
                 int exitCode = ExecutePowerShellSilent(psCommand);
                 if (exitCode == 0) {
-                    Logger.Log("AntivirusResolver", "Added E-Vedhika to Windows Defender Exclusions.", LogType.Success);
+                    Logger.LogInfo("AntivirusResolver", "Added E-Vedhika to Windows Defender Exclusions.");
                     return true;
                 }
             } catch (Exception ex) {
-                Logger.Log("AntivirusResolver", "Defender exclusion warning: " + ex.Message, LogType.Warning);
+                Logger.LogWarning("AntivirusResolver", "Defender exclusion warning: " + ex.Message);
             }
             return false;
         }
