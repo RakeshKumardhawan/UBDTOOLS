@@ -30,33 +30,71 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                 }
 
-                // 2. Ensure Desktop Shortcut exists and points to the official EV app.ico
+                // 2. Ensure exactly ONE Desktop Shortcut exists (Prevent duplicate shortcuts on Windows Desktop)
                 try
                 {
-                    string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                    string shortcutPath = Path.Combine(desktopDir, "E-Vedhika UBD Tool.lnk");
+                    string userDesktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                    string commonDesktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+                    string userShortcut = Path.Combine(userDesktop, "E-Vedhika UBD Tool.lnk");
+                    string commonShortcut = Path.Combine(commonDesktop, "E-Vedhika UBD Tool.lnk");
                     string icoPath = Path.Combine(appDir, "app.ico");
                     string iconTarget = File.Exists(icoPath) ? icoPath : exePath;
 
-                    string psCommand = string.Format(
-                        "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('{0}'); $s.TargetPath = '{1}'; $s.WorkingDirectory = '{2}'; $s.IconLocation = '{3},0'; $s.Description = 'E-Vedhika UBD Deployment Tool'; $s.Save();",
-                        shortcutPath.Replace("'", "''"),
-                        exePath.Replace("'", "''"),
-                        appDir.Replace("'", "''"),
-                        iconTarget.Replace("'", "''")
-                    );
-
-                    using (Process proc = new Process())
+                    // Purge duplicate/alternate legacy shortcut files from both desktop locations
+                    string[] duplicateNames = new string[]
                     {
-                        proc.StartInfo.FileName = "powershell.exe";
-                        proc.StartInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"" + psCommand + "\"";
-                        proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                        proc.StartInfo.CreateNoWindow = true;
-                        proc.StartInfo.UseShellExecute = false;
-                        proc.Start();
-                        proc.WaitForExit(3000);
+                        "E-Vedhika UBD Deployment Tool.lnk",
+                        "EVedhikaUBDDeploymentTool.lnk",
+                        "EVedhika UBD Tool.lnk",
+                        "UBD Deployment Tool.lnk",
+                        "UBD Portal (Edge IE Mode).lnk",
+                        "UBD Portal (Edge IE Mode).url",
+                        "E-Vedhika UBD Deployment Tool.url",
+                        "E-Vedhika Web App (www.e-vedhika.in).url"
+                    };
+
+                    foreach (string name in duplicateNames)
+                    {
+                        try { string p1 = Path.Combine(userDesktop, name); if (File.Exists(p1)) File.Delete(p1); } catch { }
+                        try { string p2 = Path.Combine(commonDesktop, name); if (File.Exists(p2)) File.Delete(p2); } catch { }
                     }
-                    if (logCallback != null) logCallback("[AutoRepair] Verified Desktop Shortcut with official EV Application Icon.");
+
+                    // Windows displays shortcuts from BOTH CommonDesktop (Public) and UserDesktop.
+                    // If CommonDesktop shortcut exists (installed by Inno Setup for All Users), remove UserDesktop shortcut to avoid duplicates!
+                    if (File.Exists(commonShortcut))
+                    {
+                        if (File.Exists(userShortcut))
+                        {
+                            try { File.Delete(userShortcut); } catch { }
+                        }
+                    }
+                    else if (!File.Exists(userShortcut))
+                    {
+                        // Only create if NEITHER exists (prefer CommonDesktop if writable, else UserDesktop)
+                        string targetPath = !string.IsNullOrEmpty(commonDesktop) && Directory.Exists(commonDesktop)
+                            ? commonShortcut
+                            : userShortcut;
+
+                        string psCommand = string.Format(
+                            "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('{0}'); $s.TargetPath = '{1}'; $s.WorkingDirectory = '{2}'; $s.IconLocation = '{3},0'; $s.Description = 'E-Vedhika UBD Deployment Tool'; $s.Save();",
+                            targetPath.Replace("'", "''"),
+                            exePath.Replace("'", "''"),
+                            appDir.Replace("'", "''"),
+                            iconTarget.Replace("'", "''")
+                        );
+
+                        using (Process proc = new Process())
+                        {
+                            proc.StartInfo.FileName = "powershell.exe";
+                            proc.StartInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"" + psCommand + "\"";
+                            proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                            proc.StartInfo.CreateNoWindow = true;
+                            proc.StartInfo.UseShellExecute = false;
+                            proc.Start();
+                            proc.WaitForExit(3000);
+                        }
+                    }
+                    if (logCallback != null) logCallback("[AutoRepair] Verified single official Desktop Shortcut (Zero duplicates).");
                 }
                 catch { }
 

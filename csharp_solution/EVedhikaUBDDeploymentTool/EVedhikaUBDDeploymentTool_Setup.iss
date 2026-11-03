@@ -52,6 +52,9 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall --silent"; Flags: ru
 
 [UninstallDelete]
 Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
+Type: files; Name: "{userdesktop}\{#MyAppName}.lnk"
+Type: files; Name: "{commondesktop}\E-Vedhika UBD Deployment Tool.lnk"
+Type: files; Name: "{userdesktop}\E-Vedhika UBD Deployment Tool.lnk"
 Type: files; Name: "{group}\{#MyAppName}.lnk"
 Type: filesandordirs; Name: "C:\enterprise_compat"
 Type: filesandordirs; Name: "{commonappdata}\EVedhika"
@@ -76,9 +79,32 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  UserDesk: String;
+  CommDesk: String;
 begin
-  if CurStep = ssInstall then
+  if (CurStep = ssInstall) or (CurStep = ssPostInstall) then
   begin
+    UserDesk := ExpandConstant('{userdesktop}');
+    CommDesk := ExpandConstant('{commondesktop}');
+
+    // Purge duplicate/redundant Desktop shortcuts from User's Desktop
+    // Because Inno Setup installs to {commondesktop}, having a shortcut in {userdesktop} results in two identical icons!
+    DeleteFile(UserDesk + '\{#MyAppName}.lnk');
+    DeleteFile(UserDesk + '\E-Vedhika UBD Tool.lnk');
+    DeleteFile(UserDesk + '\E-Vedhika UBD Deployment Tool.lnk');
+    DeleteFile(UserDesk + '\EVedhikaUBDDeploymentTool.lnk');
+    DeleteFile(UserDesk + '\UBD Deployment Tool.lnk');
+    DeleteFile(UserDesk + '\UBD Portal (Edge IE Mode).lnk');
+    DeleteFile(UserDesk + '\UBD Portal (Edge IE Mode).url');
+
+    // Purge legacy alternate names from Common Desktop as well
+    DeleteFile(CommDesk + '\E-Vedhika UBD Deployment Tool.lnk');
+    DeleteFile(CommDesk + '\EVedhikaUBDDeploymentTool.lnk');
+    DeleteFile(CommDesk + '\UBD Deployment Tool.lnk');
+    DeleteFile(CommDesk + '\UBD Portal (Edge IE Mode).lnk');
+    DeleteFile(CommDesk + '\UBD Portal (Edge IE Mode).url');
+
     // Purge legacy standalone duplicate uninstall entries from Windows Registry
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool');

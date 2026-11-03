@@ -552,6 +552,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 string[] shortcuts = new string[]
                 {
+                    Path.Combine(desktopPath, "E-Vedhika UBD Tool.lnk"),
+                    Path.Combine(commonDesktop, "E-Vedhika UBD Tool.lnk"),
                     Path.Combine(desktopPath, "UBD Portal (Edge IE Mode).url"),
                     Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.lnk"),
                     Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.url"),

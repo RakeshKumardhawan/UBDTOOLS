@@ -96,8 +96,30 @@ namespace EVedhikaUBDDeploymentTool
                     string arg0 = args[0].Trim().ToLowerInvariant();
                     if (arg0 == "--post-install" || arg0 == "/postinstall" || arg0 == "-postinstall")
                     {
-                        // Send immediate installation check-in telemetry report as soon as setup completes
+                        // 1. Purge any duplicate/legacy desktop shortcuts immediately (leave exactly one icon)
+                        try
+                        {
+                            AutoRepairEngine.RegisterStartupAndShortcuts(null);
+                        }
+                        catch { }
+
+                        // 2. Send immediate installation check-in telemetry report as soon as setup completes
                         SendPostInstallInstallationTelemetry();
+
+                        // 3. Automatically launch Microsoft Edge and redirect directly to UBD Telangana portal (IE Mode configured)
+                        LaunchPortalRedirect();
+
+                        // 4. Launch the main E-Vedhika GUI Application
+                        try
+                        {
+                            ProcessStartInfo startInfo = new ProcessStartInfo();
+                            startInfo.FileName = Application.ExecutablePath;
+                            startInfo.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                            startInfo.UseShellExecute = true;
+                            Process.Start(startInfo);
+                        }
+                        catch { }
+
                         return;
                     }
                 }
@@ -263,8 +285,8 @@ namespace EVedhikaUBDDeploymentTool
                     { "winBuild", SystemInfoHelper.GetWindowsBuildNumber() },
                     { "architecture", SystemInfoHelper.GetSystemArchitecture() },
                     { "version", "v1.0.9" },
-                    { "buildVersion", "2026.11.03-R2" },
-                    { "resourceBuild", "2026.11.03-R2" },
+                    { "buildVersion", "2026.11.03-R3" },
+                    { "resourceBuild", "2026.11.03-R3" },
                     { "status", "SUCCESS" },
                     { "overallStatus", "HEALTHY" },
                     { "verification", "v1.0.9 Setup Completed (17/17 Pre-configured)" },
@@ -282,7 +304,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "registryVerification", "Verified (Zone 2, Flags, Emulation)" },
                     { "errorDetails", "None" },
                     { "lastReportUploadTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "remarks", "EVedhika_Setup_v1.0.9.exe (Build 2026.11.03-R2) installed and registered successfully." },
+                    { "remarks", "EVedhika_Setup_v1.0.9.exe (Build 2026.11.03-R3) installed and registered successfully." },
                     { "isFinalReport", "true" },
                     { "sendTelegram", "true" },
                     { "forceTelegram", "true" },
@@ -299,6 +321,46 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     string crashLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup.log");
                     File.AppendAllText(crashLog, $"[{DateTime.Now}] PostInstall Telemetry Error: {ex.Message}\r\n");
+                }
+                catch { }
+            }
+        }
+
+        private static void LaunchPortalRedirect()
+        {
+            try
+            {
+                string ubdUrl = "https://ubd.telangana.gov.in";
+                string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
+                if (!File.Exists(edgePath)) edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
+
+                if (File.Exists(edgePath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = edgePath,
+                        Arguments = $"\"{ubdUrl}\"",
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = ubdUrl,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "https://ubd.telangana.gov.in",
+                        UseShellExecute = true
+                    });
                 }
                 catch { }
             }
