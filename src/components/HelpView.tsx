@@ -83,12 +83,37 @@ export const HelpView: React.FC = () => {
           </div>
 
           {/* Troubleshooting Tips Card */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-100 mb-4">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <h3 className="text-sm font-bold text-slate-900">Troubleshooting Tips</h3>
+              <h3 className="text-sm font-bold text-slate-900">Troubleshooting Tips & Smart App Control Unblock Guide</h3>
             </div>
             
+            {/* Special Callout: Windows 11 Smart App Control Fix */}
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
+              <div className="flex items-center gap-2 text-amber-900 font-bold">
+                <ShieldCheck className="w-4.5 h-4.5 text-amber-600" />
+                <span>Windows 11 Smart App Control (SAC) Blocking Issue Fix (స్మార్ట్ యాప్ కంట్రోల్ క్లియర్ చేసే పద్ధతి)</span>
+              </div>
+              <p className="text-slate-700 leading-relaxed">
+                Windows 11 లో కొత్తగా వచ్చిన <strong>Smart App Control</strong> డిజిటల్ సంతకం లేని థర్డ్-పార్టీ EXE ఫైళ్లను మొదటిసారి రన్ చేసినప్పుడు బ్లాక్ చేస్తుంది. దీనిని క్రింది 2 సులభమైన మార్గాల్లో క్లియర్ చేయవచ్చు:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] pt-1">
+                <div className="p-2.5 rounded-lg bg-white border border-amber-200 space-y-1">
+                  <strong className="text-amber-900 block font-bold">మార్గం 1: Unblock File (Properties)</strong>
+                  <p className="text-slate-600 font-sans">
+                    <code>C:\Program Files (x86)\E-Vedhika UBD Tool\EVedhikaUBDDeploymentTool.exe</code> పైన Right-Click చేసి <strong>Properties</strong> ఎంచుకోండి. కింద ఉన్న <strong>Unblock</strong> బాక్స్ చెక్ చేసి <strong>Apply -&gt; OK</strong> నొక్కండి.
+                  </p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white border border-amber-200 space-y-1">
+                  <strong className="text-amber-900 block font-bold">మార్గం 2: Smart App Control Off (Windows Security)</strong>
+                  <p className="text-slate-600 font-sans">
+                    <strong>Windows Security</strong> ఓపెన్ చేసి <strong>App &amp; browser control</strong> -&gt; <strong>Smart App Control settings</strong> లోకి వెళ్ళి <strong>Off</strong> లేదా <strong>Evaluation</strong> ఎంచుకోండి.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               {/* English Side */}
               <div className="space-y-3 text-slate-700 leading-relaxed">
