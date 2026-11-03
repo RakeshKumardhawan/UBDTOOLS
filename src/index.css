@@ -11,6 +11,81 @@
   --font-sans: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
 }
 
+/* High Contrast Accessibility Mode for High-Stress Office Environments */
+:root.high-contrast, body.high-contrast, .high-contrast {
+  --color-bg: #000000;
+  --color-ink: #FFFFFF;
+  --color-accent: #FFFF00;
+  --color-ink-faint: #FFFFFF;
+  --color-ink-medium: #FFFFFF;
+}
+
+.high-contrast {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+}
+
+.high-contrast body {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+}
+
+.high-contrast body::before {
+  display: none !important;
+}
+
+.high-contrast .status-card {
+  background-color: #000000 !important;
+  border: 2px solid #FFFF00 !important;
+  box-shadow: 0 0 0 1px #FFFF00 !important;
+}
+
+.high-contrast .btn {
+  border: 2px solid #FFFF00 !important;
+  color: #FFFF00 !important;
+  background-color: #000000 !important;
+  font-weight: 800 !important;
+}
+
+.high-contrast .btn:hover {
+  background-color: #FFFF00 !important;
+  color: #000000 !important;
+  box-shadow: 0 0 0 2px #FFFFFF !important;
+}
+
+.high-contrast .btn-primary {
+  background-color: #FFFF00 !important;
+  color: #000000 !important;
+  border-color: #FFFF00 !important;
+}
+
+.high-contrast .btn-accent {
+  border-color: #00FF00 !important;
+  color: #00FF00 !important;
+}
+
+.high-contrast .text-accent {
+  color: #FFFF00 !important;
+}
+
+.high-contrast .text-ink-medium,
+.high-contrast .label {
+  color: #FFFFFF !important;
+}
+
+.high-contrast .border-ink-faint,
+.high-contrast .border-ink {
+  border-color: #FFFFFF !important;
+}
+
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  border: 2px solid #FFFFFF !important;
+}
+
 @layer base {
   body {
     @apply bg-bg text-ink font-sans h-screen overflow-hidden antialiased;

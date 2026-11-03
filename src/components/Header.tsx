@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, ShieldCheck, ChevronDown, Github, Megaphone, Cpu, QrCode } from 'lucide-react';
+import { Menu, X, ShieldCheck, ChevronDown, Github, Megaphone, Cpu, QrCode, Sun, Eye, GitBranch, GitCommit } from 'lucide-react';
 import { EnvironmentStatus, DepartmentProfile, NavigationTab } from '../types';
 import { EVedhikaLogo } from './EVedhikaLogo';
 import { LiveSystemStatsWidget } from './LiveSystemStatsWidget';
@@ -21,6 +21,8 @@ interface HeaderProps {
   setMobileMenuOpen?: (open: boolean) => void;
   systemPanelOpen?: boolean;
   setSystemPanelOpen?: (open: boolean) => void;
+  isHighContrast?: boolean;
+  onToggleHighContrast?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +32,8 @@ export const Header: React.FC<HeaderProps> = ({
   departmentProfiles,
   mobileMenuOpen = false,
   setMobileMenuOpen,
+  isHighContrast = false,
+  onToggleHighContrast,
 }) => {
   const deviceHw = getDeviceHardwareIdentity();
   const [showBadgeModal, setShowBadgeModal] = useState(false);
@@ -61,8 +65,25 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right Controls: Profile dropdown, Post button, Admin pill & System Console button */}
+      {/* Right Controls: Profile dropdown, Post button, High Contrast Toggle, Admin pill & System Console button */}
       <div className="flex gap-2 sm:gap-3 items-center">
+        {/* High Contrast Accessibility Toggle Button */}
+        {onToggleHighContrast && (
+          <button
+            onClick={onToggleHighContrast}
+            className={`pill ${
+              isHighContrast
+                ? 'text-yellow-300 border-yellow-300 bg-yellow-400/20 font-bold'
+                : 'text-sky-300 border-sky-400/40 hover:border-sky-300 hover:bg-sky-400/10'
+            } transition-colors inline-flex items-center gap-1.5 font-mono text-[0.65rem] cursor-pointer`}
+            title={isHighContrast ? "Disable High Contrast Mode" : "Enable High Contrast Accessibility Mode for stress-free reading"}
+          >
+            {isHighContrast ? <Sun size={12} className="text-yellow-300" /> : <Eye size={12} className="text-sky-300" />}
+            <span className="hidden sm:inline">{isHighContrast ? '⚡ High Contrast (ON)' : '👁️ High Contrast'}</span>
+            <span className="sm:hidden">{isHighContrast ? 'HC ON' : 'HC'}</span>
+          </button>
+        )}
+
         {/* Real-Time System RAM & Junk Stats */}
         <div className="hidden lg:block">
           <LiveSystemStatsWidget mode="compact" />
@@ -109,6 +130,25 @@ export const Header: React.FC<HeaderProps> = ({
           <Github size={12} />
           <span className="hidden sm:inline">GitHub:</span>
           <span>UBDTOOLS</span>
+        </a>
+
+        {/* Deployment Lifecycle Status Component (Git Branch & Build Commit Hash) */}
+        <a
+          href="https://github.com/Rakeshkumardhawan/UBDTOOLS/commits/main"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pill text-teal-300 border-teal-500/40 bg-teal-500/10 hover:border-teal-400 hover:bg-teal-500/20 transition-all font-mono text-[0.62rem] inline-flex items-center gap-1.5 cursor-pointer"
+          title="Deployment Lifecycle: Branch 'main' | Build Commit Hash: b3f8a9e (Successful Build PASS)"
+        >
+          <GitBranch size={11} className="text-teal-400" />
+          <span className="font-bold text-teal-300">main</span>
+          <span className="text-slate-400">@</span>
+          <GitCommit size={10} className="text-teal-400" />
+          <span className="font-bold text-teal-200">b3f8a9e</span>
+          <span className="relative flex h-1.5 w-1.5 ml-0.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+          </span>
         </a>
 
         {/* Installation Counter (Total Unique PCs) */}

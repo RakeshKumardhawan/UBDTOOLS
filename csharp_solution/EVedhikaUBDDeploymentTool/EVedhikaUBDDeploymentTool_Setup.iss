@@ -21,7 +21,7 @@ OutputBaseFilename=EVedhika_Setup_v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=app.ico
-UninstallDisplayIcon={app}\app.ico
+UninstallDisplayIcon={app}\{#MyAppExeName},0
 WizardStyle=modern
 PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
@@ -38,8 +38,8 @@ Source: "installers\ndp48-x86-x64-allos-enu.exe"; DestDir: "{tmp}"; Flags: delet
 Source: "installers\*"; DestDir: "{app}\Installers"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app.ico"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app.ico"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
 
 [Run]
 Filename: "{tmp}\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48

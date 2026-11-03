@@ -87,6 +87,26 @@ function MainAppContent() {
   const [isScanning, setIsScanning] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSystemPanelOpen, setIsSystemPanelOpen] = useState(false);
+  
+  const [isHighContrast, setIsHighContrast] = useState<boolean>(() => {
+    return localStorage.getItem('evedhika_high_contrast') === 'true';
+  });
+
+  useEffect(() => {
+    if (isHighContrast) {
+      document.documentElement.classList.add('high-contrast');
+      document.body.classList.add('high-contrast');
+      localStorage.setItem('evedhika_high_contrast', 'true');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+      document.body.classList.remove('high-contrast');
+      localStorage.setItem('evedhika_high_contrast', 'false');
+    }
+  }, [isHighContrast]);
+
+  const toggleHighContrast = () => {
+    setIsHighContrast((prev) => !prev);
+  };
 
   const handleResetState = () => {
     setSelectedProfile(departmentProfiles[0]);
@@ -137,35 +157,76 @@ function MainAppContent() {
     }
   }, [selectedProfile]);
 
-  // Hook: Check GitHub / Remote Version metadata on mount and every 5 minutes
+  // Hook: Fetch version.json / remote manifest on load, save latest version to localStorage, and notify via toast if behind
   useEffect(() => {
     let isMounted = true;
-    
-    const runUpdateCheck = () => {
-      checkForUpdates().then((res) => {
+
+    const checkVersionAndNotify = async () => {
+      try {
+        const candidateUrls = [
+          '/version.json',
+          '/api/version',
+          'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json'
+        ];
+
+        let remoteData: any = null;
+        for (const url of candidateUrls) {
+          try {
+            const res = await fetch(url, { cache: 'no-cache' });
+            if (res.ok) {
+              remoteData = await res.json();
+              if (remoteData) break;
+            }
+          } catch {}
+        }
+
+        if (!remoteData) return;
+
+        const latestVersion = remoteData.latestVersion || remoteData.currentVersion || CURRENT_APP_VERSION;
+        const latestBuild = remoteData.latestResourceBuild || remoteData.resourceBuild || '2026.11.03-R3';
+
+        // Save latest version & build to localStorage as requested
+        localStorage.setItem('evedhika_latest_version', latestVersion);
+        localStorage.setItem('evedhika_latest_build', latestBuild);
+        localStorage.setItem('evedhika_version_last_checked', new Date().toISOString());
+
         if (!isMounted) return;
-        if (res.hasUpdate) {
+
+        // Version weight calculation helper
+        const parseVer = (v: string) => {
+          const clean = (v || '').replace(/[^0-9.]/g, '');
+          const parts = clean.split('.').map(p => parseInt(p, 10) || 0);
+          return (parts[0] || 0) * 10000 + (parts[1] || 0) * 100 + (parts[2] || 0);
+        };
+
+        const currentWeight = parseVer(CURRENT_APP_VERSION);
+        const remoteWeight = parseVer(latestVersion);
+
+        // Notify user via toast if current version is behind the remote version
+        if (remoteWeight > currentWeight) {
           showInfo(
-            `Software Update ${res.latestVersion} is available! Current installed build is ${CURRENT_APP_VERSION}.`,
-            'New Version Available'
+            `Update Notice: A newer version (${latestVersion}) is available! Your current version is ${CURRENT_APP_VERSION}.`,
+            'Version Update Available'
           );
-          
+
           const autoInstall = localStorage.getItem('autoInstallOnLaunch');
-          if (autoInstall !== 'false') {
-            showInfo(`Auto-installing update ${res.latestVersion} in the background...`, 'Auto-Update Started');
+          if (autoInstall !== 'false' && remoteData.downloadUrl) {
+            showInfo(`Auto-downloading update ${latestVersion}...`, 'Auto-Update');
             setTimeout(() => {
-              window.open(res.downloadUrl, '_blank');
-            }, 1500);
+              window.open(remoteData.downloadUrl, '_blank');
+            }, 2000);
           }
         }
-      }).catch(() => {});
+      } catch (err) {
+        console.warn('Version check error:', err);
+      }
     };
 
-    runUpdateCheck();
-    const interval = setInterval(runUpdateCheck, 5 * 60 * 1000); // Poll every 5 minutes
+    checkVersionAndNotify();
+    const interval = setInterval(checkVersionAndNotify, 5 * 60 * 1000); // Check every 5 minutes
 
-    return () => { 
-      isMounted = false; 
+    return () => {
+      isMounted = false;
       clearInterval(interval);
     };
   }, [showInfo]);
@@ -687,6 +748,8 @@ Report Timestamp: ${reportDate}
         setMobileMenuOpen={setIsMobileMenuOpen}
         systemPanelOpen={isSystemPanelOpen}
         setSystemPanelOpen={setIsSystemPanelOpen}
+        isHighContrast={isHighContrast}
+        onToggleHighContrast={toggleHighContrast}
       />
       
       <div className="flex-1 flex overflow-hidden relative">

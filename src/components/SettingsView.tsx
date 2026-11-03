@@ -31,7 +31,10 @@ import {
   checkResourceManifestUpdates, 
   syncSingleResource, 
   syncAllResources, 
-  ResourceManifest 
+  ResourceManifest,
+  checkForOtaUpdates,
+  OtaCheckResult,
+  LOCAL_BUILD_VERSION
 } from '../utils/updateEngine';
 
 interface SettingsViewProps {
@@ -61,6 +64,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [manifest, setManifest] = useState<ResourceManifest>(() => getLocalResourceManifest());
   const [isCheckingManifest, setIsCheckingManifest] = useState(false);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
+
+  // OTA Build Version & GitHub Sync State
+  const [otaStatus, setOtaStatus] = useState<OtaCheckResult | null>(null);
+  const [isCheckingOta, setIsCheckingOta] = useState<boolean>(false);
+
+  const handleCheckOta = async () => {
+    setIsCheckingOta(true);
+    try {
+      const res = await checkForOtaUpdates();
+      setOtaStatus(res);
+      if (res.hasOtaUpdate) {
+        showInfo(`New Build Version available on GitHub (${res.remoteBuildVersion})!`, 'OTA Build Update');
+      } else {
+        showSuccess(`Your system is on the latest build version (${res.localBuildVersion}).`, 'Up to Date');
+      }
+    } catch (e) {
+      showError('Failed to check remote build manifest on GitHub.', 'Network Error');
+    } finally {
+      setIsCheckingOta(false);
+    }
+  };
+
+  React.useEffect(() => {
+    handleCheckOta();
+  }, []);
 
   const handleCheckManifestUpdates = async () => {
     setIsCheckingManifest(true);
@@ -301,6 +329,93 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Emergency Panic Button: Full System Wipe & Revocation */}
       <PanicButtonCard onPerformSystemWipe={onPerformSystemWipe} />
+
+      {/* OTA Build Version & GitHub Live Manifest Status Card */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <div className="p-3 rounded-xl bg-indigo-100 text-indigo-800 shrink-0">
+              <RotateCw className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h3 className="text-base font-bold text-slate-900">
+                  Over-The-Air (OTA) Build & GitHub Sync Status
+                </h3>
+                {otaStatus?.hasOtaUpdate ? (
+                  <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-mono font-bold border border-amber-300 inline-flex items-center gap-1.5 animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    UPDATE AVAILABLE ({otaStatus.remoteBuildVersion})
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-mono font-bold border border-emerald-300 inline-flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    UP TO DATE (Build {LOCAL_BUILD_VERSION})
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                కంప్యూటర్‌లోని లోకల్ బిల్డ్ వర్షన్‌ను GitHub ప్రాజెక్ట్ మేనిఫెస్టోతో పోల్చి లైవ్ OTA అప్‌డేట్‌లను పర్యవేక్షిస్తుంది.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleCheckOta}
+            disabled={isCheckingOta}
+            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer shrink-0 self-start sm:self-center"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isCheckingOta ? 'animate-spin' : ''}`} />
+            <span>{isCheckingOta ? 'Checking GitHub...' : 'Check for OTA Updates'}</span>
+          </button>
+        </div>
+
+        {/* Status Details Matrix */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">Local Build Version</span>
+            <span className="text-xs font-bold font-mono text-slate-900">{LOCAL_BUILD_VERSION}</span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">Remote GitHub Manifest</span>
+            <span className={`text-xs font-bold font-mono ${otaStatus?.hasOtaUpdate ? 'text-amber-600' : 'text-emerald-700'}`}>
+              {otaStatus?.remoteBuildVersion || 'Checking...'}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">App Version</span>
+            <span className="text-xs font-bold font-mono text-slate-900">v1.0.9</span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">Last OTA Check</span>
+            <span className="text-xs font-bold font-mono text-slate-700">{otaStatus?.lastCheckedTime || 'Just Now'}</span>
+          </div>
+        </div>
+
+        {/* Status Message Footer */}
+        {otaStatus && (
+          <div className={`p-3 rounded-xl text-xs flex items-center justify-between gap-3 border ${
+            otaStatus.hasOtaUpdate 
+              ? 'bg-amber-50 border-amber-200 text-amber-900' 
+              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+          }`}>
+            <span className="font-medium">{otaStatus.statusMessage}</span>
+            {otaStatus.updateUrl && (
+              <a
+                href={otaStatus.updateUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold underline text-xs shrink-0 hover:opacity-80"
+              >
+                View Release on GitHub →
+              </a>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Telegram Gateway & PC Allow / Block Manager */}
       <TelegramNotificationCard />

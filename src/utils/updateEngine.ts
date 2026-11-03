@@ -144,7 +144,7 @@ export const CURRENT_APP_VERSION = 'v1.0.9';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.03-R1',
+  manifestVersion: '2026.11.03-R3',
   appVersion: 'v1.0.9',
   lastSyncTimestamp: '2026-11-03T00:00:00.000Z',
   totalResources: 5,
@@ -154,8 +154,8 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'ubd-sites-xml',
       name: 'UBD Sites Enterprise List (sites.xml)',
       category: 'Portal Policy',
-      currentVersion: '2026.11.03-R1',
-      latestVersion: '2026.11.03-R1',
+      currentVersion: '2026.11.03-R3',
+      latestVersion: '2026.11.03-R3',
       hash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
       latestHash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
       lastUpdated: '2026-11-03',
@@ -483,5 +483,88 @@ export async function checkForUpdates(
     downloadUrl: 'https://www.e-vedhika.in/EVedhikaUBDDeploymentTool_CSharp_Solution.zip',
     releaseNotes: 'You are using the latest stable version.',
     resourceManifest
+  };
+}
+
+export const LOCAL_BUILD_VERSION = '2026.11.03-R3';
+
+export interface OtaCheckResult {
+  hasOtaUpdate: boolean;
+  localBuildVersion: string;
+  remoteBuildVersion: string;
+  appVersion: string;
+  latestAppVersion: string;
+  lastCheckedTime: string;
+  statusMessage: string;
+  releaseNotes?: string;
+  updateUrl?: string;
+}
+
+/**
+ * Compares the local build version (e.g. '2026.11.03-R3') with a remote manifest hosted on GitHub,
+ * returning whether an Over-The-Air (OTA) update is available or if the user is on the latest build.
+ */
+export async function checkForOtaUpdates(
+  localBuild: string = LOCAL_BUILD_VERSION,
+  customManifestUrl?: string
+): Promise<OtaCheckResult> {
+  const candidateUrls = customManifestUrl ? [customManifestUrl] : [
+    'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json',
+    '/api/version',
+    '/version.json',
+    'https://www.e-vedhika.in/version.json'
+  ];
+
+  const nowStr = new Date().toLocaleTimeString();
+
+  for (const url of candidateUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { cache: 'no-cache', signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        const remoteBuild = data.latestResourceBuild || data.resourceBuild || data.manifestVersion || localBuild;
+        const latestApp = data.latestVersion || data.currentVersion || CURRENT_APP_VERSION;
+        const releaseNotes = data.releaseNotes || 'Includes latest UBD Telangana live policies, Zone 2 rules, and DSC token patches.';
+        const updateUrl = data.downloadUrl || 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest';
+
+        // Compare local build version with remote build version from GitHub/Server
+        const hasOtaUpdate = Boolean(
+          remoteBuild && 
+          remoteBuild.trim().toLowerCase() !== localBuild.trim().toLowerCase()
+        );
+
+        return {
+          hasOtaUpdate,
+          localBuildVersion: localBuild,
+          remoteBuildVersion: remoteBuild,
+          appVersion: CURRENT_APP_VERSION,
+          latestAppVersion: latestApp,
+          lastCheckedTime: nowStr,
+          statusMessage: hasOtaUpdate
+            ? `New OTA Build Available (${remoteBuild}). Click to sync Over-The-Air policies.`
+            : `Your system is fully up to date on Build ${localBuild}.`,
+          releaseNotes,
+          updateUrl
+        };
+      }
+    } catch (e) {
+      // Try next candidate URL
+    }
+  }
+
+  return {
+    hasOtaUpdate: false,
+    localBuildVersion: localBuild,
+    remoteBuildVersion: localBuild,
+    appVersion: CURRENT_APP_VERSION,
+    latestAppVersion: CURRENT_APP_VERSION,
+    lastCheckedTime: nowStr,
+    statusMessage: `System is running locally on Build ${localBuild} (Cached / Local).`,
+    releaseNotes: 'Using cached local policies.',
+    updateUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest'
   };
 }

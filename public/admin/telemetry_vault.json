@@ -170,5 +170,48 @@
     "activeIssue": null,
     "issueHistory": [],
     "lastTelegramAlertEpoch": 0
+  },
+  {
+    "pcId": "EVD-TS-MNCL-TEST-R2",
+    "pcName": "GP-OFFICE-PC-R2",
+    "userName": "Secretary",
+    "officeLocation": "Grama Panchayat Office, Mancherial",
+    "district": "Grama Panchayat Office",
+    "state": "Telangana",
+    "osVersion": "Windows 11 Pro (64-Bit)",
+    "winBuild": "10.0.22631",
+    "appVersion": "v1.0.9",
+    "machineIdentifier": "EVD-TS-MNCL-TEST-R2",
+    "firstSeen": "2026-11-02 19:47:58",
+    "lastSeenEpoch": 1793648878190,
+    "lastTelemetryUpdate": "2026-11-02 19:47:58",
+    "overallStatus": "HEALTHY",
+    "deployment": {
+      "totalSteps": 17,
+      "verifiedSteps": 17,
+      "failedSteps": 0,
+      "skippedSteps": 0,
+      "verificationPercentage": 100,
+      "failedStepNames": [],
+      "lastDeploymentTime": "2026-11-02 19:47:58",
+      "deployResult": "SUCCESS",
+      "deployProfile": "17/17 Standard Telangana/AP Profile"
+    },
+    "technicalHealth": {
+      "edgeVersion": "Edge 126.0 (64-Bit)",
+      "edgeIeModeStatus": "PASS",
+      "sitesXmlStatus": "PASS",
+      "registryPoliciesStatus": "PASS",
+      "ubdWebsiteStatus": "PASS",
+      "dotNetStatus": "PASS",
+      "internetConnectivity": "PASS",
+      "digiSignerStatus": "PASS",
+      "dscDriverStatus": "PASS",
+      "dscTokenConnected": "PASS",
+      "certValidity": "PASS"
+    },
+    "activeIssue": null,
+    "issueHistory": [],
+    "lastTelegramAlertEpoch": 0
   }
 ]

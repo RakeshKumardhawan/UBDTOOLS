@@ -167,7 +167,7 @@ OutputBaseFilename=EVedhika_Setup_v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=app.ico
-UninstallDisplayIcon={app}\\app.ico
+UninstallDisplayIcon={app}\\{#MyAppExeName},0
 WizardStyle=modern
 PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
@@ -184,8 +184,8 @@ Source: "installers\\ndp48-x86-x64-allos-enu.exe"; DestDir: "{tmp}"; Flags: dele
 Source: "installers\\*"; DestDir: "{app}\\Installers"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
 
 [Icons]
-Name: "{group}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"; IconFilename: "{app}\\app.ico"
-Name: "{commondesktop}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"; IconFilename: "{app}\\app.ico"
+Name: "{group}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"; IconFilename: "{app}\\{#MyAppExeName}"
+Name: "{commondesktop}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"; IconFilename: "{app}\\{#MyAppExeName}"
 
 [Run]
 Filename: "{tmp}\\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
@@ -787,7 +787,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         public const string CurrentVersion = "v1.0.9";
         public const int CurrentVersionCode = 10090;
-        public const string CurrentResourceBuild = "2026.11.03-R1";
+        public const string CurrentResourceBuild = "2026.11.03-R3";
         public const string ResourceDate = "2026-11-03";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
@@ -7705,7 +7705,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             }
         }
 
-        public static bool HasAlreadyReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R1")
+        public static bool HasAlreadyReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R2")
         {
             if (string.Equals(pcId, "EVD-PC-1900-62E8", StringComparison.OrdinalIgnoreCase)) return true;
 
@@ -7723,7 +7723,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             return false;
         }
 
-        public static void MarkAsReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R1")
+        public static void MarkAsReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R2")
         {
             try
             {
@@ -7762,8 +7762,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             if (!data.ContainsKey("reportId")) data["reportId"] = "RPT-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
             if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
-            if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R1";
-            if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R1";
+            if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R2";
+            if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R2";
             if (!data.ContainsKey("winEdition")) data["winEdition"] = SystemInfoHelper.GetWindowsVersion();
             if (!data.ContainsKey("winBuild")) data["winBuild"] = SystemInfoHelper.GetWindowsBuildNumber();
             if (!data.ContainsKey("architecture")) data["architecture"] = SystemInfoHelper.GetSystemArchitecture();
@@ -7776,7 +7776,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             if (!data.ContainsKey("lastReportUploadTime")) data["lastReportUploadTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             bool force = data.ContainsKey("forceTelegram") && (data["forceTelegram"] == "true" || data["forceTelegram"] == "True");
-            bool alreadyReported = HasAlreadyReportedToTelegram(machineId, "2026.11.03-R1");
+            bool alreadyReported = HasAlreadyReportedToTelegram(machineId, "2026.11.03-R2");
             if (alreadyReported && !force)
             {
                 data["pcAlreadyReported"] = "true";
@@ -8120,7 +8120,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine("📊 <b>Deployment Status & Verification</b>");
             sb.AppendLine(\$"<b>Overall Status:</b> <b>{overallStatus}</b>");
             sb.AppendLine("<b>Application Version:</b> v1.0.9");
-            sb.AppendLine("<b>Build Version:</b> 2026.11.03-R1");
+            sb.AppendLine("<b>Build Version:</b> 2026.11.03-R2");
             sb.AppendLine(\$"<b>Health Score:</b> {health}%");
             sb.AppendLine(\$"<b>Total Checks:</b> {totalChecks} | <b>Passed:</b> {passedCount} | <b>Failed:</b> {failedCount} | <b>Warnings:</b> {warningCount}");
             sb.AppendLine(\$"<b>Summary:</b> {verif}");
@@ -8220,9 +8220,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "installType", isExisting ? "EXISTING_PC_UPDATED" : "FRESH_INSTALL" },
                         { "initialInstallDate", initialInstallDate },
                         { "updateReceivedDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "version", "v1.0.9-Update-R1" },
-                        { "updateBuild", "2026.11.03-R1" },
-                        { "buildVersion", "2026.11.03-R1" },
+                        { "version", "v1.0.9-Update-R2" },
+                        { "updateBuild", "2026.11.03-R2" },
+                        { "buildVersion", "2026.11.03-R2" },
                         { "status", "SUCCESS" },
                         { "overallStatus", "HEALTHY" },
                         { "verification", "Passed (17/17)" },
@@ -8329,11 +8329,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 if (!data.ContainsKey("winBuild")) data["winBuild"] = SystemInfoHelper.GetWindowsBuildNumber();
                 if (!data.ContainsKey("architecture")) data["architecture"] = SystemInfoHelper.GetSystemArchitecture();
                 if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
-                if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R1";
-                if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R1";
+                if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R2";
+                if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R2";
                 if (!data.ContainsKey("status")) data["status"] = "SUCCESS";
                 if (!data.ContainsKey("overallStatus")) data["overallStatus"] = "HEALTHY";
-                if (!data.ContainsKey("verification")) data["verification"] = "17/17 Complete (v1.0.9 Build 2026.11.03-R1)";
+                if (!data.ContainsKey("verification")) data["verification"] = "17/17 Complete (v1.0.9 Build 2026.11.03-R2)";
                 if (!data.ContainsKey("remarks")) data["remarks"] = "EVedhika_Setup_v1.0.9.exe installed and registered successfully.";
                 if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
                 if (!data.ContainsKey("time")) data["time"] = DateTime.Now.ToString("HH:mm:ss");
@@ -10901,7 +10901,7 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.11.03-R1";
+            string buildDate = "2026.11.03-R2";
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.9) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
@@ -11043,7 +11043,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.11.03-R1", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.11.03-R2", pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -11980,8 +11980,8 @@ namespace EVedhikaUBDDeploymentTool
                 { "failedCount", "0" },
                 { "deployVersion", "v1.0.9" },
                 { "version", "v1.0.9" },
-                { "buildVersion", "2026.11.03-R1" },
-                { "resourceBuild", "2026.11.03-R1" },
+                { "buildVersion", "2026.11.03-R2" },
+                { "resourceBuild", "2026.11.03-R2" },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
@@ -13034,8 +13034,8 @@ namespace EVedhikaUBDDeploymentTool
                 { "failedCount", "0" },
                 { "warningCount", "0" },
                 { "version", "v1.0.9" },
-                { "buildVersion", "2026.11.03-R1" },
-                { "resourceBuild", "2026.11.03-R1" },
+                { "buildVersion", "2026.11.03-R2" },
+                { "resourceBuild", "2026.11.03-R2" },
                 { "status", "SUCCESS" },
                 { "healthScore", "100" },
                 { "errorDetails", "None" },
@@ -35402,8 +35402,8 @@ namespace EVedhikaUBDDeploymentTool
                     { "winBuild", SystemInfoHelper.GetWindowsBuildNumber() },
                     { "architecture", SystemInfoHelper.GetSystemArchitecture() },
                     { "version", "v1.0.9" },
-                    { "buildVersion", "2026.11.03-R1" },
-                    { "resourceBuild", "2026.11.03-R1" },
+                    { "buildVersion", "2026.11.03-R2" },
+                    { "resourceBuild", "2026.11.03-R2" },
                     { "status", "SUCCESS" },
                     { "overallStatus", "HEALTHY" },
                     { "verification", "v1.0.9 Setup Completed (17/17 Pre-configured)" },
@@ -35421,7 +35421,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "registryVerification", "Verified (Zone 2, Flags, Emulation)" },
                     { "errorDetails", "None" },
                     { "lastReportUploadTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "remarks", "EVedhika_Setup_v1.0.9.exe (Build 2026.11.03-R1) installed and registered successfully." },
+                    { "remarks", "EVedhika_Setup_v1.0.9.exe (Build 2026.11.03-R2) installed and registered successfully." },
                     { "isFinalReport", "true" },
                     { "sendTelegram", "true" },
                     { "forceTelegram", "true" },
@@ -35493,7 +35493,7 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.9.0")]
 [assembly: AssemblyFileVersion("1.0.9.0")]
-[assembly: AssemblyInformationalVersion("1.0.9 (Build 2026.11.03-R1)")]
+[assembly: AssemblyInformationalVersion("1.0.9 (Build 2026.11.03-R3)")]
 `
   },
   {

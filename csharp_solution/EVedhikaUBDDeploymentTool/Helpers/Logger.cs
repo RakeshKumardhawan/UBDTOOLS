@@ -213,7 +213,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             }
         }
 
-        public static bool HasAlreadyReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R1")
+        public static bool HasAlreadyReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R2")
         {
             if (string.Equals(pcId, "EVD-PC-1900-62E8", StringComparison.OrdinalIgnoreCase)) return true;
 
@@ -231,7 +231,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             return false;
         }
 
-        public static void MarkAsReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R1")
+        public static void MarkAsReportedToTelegram(string pcId, string currentBuild = "2026.11.03-R2")
         {
             try
             {
@@ -270,8 +270,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             if (!data.ContainsKey("reportId")) data["reportId"] = "RPT-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
             if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
-            if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R1";
-            if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R1";
+            if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R2";
+            if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R2";
             if (!data.ContainsKey("winEdition")) data["winEdition"] = SystemInfoHelper.GetWindowsVersion();
             if (!data.ContainsKey("winBuild")) data["winBuild"] = SystemInfoHelper.GetWindowsBuildNumber();
             if (!data.ContainsKey("architecture")) data["architecture"] = SystemInfoHelper.GetSystemArchitecture();
@@ -284,7 +284,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             if (!data.ContainsKey("lastReportUploadTime")) data["lastReportUploadTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             bool force = data.ContainsKey("forceTelegram") && (data["forceTelegram"] == "true" || data["forceTelegram"] == "True");
-            bool alreadyReported = HasAlreadyReportedToTelegram(machineId, "2026.11.03-R1");
+            bool alreadyReported = HasAlreadyReportedToTelegram(machineId, "2026.11.03-R2");
             if (alreadyReported && !force)
             {
                 data["pcAlreadyReported"] = "true";
@@ -628,7 +628,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine("📊 <b>Deployment Status & Verification</b>");
             sb.AppendLine($"<b>Overall Status:</b> <b>{overallStatus}</b>");
             sb.AppendLine("<b>Application Version:</b> v1.0.9");
-            sb.AppendLine("<b>Build Version:</b> 2026.11.03-R1");
+            sb.AppendLine("<b>Build Version:</b> 2026.11.03-R2");
             sb.AppendLine($"<b>Health Score:</b> {health}%");
             sb.AppendLine($"<b>Total Checks:</b> {totalChecks} | <b>Passed:</b> {passedCount} | <b>Failed:</b> {failedCount} | <b>Warnings:</b> {warningCount}");
             sb.AppendLine($"<b>Summary:</b> {verif}");
@@ -728,9 +728,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "installType", isExisting ? "EXISTING_PC_UPDATED" : "FRESH_INSTALL" },
                         { "initialInstallDate", initialInstallDate },
                         { "updateReceivedDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "version", "v1.0.9-Update-R1" },
-                        { "updateBuild", "2026.11.03-R1" },
-                        { "buildVersion", "2026.11.03-R1" },
+                        { "version", "v1.0.9-Update-R2" },
+                        { "updateBuild", "2026.11.03-R2" },
+                        { "buildVersion", "2026.11.03-R2" },
                         { "status", "SUCCESS" },
                         { "overallStatus", "HEALTHY" },
                         { "verification", "Passed (17/17)" },
@@ -837,11 +837,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 if (!data.ContainsKey("winBuild")) data["winBuild"] = SystemInfoHelper.GetWindowsBuildNumber();
                 if (!data.ContainsKey("architecture")) data["architecture"] = SystemInfoHelper.GetSystemArchitecture();
                 if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
-                if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R1";
-                if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R1";
+                if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.03-R2";
+                if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.03-R2";
                 if (!data.ContainsKey("status")) data["status"] = "SUCCESS";
                 if (!data.ContainsKey("overallStatus")) data["overallStatus"] = "HEALTHY";
-                if (!data.ContainsKey("verification")) data["verification"] = "17/17 Complete (v1.0.9 Build 2026.11.03-R1)";
+                if (!data.ContainsKey("verification")) data["verification"] = "17/17 Complete (v1.0.9 Build 2026.11.03-R2)";
                 if (!data.ContainsKey("remarks")) data["remarks"] = "EVedhika_Setup_v1.0.9.exe installed and registered successfully.";
                 if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
                 if (!data.ContainsKey("time")) data["time"] = DateTime.Now.ToString("HH:mm:ss");

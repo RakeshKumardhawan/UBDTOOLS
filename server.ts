@@ -740,7 +740,7 @@ async function startServer() {
       `<b>CPU:</b> ${cpuInfo}\n\n` +
       `📊 <b>Deployment Status & Health</b>\n` +
       `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
-      `<b>Software Version:</b> v1.0.9 (Resource Build 2026.11.03-R1)\n` +
+      `<b>Software Version:</b> v1.0.9 (Resource Build 2026.11.03-R2)\n` +
       `<b>Health Score:</b> ${healthScore}%\n` +
       `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
       `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
@@ -1762,10 +1762,10 @@ async function startServer() {
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.03-R1): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, Offline Queue & Auto-Retry, and 24x7 System Guardian.',
+    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.03-R2): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, Offline Queue & Auto-Retry, and 24x7 System Guardian.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.03-R1',
+    latestResourceBuild: '2026.11.03-R2',
     resourceBuildDate: '2026-11-03'
   };
 
