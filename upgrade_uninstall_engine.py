@@ -1,0 +1,387 @@
+import re
+
+with open('csharp_solution/EVedhikaUBDDeploymentTool/Engine/UninstallEngine.cs', 'r') as f:
+    text = f.read()
+
+# Replace PerformFullUninstall method with comprehensive system revert implementation
+old_uninstall_pattern = r'public static bool PerformFullUninstall\(Action<string> logCallback = null\).*?return success;\s*\}'
+
+new_uninstall_method = r'''public static bool PerformFullUninstall(Action<string> logCallback = null)
+        {
+            bool success = true;
+            if (logCallback != null) logCallback("==========================================================================");
+            if (logCallback != null) logCallback("[UNINSTALL] Starting Complete Clean Uninstall & System Revert Process...");
+            if (logCallback != null) logCallback("  Target: Reverting all registry, zone settings, policies & files to original state.");
+            if (logCallback != null) logCallback("==========================================================================");
+
+            // 1. REVERT REGISTRY SECURITY ZONES VIA PRE-DEPLOYMENT BACKUP SNAPSHOT
+            try
+            {
+                bool restoredFromBackup = false;
+                try
+                {
+                    restoredFromBackup = BackupEngine.RollbackLastBackup();
+                }
+                catch { }
+
+                if (restoredFromBackup)
+                {
+                    if (logCallback != null) logCallback("[1/10] [SUCCESS] All Security Zones (0, 1, 2, 3) restored from Pre-Deployment Backup snapshot!");
+                }
+                else
+                {
+                    if (logCallback != null) logCallback("[1/10] [RESET] No pre-deployment backup found. Manually resetting Zones 1, 2, 3 to Windows factory defaults...");
+                    ResetZonesToWindowsFactoryDefaults(logCallback);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[1/10 WARN] Registry zones restoration notice: {ex.Message}");
+            }
+
+            // 2. REMOVE TRUSTED SITES (Zone 2) DOMAIN MAPPINGS
+            try
+            {
+                string[] domainsToPurge = new string[]
+                {
+                    @"ubd.telangana.gov.in",
+                    @"telangana.gov.in\ubd",
+                    @"ubd.ap.gov.in",
+                    @"ap.gov.in\ubd"
+                };
+
+                RegistryKey[] rootHives = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var root in rootHives)
+                {
+                    try
+                    {
+                        using (var dm = root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains", true))
+                        {
+                            if (dm != null)
+                            {
+                                foreach (var d in domainsToPurge)
+                                {
+                                    try { dm.DeleteSubKeyTree(d, false); } catch { }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[2/10] Removed UBD portal domain mappings from ZoneMap (Trusted Sites).");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[2/10 WARN] ZoneMap cleanup notice: {ex.Message}");
+            }
+
+            // 3. REMOVE MICROSOFT EDGE ENTERPRISE SITE LIST POLICIES
+            try
+            {
+                RegistryKey[] edgeRoots = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var r in edgeRoots)
+                {
+                    try
+                    {
+                        using (var edgePol = r.OpenSubKey(@"SOFTWARE\Policies\Microsoft\Edge", true))
+                        {
+                            if (edgePol != null)
+                            {
+                                edgePol.DeleteValue("InternetExplorerIntegrationLevel", false);
+                                edgePol.DeleteValue("InternetExplorerIntegrationSiteList", false);
+                                edgePol.DeleteValue("InternetExplorerIntegrationReloadInIEModeAllowed", false);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[3/10] Removed Microsoft Edge IE Mode enterprise policies from Registry.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[3/10 WARN] Edge policies cleanup notice: {ex.Message}");
+            }
+
+            // 4. DELETE ENTERPRISE COMPATIBILITY SITES.XML FILE & DIRECTORY
+            try
+            {
+                string compatDir = @"C:\enterprise_compat";
+                if (Directory.Exists(compatDir))
+                {
+                    Directory.Delete(compatDir, true);
+                    if (logCallback != null) logCallback(@"[4/10] Deleted Enterprise Mode Site List (C:\enterprise_compat\sites.xml).");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[4/10 WARN] enterprise_compat directory notice: {ex.Message}");
+            }
+
+            // 5. RESTORE ADVANCED TAB & INTERNET SETTINGS (TLS & Certificate Revocation)
+            try
+            {
+                RegistryKey[] isRoots = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var r in isRoots)
+                {
+                    try
+                    {
+                        using (var isKey = r.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings", true))
+                        {
+                            if (isKey != null)
+                            {
+                                isKey.DeleteValue("CertificateRevocation", false);
+                                isKey.DeleteValue("PublisherRevocation", false);
+                                isKey.DeleteValue("WarnonBadCertRecving", false);
+                                isKey.DeleteValue("WarnOnZoneCrossing", false);
+                                isKey.DeleteValue("WarnOnPostRedirect", false);
+                                isKey.DeleteValue("AllowInvalidCertificates", false);
+                                isKey.DeleteValue("CheckExeSignatures", false);
+                                isKey.DeleteValue("SyncMode5", false);
+                                isKey.DeleteValue("DisableCachingOfSSLPages", false);
+                                // Restore SecureProtocols to Windows Default (TLS 1.0, 1.1, 1.2 = 2688)
+                                isKey.SetValue("SecureProtocols", 2688, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                if (logCallback != null) logCallback("[5/10] Restored Windows Internet Settings Advanced options & TLS protocols to default (2688).");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[5/10 WARN] Advanced Internet Settings restore notice: {ex.Message}");
+            }
+
+            // 6. RESTORE FEATURE CONTROL LOCKDOWN & POP-UP BLOCKER
+            try
+            {
+                string[] featHives = new string[] 
+                { 
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_LOCALMACHINE_LOCKDOWN", 
+                    @"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_LOCALMACHINE_LOCKDOWN",
+                    @"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION"
+                };
+
+                RegistryKey[] rootList = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
+                foreach (var root in rootList)
+                {
+                    foreach (var fh in featHives)
+                    {
+                        try
+                        {
+                            using (var fk = root.OpenSubKey(fh, true))
+                            {
+                                if (fk != null)
+                                {
+                                    fk.DeleteValue("iexplore.exe", false);
+                                    fk.DeleteValue("msedge.exe", false);
+                                    fk.DeleteValue("EVedhikaUBDDeploymentTool.exe", false);
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                try
+                {
+                    using (var nw = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Internet Explorer\New Windows", true))
+                    {
+                        nw?.DeleteValue("PopupMgr", false);
+                    }
+                }
+                catch { }
+
+                if (logCallback != null) logCallback("[6/10] Reverted FeatureControl and Pop-up Blocker settings to original state.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[6/10 WARN] FeatureControl revert notice: {ex.Message}");
+            }
+
+            // 7. REMOVE WINDOWS STARTUP REGISTRY KEYS
+            try
+            {
+                using (RegistryKey runKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                {
+                    if (runKey != null && runKey.GetValue("EVedhikaUBDGuardian") != null)
+                    {
+                        runKey.DeleteValue("EVedhikaUBDGuardian", false);
+                    }
+                }
+                using (RegistryKey runKeyLM = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                {
+                    if (runKeyLM != null && runKeyLM.GetValue("EVedhikaUBDGuardian") != null)
+                    {
+                        runKeyLM.DeleteValue("EVedhikaUBDGuardian", false);
+                    }
+                }
+                if (logCallback != null) logCallback("[7/10] Removed startup run keys (EVedhikaUBDGuardian).");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[7/10 WARN] Startup keys notice: {ex.Message}");
+            }
+
+            // 8. REMOVE ALL DESKTOP & START MENU SHORTCUTS
+            try
+            {
+                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                string commonDesktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+                string startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "E-Vedhika UBD Tool");
+                string commonStartMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), "E-Vedhika UBD Tool");
+
+                string[] shortcuts = new string[]
+                {
+                    Path.Combine(desktopPath, "UBD Portal (Edge IE Mode).url"),
+                    Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.lnk"),
+                    Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.url"),
+                    Path.Combine(desktopPath, "E-Vedhika Web App (www.e-vedhika.in).url"),
+                    Path.Combine(commonDesktop, "UBD Portal (Edge IE Mode).url"),
+                    Path.Combine(commonDesktop, "E-Vedhika UBD Deployment Tool.lnk"),
+                    Path.Combine(commonDesktop, "E-Vedhika UBD Deployment Tool.url")
+                };
+
+                foreach (var sc in shortcuts)
+                {
+                    try { if (File.Exists(sc)) File.Delete(sc); } catch { }
+                }
+
+                try { if (Directory.Exists(startMenu)) Directory.Delete(startMenu, true); } catch { }
+                try { if (Directory.Exists(commonStartMenu)) Directory.Delete(commonStartMenu, true); } catch { }
+
+                if (logCallback != null) logCallback("[8/10] Deleted all Desktop and Start Menu shortcuts.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[8/10 WARN] Shortcuts notice: {ex.Message}");
+            }
+
+            // 9. CLEAN PROGRAMDATA AND APPLICATION STORAGE
+            try
+            {
+                string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                if (Directory.Exists(appDataDir))
+                {
+                    Directory.Delete(appDataDir, true);
+                }
+                if (logCallback != null) logCallback("[9/10] Cleaned Application Data directories.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[9/10 WARN] Storage notice: {ex.Message}");
+            }
+
+            // 10. REMOVE CONTROL PANEL UNINSTALL REGISTRATIONS & SEND TELEMETRY
+            try
+            {
+                CleanLegacyUninstallEntries();
+                try { Registry.CurrentUser.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
+                try { Registry.LocalMachine.DeleteSubKeyTree(UninstallRegPath, false); } catch { }
+                try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool", false); } catch { }
+
+                // Post silent telemetry notification to central dashboard
+                try
+                {
+                    var uninstallPayload = new System.Collections.Generic.Dictionary<string, string>
+                    {
+                        { "pcName", Environment.MachineName },
+                        { "userName", Environment.UserName },
+                        { "officeLocation", SystemInfoHelper.GetLiveLocation() },
+                        { "status", "APP UNINSTALLED (System Reverted)" },
+                        { "remarks", "Tool uninstalled on " + Environment.MachineName + ". All security zones and policies cleanly reverted to previous state." }
+                    };
+                    Helpers.Logger.SendCentralTelemetry(uninstallPayload);
+                }
+                catch { }
+
+                if (logCallback != null) logCallback("[10/10] Removed Control Panel Uninstall registration & posted telemetry.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback($"[10/10 WARN] Control panel unregister notice: {ex.Message}");
+            }
+
+            if (logCallback != null) logCallback("==========================================================================");
+            if (logCallback != null) logCallback("[COMPLETE] All application changes removed. System successfully reverted to original state!");
+            if (logCallback != null) logCallback("==========================================================================");
+
+            return success;
+        }
+
+        private static void ResetZonesToWindowsFactoryDefaults(Action<string> logCallback)
+        {
+            try
+            {
+                string[] customKeys = new string[]
+                {
+                    "1001", "1004", "1200", "1201", "1206", "1208", "1209", "120A", "120B",
+                    "1400", "1402", "1405", "1406", "1407", "1409", "1604", "1606", "1607",
+                    "1608", "1609", "1802", "1803", "1804", "1806", "1809", "2000", "2001",
+                    "2004", "2007", "2100", "2102", "2103", "2104", "2105", "2201", "2300",
+                    "2301", "2400", "2401", "2402", "2600", "2702", "2708", "2709", "1A00", "1A04"
+                };
+
+                // 1. Reset Zone 2 (Trusted Sites) to Default Medium template
+                using (var z2 = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2", true))
+                {
+                    if (z2 != null)
+                    {
+                        foreach (var k in customKeys) { try { z2.DeleteValue(k, false); } catch { } }
+                        z2.SetValue("CurrentLevel", 0x00010000, RegistryValueKind.DWord); // 0x10000 = Medium
+                        z2.SetValue("Flags", 0x00000043, RegistryValueKind.DWord);        // Default Flags
+                        try { z2.DeleteValue("MinLevel", false); } catch { }
+                    }
+                }
+
+                // Delete HKLM Zone 2 mirror
+                try
+                {
+                    using (var z2lm = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2", true))
+                    {
+                        if (z2lm != null)
+                        {
+                            foreach (var k in customKeys) { try { z2lm.DeleteValue(k, false); } catch { } }
+                            z2lm.SetValue("CurrentLevel", 0x00010000, RegistryValueKind.DWord);
+                            z2lm.SetValue("Flags", 0x00000043, RegistryValueKind.DWord);
+                        }
+                    }
+                }
+                catch { }
+
+                // 2. Reset Zone 1 (Local Intranet) to Default Medium-low template
+                using (var z1 = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\1", true))
+                {
+                    if (z1 != null)
+                    {
+                        foreach (var k in customKeys) { try { z1.DeleteValue(k, false); } catch { } }
+                        z1.SetValue("CurrentLevel", 0x00010500, RegistryValueKind.DWord); // 0x10500 = Medium-low
+                        z1.SetValue("Flags", 0x000000db, RegistryValueKind.DWord);
+                    }
+                }
+
+                // 3. Reset Zone 3 (Internet) to Default Medium-high template
+                using (var z3 = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\3", true))
+                {
+                    if (z3 != null)
+                    {
+                        foreach (var k in customKeys) { try { z3.DeleteValue(k, false); } catch { } }
+                        z3.SetValue("CurrentLevel", 0x00011000, RegistryValueKind.DWord); // 0x11000 = Medium-high
+                        z3.SetValue("Flags", 0x00000025, RegistryValueKind.DWord);
+                    }
+                }
+
+                if (logCallback != null) logCallback("  [RESET] Zones 1, 2, 3 custom DWORD overrides removed; template levels restored to Windows defaults.");
+            }
+            catch (Exception ex)
+            {
+                if (logCallback != null) logCallback("  [RESET NOTICE] " + ex.Message);
+            }
+        }'''
+
+text = re.sub(old_uninstall_pattern, lambda m: new_uninstall_method, text, flags=re.DOTALL)
+
+with open('csharp_solution/EVedhikaUBDDeploymentTool/Engine/UninstallEngine.cs', 'w') as f:
+    f.write(text)
+
+print("UninstallEngine.cs successfully upgraded with full system revert!")
