@@ -303,9 +303,28 @@ async function startServer() {
   function processConsolidatedTelemetry(body: any): ConsolidatedMachineRecord {
     const pcName = body.pcName || 'Unknown-PC';
     const userName = body.userName || 'Operator';
-    const targetDom = body.targetDomain || (String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in');
-    const stateVal = body.state || (targetDom.includes('ap.gov.in') || String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana');
-    const officeLoc = body.officeLocation || body.office || 'Gram Panchayat Office';
+    const rawLoc = String(body.officeLocation || body.office || '').trim();
+    const rawState = String(body.state || '').trim();
+    const rawDist = String(body.district || '').trim();
+    const targetDom = String(body.targetDomain || '').trim();
+
+    // Strict Location Resolution: Telangana, Andhra Pradesh, or Unverified (No false guesses)
+    let stateVal = 'Unverified';
+    const fullLocText = `${rawLoc} ${rawState} ${rawDist} ${targetDom}`.toUpperCase();
+    const isTS = ['TELANGANA', 'HYDERABAD', 'WARANGAL', 'KARIMNAGAR', 'NIZAMABAD', 'KHAMMAM', 'MANCHERIAL', 'MANCHIRAL', 'NALGONDA', 'SURYAPET', 'MAHABUBNAGAR', 'MEDAK', 'SANGAREDDY', 'SIDDIPET', 'KAMAREDDY', 'ADILABAD', 'NIRMAL', 'JAGTIAL', 'PEDDAPALLI', 'BHUPALPALLY', 'MULUGU', 'KOTHAGUDEM', 'MAHABUBABAD', 'JANGAON', 'BHONGIR', 'VIKARABAD', 'NARAYANPET', 'GADWAL', 'WANAPARTHY', 'NAGARKURNOOL', 'RANGAREDDY', 'MEDCHAL', 'UBD.TELANGANA.GOV.IN'].some(kw => fullLocText.includes(kw));
+    const isAP = ['ANDHRA', 'PRADESH', 'VISAKHAPATNAM', 'VIZAG', 'VIJAYAWADA', 'GUNTUR', 'KURNOOL', 'ANANTAPUR', 'CHITTOOR', 'TIRUPATI', 'NELLORE', 'ONGOLE', 'PRAKASAM', 'KAKINADA', 'RAJAHMUNDRY', 'ELURU', 'MACHILIPATNAM', 'SRIKAKULAM', 'VIZIANAGARAM', 'KADAPA', 'CUDDAPAH', 'UBD.AP.GOV.IN'].some(kw => fullLocText.includes(kw));
+
+    if (isTS && !isAP) {
+      stateVal = 'Telangana';
+    } else if (isAP && !isTS) {
+      stateVal = 'Andhra Pradesh';
+    } else if (rawState === 'Telangana' || rawState === 'Andhra Pradesh') {
+      stateVal = rawState;
+    } else {
+      stateVal = 'Unverified';
+    }
+
+    const officeLoc = rawLoc || (stateVal !== 'Unverified' ? `${stateVal} Grama Panchayat Office` : 'Unverified Location');
     const osVer = body.osVersion || body.winEdition || body.winVersion || 'Windows 11 Home';
     const winBuild = body.winBuild || '10.0.26300';
     const appVer = body.version || body.deployVersion || 'v1.0.9';
