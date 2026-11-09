@@ -114,7 +114,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDeploy.Padding = new System.Windows.Forms.Padding(12);
             this.tabDeploy.Size = new System.Drawing.Size(876, 444);
             this.tabDeploy.TabIndex = 0;
-            this.tabDeploy.Text = "🚀 16-Step Deployment";
+            this.tabDeploy.Text = "🚀 17-Step Deployment";
             this.tabDeploy.UseVisualStyleBackColor = false;
             // 
             // pnlMetricsCards
@@ -136,7 +136,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnStartDeploy.Name = "btnStartDeploy";
             this.btnStartDeploy.Size = new System.Drawing.Size(250, 38);
             this.btnStartDeploy.TabIndex = 1;
-            this.btnStartDeploy.Text = "▶ Start 16-Step Deployment";
+            this.btnStartDeploy.Text = "▶ Start 17-Step Deployment";
             this.btnStartDeploy.UseVisualStyleBackColor = false;
             this.btnStartDeploy.Click += new System.EventHandler(this.btnStartDeploy_Click);
             // 

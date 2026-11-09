@@ -908,7 +908,7 @@ namespace EVedhikaUBDDeploymentTool
                                 { "winEdition", SystemInfoHelper.GetWindowsVersion() },
                                 { "status", "ONLINE_READY" },
                                 { "suppressTelegram", "true" },
-                                { "remarks", $"Tool active in {stateName}. Ready for One-Click 16-Step Deployment." }
+                                { "remarks", $"Tool active in {stateName}. Ready for One-Click 17-Step Deployment." }
                             };
                             Logger.PostTelemetryData(startupPing);
                         }
@@ -987,7 +987,7 @@ namespace EVedhikaUBDDeploymentTool
             try { pnlMetricsCards?.SetMetrics(90, 0, 0, 75); } catch { }
             
             LogMessage("DEPLOY", "=========================================================");
-            LogMessage("DEPLOY", "Starting 16-Step Automated One-Click C# Deployment Engine...");
+            LogMessage("DEPLOY", "Starting 17-Step Automated One-Click C# Deployment Engine...");
             LogMessage("DEPLOY", $"Target Domain: {currentTargetDomain} (Zone 2 Trusted)");
             LogMessage("DEPLOY", "=========================================================");
 

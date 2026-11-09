@@ -918,7 +918,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
               </div>
               <h4 className="text-lg font-black text-slate-800 mb-1">No Active UBD Website Issues!</h4>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
-                All client systems are reporting successful execution (16/16 parameters verified). When any Panchayat PC reports an error on the UBD portal, it will display here with AI diagnosis.
+                All client systems are reporting successful execution (17/17 parameters verified). When any Panchayat PC reports an error on the UBD portal, it will display here with AI diagnosis.
               </p>
             </div>
           ) : (

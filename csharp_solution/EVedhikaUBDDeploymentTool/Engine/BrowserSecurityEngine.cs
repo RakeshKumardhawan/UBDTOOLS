@@ -13,6 +13,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
+                const string exemptJson = "[{\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xlsx\"}]";
+
                 // 1. Configure Microsoft Edge Policies for Unrestricted Downloads & Legacy Handling
                 using (RegistryKey edgeKey = Registry.CurrentUser.CreateSubKey(EdgePoliciesPath))
                 {
@@ -23,6 +25,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         edgeKey.SetValue("DownloadRestrictions", 0, RegistryValueKind.DWord); // 0 = Allow all downloads without blocking
                         edgeKey.SetValue("PromptForDownloadLocation", 0, RegistryValueKind.DWord); // Streamline downloads
                         edgeKey.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in" }, RegistryValueKind.MultiString);
+                        edgeKey.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
                     }
                 }
 
@@ -37,6 +40,41 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             edgeKeyHKLM.SetValue("SmartScreenPuaEnabled", 0, RegistryValueKind.DWord);
                             edgeKeyHKLM.SetValue("DownloadRestrictions", 0, RegistryValueKind.DWord);
                             edgeKeyHKLM.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in" }, RegistryValueKind.MultiString);
+                            edgeKeyHKLM.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
+                        }
+                    }
+                }
+                catch { }
+
+                // 2. Configure Google Chrome Policies (HKCU & HKLM) to Unblock .xls / .xlsx Excel Downloads
+                const string ChromePoliciesPath = @"SOFTWARE\Policies\Google\Chrome";
+                try
+                {
+                    using (RegistryKey chromeKey = Registry.CurrentUser.CreateSubKey(ChromePoliciesPath))
+                    {
+                        if (chromeKey != null)
+                        {
+                            chromeKey.SetValue("DownloadRestrictions", 0, RegistryValueKind.DWord); // 0 = Allow all downloads
+                            chromeKey.SetValue("SafeBrowsingProtectionLevel", 1, RegistryValueKind.DWord);
+                            chromeKey.SetValue("AllowFileSelectionDialogs", 1, RegistryValueKind.DWord);
+                            chromeKey.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
+                            chromeKey.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in" }, RegistryValueKind.MultiString);
+                        }
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    using (RegistryKey chromeKeyHKLM = Registry.LocalMachine.CreateSubKey(ChromePoliciesPath))
+                    {
+                        if (chromeKeyHKLM != null)
+                        {
+                            chromeKeyHKLM.SetValue("DownloadRestrictions", 0, RegistryValueKind.DWord);
+                            chromeKeyHKLM.SetValue("SafeBrowsingProtectionLevel", 1, RegistryValueKind.DWord);
+                            chromeKeyHKLM.SetValue("AllowFileSelectionDialogs", 1, RegistryValueKind.DWord);
+                            chromeKeyHKLM.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
+                            chromeKeyHKLM.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in" }, RegistryValueKind.MultiString);
                         }
                     }
                 }

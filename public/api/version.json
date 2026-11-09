@@ -5,14 +5,16 @@
   "currentVersion": "v1.0.9",
   "latestVersion": "v1.0.9",
   "versionCode": 10090,
-  "releaseDate": "2026-11-03",
+  "releaseDate": "2026-11-09",
   "downloadUrl": "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.9.exe",
   "githubRepo": "https://github.com/RakeshKumardhawan/UBDTOOLS",
   "updateRequired": false,
   "silent": false,
-  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.03-R2) - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Support, Dual-Channel Independent Telemetry, Offline Queue & Auto-Retry, and Instant Telegram Reporting.",
+  "releaseNotes": "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.09.R1) - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Support, Dual-Channel Independent Telemetry, Offline Queue & Auto-Retry, and Instant Telegram Reporting.",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live",
-  "latestResourceBuild": "2026.11.03-R2",
-  "resourceBuildDate": "2026-11-03"
+  "latestResourceBuild": "2026.11.09.R1",
+  "resourceBuildDate": "2026-11-09",
+  "resourceBuild": "2026.11.09.R1",
+  "manifestVersion": "2026.11.09.R1"
 }

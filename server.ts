@@ -1361,25 +1361,7 @@ async function startServer() {
 
       console.log(`[DAILY 7 PM CHECK] 24h Rolling Window Authentic PCs: ${realPcCount} (Total Real PCs: ${allRealPcsCount})`);
 
-      // SMART THRESHOLDING RULE:
-      // If manual trigger, generate and send regardless.
-      // If automated trigger and real PC count < 5:
-      // SUPPRESS daily email spam to admin, push all reports silently to website store.
-      if (!isManualTrigger && realPcCount < 5) {
-        console.log(`[DAILY EMAIL SUPPRESSED] Installed PCs in last 24h (${realPcCount}) < 5 threshold. Pushed reports silently to website store.`);
-        emailConfig.lastSentTimestamp = nowIST.toISOString().replace('T', ' ').slice(0, 19) + ' IST';
-        emailConfig.lastSentResult = `Suppressed email (<5 PCs: ${realPcCount} in 24h window). Reports pushed silently to website store.`;
-        saveEmailConfig();
-        return {
-          success: true,
-          emailSent: false,
-          suppressed: true,
-          realPcCount,
-          message: `Daily email suppressed because only ${realPcCount} authentic PCs were installed in the 24h window (< 5 PC threshold). Reports pushed silently to website archive.`
-        };
-      }
-
-      // Generate daily Excel report for the authentic PCs
+      // Daily 7:00 PM Scheduled Email & Telegram Dispatch (Sends report for all authentic PCs in 24h window)
       const excelInfo = generateConsolidatedExcelWorkbook(Array.from(unique24hPcMap.values()), false);
       const targetEmail = emailConfig.recipientEmail || 'Rakeshkumardhawan123@gmail.com';
       const triggerLabel = isManualTrigger ? 'Manual Dispatch' : 'Daily 7:00 PM IST Rolling 24h Run';
@@ -1776,16 +1758,16 @@ async function startServer() {
     currentVersion: 'v1.0.9',
     latestVersion: 'v1.0.9',
     versionCode: 10090,
-    releaseDate: '2026-11-03',
+    releaseDate: '2026-11-09',
     downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.03-R2): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, Offline Queue & Auto-Retry, and 24x7 System Guardian.',
+    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.09.R1): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, Offline Queue & Auto-Retry, and 24x7 System Guardian.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.03-R2',
-    resourceBuildDate: '2026-11-03'
+    latestResourceBuild: '2026.11.09.R1',
+    resourceBuildDate: '2026-11-09'
   };
 
 

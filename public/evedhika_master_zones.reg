@@ -305,8 +305,28 @@ Windows Registry Editor Version 5.00
 "InternetExplorerIntegrationLevel"=dword:00000001
 "InternetExplorerIntegrationSiteList"="C:\\enterprise_compat\\sites.xml"
 "InternetExplorerIntegrationReloadInIEModeAllowed"=dword:00000001
+"DownloadRestrictions"=dword:00000000
+"ExemptDomainFileTypePairsFromFileTypeDownloadWarnings"="[{\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xlsx\"}]"
 
 [HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Edge]
 "InternetExplorerIntegrationLevel"=dword:00000001
 "InternetExplorerIntegrationSiteList"="C:\\enterprise_compat\\sites.xml"
 "InternetExplorerIntegrationReloadInIEModeAllowed"=dword:00000001
+"DownloadRestrictions"=dword:00000000
+"ExemptDomainFileTypePairsFromFileTypeDownloadWarnings"="[{\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xlsx\"}]"
+
+; ==============================================================================
+; GOOGLE CHROME UNRESTRICTED EXCEL DOWNLOAD POLICIES
+; ==============================================================================
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome]
+"DownloadRestrictions"=dword:00000000
+"SafeBrowsingProtectionLevel"=dword:00000001
+"AllowFileSelectionDialogs"=dword:00000001
+"ExemptDomainFileTypePairsFromFileTypeDownloadWarnings"="[{\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xlsx\"}]"
+
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Google\Chrome]
+"DownloadRestrictions"=dword:00000000
+"SafeBrowsingProtectionLevel"=dword:00000001
+"AllowFileSelectionDialogs"=dword:00000001
+"ExemptDomainFileTypePairsFromFileTypeDownloadWarnings"="[{\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\"], \"file_extension\": \"xlsx\"}]"
+

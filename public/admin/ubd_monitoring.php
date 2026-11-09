@@ -369,7 +369,7 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
             </div>
             <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
                 <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">లక్ష్య వెర్షన్ &amp; OTA బిల్డ్</span>
-                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.10.29-R1]</span>
+                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.11.09.R1]</span>
                 <span class="text-[10px] text-emerald-400 mt-0.5 block font-bold">100% ఆటో-అప్‌డేట్ సింకింగ్ యాక్టివ్</span>
             </div>
         </div>
@@ -416,8 +416,8 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                             <td class="p-4 text-slate-300 font-medium max-w-xs"><?= htmlspecialchars($pc['officeLocation']) ?></td>
                             <td class="p-4 text-slate-400 font-mono text-[11px]"><?= htmlspecialchars($pc['os']) ?></td>
                             <td class="p-4">
-                                <div class="font-bold text-indigo-400 font-mono text-[11px]"><?= htmlspecialchars($pc['appVersion'] ?? 'v1.0.8') ?></div>
-                                <div class="text-[9px] text-emerald-400 font-mono">OTA: <?= htmlspecialchars($pc['resourceBuild'] ?? '2026.10.29-R1') ?></div>
+                                <div class="font-bold text-indigo-400 font-mono text-[11px]"><?= htmlspecialchars($pc['appVersion'] ?? 'v1.0.9') ?></div>
+                                <div class="text-[9px] text-emerald-400 font-mono">OTA: <?= htmlspecialchars($pc['resourceBuild'] ?? '2026.11.09.R1') ?></div>
                             </td>
                             <td class="p-4 whitespace-nowrap">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-emerald-950 text-emerald-300 border-emerald-800">

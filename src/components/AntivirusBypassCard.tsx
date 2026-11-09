@@ -154,6 +154,32 @@ export const AntivirusBypassCard: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* 5. Google Chrome & Edge Excel (.xls) Download Block ("Your organization blocked this file") */}
+        <div className="bg-slate-900 border border-emerald-500/40 rounded-xl overflow-hidden shadow-lg">
+          <button
+            onClick={() => toggleAv('chrome_excel')}
+            className="w-full p-3 flex items-center justify-between text-left bg-emerald-950/40 hover:bg-emerald-900/40 transition-colors font-bold text-emerald-300 cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>5. Google Chrome / Edge Excel Download Block ("Your organization blocked this file because it didn't meet a security policy")</span>
+            </div>
+            {expandedAv === 'chrome_excel' ? <ChevronUp className="w-4 h-4 text-emerald-400" /> : <ChevronDown className="w-4 h-4 text-emerald-400" />}
+          </button>
+
+          {expandedAv === 'chrome_excel' && (
+            <div className="p-4 space-y-2.5 text-slate-200 bg-slate-950/90 border-t border-emerald-500/30 leading-relaxed font-sans text-xs">
+              <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-200 font-mono text-[11px]">
+                <strong>ఎర్రర్:</strong> "Your organization blocked this file because it didn't meet a security policy" (07-11-2026DailyDataEntryStatusReport.xls)
+              </div>
+              <p className="text-emerald-300 font-bold">పరిష్కార మార్గాలు (Permanent Solutions):</p>
+              <p>1. <strong>E-Vedhika One-Click Fix</strong>: పైన ఉన్న <code>1-Click Auto Whitelister (.bat)</code> లేదా E-Vedhika C# టూల్‌లో <strong>"DEPLOY ALL"</strong> క్లిక్ చేయండి. ఇది Chrome/Edge యొక్క <code>DownloadRestrictions</code> మరియు <code>ExemptDomainFileTypePairsFromFileTypeDownloadWarnings</code> రిజిస్ట్రీ కీలను ఆటోమేటిక్‌గా సెట్ చేస్తుంది.</p>
+              <p>2. <strong>Chrome బ్రౌజర్ సెట్టింగ్స్</strong>: Chrome లో <code>chrome://settings/security</code> కి వెళ్ళి <strong>"Standard Protection"</strong> ని ఎంచుకోండి.</p>
+              <p>3. <strong>Chrome అన్-బ్లాక్ కమాండ్</strong>: బ్రౌజర్ అడ్రస్ బార్‌లో <code>chrome://flags/#allow-insecure-localhost</code> లేదా డిస్చార్జ్ విధానాన్ని డిసేబుల్ చేసి UBD పోర్టల్‌ని అలౌడ్ లిస్ట్‌లో చేర్చండి.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
