@@ -103,7 +103,7 @@ namespace EVedhikaUBDDeploymentTool
         private void UpdateUiForSelectedState()
         {
             string pcId = Helpers.Logger.GetUniqueMachineId();
-            string buildDate = "2026.11.03-R2";
+            string buildDate = Engine.AutoUpdateEngine.CurrentResourceBuild;
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.9) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
                 this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
@@ -245,7 +245,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string pcId = Helpers.Logger.GetUniqueMachineId();
                 toolStripStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", "2026.11.03-R2", pcId);
+                toolStripStatusLabel.Text = string.Format("Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool v1.0.9 (Resource Build: {0}) | PC ID: {1} | Status: Ready", Engine.AutoUpdateEngine.CurrentResourceBuild, pcId);
             }
             if (panelHeader != null) panelHeader.Dock = DockStyle.Top;
             sidebar.Dock = DockStyle.Left;
@@ -1182,8 +1182,8 @@ namespace EVedhikaUBDDeploymentTool
                 { "failedCount", "0" },
                 { "deployVersion", "v1.0.9" },
                 { "version", "v1.0.9" },
-                { "buildVersion", "2026.11.03-R2" },
-                { "resourceBuild", "2026.11.03-R2" },
+                { "buildVersion", Engine.AutoUpdateEngine.CurrentResourceBuild },
+                { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                 { "status", "SUCCESS" },
                 { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
                 { "errorDetails", "None" },
@@ -2236,8 +2236,8 @@ namespace EVedhikaUBDDeploymentTool
                 { "failedCount", "0" },
                 { "warningCount", "0" },
                 { "version", "v1.0.9" },
-                { "buildVersion", "2026.11.03-R2" },
-                { "resourceBuild", "2026.11.03-R2" },
+                { "buildVersion", Engine.AutoUpdateEngine.CurrentResourceBuild },
+                { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                 { "status", "SUCCESS" },
                 { "healthScore", "100" },
                 { "errorDetails", "None" },

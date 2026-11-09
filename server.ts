@@ -759,7 +759,7 @@ async function startServer() {
       `<b>CPU:</b> ${cpuInfo}\n\n` +
       `📊 <b>Deployment Status & Health</b>\n` +
       `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
-      `<b>Software Version:</b> v1.0.9 (Resource Build 2026.11.03-R2)\n` +
+      `<b>Software Version:</b> v1.0.9 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.09.R1'})\n` +
       `<b>Health Score:</b> ${healthScore}%\n` +
       `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
       `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
@@ -800,8 +800,8 @@ async function startServer() {
                      body.isFinalReport === 'true' || body.isFinalReport === true ||
                      body.forceTelegram === 'true' || body.forceTelegram === true || 
                      body.sendTelegram === 'true' || body.sendTelegram === true || 
-                     String(body.buildVersion || '').includes('2026.11.03') ||
-                     String(body.resourceBuild || '').includes('2026.11.03') ||
+                     String(body.buildVersion || '').includes('2026.11.') ||
+                     String(body.resourceBuild || '').includes('2026.11.') ||
                      body.isTest === true || body.isTest === 'true';
 
     // Drop already-reported PCs ONLY if NOT forced and NOT an installation report
@@ -3255,8 +3255,8 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (Synced via New Update)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.02-R3',
-        version: body.version || 'v1.0.9-Update-R3',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.09.R1',
+        version: body.version || 'v1.0.9',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
         localIp: body.localIp || '192.168.1.100',
