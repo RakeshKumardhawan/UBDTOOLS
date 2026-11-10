@@ -27,8 +27,21 @@ jobs:
     - name: Download Prerequisites (VC++ Redist & .NET 4.8) for Win7/8 Compatibility
       run: |
         if (!(Test-Path -Path "csharp_solution/EVedhikaUBDDeploymentTool/installers")) { New-Item -ItemType Directory -Path "csharp_solution/EVedhikaUBDDeploymentTool/installers" -Force }
-        curl.exe -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/vc_redist.x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
-        curl.exe -L -o csharp_solution/EVedhikaUBDDeploymentTool/installers/ndp48-x86-x64-allos-enu.exe "https://go.microsoft.com/fwlink/?linkid=2088631"
+        $ProgressPreference = 'SilentlyContinue'
+        
+        # Download VC++ Redistributable with retries
+        try {
+            curl.exe -f -L --retry 5 --retry-delay 2 --retry-all-errors -o "csharp_solution/EVedhikaUBDDeploymentTool/installers/vc_redist.x86.exe" "https://aka.ms/vs/17/release/vc_redist.x86.exe"
+        } catch {
+            Write-Host "Notice: VC++ Redist download skipped or deferred."
+        }
+
+        # Download .NET 4.8 Installer (Web Bootstrapper / Redistributable) with retries
+        try {
+            curl.exe -f -L --retry 5 --retry-delay 2 --retry-all-errors -o "csharp_solution/EVedhikaUBDDeploymentTool/installers/ndp48-x86-x64-allos-enu.exe" "https://go.microsoft.com/fwlink/?LinkId=2088630"
+        } catch {
+            Write-Host "Notice: .NET 4.8 installer download skipped or deferred."
+        }
 
     - name: Build and Publish Executable
       run: |
@@ -49,8 +62,8 @@ jobs:
         files: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
-        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.03-R3)
-        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.03-R3) - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Support, Dual-Channel Independent Telemetry, Offline Queue & Auto-Retry, and Instant Telegram Reporting."
+        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.09.R1)
+        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.09.R1) - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Support, Dual-Channel Independent Telemetry, Offline Queue & Auto-Retry, and Instant Telegram Reporting."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
