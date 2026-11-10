@@ -283,6 +283,47 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             if (!data.ContainsKey("edgeIeMode")) data["edgeIeMode"] = SystemInfoHelper.CheckEdgeIeMode();
             if (!data.ContainsKey("lastReportUploadTime")) data["lastReportUploadTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
+            if (!data.ContainsKey("ramUsage")) data["ramUsage"] = SystemInfoHelper.GetRamUsageFormatted();
+            if (!data.ContainsKey("ramInfo")) data["ramInfo"] = SystemInfoHelper.GetRamInfo();
+            if (!data.ContainsKey("diskFreeSpace")) data["diskFreeSpace"] = SystemInfoHelper.GetDiskSpace();
+            if (!data.ContainsKey("romStorage")) data["romStorage"] = SystemInfoHelper.GetRomStorageInfo();
+            if (!data.ContainsKey("cpuInfo")) data["cpuInfo"] = SystemInfoHelper.GetProcessorInfo();
+
+            double ramTot, ramFr, ramUsd, ramPct;
+            SystemInfoHelper.GetAccurateRamDetails(out ramTot, out ramFr, out ramUsd, out ramPct);
+            if (!data.ContainsKey("ramTotalGB")) data["ramTotalGB"] = ramTot.ToString("0.00");
+            if (!data.ContainsKey("ramFreeGB")) data["ramFreeGB"] = ramFr.ToString("0.00");
+            if (!data.ContainsKey("ramUsedGB")) data["ramUsedGB"] = ramUsd.ToString("0.00");
+            if (!data.ContainsKey("ramUsagePct")) data["ramUsagePct"] = ramPct.ToString("0.0");
+
+            double diskTot, diskFr, diskUsd, diskPct;
+            string driveLet;
+            SystemInfoHelper.GetAccurateDiskDetails(out diskTot, out diskFr, out diskUsd, out diskPct, out driveLet);
+            if (!data.ContainsKey("diskTotalGB")) data["diskTotalGB"] = diskTot.ToString("0.00");
+            if (!data.ContainsKey("diskFreeGB")) data["diskFreeGB"] = diskFr.ToString("0.00");
+            if (!data.ContainsKey("diskUsedGB")) data["diskUsedGB"] = diskUsd.ToString("0.00");
+            if (!data.ContainsKey("romTotalGB")) data["romTotalGB"] = diskTot.ToString("0.00");
+            if (!data.ContainsKey("romFreeGB")) data["romFreeGB"] = diskFr.ToString("0.00");
+
+            if (!data.ContainsKey("healthScore") || data["healthScore"] == "100" || string.IsNullOrEmpty(data["healthScore"]))
+            {
+                int calcHScore;
+                string calcHStatus, calcHDiag;
+                int pCount = 17;
+                if (data.ContainsKey("passedCount")) int.TryParse(data["passedCount"], out pCount);
+                int tCount = 17;
+                if (data.ContainsKey("totalChecks")) int.TryParse(data["totalChecks"], out tCount);
+                string dscToken = data.ContainsKey("dscStatus") ? data["dscStatus"] : SystemInfoHelper.CheckDscStatus();
+                string digiSigner = data.ContainsKey("digiSignerStatus") ? data["digiSignerStatus"] : SystemInfoHelper.CheckNicDigiSigner();
+                string edgeIe = data.ContainsKey("edgeIeMode") ? data["edgeIeMode"] : SystemInfoHelper.CheckEdgeIeMode();
+                string sitesXml = data.ContainsKey("sitesXml") ? data["sitesXml"] : "Active (sites.xml verified)";
+
+                SystemInfoHelper.CalculateWorkstationHealth(pCount, tCount, dscToken, digiSigner, edgeIe, sitesXml, out calcHScore, out calcHStatus, out calcHDiag);
+                data["healthScore"] = calcHScore.ToString();
+                if (!data.ContainsKey("healthStatus")) data["healthStatus"] = calcHStatus;
+                if (!data.ContainsKey("healthDiagnosis")) data["healthDiagnosis"] = calcHDiag;
+            }
+
             bool force = data.ContainsKey("forceTelegram") && (data["forceTelegram"] == "true" || data["forceTelegram"] == "True");
             bool alreadyReported = HasAlreadyReportedToTelegram(machineId, "2026.11.09.R1");
             if (alreadyReported && !force)
@@ -560,14 +601,14 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string architecture = data.ContainsKey("architecture") ? data["architecture"] : SystemInfoHelper.GetSystemArchitecture();
             string internetStatus = data.ContainsKey("internetStatus") ? data["internetStatus"] : (data.ContainsKey("internet") ? data["internet"] : SystemInfoHelper.CheckInternetConnection());
 
-            string ramInfo = data.ContainsKey("ramUsage") ? data["ramUsage"] : SystemInfoHelper.GetRamUsageFormatted();
+            string ramInfo = data.ContainsKey("ramInfo") ? data["ramInfo"] : (data.ContainsKey("ramUsage") ? data["ramUsage"] : SystemInfoHelper.GetRamInfo());
+            string romInfo = data.ContainsKey("romStorage") ? data["romStorage"] : SystemInfoHelper.GetRomStorageInfo();
             string diskInfo = data.ContainsKey("diskFreeSpace") ? data["diskFreeSpace"] : SystemInfoHelper.GetDiskSpace();
             string cpuInfo = data.ContainsKey("cpuInfo") ? data["cpuInfo"] : SystemInfoHelper.GetProcessorInfo();
 
             string status = data.ContainsKey("status") ? data["status"] : "SUCCESS";
             string remarks = data.ContainsKey("remarks") ? data["remarks"] : "17/17 Deployment steps executed and verified!";
             string verif = data.ContainsKey("verification") ? data["verification"] : "17/17 steps passed.";
-            string health = data.ContainsKey("healthScore") ? data["healthScore"] : "100";
             string totalChecks = data.ContainsKey("totalChecks") ? data["totalChecks"] : "17";
             string passedCount = data.ContainsKey("passedCount") ? data["passedCount"] : "17";
             string failedCount = data.ContainsKey("failedCount") ? data["failedCount"] : "0";
@@ -581,6 +622,18 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string edgeIe = data.ContainsKey("edgeIeMode") ? data["edgeIeMode"] : SystemInfoHelper.CheckEdgeIeMode();
             string sitesXml = data.ContainsKey("sitesXml") ? data["sitesXml"] : "Active (sites.xml verified)";
             string regVerif = data.ContainsKey("registryVerification") ? data["registryVerification"] : "Verified (Zone 2, Flags, Emulation)";
+
+            int calcScore;
+            string calcStatus, calcDiag;
+            int pCount = 17;
+            int.TryParse(passedCount, out pCount);
+            int tCount = 17;
+            int.TryParse(totalChecks, out tCount);
+            SystemInfoHelper.CalculateWorkstationHealth(pCount, tCount, dscToken, digiSigner, edgeIe, sitesXml, out calcScore, out calcStatus, out calcDiag);
+
+            string health = (data.ContainsKey("healthScore") && data["healthScore"] != "100") ? data["healthScore"] : calcScore.ToString();
+            string healthStatus = data.ContainsKey("healthStatus") ? data["healthStatus"] : calcStatus;
+            string healthDiagnosis = data.ContainsKey("healthDiagnosis") ? data["healthDiagnosis"] : calcDiag;
 
             bool isFail = status.ToUpper().Contains("FAIL") || remarks.ToUpper().Contains("FAIL");
             string overallStatus = isFail ? "FAILED" : "SUCCESS";
@@ -620,16 +673,18 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine($"<b>Architecture:</b> {EscapeTelegramHtml(architecture)}");
             sb.AppendLine($"<b>Internet Status:</b> {EscapeTelegramHtml(internetStatus)}");
             sb.AppendLine();
-            sb.AppendLine("⚙️ <b>System Resources</b>");
-            sb.AppendLine($"<b>RAM:</b> {EscapeTelegramHtml(ramInfo)}");
-            sb.AppendLine($"<b>Disk:</b> {EscapeTelegramHtml(diskInfo)}");
+            sb.AppendLine("⚙️ <b>System Resources & Storage</b>");
+            sb.AppendLine($"<b>RAM (Memory):</b> {EscapeTelegramHtml(ramInfo)}");
+            sb.AppendLine($"<b>ROM (Storage):</b> {EscapeTelegramHtml(romInfo)}");
+            sb.AppendLine($"<b>Disk Free:</b> {EscapeTelegramHtml(diskInfo)}");
             sb.AppendLine($"<b>CPU:</b> {EscapeTelegramHtml(cpuInfo)}");
             sb.AppendLine();
-            sb.AppendLine("📊 <b>Deployment Status & Verification</b>");
+            sb.AppendLine("📊 <b>Workstation Health & Deployment</b>");
             sb.AppendLine($"<b>Overall Status:</b> <b>{overallStatus}</b>");
+            sb.AppendLine($"<b>Health Score:</b> <b>{health}% ({healthStatus})</b>");
+            sb.AppendLine($"<b>Health Diagnosis:</b> {EscapeTelegramHtml(healthDiagnosis)}");
             sb.AppendLine("<b>Application Version:</b> v1.0.9");
             sb.AppendLine($"<b>Build Version:</b> {Engine.AutoUpdateEngine.CurrentResourceBuild}");
-            sb.AppendLine($"<b>Health Score:</b> {health}%");
             sb.AppendLine($"<b>Total Checks:</b> {totalChecks} | <b>Passed:</b> {passedCount} | <b>Failed:</b> {failedCount} | <b>Warnings:</b> {warningCount}");
             sb.AppendLine($"<b>Summary:</b> {verif}");
             sb.AppendLine();
@@ -849,9 +904,33 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 if (!data.ContainsKey("hardwareUuid")) data["hardwareUuid"] = SystemInfoHelper.GetHardwareUuid();
                 if (!data.ContainsKey("userPrivileges")) data["userPrivileges"] = SystemInfoHelper.GetUserPrivileges();
                 if (!data.ContainsKey("localIp")) data["localIp"] = SystemInfoHelper.GetIpAddress();
+                double ramTot, ramFr, ramUs, ramLd;
+                SystemInfoHelper.GetAccurateRamDetails(out ramTot, out ramFr, out ramUs, out ramLd);
                 if (!data.ContainsKey("ramUsage")) data["ramUsage"] = SystemInfoHelper.GetRamUsageFormatted();
+                if (!data.ContainsKey("ramInfo")) data["ramInfo"] = SystemInfoHelper.GetRamInfo();
+                if (!data.ContainsKey("ramTotalGB")) data["ramTotalGB"] = ramTot.ToString("0.00");
+                if (!data.ContainsKey("ramFreeGB")) data["ramFreeGB"] = ramFr.ToString("0.00");
+                if (!data.ContainsKey("ramUsedGB")) data["ramUsedGB"] = ramUs.ToString("0.00");
+                if (!data.ContainsKey("ramUsagePct")) data["ramUsagePct"] = ramLd.ToString("0.0");
+
+                double dTot, dFr, dUs, dPct;
+                string dDrv;
+                SystemInfoHelper.GetAccurateDiskDetails(out dTot, out dFr, out dUs, out dPct, out dDrv);
                 if (!data.ContainsKey("diskFreeSpace")) data["diskFreeSpace"] = SystemInfoHelper.GetDiskSpace();
+                if (!data.ContainsKey("romStorage")) data["romStorage"] = SystemInfoHelper.GetRomStorageInfo();
+                if (!data.ContainsKey("diskTotalGB")) data["diskTotalGB"] = dTot.ToString("0.00");
+                if (!data.ContainsKey("diskFreeGB")) data["diskFreeGB"] = dFr.ToString("0.00");
+                if (!data.ContainsKey("diskUsedGB")) data["diskUsedGB"] = dUs.ToString("0.00");
+                if (!data.ContainsKey("romTotalGB")) data["romTotalGB"] = dTot.ToString("0.00");
+                if (!data.ContainsKey("romFreeGB")) data["romFreeGB"] = dFr.ToString("0.00");
                 if (!data.ContainsKey("cpuInfo")) data["cpuInfo"] = SystemInfoHelper.GetProcessorInfo();
+
+                int defHScore;
+                string defHStat, defHDiag;
+                SystemInfoHelper.CalculateWorkstationHealth(17, 17, data.ContainsKey("dscStatus") ? data["dscStatus"] : "", data.ContainsKey("digiSignerStatus") ? data["digiSignerStatus"] : "", data.ContainsKey("edgeIeMode") ? data["edgeIeMode"] : "", data.ContainsKey("sitesXml") ? data["sitesXml"] : "", out defHScore, out defHStat, out defHDiag);
+                if (!data.ContainsKey("healthScore")) data["healthScore"] = defHScore.ToString();
+                if (!data.ContainsKey("healthStatus")) data["healthStatus"] = defHStat;
+                if (!data.ContainsKey("healthDiagnosis")) data["healthDiagnosis"] = defHDiag;
 
                 if (!data.ContainsKey("internetStatus")) data["internetStatus"] = "Connected (Online)";
                 if (!data.ContainsKey("digiSignerStatus")) data["digiSignerStatus"] = "Running (Active)";

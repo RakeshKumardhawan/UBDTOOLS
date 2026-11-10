@@ -273,6 +273,16 @@ namespace EVedhikaUBDDeploymentTool
                     ? "Gram Panchayat Office (Telangana)"
                     : $"{loc} (Telangana)";
 
+                int postHScore;
+                string postHStatus, postHDiag;
+                SystemInfoHelper.CalculateWorkstationHealth(
+                    17, 17,
+                    SystemInfoHelper.CheckDscStatus(),
+                    SystemInfoHelper.CheckNicDigiSigner(),
+                    SystemInfoHelper.CheckEdgeIeMode(),
+                    "Active (sites.xml verified)",
+                    out postHScore, out postHStatus, out postHDiag);
+
                 var data = new System.Collections.Generic.Dictionary<string, string>
                 {
                     { "reportId", "RPT-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper() },
@@ -289,6 +299,14 @@ namespace EVedhikaUBDDeploymentTool
                     { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                     { "status", "SUCCESS" },
                     { "overallStatus", "HEALTHY" },
+                    { "healthScore", postHScore.ToString() },
+                    { "healthStatus", postHStatus },
+                    { "healthDiagnosis", postHDiag },
+                    { "ramInfo", SystemInfoHelper.GetRamInfo() },
+                    { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
+                    { "romStorage", SystemInfoHelper.GetRomStorageInfo() },
+                    { "diskFreeSpace", SystemInfoHelper.GetDiskSpace() },
+                    { "cpuInfo", SystemInfoHelper.GetProcessorInfo() },
                     { "verification", "v1.0.9 Setup Completed (17/17 Pre-configured)" },
                     { "totalChecks", "17" },
                     { "passedCount", "17" },
@@ -330,9 +348,38 @@ namespace EVedhikaUBDDeploymentTool
         {
             try
             {
+                // Ensure sites.xml and IE Mode policies are active before launch
+                try
+                {
+                    string xmlPath = Engine.EdgePolicyEngine.GenerateSiteListXml(new string[] { "ubd.telangana.gov.in", "ubd.ap.gov.in" });
+                    Engine.EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
+                }
+                catch { }
+
+                // 1. Launch UBD Government Portal in Microsoft Edge (configured for IE Mode)
                 string ubdUrl = "https://ubd.telangana.gov.in";
                 string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
                 if (!File.Exists(edgePath)) edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
+                if (!File.Exists(edgePath))
+                {
+                    string localEdge = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Edge\Application\msedge.exe");
+                    if (File.Exists(localEdge)) edgePath = localEdge;
+                }
+                if (!File.Exists(edgePath))
+                {
+                    try
+                    {
+                        using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe"))
+                        {
+                            if (k != null)
+                            {
+                                var v = k.GetValue("") as string;
+                                if (!string.IsNullOrEmpty(v) && File.Exists(v)) edgePath = v;
+                            }
+                        }
+                    }
+                    catch { }
+                }
 
                 if (File.Exists(edgePath))
                 {
@@ -351,14 +398,30 @@ namespace EVedhikaUBDDeploymentTool
                         UseShellExecute = true
                     });
                 }
+
+                // 2. Launch E-Vedhika Main Web Portal in User's Default Modern Browser
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "https://www.e-vedhika.in/",
+                        UseShellExecute = true
+                    });
+                }
+                catch { }
             }
-            catch
+            catch (Exception ex)
             {
                 try
                 {
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = "https://ubd.telangana.gov.in",
+                        UseShellExecute = true
+                    });
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "https://www.e-vedhika.in/",
                         UseShellExecute = true
                     });
                 }

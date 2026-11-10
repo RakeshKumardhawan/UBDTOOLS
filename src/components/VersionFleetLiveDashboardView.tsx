@@ -927,7 +927,11 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] block">RAM:</span>
-                          <span className="font-bold text-emerald-300">{m.ramUsageGB} GB</span>
+                          <span className="font-bold text-emerald-300">{m.ramUsageGB}/{m.ramTotalGB}G</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">ROM:</span>
+                          <span className="font-bold text-sky-300">{m.diskTotalGB}G ({m.diskFreeGB}G Free)</span>
                         </div>
                       </div>
                     </td>
@@ -1167,7 +1171,11 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] block">RAM:</span>
-                          <span className="font-bold text-emerald-300">{m.ramUsageGB} GB</span>
+                          <span className="font-bold text-emerald-300">{m.ramUsageGB}/{m.ramTotalGB}G</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">ROM:</span>
+                          <span className="font-bold text-sky-300">{m.diskTotalGB}G ({m.diskFreeGB}G Free)</span>
                         </div>
                       </div>
                     </td>
@@ -1303,13 +1311,13 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
                 </div>
 
                 <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">RAM Usage</span>
-                  <span className="text-lg font-black text-emerald-300">{selectedMachine.ramUsageGB} GB</span>
+                  <span className="text-[10px] text-slate-400 block">RAM (Memory)</span>
+                  <span className="text-lg font-black text-emerald-300">{selectedMachine.ramUsageGB} / {selectedMachine.ramTotalGB} GB</span>
                 </div>
 
                 <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Disk Free</span>
-                  <span className="text-lg font-black text-amber-300">{selectedMachine.diskFreeGB} GB</span>
+                  <span className="text-[10px] text-slate-400 block">ROM (Storage)</span>
+                  <span className="text-lg font-black text-amber-300">{selectedMachine.diskTotalGB} GB ({selectedMachine.diskFreeGB} GB Free)</span>
                 </div>
               </div>
             </div>

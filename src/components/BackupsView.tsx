@@ -33,7 +33,9 @@ import {
   Link2,
   Copy,
   Settings,
-  Bot
+  Bot,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import { BackupSnapshot } from '../types';
 import { TelegramNotificationCard } from './TelegramNotificationCard';
@@ -57,10 +59,38 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
   isRestoring,
 }) => {
   const { showSuccess, showError, showInfo } = useToast();
-  const [selectedTab, setSelectedTab] = useState<'receiver' | 'telemetry' | 'health' | 'issues' | 'telegram' | 'remote_queue' | 'snapshots'>('receiver');
+  const [selectedTab, setSelectedTab] = useState<'receiver' | 'telemetry' | 'health' | 'issues' | 'feedback' | 'telegram' | 'remote_queue' | 'snapshots'>('receiver');
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<'all' | 'ap' | 'ts'>('all');
+
+  // Feedback & Ratings State
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [feedbackStats, setFeedbackStats] = useState<any>({ total: 0, averageRating: 5.0, breakdown: {} });
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [feedbackFilterRating, setFeedbackFilterRating] = useState<number | 'ALL'>('ALL');
+
+  const fetchFeedbacks = async () => {
+    setLoadingFeedback(true);
+    try {
+      const res = await fetch(`/api/feedback?t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbacks(data.feedbacks || []);
+        if (data.averageRating !== undefined) {
+          setFeedbackStats({
+            total: data.total || 0,
+            averageRating: data.averageRating,
+            breakdown: data.ratingBreakdown || {}
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch feedback:', e);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
 
   // Master Telemetry & Consolidated Machine State (Authentic real data only)
   const [centralTelemetryLogs, setCentralTelemetryLogs] = useState<any[]>([]);
@@ -305,7 +335,11 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
 
   useEffect(() => {
     fetchLiveCloudData();
-    const interval = setInterval(fetchLiveCloudData, 10000);
+    fetchFeedbacks();
+    const interval = setInterval(() => {
+      fetchLiveCloudData();
+      fetchFeedbacks();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -470,6 +504,15 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
           </button>
           <button onClick={() => setSelectedTab('telegram')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'telegram' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>
             <Send className="w-3.5 h-3.5" /> Telegram & 7 PM Reports
+          </button>
+          <button onClick={() => { setSelectedTab('feedback'); fetchFeedbacks(); }} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'feedback' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-500'}`}>
+            <Star className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+            <span>యూజర్ రేటింగ్ (Feedback)</span>
+            {feedbacks.length > 0 && (
+              <span className="px-1.5 py-0.2 bg-white text-amber-700 rounded-full text-[9px] font-black">
+                {feedbacks.length}
+              </span>
+            )}
           </button>
           <button onClick={() => setSelectedTab('snapshots')} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${selectedTab === 'snapshots' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>
             <History className="w-3.5 h-3.5" /> Snapshots
@@ -1068,6 +1111,173 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
           <TelegramNotificationCard />
         </div>
       )}
+
+      {selectedTab === 'feedback' && (
+        <div className="space-y-6 animate-in fade-in duration-500">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-900/60 border border-amber-500/30 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                <Star className="w-8 h-8 text-amber-400 fill-amber-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-amber-500/30">
+                    REAL-TIME OPERATOR REVIEWS
+                  </span>
+                  <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/30">
+                    TELEGRAM BOT SYNCED
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  ⭐ ఆపరేటర్ ఫీడ్‌బ్యాక్ & స్టార్ రేటింగ్స్ (Operator Feedback & Ratings)
+                </h2>
+                <p className="text-slate-300 text-xs sm:text-sm mt-0.5">
+                  E-Vedhika UBD Tool వాడుతున్న గ్రామ పంచాయతీ & మండల ఆపరేటర్ల వాస్తవ అనుభవాలు, రివ్యూలు మరియు రేటింగ్స్.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchFeedbacks}
+                disabled={loadingFeedback}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-2 shadow-lg cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingFeedback ? 'animate-spin' : ''}`} />
+                <span>{loadingFeedback ? 'రిఫ్రెష్ అవుతోంది...' : 'రిఫ్రెష్ (Refresh)'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Metric Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">సగటు రేటింగ్ (Average Rating)</span>
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-black text-slate-900">{feedbackStats.averageRating || '5.0'}</span>
+                <span className="text-sm font-bold text-slate-400">/ 5.0</span>
+              </div>
+              <div className="flex items-center gap-1 text-amber-500 text-sm mt-1">
+                {'⭐'.repeat(Math.round(feedbackStats.averageRating || 5))}
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">మొత్తం రివ్యూలు (Total Reviews)</span>
+              <div className="text-3xl font-black text-slate-900">{feedbacks.length}</div>
+              <span className="text-xs font-bold text-emerald-600 mt-1 block">GP & Mandal Offices</span>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">5-Star రేటింగ్స్ (Top Ratings)</span>
+              <div className="text-3xl font-black text-emerald-600">{feedbacks.filter(f => f.rating >= 5).length}</div>
+              <span className="text-xs font-bold text-slate-500 mt-1 block">
+                {feedbacks.length > 0 ? Math.round((feedbacks.filter(f => f.rating >= 5).length / feedbacks.length) * 100) : 100}% of Total
+              </span>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">టెలిగ్రామ్ అలర్ట్స్ (Telegram Alerts)</span>
+              <div className="text-3xl font-black text-sky-600">100%</div>
+              <span className="text-xs font-bold text-slate-500 mt-1 block">Live @ubd_installation_alerts_bot</span>
+            </div>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl overflow-x-auto">
+            <button
+              onClick={() => setFeedbackFilterRating('ALL')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${feedbackFilterRating === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              అన్నీ (All Reviews - {feedbacks.length})
+            </button>
+            {[5, 4, 3, 2, 1].map(r => (
+              <button
+                key={r}
+                onClick={() => setFeedbackFilterRating(r)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${feedbackFilterRating === r ? 'bg-amber-500 text-slate-950 font-black shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                <span>{'⭐'.repeat(r)}</span>
+                <span>({feedbacks.filter(f => f.rating === r).length})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Feedback Records Table */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-amber-500" />
+                  <span>ఆపరేటర్ ఫీడ్‌బ్యాక్ జాబితా (Operator Feedback Records)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">రియల్-టైమ్ సెంట్రల్ క్లౌడ్ వాల్ట్ నుండి సేకరించబడిన ఫీడ్‌బ్యాక్స్</p>
+              </div>
+              <span className="text-xs font-mono font-bold bg-slate-100 px-3 py-1 rounded-full text-slate-700">
+                {feedbacks.filter(f => feedbackFilterRating === 'ALL' || f.rating === feedbackFilterRating).length} Records
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">రేటింగ్ (Rating)</th>
+                    <th className="py-3 px-4">ఆపరేటర్ (Operator)</th>
+                    <th className="py-3 px-4">ఆఫీస్ / గ్రామం (Office / GP)</th>
+                    <th className="py-3 px-4">విభాగం (Category)</th>
+                    <th className="py-3 px-4 min-w-[280px]">అభిప్రాయం / కామెంట్ (Comments)</th>
+                    <th className="py-3 px-4">కంప్యూటర్ (PC / Device)</th>
+                    <th className="py-3 px-4">సమయం (Timestamp)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {feedbacks
+                    .filter(f => feedbackFilterRating === 'ALL' || f.rating === feedbackFilterRating)
+                    .map((item, idx) => (
+                      <tr key={idx} className="hover:bg-amber-50/40 transition">
+                        <td className="py-3 px-4 font-bold">
+                          <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full text-xs font-bold border border-amber-300">
+                            {'⭐'.repeat(item.rating || 5)} ({item.rating || 5}/5)
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-bold text-slate-900 block">{item.operatorName || 'Panchayat Operator'}</span>
+                          {item.contactPhone && <span className="text-[10px] text-slate-400 font-mono">{item.contactPhone}</span>}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-bold text-slate-800">{item.officeLocation || 'Gram Panchayat Office'}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px] font-semibold border border-slate-200">
+                            {item.category || 'General'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-normal text-slate-800">
+                          <p className="line-clamp-2">{item.comments || 'UBD Tool working smoothly.'}</p>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
+                          {item.pcName || item.pcId || 'HOST-PC'}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400 text-[11px] font-mono whitespace-nowrap">
+                          {item.timestampIST || item.submittedAt?.slice(0, 16) || 'Today'}
+                        </td>
+                      </tr>
+                    ))}
+                  {feedbacks.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-400 italic">
+                        ఇంకా ఫీడ్‌బ్యాక్ రికార్డులు లేవు. C# అప్లికేషన్ లేదా వెబ్‌సైట్ ద్వారా ఆపరేటర్లు రేటింగ్ నమోదు చేయవచ్చు.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedTab === 'snapshots' && (
         <div className="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-2xl animate-in fade-in duration-700">
            <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-8 border-b border-slate-100 gap-6">

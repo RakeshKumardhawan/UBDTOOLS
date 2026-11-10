@@ -35,42 +35,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     string userDesktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
                     string commonDesktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+                    string desktopPath = !string.IsNullOrEmpty(commonDesktop) && Directory.Exists(commonDesktop) ? commonDesktop : userDesktop;
+
                     string userShortcut = Path.Combine(userDesktop, "E-Vedhika UBD Tool.lnk");
                     string commonShortcut = Path.Combine(commonDesktop, "E-Vedhika UBD Tool.lnk");
                     string icoPath = Path.Combine(appDir, "app.ico");
                     string iconTarget = File.Exists(icoPath) ? icoPath : exePath;
 
-                    // Purge duplicate/alternate legacy shortcut files from both desktop locations
-                    string[] duplicateNames = new string[]
+                    // 1. Ensure Main Tool Desktop Shortcut exists
+                    if (!File.Exists(commonShortcut) && !File.Exists(userShortcut))
                     {
-                        "E-Vedhika UBD Deployment Tool.lnk",
-                        "EVedhikaUBDDeploymentTool.lnk",
-                        "EVedhika UBD Tool.lnk",
-                        "UBD Deployment Tool.lnk",
-                        "UBD Portal (Edge IE Mode).lnk",
-                        "UBD Portal (Edge IE Mode).url",
-                        "E-Vedhika UBD Deployment Tool.url",
-                        "E-Vedhika Web App (www.e-vedhika.in).url"
-                    };
-
-                    foreach (string name in duplicateNames)
-                    {
-                        try { string p1 = Path.Combine(userDesktop, name); if (File.Exists(p1)) File.Delete(p1); } catch { }
-                        try { string p2 = Path.Combine(commonDesktop, name); if (File.Exists(p2)) File.Delete(p2); } catch { }
-                    }
-
-                    // Windows displays shortcuts from BOTH CommonDesktop (Public) and UserDesktop.
-                    // If CommonDesktop shortcut exists (installed by Inno Setup for All Users), remove UserDesktop shortcut to avoid duplicates!
-                    if (File.Exists(commonShortcut))
-                    {
-                        if (File.Exists(userShortcut))
-                        {
-                            try { File.Delete(userShortcut); } catch { }
-                        }
-                    }
-                    else if (!File.Exists(userShortcut))
-                    {
-                        // Only create if NEITHER exists (prefer CommonDesktop if writable, else UserDesktop)
                         string targetPath = !string.IsNullOrEmpty(commonDesktop) && Directory.Exists(commonDesktop)
                             ? commonShortcut
                             : userShortcut;
@@ -94,7 +68,26 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             proc.WaitForExit(3000);
                         }
                     }
-                    if (logCallback != null) logCallback("[AutoRepair] Verified single official Desktop Shortcut (Zero duplicates).");
+
+                    // 2. Ensure UBD Government Portal Shortcut exists on Desktop (Launches https://ubd.telangana.gov.in)
+                    string ubdPortalUrl = Path.Combine(desktopPath, "UBD Portal (Telangana).url");
+                    if (!File.Exists(ubdPortalUrl))
+                    {
+                        string content = "[InternetShortcut]\r\nURL=https://ubd.telangana.gov.in/\r\nIconIndex=0\r\n";
+                        if (File.Exists(icoPath)) content += $"IconFile={icoPath}\r\n";
+                        File.WriteAllText(ubdPortalUrl, content);
+                    }
+
+                    // 3. Ensure E-Vedhika Main Web App Shortcut exists on Desktop (Launches https://www.e-vedhika.in)
+                    string eVedhikaUrl = Path.Combine(desktopPath, "E-Vedhika Web Portal.url");
+                    if (!File.Exists(eVedhikaUrl))
+                    {
+                        string content = "[InternetShortcut]\r\nURL=https://www.e-vedhika.in/\r\nIconIndex=0\r\n";
+                        if (File.Exists(icoPath)) content += $"IconFile={icoPath}\r\n";
+                        File.WriteAllText(eVedhikaUrl, content);
+                    }
+
+                    if (logCallback != null) logCallback("[AutoRepair] Verified official Desktop Shortcuts for E-Vedhika Tool, UBD Portal & Web App.");
                 }
                 catch { }
 
@@ -163,6 +156,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             if (logCallback != null) logCallback("[Audit] Scanning system for corrupted settings, deleted files, Windows Update resets, or missing UBD policies...");
 
             string expectedXmlPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "sites.xml");
+            string enterpriseCompatXml = @"C:\enterprise_compat\sites.xml";
 
             bool edgeOk = true;
             bool zoneOk = true;
@@ -172,9 +166,34 @@ namespace EVedhikaUBDDeploymentTool.Engine
             // 1. Verify Edge IE Mode Policies & sites.xml file existence
             try
             {
-                if (!File.Exists(expectedXmlPath) || new FileInfo(expectedXmlPath).Length < 30)
+                // Synchronize both locations if either exists
+                if (File.Exists(enterpriseCompatXml) && (!File.Exists(expectedXmlPath) || new FileInfo(expectedXmlPath).Length < 30))
                 {
-                    if (logCallback != null) logCallback("[Audit WARN] sites.xml is MISSING or DELETED from " + expectedXmlPath);
+                    try
+                    {
+                        string dir = Path.GetDirectoryName(expectedXmlPath);
+                        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                        File.Copy(enterpriseCompatXml, expectedXmlPath, true);
+                    }
+                    catch { }
+                }
+                else if (File.Exists(expectedXmlPath) && (!File.Exists(enterpriseCompatXml) || new FileInfo(enterpriseCompatXml).Length < 30))
+                {
+                    try
+                    {
+                        string dir = Path.GetDirectoryName(enterpriseCompatXml);
+                        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                        File.Copy(expectedXmlPath, enterpriseCompatXml, true);
+                    }
+                    catch { }
+                }
+
+                bool hasValidXml = (File.Exists(expectedXmlPath) && new FileInfo(expectedXmlPath).Length >= 30) ||
+                                   (File.Exists(enterpriseCompatXml) && new FileInfo(enterpriseCompatXml).Length >= 30);
+
+                if (!hasValidXml)
+                {
+                    if (logCallback != null) logCallback("[Audit WARN] sites.xml is missing. Generating fresh Enterprise Site List...");
                     edgeOk = false;
                 }
 
@@ -440,19 +459,32 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             return repairedSomething;
         }
-public static void RestartEdgeProcesses(Action<string> logCallback)
+        public static void RestartEdgeProcesses(Action<string> logCallback, bool forceKillActiveWindows = false)
         {
             try
             {
                 var edgeProcs = Process.GetProcessesByName("msedge");
                 if (edgeProcs.Length > 0)
                 {
-                    if (logCallback != null) logCallback(string.Format("[Edge Refresh] Closing {0} active Microsoft Edge process(es) to force reload of IE Mode sites.xml policy...", edgeProcs.Length));
+                    int closedCount = 0;
                     foreach (var proc in edgeProcs)
                     {
-                        try { proc.Kill(); } catch { }
+                        try
+                        {
+                            // Never terminate active user browser window during automatic background self-healing!
+                            if (!forceKillActiveWindows && proc.MainWindowHandle != IntPtr.Zero)
+                            {
+                                continue;
+                            }
+                            proc.Kill();
+                            closedCount++;
+                        }
+                        catch { }
                     }
-                    if (logCallback != null) logCallback("[Edge Refresh] Microsoft Edge processes closed. When you open 'UBD Portal (Edge IE Mode)' shortcut, it will load cleanly in IE Mode.");
+                    if (closedCount > 0 && logCallback != null)
+                    {
+                        logCallback(string.Format("[Edge Refresh] Refreshed {0} background Microsoft Edge process(es) for IE Mode policy reload.", closedCount));
+                    }
                 }
             }
             catch (Exception ex)

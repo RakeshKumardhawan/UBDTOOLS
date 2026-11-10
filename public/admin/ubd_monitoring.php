@@ -21,6 +21,7 @@ $announcementsFile = $storageDir . '/announcements.json';
 $exeLiveJsonFile = $storageDir . '/exe_ubd_live.json';
 $consolidatedFile = $storageDir . '/pc_consolidated_health.json';
 $issuesFile = $storageDir . '/active_issues.json';
+$feedbackFile = $storageDir . '/feedback_vault.json';
 
 // Application Version
 $version = 'v1.0.9';
@@ -307,6 +308,23 @@ $consolidatedPcs = getNormalizedConsolidatedPcs($storageDir, $dataFile, $consoli
 $totalPcs = count($consolidatedPcs);
 $healthyPcs = count(array_filter($consolidatedPcs, fn($p) => in_array($p['overallStatus'] ?? '', ['ONLINE & READY', 'HEALTHY', 'SUCCESS'])));
 $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overallStatus'] ?? '', ['ONLINE & READY', 'HEALTHY', 'SUCCESS']) || ($p['activeIssue'] ?? '') !== 'None (Healthy)'));
+
+// Load Operator Feedback & Ratings
+$feedbacks = [];
+if (file_exists($feedbackFile)) {
+    $rawFb = json_decode(@file_get_contents($feedbackFile), true);
+    if (is_array($rawFb)) $feedbacks = $rawFb;
+}
+if (empty($feedbacks) && file_exists($storageDir . '/../feedback_vault.json')) {
+    $rawFb = json_decode(@file_get_contents($storageDir . '/../feedback_vault.json'), true);
+    if (is_array($rawFb)) $feedbacks = $rawFb;
+}
+$totalFeedbacks = count($feedbacks);
+$avgRating = 5.0;
+if ($totalFeedbacks > 0) {
+    $sum = array_sum(array_map(fn($f) => floatval($f['rating'] ?? 5), $feedbacks));
+    $avgRating = round($sum / $totalFeedbacks, 1);
+}
 ?>
 <!DOCTYPE html>
 <html lang="te">
@@ -351,7 +369,7 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
         </div>
 
         <!-- Metric Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
                 <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">మొత్తం కనెక్ట్ అయిన PCలు</span>
                 <span class="text-3xl font-black text-white mt-1 block font-mono"><?= $totalPcs ?></span>
@@ -368,8 +386,13 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                 <span class="text-[10px] text-slate-500 mt-0.5 block">వివరణాత్మక అలర్ట్‌లు</span>
             </div>
             <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
+                <span class="text-[11px] font-bold text-amber-300 uppercase tracking-wider block">⭐ యూజర్ రేటింగ్ (RATING)</span>
+                <span class="text-3xl font-black text-amber-400 mt-1 block font-mono"><?= $avgRating ?> <span class="text-sm text-slate-400">/ 5</span></span>
+                <span class="text-[10px] text-emerald-400 mt-0.5 block font-bold"><?= $totalFeedbacks ?> Operator Reviews</span>
+            </div>
+            <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
                 <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">లక్ష్య వెర్షన్ &amp; OTA బిల్డ్</span>
-                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.11.09.R1]</span>
+                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.11.10.R1]</span>
                 <span class="text-[10px] text-emerald-400 mt-0.5 block font-bold">100% ఆటో-అప్‌డేట్ సింకింగ్ యాక్టివ్</span>
             </div>
         </div>
@@ -417,7 +440,7 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                             <td class="p-4 text-slate-400 font-mono text-[11px]"><?= htmlspecialchars($pc['os']) ?></td>
                             <td class="p-4">
                                 <div class="font-bold text-indigo-400 font-mono text-[11px]"><?= htmlspecialchars($pc['appVersion'] ?? 'v1.0.9') ?></div>
-                                <div class="text-[9px] text-emerald-400 font-mono">OTA: <?= htmlspecialchars($pc['resourceBuild'] ?? '2026.11.09.R1') ?></div>
+                                <div class="text-[9px] text-emerald-400 font-mono">OTA: <?= htmlspecialchars($pc['resourceBuild'] ?? '2026.11.10.R1') ?></div>
                             </td>
                             <td class="p-4 whitespace-nowrap">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-emerald-950 text-emerald-300 border-emerald-800">
@@ -428,6 +451,78 @@ $issueCount = count(array_filter($consolidatedPcs, fn($p) => !in_array($p['overa
                             <td class="p-4 text-slate-300"><?= htmlspecialchars($pc['dscStatus']) ?></td>
                             <td class="p-4 text-slate-400 italic max-w-sm"><?= htmlspecialchars($pc['lastSummary']) ?></td>
                             <td class="p-4 text-slate-400 font-mono text-[11px] whitespace-nowrap"><?= htmlspecialchars($pc['lastSeen']) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Operator Feedback & Ratings Hub -->
+        <div class="bg-slate-900/90 rounded-3xl border border-slate-800 shadow-xl overflow-hidden mt-8">
+            <div class="p-5 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40">
+                <div>
+                    <h2 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <span class="text-amber-400">⭐</span> USER FEEDBACK &amp; RATINGS HUB (ఆపరేటర్ల స్పందనలు &amp; రేటింగ్స్)
+                    </h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">గ్రామ పంచాయతీ &amp; మండల సిబ్బంది అప్లికేషన్ ద్వారా నేరుగా పంపిన అభిప్రాయాలు</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg text-xs font-mono font-bold">
+                        ⭐ <?= $avgRating ?> / 5.0 (<?= $totalFeedbacks ?> Reviews)
+                    </span>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-950/60 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                        <tr>
+                            <th class="p-4">RATING</th>
+                            <th class="p-4">OPERATOR &amp; OFFICE</th>
+                            <th class="p-4">CONTACT</th>
+                            <th class="p-4">CATEGORY</th>
+                            <th class="p-4">OPERATOR COMMENTS &amp; FEEDBACK</th>
+                            <th class="p-4">PC &amp; OS</th>
+                            <th class="p-4">SUBMITTED TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        <?php if (empty($feedbacks)): ?>
+                        <tr>
+                            <td colspan="7" class="p-8 text-center text-slate-500 italic">
+                                ఇంకా ఏ ఆపరేటర్ ఫీడ్‌బ్యాక్ రాలేదు. అప్లికేషన్ నుండి ఫీడ్‌బ్యాక్ పంపిన వెంటనే ఇక్కడ ప్రత్యక్షమవుతుంది.
+                            </td>
+                        </tr>
+                        <?php else: ?>
+                        <?php foreach ($feedbacks as $fb): ?>
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-4 whitespace-nowrap">
+                                <span class="font-bold text-amber-400 text-sm"><?= htmlspecialchars($fb['ratingStars'] ?? str_repeat('⭐', intval($fb['rating'] ?? 5))) ?></span>
+                                <div class="text-[10px] text-slate-400 font-mono"><?= htmlspecialchars($fb['ratingLabel'] ?? ($fb['rating'] . '/5 Stars')) ?></div>
+                            </td>
+                            <td class="p-4">
+                                <div class="font-bold text-white"><?= htmlspecialchars($fb['operatorName'] ?? 'Operator') ?></div>
+                                <div class="text-[10px] text-emerald-400 font-medium"><?= htmlspecialchars($fb['officeLocation'] ?? '') ?></div>
+                            </td>
+                            <td class="p-4 font-mono text-[11px] text-slate-300">
+                                <?= !empty($fb['contactPhone']) ? htmlspecialchars($fb['contactPhone']) : '<span class="text-slate-600">-</span>' ?>
+                            </td>
+                            <td class="p-4">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 border border-indigo-800 text-indigo-300">
+                                    <?= htmlspecialchars($fb['category'] ?? 'General') ?>
+                                </span>
+                            </td>
+                            <td class="p-4 text-slate-200 max-w-md italic">
+                                "<?= htmlspecialchars($fb['comments'] ?? $fb['feedback'] ?? '') ?>"
+                            </td>
+                            <td class="p-4 text-slate-400 font-mono text-[10px]">
+                                <div><?= htmlspecialchars($fb['pcName'] ?? 'PC') ?></div>
+                                <div class="text-slate-500"><?= htmlspecialchars($fb['osVersion'] ?? '') ?></div>
+                            </td>
+                            <td class="p-4 font-mono text-[10px] text-slate-400 whitespace-nowrap">
+                                <?= htmlspecialchars($fb['timestampIST'] ?? $fb['submittedAt'] ?? '') ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                         <?php endif; ?>

@@ -144,9 +144,9 @@ export const CURRENT_APP_VERSION = 'v1.0.9';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.09.R1',
+  manifestVersion: '2026.11.10.R1',
   appVersion: 'v1.0.9',
-  lastSyncTimestamp: '2026-11-09T00:00:00.000Z',
+  lastSyncTimestamp: '2026-11-10T00:00:00.000Z',
   totalResources: 5,
   outdatedCount: 0,
   resources: [
@@ -154,11 +154,11 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'ubd-sites-xml',
       name: 'UBD Sites Enterprise List (sites.xml)',
       category: 'Portal Policy',
-      currentVersion: '2026.11.09.R1',
-      latestVersion: '2026.11.09.R1',
+      currentVersion: '2026.11.10.R1',
+      latestVersion: '2026.11.10.R1',
       hash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
       latestHash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
-      lastUpdated: '2026-11-09',
+      lastUpdated: '2026-11-10',
       status: 'Up to Date',
       description: 'Enterprise Site List configuration for ubd.telangana.gov.in & ubd.ap.gov.in IE Mode rules',
       sizeBytes: 14200
@@ -486,7 +486,7 @@ export async function checkForUpdates(
   };
 }
 
-export const LOCAL_BUILD_VERSION = '2026.11.09.R1';
+export const LOCAL_BUILD_VERSION = '2026.11.10.R1';
 
 export interface OtaCheckResult {
   hasOtaUpdate: boolean;

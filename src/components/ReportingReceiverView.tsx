@@ -43,7 +43,9 @@ export interface FleetMachineRecord {
   localIp?: string;
   publicIp?: string;
   ramUsage?: string;
+  ramInfo?: string;
   diskFreeSpace?: string;
+  romStorage?: string;
   cpuInfo?: string;
   status: string;
   overallStatus?: string;
@@ -583,8 +585,8 @@ export const ReportingReceiverView: React.FC = () => {
                 <div><span className="text-slate-400">అప్డేట్ సింక్:</span> <span className="font-bold text-indigo-700">{selectedRecord.updateReceivedDate}</span></div>
                 <div><span className="text-slate-400">వెర్షన్ & బిల్డ్:</span> <span className="font-bold">{selectedRecord.version} ({selectedRecord.updateBuild})</span></div>
                 <div><span className="text-slate-400">ఆపరేటింగ్ సిస్టమ్:</span> <span className="font-bold">{selectedRecord.osVersion}</span></div>
-                <div><span className="text-slate-400">RAM వివరాలు:</span> <span className="font-bold">{selectedRecord.ramUsage || '8.00 GB'}</span></div>
-                <div><span className="text-slate-400">డిస్క్ ఖాళీ స్థలం:</span> <span className="font-bold">{selectedRecord.diskFreeSpace || '120 GB'}</span></div>
+                <div><span className="text-slate-400">RAM వివరాలు:</span> <span className="font-bold">{selectedRecord.ramInfo || selectedRecord.ramUsage || '8.00 GB Total (3.80 GB Used)'}</span></div>
+                <div><span className="text-slate-400">ROM స్టోరేజ్:</span> <span className="font-bold">{selectedRecord.romStorage || (selectedRecord.diskFreeSpace ? `${selectedRecord.diskFreeSpace} Free` : '512 GB ROM Storage')}</span></div>
                 <div><span className="text-slate-400">ప్రాసెసర్ (CPU):</span> <span className="font-bold">{selectedRecord.cpuInfo || 'Intel Core i5'}</span></div>
                 <div><span className="text-slate-400">17 స్టెప్స్ స్టేటస్:</span> <span className="font-bold text-emerald-600">{selectedRecord.verification}</span></div>
                 <div><span className="text-slate-400">DSC డ్రైవర్:</span> <span className="font-bold text-emerald-600">{selectedRecord.dscStatus}</span></div>

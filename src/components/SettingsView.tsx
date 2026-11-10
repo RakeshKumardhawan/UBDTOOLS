@@ -229,70 +229,51 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       showError('Please enter some text feedback or comments before submitting.', 'Feedback Required');
       return;
     }
-    const targetWebhook = (webhookUrl || '').trim();
-    if (!targetWebhook) {
-      showError('Please enter and save a Webhook URL first in the "API Integration (Webhook)" section.', 'Webhook URL Missing');
-      return;
-    }
-
     setIsSubmittingFeedback(true);
     const payload = {
-      event: 'user_feedback',
       rating: feedbackRating,
       ratingLabel: ratingLabels[feedbackRating]?.title || `${feedbackRating} Stars`,
       ratingTelugu: ratingLabels[feedbackRating]?.desc || '',
+      comments: feedbackText.trim(),
       feedback: feedbackText.trim(),
-      office: feedbackOffice.trim() || 'Telangana Office',
-      departmentProfile: selectedProfile?.name || 'Urban Basic Development (UBD)',
+      officeLocation: feedbackOffice.trim() || 'Telangana Gram Panchayat Office',
+      operatorName: 'Web Portal Operator',
+      category: 'Web App / Portal Integration',
       primaryUrl: selectedProfile?.primaryUrl || 'https://ubd.telangana.gov.in',
-      timestamp: new Date().toISOString(),
-      submittedAt: new Date().toLocaleString(),
-      clientEnvironment: {
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-        language: typeof navigator !== 'undefined' ? navigator.language : '',
-        platform: typeof navigator !== 'undefined' ? navigator.platform : ''
-      },
-      source: 'E-Vedhika Settings Feedback Portal',
-      version: 'v1.0.8'
+      appVersion: 'v1.0.9',
+      resourceBuild: '2026.11.10.R1',
+      source: 'E-Vedhika Web App Settings'
     };
 
     try {
-      // Dispatch via server-side proxy route to avoid browser CORS issues with 3rd-party webhook endpoints
-      const response = await fetch('/api/send-webhook', {
+      // 1. Submit directly to Central E-Vedhika Feedback Vault & Telegram Notification
+      const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          webhookUrl: targetWebhook,
-          payload
-        })
+        body: JSON.stringify(payload)
       });
 
       const resData = await response.json().catch(() => null);
 
-      if (response.ok && resData?.success) {
-        showSuccess('Feedback & rating sent successfully to the webhook endpoint!', 'Feedback Dispatched');
-        setFeedbackSuccess(true);
-        setFeedbackText('');
-        setTimeout(() => setFeedbackSuccess(false), 4000);
-      } else {
-        // Direct browser fetch fallback if proxy failed or direct CORS allowed
+      // 2. Also forward to custom webhook if user configured one
+      const targetWebhook = (webhookUrl || '').trim();
+      if (targetWebhook) {
         try {
-          const directRes = await fetch(targetWebhook, {
+          await fetch('/api/send-webhook', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ webhookUrl: targetWebhook, payload })
           });
-          if (directRes.ok) {
-            showSuccess('Feedback delivered directly to your webhook URL!', 'Feedback Dispatched');
-            setFeedbackSuccess(true);
-            setFeedbackText('');
-            setTimeout(() => setFeedbackSuccess(false), 4000);
-          } else {
-            showError(resData?.error || `Webhook responded with HTTP status ${response.status}`, 'Delivery Failed');
-          }
-        } catch {
-          showError(resData?.error || 'Failed to dispatch feedback to webhook. Verify endpoint accessibility.', 'Webhook Error');
-        }
+        } catch {}
+      }
+
+      if (response.ok && resData?.success) {
+        showSuccess('మీ అభిప్రాయం మరియు రేటింగ్ విజయవంతంగా నమోదు చేయబడింది! డాష్‌బోర్డ్ & టెలిగ్రామ్‌కు పంపబడింది.', 'Feedback Submitted');
+        setFeedbackSuccess(true);
+        setFeedbackText('');
+        setTimeout(() => setFeedbackSuccess(false), 5000);
+      } else {
+        showError(resData?.error || 'Failed to record feedback. Please check connection.', 'Submission Failed');
       }
     } catch (err: any) {
       showError('Failed to dispatch feedback: ' + (err.message || 'Network error'), 'Network Error');

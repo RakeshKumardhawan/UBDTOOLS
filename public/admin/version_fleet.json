@@ -213,5 +213,48 @@
     "activeIssue": null,
     "issueHistory": [],
     "lastTelegramAlertEpoch": 0
+  },
+  {
+    "pcId": "EVD-TS-MNCL-68",
+    "pcName": "TEST-GP-PC",
+    "userName": "Operator",
+    "officeLocation": "Mancherial, Telangana",
+    "district": "Mancherial",
+    "state": "Telangana",
+    "osVersion": "Windows 11 Home",
+    "winBuild": "10.0.26300",
+    "appVersion": "v1.0.9",
+    "machineIdentifier": "EVD-TS-MNCL-68",
+    "firstSeen": "2026-11-10 11:04:37",
+    "lastSeenEpoch": 1794308677383,
+    "lastTelemetryUpdate": "2026-11-10 11:04:37",
+    "overallStatus": "HEALTHY",
+    "deployment": {
+      "totalSteps": 17,
+      "verifiedSteps": 17,
+      "failedSteps": 0,
+      "skippedSteps": 0,
+      "verificationPercentage": 100,
+      "failedStepNames": [],
+      "lastDeploymentTime": "2026-11-10 11:04:37",
+      "deployResult": "SUCCESS",
+      "deployProfile": "17/17 Standard Telangana/AP Profile"
+    },
+    "technicalHealth": {
+      "edgeVersion": "Edge 126.0 (64-Bit)",
+      "edgeIeModeStatus": "PASS",
+      "sitesXmlStatus": "PASS",
+      "registryPoliciesStatus": "PASS",
+      "ubdWebsiteStatus": "PASS",
+      "dotNetStatus": "PASS",
+      "internetConnectivity": "PASS",
+      "digiSignerStatus": "PASS",
+      "dscDriverStatus": "PASS",
+      "dscTokenConnected": "PASS",
+      "certValidity": "PASS"
+    },
+    "activeIssue": null,
+    "issueHistory": [],
+    "lastTelegramAlertEpoch": 0
   }
 ]

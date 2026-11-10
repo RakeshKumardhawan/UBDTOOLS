@@ -152,6 +152,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             xmlContent += "\n</site-list>";
 
             string targetPath = @"C:\enterprise_compat\sites.xml";
+            string altPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "sites.xml");
             
             try
             {
@@ -160,10 +161,28 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Directory.CreateDirectory(@"C:\enterprise_compat");
                 }
                 File.WriteAllText(targetPath, xmlContent);
+
+                try
+                {
+                    string altDir = Path.GetDirectoryName(altPath);
+                    if (!Directory.Exists(altDir)) Directory.CreateDirectory(altDir);
+                    File.WriteAllText(altPath, xmlContent);
+                }
+                catch { }
+
                 return targetPath;
             }
             catch (Exception ex)
             {
+                try
+                {
+                    string altDir = Path.GetDirectoryName(altPath);
+                    if (!Directory.Exists(altDir)) Directory.CreateDirectory(altDir);
+                    File.WriteAllText(altPath, xmlContent);
+                    return altPath;
+                }
+                catch { }
+
                 Console.WriteLine(string.Format("SiteList XML write exception: {0}", ex.Message));
                 return string.Empty;
             }
