@@ -213,7 +213,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             }
         }
 
-        public static bool HasAlreadyReportedToTelegram(string pcId, string currentBuild = "2026.11.09.R1")
+        public static bool HasAlreadyReportedToTelegram(string pcId, string currentBuild = "2026.11.10.R2")
         {
             if (string.Equals(pcId, "EVD-PC-1900-62E8", StringComparison.OrdinalIgnoreCase)) return true;
 
@@ -231,7 +231,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             return false;
         }
 
-        public static void MarkAsReportedToTelegram(string pcId, string currentBuild = "2026.11.09.R1")
+        public static void MarkAsReportedToTelegram(string pcId, string currentBuild = "2026.11.10.R2")
         {
             try
             {
@@ -270,8 +270,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             if (!data.ContainsKey("reportId")) data["reportId"] = "RPT-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
             if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
-            if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.09.R1";
-            if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.09.R1";
+            if (!data.ContainsKey("buildVersion")) data["buildVersion"] = "2026.11.10.R2";
+            if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = "2026.11.10.R2";
             if (!data.ContainsKey("winEdition")) data["winEdition"] = SystemInfoHelper.GetWindowsVersion();
             if (!data.ContainsKey("winBuild")) data["winBuild"] = SystemInfoHelper.GetWindowsBuildNumber();
             if (!data.ContainsKey("architecture")) data["architecture"] = SystemInfoHelper.GetSystemArchitecture();
@@ -325,7 +325,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             }
 
             bool force = data.ContainsKey("forceTelegram") && (data["forceTelegram"] == "true" || data["forceTelegram"] == "True");
-            bool alreadyReported = HasAlreadyReportedToTelegram(machineId, "2026.11.09.R1");
+            bool alreadyReported = HasAlreadyReportedToTelegram(machineId, "2026.11.10.R2");
             if (alreadyReported && !force)
             {
                 data["pcAlreadyReported"] = "true";

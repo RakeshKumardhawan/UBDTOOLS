@@ -74,8 +74,8 @@ jobs:
         files: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
-        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.10.R1)
-        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.10.R1) - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Support, Dual-Channel Independent Telemetry, In-App Operator Feedback & Ratings, and Instant Telegram Reporting."
+        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.10.R2)
+        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.10.R2) - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Support, Dual-Channel Independent Telemetry, In-App Operator Feedback & Ratings, and Instant Telegram Reporting."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

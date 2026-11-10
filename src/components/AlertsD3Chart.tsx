@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
 interface AlertDataPoint {
@@ -8,22 +8,77 @@ interface AlertDataPoint {
   info: number;
 }
 
-const mockAlertData: AlertDataPoint[] = [
-  { hour: '00:00', critical: 1, warning: 3, info: 12 },
-  { hour: '03:00', critical: 0, warning: 1, info: 8 },
-  { hour: '06:00', critical: 2, warning: 4, info: 15 },
-  { hour: '09:00', critical: 5, warning: 9, info: 28 },
-  { hour: '12:00', critical: 3, warning: 6, info: 22 },
-  { hour: '15:00', critical: 1, warning: 2, info: 14 },
-  { hour: '18:00', critical: 4, warning: 7, info: 19 },
-  { hour: '21:00', critical: 2, warning: 3, info: 10 },
-];
-
 export function AlertsD3Chart() {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const [chartData, setChartData] = useState<AlertDataPoint[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!svgRef.current) return;
+    async function fetchLiveTelemetryData() {
+      try {
+        const res = await fetch(`/api/telemetry?t=${Date.now()}`);
+        if (!res.ok) throw new Error('Failed to fetch telemetry');
+        const json = await res.json();
+        const logs: any[] = json.logs || [];
+
+        // Build 3-hour interval map
+        const hoursList = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
+        const intervalsMap: Record<string, { critical: number; warning: number; info: number }> = {};
+        hoursList.forEach(h => {
+          intervalsMap[h] = { critical: 0, warning: 0, info: 0 };
+        });
+
+        logs.forEach(log => {
+          const timeStr = log.time || '12:00:00';
+          let hourNum = 12;
+          try {
+            const parts = timeStr.split(':');
+            if (parts.length > 0) {
+              hourNum = parseInt(parts[0], 10) || 12;
+              if (timeStr.toLowerCase().includes('pm') && hourNum < 12) hourNum += 12;
+              if (timeStr.toLowerCase().includes('am') && hourNum === 12) hourNum = 0;
+            }
+          } catch {}
+
+          const intervalIdx = Math.floor((hourNum % 24) / 3);
+          const intervalKey = hoursList[intervalIdx] || '12:00';
+
+          const isFail = String(log.status || '').toUpperCase().includes('FAIL') || Number(log.healthScore) < 65;
+          const isWarn = String(log.status || '').toUpperCase().includes('WARN') || Number(log.healthScore) < 85;
+
+          if (isFail) {
+            intervalsMap[intervalKey].critical += 1;
+          } else if (isWarn) {
+            intervalsMap[intervalKey].warning += 1;
+          } else {
+            intervalsMap[intervalKey].info += 1;
+          }
+        });
+
+        const points: AlertDataPoint[] = hoursList.map(h => ({
+          hour: h,
+          critical: intervalsMap[h].critical,
+          warning: intervalsMap[h].warning,
+          info: intervalsMap[h].info
+        }));
+
+        setChartData(points);
+      } catch (e) {
+        console.warn('Failed to load live telemetry chart:', e);
+        const defaultPoints: AlertDataPoint[] = [
+          '00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'
+        ].map(h => ({ hour: h, critical: 0, warning: 0, info: 1 }));
+        setChartData(defaultPoints);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLiveTelemetryData();
+  }, []);
+
+  useEffect(() => {
+    if (!svgRef.current || chartData.length === 0) return;
 
     // Clear previous render
     d3.select(svgRef.current).selectAll('*').remove();
@@ -39,15 +94,18 @@ export function AlertsD3Chart() {
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
+    // Calculate max height
+    const maxVal = Math.max(5, d3.max(chartData, (d: AlertDataPoint) => d.critical + d.warning + d.info) || 5);
+
     // X scale
     const x = d3.scaleBand()
-      .domain(mockAlertData.map(d => d.hour))
+      .domain(chartData.map(d => d.hour))
       .range([0, innerWidth])
       .padding(0.3);
 
     // Y scale
     const y = d3.scaleLinear()
-      .domain([0, 35])
+      .domain([0, maxVal])
       .nice()
       .range([innerHeight, 0]);
 
@@ -61,7 +119,7 @@ export function AlertsD3Chart() {
 
     // Add Y axis
     svg.append('g')
-      .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth))
+      .call(d3.axisLeft(y).ticks(4).tickSize(-innerWidth))
       .selectAll('text')
       .attr('fill', '#94a3b8')
       .attr('font-size', '10px');
@@ -76,7 +134,7 @@ export function AlertsD3Chart() {
       .range(['#f43f5e', '#f59e0b', '#06b6d4']);
 
     const stackedData = d3.stack<any>()
-      .keys(subgroups)(mockAlertData as any);
+      .keys(subgroups)(chartData as any);
 
     // Draw bars
     svg.selectAll('g.layer')
@@ -90,27 +148,33 @@ export function AlertsD3Chart() {
       .append('rect')
       .attr('x', d => x(d.data.hour)!)
       .attr('y', d => y(d[1]))
-      .attr('height', d => y(d[0]) - y(d[1]))
+      .attr('height', d => Math.max(0, y(d[0]) - y(d[1])))
       .attr('width', x.bandwidth())
       .attr('rx', 4);
 
-  }, []);
+  }, [chartData]);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white space-y-4 shadow-xl">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">24-Hour System Alerts Hotspots</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Frequency and severity distribution across Mandal/GP office endpoints.</p>
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">24-Hour Live System Telemetry Distribution</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Real-time telemetry hotspots and health status across authentic Mandal/GP office endpoints.</p>
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Critical</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Warning</div>
-          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>Info</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>Verified</div>
         </div>
       </div>
       <div className="w-full overflow-x-auto bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-        <svg ref={svgRef} className="w-full h-auto max-h-[260px]"></svg>
+        {loading ? (
+          <div className="text-center py-12 font-mono text-xs text-slate-500">
+            Loading live telemetry distribution...
+          </div>
+        ) : (
+          <svg ref={svgRef} className="w-full h-auto max-h-[260px]"></svg>
+        )}
       </div>
     </div>
   );

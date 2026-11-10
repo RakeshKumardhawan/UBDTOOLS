@@ -183,7 +183,7 @@ function MainAppContent() {
         if (!remoteData) return;
 
         const latestVersion = remoteData.latestVersion || remoteData.currentVersion || CURRENT_APP_VERSION;
-        const latestBuild = remoteData.latestResourceBuild || remoteData.resourceBuild || '2026.11.09.R1';
+        const latestBuild = remoteData.latestResourceBuild || remoteData.resourceBuild || '2026.11.10.R2';
 
         // Save latest version & build to localStorage as requested
         localStorage.setItem('evedhika_latest_version', latestVersion);

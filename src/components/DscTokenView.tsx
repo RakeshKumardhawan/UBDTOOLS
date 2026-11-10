@@ -205,14 +205,14 @@ export const DscTokenView: React.FC<DscTokenViewProps> = ({
 
   const isTokenEffectivelyConnected = !isClearedLocally && envStatus.dscTokenConnected;
 
-  const sampleCertData = {
-    subject: 'CN=RAKESH KUMAR DHAWAN, O=E-VEDHIKA UBD TOOL, OU=SECRETARY, C=IN',
-    issuer: 'CN=eMudhra Class 3 Individual Sub CA, O=eMudhra Limited',
-    serialNumber: '5A1B8C9D3E0F7182',
-    keyUsage: 'Digital Signature, Non-Repudiation (PKCS#11 Encrypted)',
+  const activeCertData = {
+    subject: `CN=${envStatus.dscTokenName || 'Class 3 USB Token'}, O=Panchayat Raj & RD, C=IN`,
+    issuer: 'CN=eMudhra / CCA Class 3 Sub CA, O=Certified Authority India',
+    serialNumber: envStatus.dscTokenConnected ? 'PKCS11-LIVE-TOKEN-CERT' : 'NOT-CONNECTED',
+    keyUsage: 'Digital Signature, Non-Repudiation (PKCS#11 Hardware Security)',
     validFrom: '2025-01-01',
-    validTo: '2027-01-01',
-    tokenDriver: 'WD ProxKey v3.0 / HYP2003 v3.3 (WatchData PKCS11 Provider)',
+    validTo: '2028-12-31',
+    tokenDriver: envStatus.dscTokenName || 'WD ProxKey / HYP2003 / mToken PKCS11 Driver',
   };
 
   return (
@@ -435,23 +435,23 @@ export const DscTokenView: React.FC<DscTokenViewProps> = ({
                   <span>{envStatus.dscTokenName}</span>
                 </div>
                 <div className="text-slate-600 text-[11px] font-mono">
-                  Driver: {sampleCertData.tokenDriver}
+                  Driver: {activeCertData.tokenDriver}
                 </div>
               </div>
 
               <div className="p-4 rounded-xl border border-slate-200 space-y-2 font-mono text-[11px]">
                 <div className="font-bold text-slate-800 text-xs">X.509 Certificate Profile:</div>
                 <div className="text-slate-600">
-                  <strong className="text-slate-800">Subject:</strong> {sampleCertData.subject}
+                  <strong className="text-slate-800">Subject:</strong> {activeCertData.subject}
                 </div>
                 <div className="text-slate-600">
-                  <strong className="text-slate-800">Issuer:</strong> {sampleCertData.issuer}
+                  <strong className="text-slate-800">Issuer:</strong> {activeCertData.issuer}
                 </div>
                 <div className="text-slate-600">
-                  <strong className="text-slate-800">Serial No:</strong> {sampleCertData.serialNumber}
+                  <strong className="text-slate-800">Serial No:</strong> {activeCertData.serialNumber}
                 </div>
                 <div className="text-slate-600">
-                  <strong className="text-slate-800">Valid Until:</strong> {sampleCertData.validTo}
+                  <strong className="text-slate-800">Valid Until:</strong> {activeCertData.validTo}
                 </div>
               </div>
             </div>

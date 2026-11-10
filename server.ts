@@ -824,7 +824,7 @@ async function startServer() {
       `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
       `<b>Health Score:</b> <b>${healthScore}% (${healthStatus})</b>\n` +
       `<b>Health Diagnosis:</b> ${healthDiagnosis}\n` +
-      `<b>Software Version:</b> v1.0.9 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.09.R1'})\n` +
+      `<b>Software Version:</b> v1.0.9 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.10.R1'})\n` +
       `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
       `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
       `🔐 <b>Service & Security Verification</b>\n` +
@@ -1852,10 +1852,10 @@ async function startServer() {
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.10.R1): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, In-App Operator Feedback & Ratings, Seamless UBD & E-Vedhika Portal Launching, Offline Queue & Auto-Retry, and 24x7 System Guardian.',
+    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.10.R2): Full English localization, 4-Pillar Network Flow Architecture, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, In-App Operator Feedback & Ratings, Seamless UBD & E-Vedhika Portal Launching, Offline Queue & Auto-Retry, and 24x7 System Guardian.',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.10.R1',
+    latestResourceBuild: '2026.11.10.R2',
     resourceBuildDate: '2026-11-10'
   };
 
@@ -3344,7 +3344,7 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (Synced via New Update)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.09.R1',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.10.R1',
         version: body.version || 'v1.0.9',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
