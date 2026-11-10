@@ -410,7 +410,7 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 catch { }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 try
                 {
