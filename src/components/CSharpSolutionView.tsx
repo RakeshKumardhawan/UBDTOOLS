@@ -12,48 +12,59 @@ export function CSharpSolutionView({ initialTab = 'solution' }: CSharpSolutionVi
 
   const csharpFiles: Record<string, string> = {
     'MainForm.cs': `// E-Vedhika UBD Deployment Tool - MainForm.cs
-// High-Speed WinForms Enterprise Deployment & Auto-Repair Engine
+// System Tray Context Menu: Check for Updates [NEW] & One-Click 17-Step Deployment
 namespace EVedhikaUBDDeploymentTool
 {
     public partial class MainForm : Form
     {
-        public MainForm()
+        private void InitializeSystemTrayAndDscListener()
         {
-            InitializeComponent();
-            InitializeDeploymentEngine();
+            trayContextMenu = new ContextMenuStrip();
+            trayContextMenu.Items.Add(new ToolStripMenuItem("⚡ Open E-Vedhika UBD Suite", null, (s, e) => RestoreFromTray()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("🔑 Check USB DSC Token Status", null, (s, e) => CheckAndReportDscStatus()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("🛠️ Run One-Click Deployment (17 Steps)", null, (s, e) => ExecuteFullDeployment()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("🔄 Check for Updates", null, (s, e) => ExecuteCheckForUpdatesInteractive()));
+            trayContextMenu.Items.Add(new ToolStripSeparator());
+            trayContextMenu.Items.Add(new ToolStripMenuItem("❌ Exit 24x7 Guardian", null, (s, e) => ExitApplicationFromTray()));
         }
 
-        private async void btnDeploy_Click(object sender, EventArgs e)
+        private void MainForm_Load(object sender, EventArgs e)
         {
-            Log("Starting 17-Step E-Vedhika Deployment...");
-            await AutoRepairEngine.RunFullRepairAsync();
-            await CentralTelemetry.ReportStatusAsync();
+            ApplyExtraModernDarkTheme();
+            AutoUpdateEngine.CheckAndShowPendingWhatsNewOnStartup(this, msg => LogMessage("AUTO-UPDATE", msg));
         }
     }
 }`,
-    'AutoRepairEngine.cs': `// Engine/AutoRepairEngine.cs
-// Automated Edge IE Mode & DSC Token Self-Healing Module
+    'AutoUpdateEngine.cs': `// Engine/AutoUpdateEngine.cs
+// Categorized What's New Dialog, SHA-256 Integrity Verification & Auto-Restart Workflow
 namespace EVedhikaUBDDeploymentTool.Engine
 {
-    public static class AutoRepairEngine
+    public class AutoUpdateEngine
     {
-        public static async Task<bool> RunFullRepairAsync()
+        public const string CurrentVersion = "v1.0.9";
+        public const string CurrentResourceBuild = "2026.11.11.R1";
+
+        public static void ShowWhatsNewDialog(IWin32Window owner, string prevVer, string currVer, string prevBuild, string currBuild, string relDate, string installStatus, string integrityStatus, string restartStatus, string releaseNotes)
         {
-            RegistryManager.ApplyMasterZonePolicies();
-            EdgePolicyEngine.ConfigureIEMode();
-            return await DscVerificationHelper.VerifyTokenConnectionAsync();
+            // Dark Slate Modern Windows Forms Dialog rendering Categorized What's New Sections
+            // New Features | Bug Fixes | Performance Improvements | Security Updates | Compatibility
+        }
+
+        public static void CheckAndShowPendingWhatsNewOnStartup(IWin32Window owner, Action<string> logCallback)
+        {
+            // Reads update_pending_state.json, verifies new version after restart, logs telemetry & renders What's New
         }
     }
 }`,
-    'PCBoostEngine.cs': `// Engine/PCBoostEngine.cs
-// High-Speed System Cleaning & Memory Optimization Engine
-namespace EVedhikaUBDDeploymentTool.Engine
+    'OtaNotificationService.cs': `// Helpers/OtaNotificationService.cs
+// Dual-Channel Telemetry Relay & Update History Logging
+namespace EVedhikaUBDDeploymentTool.Helpers
 {
-    public static class PCBoostEngine
+    public static class OtaNotificationService
     {
-        public static void ReclaimTempMemory()
+        public static void SendUpdateHistoryLog(string eventType, string prevVer, string currVer, string prevBuild, string currBuild, string relId, string startTime, string endTime, string integrityResult, string installResult, string restartResult, string finalResult, string errorDetails = "")
         {
-            // Clears %TEMP%, Prefetch, and flushes DNS cache
+            // Dispatches full update audit log to Telegram Bot & Server Telemetry Gateway
         }
     }
 }`

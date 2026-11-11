@@ -1974,7 +1974,9 @@ async function startServer() {
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
-    releaseNotes: 'v1.0.9 Release (Resource Build 2026.11.11.R1): Full English localization, 60-Second Real-Time Application Heartbeat, Server-Side Security, SHA-256 Digest Verification, Authenticode Digital Signature, DigiSigner Certificate Whitelist Verification, Reliable Dual-Channel Live PC Telemetry, and 24x7 System Guardian.',
+    downloadSize: '8.5 MB',
+    sha256: '4d54ba00f532b15793a70e0d4c03ca03d81b1cc23f0e6a1fa0cba4860f0720c9',
+    releaseNotes: '[NEW FEATURES]\n• System Tray \'Check for Updates\' Menu Item with interactive OTA update trigger\n• Categorized \'What\'s New\' Popup Notification showing Previous vs Current Version & Build\n• Automatic Application Restart Workflow with state persistence & restart loop prevention\n\n[BUG FIXES]\n• Fixed Heartbeat Deduplication & Process State Timeout in Central Telemetry Engine\n• Resolved Duplicate Process Guardian Launch Conflict on system startup\n\n[PERFORMANCE IMPROVEMENTS]\n• Enhanced OTA Package Verification with SHA-256 Digest Audit\n• Optimized 60-Second Real-Time Telemetry Relay and memory footprint\n\n[SECURITY UPDATES]\n• Authenticode Digital Signature & Certificate Whitelist Validation\n• Enforced Encrypted HTTPS Update Downloads and payload verification',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
     latestResourceBuild: '2026.11.11.R1',

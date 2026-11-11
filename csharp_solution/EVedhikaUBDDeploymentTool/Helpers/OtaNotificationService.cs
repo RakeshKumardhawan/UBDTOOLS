@@ -82,6 +82,40 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             });
         }
 
+        public static void SendUpdateHistoryLog(string eventType, string prevVersion, string currVersion, string prevBuild, string currBuild, string releaseId, string startTime, string completionTime, string integrityResult, string installResult, string restartResult, string finalResult, string errorDetails = "")
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    string pcId = Logger.GetUniqueMachineId();
+                    string pcName = Environment.MachineName;
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("📜 <b>E-VEDHIKA OTA UPDATE HISTORY LOG</b>");
+                    sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    sb.AppendLine($"<b>Event:</b> <code>{EscapeHtml(eventType)}</code>");
+                    sb.AppendLine($"<b>PC Name:</b> <code>{EscapeHtml(pcName)}</code> ({EscapeHtml(pcId)})");
+                    sb.AppendLine($"<b>Version Transition:</b> <code>{EscapeHtml(prevVersion)}</code> ➔ <b>{EscapeHtml(currVersion)}</b>");
+                    sb.AppendLine($"<b>Resource Build:</b> <code>{EscapeHtml(prevBuild)}</code> ➔ <b>{EscapeHtml(currBuild)}</b>");
+                    sb.AppendLine($"<b>Release ID:</b> {EscapeHtml(releaseId)}");
+                    sb.AppendLine($"<b>Timestamps:</b> Start: {EscapeHtml(startTime)} | End: {EscapeHtml(completionTime)}");
+                    sb.AppendLine($"<b>Integrity Audit:</b> <b>{EscapeHtml(integrityResult)}</b>");
+                    sb.AppendLine($"<b>Installation Result:</b> <b>{EscapeHtml(installResult)}</b>");
+                    sb.AppendLine($"<b>Restart Result:</b> <b>{EscapeHtml(restartResult)}</b>");
+                    sb.AppendLine($"<b>Final Verification:</b> <b>{EscapeHtml(finalResult)}</b>");
+                    if (!string.IsNullOrEmpty(errorDetails))
+                    {
+                        sb.AppendLine($"<b>Error Details:</b> <code>{EscapeHtml(errorDetails)}</code>");
+                    }
+
+                    DispatchTelegramMessage(sb.ToString());
+                    DispatchWebOtaEvent(eventType, prevVersion, currVersion, "", $"ReleaseID: {releaseId} | Integrity: {integrityResult} | Install: {installResult} | Restart: {restartResult} | Error: {errorDetails}", finalResult);
+                }
+                catch { }
+            });
+        }
+
         private static void DispatchTelegramMessage(string message)
         {
             try

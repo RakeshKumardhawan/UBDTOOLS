@@ -444,8 +444,12 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
 
-            
-            
+            // Check if an OTA update was just completed and display What's New Notification
+            try
+            {
+                AutoUpdateEngine.CheckAndShowPendingWhatsNewOnStartup(this, msg => LogMessage("AUTO-UPDATE", msg));
+            }
+            catch { }
             // Add Header Action Buttons (Docked to Right so it NEVER overlaps title on any resolution)
             FlowLayoutPanel pnlHeaderActions = new FlowLayoutPanel
             {
@@ -2139,9 +2143,9 @@ namespace EVedhikaUBDDeploymentTool
             }
         }
 
-        private void btnCheckUpdates_Click(object sender, EventArgs e)
+        private void ExecuteCheckForUpdatesInteractive()
         {
-            btnCheckUpdates.Enabled = false;
+            if (btnCheckUpdates != null) btnCheckUpdates.Enabled = false;
             LogMessage("AUTO-UPDATE", "Checking central cloud server https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update for software updates...");
 
             ThreadPool.QueueUserWorkItem(delegate(object state)
@@ -2152,9 +2156,8 @@ namespace EVedhikaUBDDeploymentTool
                 });
 
                 SafeInvoke(delegate() {
-                    btnCheckUpdates.Enabled = true;
+                    if (btnCheckUpdates != null) btnCheckUpdates.Enabled = true;
 
-                    // Dynamically update footer status bar with active resource build
                     if (toolStripStatusLabel != null)
                     {
                         string pcId = Helpers.Logger.GetUniqueMachineId();
@@ -2163,32 +2166,26 @@ namespace EVedhikaUBDDeploymentTool
 
                     if (info.IsUpdateAvailable)
                     {
-                        DialogResult dr = MessageBox.Show(
-                            $"{info.Message}\n\nWould you like to auto-update now? The application will restart automatically to apply the update.\n\n(మీరు కొత్త వర్షన్ కి ఇప్పుడే ఆటో-అప్‌డేట్ చేయాలనుకుంటున్నారా? అప్లికేషన్ ఆటోమేటిక్‌గా రీస్టార్ట్ అవుతుంది.)",
-                            "Software Update Available / ఆటో-అప్‌డేట్ మార్గదర్శకాలు",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Information);
-
-                        if (dr == DialogResult.Yes)
-                        {
-                            LogMessage("AUTO-UPDATE", "Preparing to download and install self-update in the background...");
-                            lblUpdateStatus.Visible = true;
-                            pbUpdateProgress.Visible = true;
-                            pbUpdateProgress.Value = 0;
-                            
-                            ThreadPool.QueueUserWorkItem(delegate(object state2) 
+                        AutoUpdateEngine.ShowInteractiveUpdateDialog(
+                            this,
+                            info,
+                            delegate(string msg) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", msg); }); },
+                            delegate(int progress)
                             {
-                                AutoUpdateEngine.PerformAutoUpdate(info.DownloadUrl, 
-                                    delegate(string msg) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", msg); }); },
-                                    delegate(int progress) 
+                                SafeInvoke(delegate() {
+                                    if (pbUpdateProgress != null)
                                     {
-                                        SafeInvoke(delegate() { 
-                                            pbUpdateProgress.Value = progress;
-                                            lblUpdateStatus.Text = $"Downloading Update: {progress}%";
-                                        });
-                                    });
-                            });
-                        }
+                                        pbUpdateProgress.Visible = true;
+                                        pbUpdateProgress.Value = progress;
+                                    }
+                                    if (lblUpdateStatus != null)
+                                    {
+                                        lblUpdateStatus.Visible = true;
+                                        lblUpdateStatus.Text = $"Downloading Update: {progress}%";
+                                    }
+                                });
+                            }
+                        );
                     }
                     else
                     {
@@ -2200,6 +2197,11 @@ namespace EVedhikaUBDDeploymentTool
                     }
                 });
             });
+        }
+
+        private void btnCheckUpdates_Click(object sender, EventArgs e)
+        {
+            ExecuteCheckForUpdatesInteractive();
         }
 
         private void LogMessage(string category, string message)
@@ -2419,6 +2421,10 @@ namespace EVedhikaUBDDeploymentTool
                 var itemDeploy = new ToolStripMenuItem("🛠️ Run One-Click Deployment (17 Steps)");
                 itemDeploy.Click += (s, e) => { RestoreFromTray(); ExecuteFullDeployment(); };
                 trayContextMenu.Items.Add(itemDeploy);
+
+                var itemUpdates = new ToolStripMenuItem("🔄 Check for Updates");
+                itemUpdates.Click += (s, e) => { RestoreFromTray(); ExecuteCheckForUpdatesInteractive(); };
+                trayContextMenu.Items.Add(itemUpdates);
 
                 trayContextMenu.Items.Add(new ToolStripSeparator());
 
