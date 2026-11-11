@@ -101,6 +101,7 @@ export type NavigationTab =
   | 'backups'
   | 'pcboost'
   | 'telemetry-dashboard'
+  | 'report-center'
   | 'version-fleet'
   | 'github-dashboard'
   | 'network-flow'

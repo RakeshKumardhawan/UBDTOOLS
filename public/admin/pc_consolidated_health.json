@@ -12,7 +12,7 @@
     "machineIdentifier": "EVD-TS-KMM-01",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1793620034854,
-    "lastTelemetryUpdate": "2026-11-11 19:22:37",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -21,7 +21,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -56,7 +56,7 @@
     "machineIdentifier": "EVD-TS-TEST-58",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1793627115849,
-    "lastTelemetryUpdate": "2026-11-11 19:22:37",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -65,7 +65,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -100,7 +100,7 @@
     "machineIdentifier": "EVD-TEST-INSTALL-9999",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1793627732464,
-    "lastTelemetryUpdate": "2026-11-11 19:22:37",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -109,7 +109,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -144,7 +144,7 @@
     "machineIdentifier": "EVD-TS-MNCL-TEST01",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1793646429762,
-    "lastTelemetryUpdate": "2026-11-11 19:22:37",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -153,7 +153,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -188,7 +188,7 @@
     "machineIdentifier": "EVD-TS-MNCL-TEST-R2",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1793648878190,
-    "lastTelemetryUpdate": "2026-11-11 19:22:37",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -197,7 +197,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -232,7 +232,7 @@
     "machineIdentifier": "EVD-TS-MNCL-68",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1794308677383,
-    "lastTelemetryUpdate": "2026-11-11 19:22:37",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -241,7 +241,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -276,7 +276,7 @@
     "machineIdentifier": "EVD-TS-MNCL-40",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1794308677381,
-    "lastTelemetryUpdate": "2026-11-11 19:22:37",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -285,7 +285,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -320,7 +320,7 @@
     "machineIdentifier": "EVD-DEV-LOCAL-PC-01",
     "firstSeen": "2026-11-11",
     "lastSeenEpoch": 1794420578787,
-    "lastTelemetryUpdate": "Just Now",
+    "lastTelemetryUpdate": "2026-11-11 19:44:59",
     "overallStatus": "RESOLVED",
     "deployment": {
       "totalSteps": 17,
@@ -329,7 +329,7 @@
       "skippedSteps": 0,
       "verificationPercentage": 100,
       "failedStepNames": [],
-      "lastDeploymentTime": "2026-11-11T19:22:37.878Z",
+      "lastDeploymentTime": "2026-11-11T19:44:59.979Z",
       "deployResult": "SUCCESS",
       "deployProfile": "17/17 Standard Profile"
     },
@@ -350,5 +350,48 @@
     "issueHistory": [],
     "lastTelegramAlertEpoch": 0,
     "deviceInstallationId": "EVD-DEV-LOCAL-PC-01"
+  },
+  {
+    "pcId": "EVD-TS-TEST-PC01",
+    "pcName": "MANCHERIAL-GP-TEST-PC",
+    "userName": "PanchayatSecretary",
+    "officeLocation": "Grama Panchayat Office, Mancherial",
+    "district": "Mancherial",
+    "state": "Telangana",
+    "osVersion": "Windows 11 Home",
+    "winBuild": "10.0.26300",
+    "appVersion": "v1.0.9",
+    "machineIdentifier": "EVD-TS-TEST-PC01",
+    "firstSeen": "2026-11-11 19:45:03",
+    "lastSeenEpoch": 1794426317362,
+    "lastTelemetryUpdate": "2026-11-11 19:45:17",
+    "overallStatus": "HEALTHY",
+    "deployment": {
+      "totalSteps": 17,
+      "verifiedSteps": 17,
+      "failedSteps": 0,
+      "skippedSteps": 0,
+      "verificationPercentage": 100,
+      "failedStepNames": [],
+      "lastDeploymentTime": "2026-11-11 19:45:03",
+      "deployResult": "SUCCESS",
+      "deployProfile": "17/17 Standard Telangana/AP Profile"
+    },
+    "technicalHealth": {
+      "edgeVersion": "Edge 126.0 (64-Bit)",
+      "edgeIeModeStatus": "PASS",
+      "sitesXmlStatus": "PASS",
+      "registryPoliciesStatus": "PASS",
+      "ubdWebsiteStatus": "PASS",
+      "dotNetStatus": "PASS",
+      "internetConnectivity": "PASS",
+      "digiSignerStatus": "PASS",
+      "dscDriverStatus": "PASS",
+      "dscTokenConnected": "PASS",
+      "certValidity": "PASS"
+    },
+    "activeIssue": null,
+    "issueHistory": [],
+    "lastTelegramAlertEpoch": 0
   }
 ]

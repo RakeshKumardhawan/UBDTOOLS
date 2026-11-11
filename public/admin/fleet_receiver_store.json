@@ -12,7 +12,7 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1793620034853,
-    "updateReceivedDate": "2026-11-11 18:09:26",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
   },
   {
@@ -28,7 +28,7 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1793627115849,
-    "updateReceivedDate": "2026-11-11 18:09:26",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
   },
   {
@@ -44,7 +44,7 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1793627732464,
-    "updateReceivedDate": "2026-11-11 18:09:26",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
   },
   {
@@ -60,7 +60,7 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1793646429760,
-    "updateReceivedDate": "2026-11-11 18:09:26",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
   },
   {
@@ -76,7 +76,7 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1793648878189,
-    "updateReceivedDate": "2026-11-11 18:09:26",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
   },
   {
@@ -92,7 +92,7 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1794308677382,
-    "updateReceivedDate": "2026-11-11 18:09:26",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
   },
   {
@@ -108,7 +108,7 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1794308677381,
-    "updateReceivedDate": "2026-11-11 18:09:26",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
   },
   {
@@ -124,7 +124,22 @@
     "version": "v1.0.9",
     "resourceBuild": "2026.11.10.R2",
     "lastUpdatedEpoch": 1794420578789,
-    "updateReceivedDate": "2026-11-11 18:09:38",
+    "updateReceivedDate": "2026-11-11 19:37:28",
     "receivedVia": "Exhaustive-Recovery"
+  },
+  {
+    "pcId": "EVD-TS-TEST-PC01",
+    "pcName": "MANCHERIAL-GP-TEST-PC",
+    "userName": "PanchayatSecretary",
+    "officeLocation": "Grama Panchayat Office, Mancherial",
+    "state": "Telangana",
+    "district": "Mancherial",
+    "status": "SUCCESS",
+    "verification": "Passed (17/17)",
+    "osVersion": "Windows 11 Home",
+    "version": "v1.0.9",
+    "lastUpdatedEpoch": 1794426317362,
+    "updateReceivedDate": "2026-11-11 19:45:17",
+    "receivedVia": "Consolidated-Sync"
   }
 ]

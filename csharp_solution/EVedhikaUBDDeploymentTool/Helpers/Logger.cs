@@ -177,8 +177,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         {
                             string[] targetEndpoints = new string[]
                             {
+                                "https://www.e-vedhika.in/api/reports/sync",
+                                "https://www.e-vedhika.in/api/reports/batch-sync",
                                 "https://www.e-vedhika.in/api/telemetry",
                                 "https://www.e-vedhika.in/api/reporting/receiver",
+                                "http://localhost:3000/api/reports/sync",
                                 "http://localhost:3000/api/telemetry"
                             };
 
@@ -515,12 +518,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // ====================================================================
                 string[] websiteEndpoints = new string[]
                 {
-                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
-                    "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
-                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/reporting/receiver",
-                    "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry",
+                    "https://www.e-vedhika.in/api/reports/sync",
                     "https://www.e-vedhika.in/api/reporting/receiver",
                     "https://www.e-vedhika.in/api/telemetry",
+                    "http://localhost:3000/api/reports/sync",
                     "http://localhost:3000/api/reporting/receiver",
                     "http://localhost:3000/api/telemetry"
                 };

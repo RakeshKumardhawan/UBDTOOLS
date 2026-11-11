@@ -13,9 +13,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
         private static readonly string[] WebEndpoints = new string[]
         {
-            "https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry/ota-event",
-            "https://ais-pre-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/telemetry/ota-event",
+            "https://www.e-vedhika.in/api/reports/ota",
+            "https://www.e-vedhika.in/api/reports/sync",
             "https://www.e-vedhika.in/api/telemetry/ota-event",
+            "http://localhost:3000/api/reports/ota",
+            "http://localhost:3000/api/reports/sync",
             "http://localhost:3000/api/telemetry/ota-event"
         };
 

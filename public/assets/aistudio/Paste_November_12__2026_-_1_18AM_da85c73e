@@ -1,0 +1,1355 @@
+
+Loading older messages…
+Ipaati Dhaka Jariginaa anni mariyulu naa website https://www.e-vedhika.in/admin/ubd_monitoring  lo kotha code tho update chesukovadaniki full code ivvamanu
+
+అర్థమైంది. ఇప్పటివరకు మనం అభివృద్ధి చేసిన E-Vedhika UBD Deployment Tool v1.0.9 – R3లోని అన్ని మార్పులు, కొత్త Features, Live Monitoring, OTA Updates, Reports, Device Telemetry తదితర వివరాలను మీ Websiteలో ఉన్న Admin Monitoring పేజీకి కూడా తీసుకెళ్లాలి.
+
+Google AI Studioకి ఈ క్రింది Prompt ఇవ్వండి. ఇది కేవలం UI మార్చడం కాదు — పూర్తి Website Source Codeను Update చేయమని అడుగుతుంది.
+
+Google AI Studio – Complete Website Integration Prompt
+E-VEDHIKA – COMPLETE WEBSITE SOURCE CODE UPDATE
+UBD CENTRAL MONITORING GATEWAY – R3 INTEGRATION
+Website: https://www.e-vedhika.in
+Admin Monitoring Page: https://www.e-vedhika.in/admin/ubd_monitoring
+
+Desktop Application: E-Vedhika UBD Deployment Tool
+Application Version: v1.0.9
+Target Resource Build: 2026.11.11.R3
+
+MAIN OBJECTIVE
+ఇప్పటివరకు E-Vedhika UBD Deployment Toolలో అభివృద్ధి చేసిన అన్ని Features, Modules, Updates, Monitoring Capabilities మరియు కొత్త OTA Management Featuresను నా Websiteలోని Admin Monitoring పేజీతో పూర్తిగా Integrate చేయాలి.
+
+ప్రస్తుత Websiteలో ఉన్న Features, Firebase Collections, Authentication, Admin Roles, Permissions, APIs మరియు Database Architectureను కాపాడుతూ పూర్తి Updated Website Source Code అందించాలి.
+
+IMPORTANT: కేవలం Dashboard UI లేదా Demo Page తయారు చేయకూడదు. Actual Backend APIs, Database Integration, Live Telemetry, Report Generation మరియు Authenticationతో పనిచేసే పూర్తి Implementation కావాలి.
+
+PHASE 1: EXISTING WEBSITE SOURCE AUDIT
+ముందుగా Existing Website Project Structureను పరిశీలించండి.
+
+ప్రత్యేకంగా:
+
+/admin/ubd_monitoring
+
+Existing Admin Panel
+
+ubd_monitoring.php (ఉంటే)
+
+Existing server.ts
+
+Existing Telemetry APIs
+
+Firebase / Firestore
+
+Authentication
+
+User Roles and Permissions
+
+Existing Report APIs
+
+Existing OTA Release APIs
+
+Existing Database Storage
+
+ప్రస్తుతం ఉన్న Files, Classes, Functions, APIs ఏవీ ఊహించి సృష్టించకూడదు.
+
+ముందుగా Existing Architectureను అర్థం చేసుకుని దానికి అనుగుణంగా మార్పులు చేయాలి.
+
+PHASE 2: LIVE PC MONITORING DASHBOARD
+Admin Monitoring Pageలో క్రింది వివరాలు చూపించాలి:
+
+Total Registered PCs
+
+Authentic PCs
+
+Test PCs
+
+Duplicate PCs
+
+Unknown PCs
+
+Online PCs
+
+Offline PCs
+
+Running Applications
+
+Closed Applications
+
+Latest Application Version
+
+Latest Resource Build
+
+Total Update Success
+
+Total Update Failed
+
+PC-Wise Live Information
+ప్రతి PCకు:
+
+Device ID
+
+PC Name
+
+Office / GP Name
+
+Mandal
+
+District
+
+Windows Version
+
+OS Architecture
+
+Application Version
+
+Resource Build
+
+First Registered Date
+
+Last Heartbeat
+
+Online / Offline Status
+
+Application RUNNING / CLOSED
+
+CPU Usage
+
+RAM Usage
+
+Internet Connectivity
+
+OTA Update Status
+
+Deployment Status
+
+Last Error
+
+Device Classification
+
+ప్రతి PC వివరాలు Actual Database Records నుంచి రావాలి.
+
+PHASE 3: COMPLETE OTA UPDATE MONITORING
+Desktop Toolలో ఉన్న OTA Update Systemను Websiteతో Integrate చేయాలి.
+
+Release Information
+Current Release Version
+
+Previous Release Version
+
+Resource Build
+
+Release ID
+
+Release Date
+
+Package Size
+
+SHA-256 Hash
+
+Digital Signature Status
+
+Release Download URL
+
+Release Changelog
+
+What's New Management
+Categories:
+
+New Features
+
+Bug Fixes
+
+Performance Improvements
+
+Security Updates
+
+Compatibility Improvements
+
+Other Changes
+
+ప్రతి Releaseకు నిజమైన Changelog Metadataను Serverలో Store చేయాలి.
+
+PC-Wise Update Tracking
+ప్రతి PCకు:
+
+Installed Version
+
+Available Version
+
+Previous Resource Build
+
+Current Resource Build
+
+Update Available
+
+Download Started
+
+Download Completed
+
+Integrity Verification
+
+Installation Status
+
+Restart Required
+
+Restart Completed
+
+Post-Restart Verification
+
+Update Failure Reason
+
+Last Update Time
+
+PHASE 4: SYSTEM TRAY & OTA INTEGRATION
+Desktop Applicationలో:
+
+Check for Updates
+
+Download and Install
+
+What's New Notification
+
+Automatic Application Restart
+
+Post-Restart Version Verification
+
+Update History
+
+ఈ చర్యల ఫలితాలు Websiteలో PC-Wise Update Historyగా కనిపించాలి.
+
+Websiteలో Update Check చేసినట్లు మాత్రమే PC Update అయిందని చూపించకూడదు.
+
+నిజంగా PC నుంచి వచ్చిన Telemetry ఆధారంగానే Status Update చేయాలి.
+
+PHASE 5: 17-STEP DEPLOYMENT MONITORING
+ప్రతి PCలో One-Click Deployment 17 Steps ఫలితాలను చూపించాలి.
+
+ప్రతి Stepకు:
+
+Step Number
+
+Step Name
+
+Status: PASS / FAIL / SKIPPED / NOT TESTED
+
+Start Time
+
+Completion Time
+
+Error Details
+
+Verification Evidence
+
+ఒక PCలోని ఫలితాన్ని మరొక PCకు Copy చేయకూడదు.
+
+PHASE 6: 17-POINT SYSTEM HEALTH AUDIT
+ప్రతి PCలో క్రింది అంశాలను Monitor చేయాలి:
+
+Internet Connectivity
+
+Windows Architecture
+
+.NET Framework 3.5
+
+.NET Framework 4.8
+
+NIC DigiSigner Port 8080
+
+USB DSC Token Driver
+
+Trusted Sites Zone 2
+
+Edge IE Mode
+
+sites.xml Policy
+
+ActiveX Configuration
+
+TLS 1.2
+
+User Privileges
+
+Guardian Watcher
+
+OTA Version Synchronization
+
+Certificate Verification
+
+SHA-256 Integrity
+
+60-Second Heartbeat
+
+ప్రతి అంశానికి Actual Result, Timestamp, PASS / FAIL / NOT TESTED చూపించాలి.
+
+PHASE 7: 24x7 GUARDIAN MONITORING
+Websiteలో క్రింది వివరాలు చూపించాలి:
+
+Guardian Running / Stopped
+
+Last Guardian Heartbeat
+
+Last Health Check
+
+Policy Drift Detected
+
+Auto Repair Status
+
+Registry Repair History
+
+Edge Policy Repair History
+
+sites.xml Repair History
+
+Application Crash Events
+
+Recovery Events
+
+Guardian Errors
+
+PHASE 8: REPORT CENTER
+Admin Monitoringలో పూర్తి Report Center అందించాలి.
+
+Sections:
+
+Daily PC Health Report
+
+Monthly Master Report
+
+Consolidated PC Report
+
+All PCs Live Audit Matrix
+
+PC-Wise Deployment Report
+
+PC-Wise OTA Update Report
+
+17-Point Audit Report
+
+Error and Failure Report
+
+Monthly Archive
+
+Update History
+
+Features:
+
+Preview
+
+Search
+
+Filters
+
+Date Range
+
+PC-Wise Report
+
+Excel Export
+
+Download
+
+Archive
+
+Excel Reportsలో నిజమైన Database Records మాత్రమే ఉండాలి.
+
+PHASE 9: AUTOMATIC DAILY REPORT SCHEDULER
+Daily 19:00 IST Schedulerను Integrate చేయాలి.
+
+Automatic Excel Generation
+
+Telegram sendDocument
+
+Email Attachment
+
+Execution Logs
+
+Retry Mechanism
+
+Failure Alerts
+
+Duplicate Dispatch Prevention
+
+Last Execution Time
+
+Next Scheduled Execution
+
+Scheduled Execution మరియు Manual Testను వేర్వేరుగా గుర్తించాలి.
+
+PHASE 10: TELEGRAM & EMAIL DELIVERY MONITORING
+ప్రతి Dispatchకు:
+
+Report File Name
+
+File Size
+
+Dispatch Date
+
+Dispatch Type
+
+Telegram Message ID
+
+Telegram Document File ID
+
+Email Message ID
+
+SMTP Response
+
+Dispatch Status
+
+Error Details
+
+SMTP Acceptedను Inbox Deliveredగా చూపించకూడదు.
+
+Telegram sendMessageను sendDocumentగా పరిగణించకూడదు.
+
+PHASE 11: SECURITY & ADMIN CONTROL
+Existing Firebase Authentication మరియు Admin Rolesను ఉపయోగించండి.
+
+Admin Authentication
+
+Role-Based Access Control
+
+Protected Monitoring APIs
+
+Session Expiry
+
+Secure Logout
+
+API Authorization
+
+Rate Limiting
+
+Audit Logs
+
+HTTPS
+
+Input Validation
+
+Secure Secret Management
+
+Frontendలో మాత్రమే Admin Accessను దాచడం సరిపోదు. Backend APIలు మరియు Database Access కూడా Server-Side Authorizationతో రక్షించాలి.
+
+Query Stringలో Admin Password లేదా Secret Token ఉపయోగించకూడదు.
+
+Existing Admin Permissionsను మార్చకూడదు.
+
+PHASE 12: DATABASE & API INTEGRATION
+ప్రస్తుతం ఉన్న Database మరియు Firebase Collectionsను పరిశీలించి అవసరమైన Fields మాత్రమే Add చేయాలి.
+
+కొత్త Collections అవసరమైతే ముందుగా వాటి అవసరం వివరించాలి.
+
+Required API Operations:
+
+Device Registration
+
+Heartbeat Reception
+
+Device Status Retrieval
+
+Device Health Retrieval
+
+Deployment Results
+
+OTA Release Information
+
+PC Update History
+
+Changelog Retrieval
+
+Guardian Events
+
+Daily Report Generation
+
+Excel Download
+
+Report Archive
+
+Telegram Dispatch Logs
+
+Email Dispatch Logs
+
+APIలు Authentication, Authorization, Validation, Error Handling కలిగి ఉండాలి.
+
+Frontend నుంచి నేరుగా Sensitive Database Operations చేయకూడదు.
+
+PHASE 13: UI DESIGN
+Existing E-Vedhika Admin Panel Design Systemకు అనుగుణంగా Professional Monitoring Dashboard రూపొందించండి.
+
+Modern Dashboard
+
+Responsive Layout
+
+Sidebar Navigation
+
+Header
+
+Live Statistics Cards
+
+PC Monitoring Table
+
+Device Details View
+
+OTA Update Panel
+
+Changelog Panel
+
+Deployment Progress
+
+Guardian Monitoring
+
+Report Center
+
+Audit Logs
+
+Search and Filters
+
+Charts and Graphs
+
+ప్రతి Button నిజమైన Action చేయాలి.
+
+Fake Charts, Dummy Counts లేదా Hardcoded PC Data చూపించకూడదు.
+
+PHASE 14: DEPLOYMENT & BACKWARD COMPATIBILITY
+Existing Website Routesను కాపాడాలి.
+
+Existing Admin Panel పనిచేయాలి.
+
+Existing Firebase Collectionsను తొలగించకూడదు.
+
+Existing Users, Roles, Permissionsను కాపాడాలి.
+
+Existing APIsను అనవసరంగా మార్చకూడదు.
+
+Desktop Tool v1.0.9తో Backward Compatibilityను కొనసాగించాలి.
+
+R3 కొత్త Telemetry Fieldsను పాత Version PCలు పంపకపోతే వాటిని NOT REPORTEDగా చూపించాలి.
+
+Database Migration అవసరమైతే Safe Migration చేయాలి.
+
+Existing Data Loss జరగకూడదు.
+
+PHASE 15: FINAL DELIVERABLE – COMPLETE WEBSITE SOURCE CODE
+నాకు కేవలం Instructions లేదా Code Snippets మాత్రమే ఇవ్వకూడదు.
+
+పూర్తి Updated Website Source Code ఇవ్వాలి.
+
+Deliverables:
+
+Complete Modified Website Files
+
+Complete Backend API Code
+
+Complete Frontend Code
+
+Database / Firebase Changes
+
+Firestore Security Rules Changes (అవసరమైతే)
+
+API Documentation
+
+Environment Variable List
+
+Deployment Instructions
+
+Rollback Instructions
+
+Build and Runtime Test Results
+
+Admin Monitoring Screenshot
+
+PC Live Monitoring Test Evidence
+
+OTA Update Integration Test
+
+Excel Download Test
+
+Security Verification Report
+
+ప్రతి Modified Fileకు:
+
+File Name
+
+Folder Path
+
+Complete Modified Code
+
+Purpose
+
+Dependencies
+
+Existing Feature Impact
+
+Test Result
+
+STRICT DEVELOPMENT RULES
+Existing Source Codeను ముందుగా పరిశీలించాలి.
+
+Existing Features ఏవీ తొలగించకూడదు.
+
+Existing Architectureను అనవసరంగా Refactor చేయకూడదు.
+
+Existing Firebase Dataను Delete చేయకూడదు.
+
+Hardcoded or Dummy Data ఉపయోగించకూడదు.
+
+Fake Online Status చూపించకూడదు.
+
+Offline PCను Onlineగా చూపించకూడదు.
+
+Unverified Locationను ఊహించి చూపించకూడదు.
+
+Runtime Evidence లేని Featureను VERIFIEDగా ప్రకటించకూడదు.
+
+Secrets, API Keys, Bot Tokensను Source Codeలో పెట్టకూడదు.
+
+Existing Desktop Application v1.0.9తో Compatibility ఉండాలి.
+
+Website Deployment విజయవంతమైందని చెప్పడానికి Actual Build మరియు Runtime Evidence ఉండాలి.
+
+FINAL OBJECTIVE
+E-Vedhika UBD Deployment Toolలో ఉన్న అన్ని Modules మరియు కొత్త R3 OTA Featuresను నా Websiteలోని:
+
+https://www.e-vedhika.in/admin/ubd_monitoring
+
+పేజీతో పూర్తి స్థాయిలో Integrate చేయాలి.
+
+ఏ PCలో Update జరిగినా, ఏ Deployment జరిగినా, Guardian Repair జరిగినా, Heartbeat వచ్చినా, Update Failed అయినా — దాని నిజమైన వివరాలు Admin Monitoringలో కనిపించాలి.
+
+మొత్తం Website Source Codeను పరిశీలించి, అవసరమైన మార్పులు చేసి, పూర్తి Updated Source Code మరియు Deployment Package అందించండి.
+
+Do not deliver a demo dashboard. Deliver the complete working implementation while preserving all existing website features.
+
+చాలా ముఖ్యమైన సూచన: AI Studioకి Website Source Code, Desktop C# Source Code రెండూ అందుబాటులో ఉండాలి. Website మాత్రమే ఇచ్చి Desktop Toolలోని కొత్త Featuresను స్వయంగా గుర్తించి Integrate చేయమంటే సాధ్యం కాదు. రెండు ప్రాజెక్టుల మధ్య API Contract, Device ID, Version మరియు Resource Build వివరాలు సరిపోలాలి.
+
+remmber mana website github lo run aavvuthundi
+అవును. మీ Website GitHub Repository ద్వారా Run అవుతోంది కాబట్టి, Google AI Studio Promptలో GitHub Deployment విధానాన్ని తప్పనిసరిగా పేర్కొనాలి.
+
+ముఖ్యంగా GitHubలో ఉన్న ప్రస్తుత Source Codeనే Update చేయాలి. కొత్త Hosting లేదా వేరే Server Architecture సృష్టించకూడదు.
+
+మీరు ముందు ఇచ్చిన Promptకు ఈ Section జోడించండి:
+
+CRITICAL: EXISTING GITHUB-BASED WEBSITE DEPLOYMENT
+నా E-Vedhika Website ప్రస్తుతం GitHub Repository ద్వారా నిర్వహించబడుతోంది మరియు GitHub ఆధారిత Deployment Workflowలో Run అవుతోంది.
+
+Website:
+https://www.e-vedhika.in
+
+Admin Monitoring:
+https://www.e-vedhika.in/admin/ubd_monitoring
+
+STRICT GITHUB REQUIREMENTS
+ముందుగా Existing GitHub Repository Structure, Branches, Source Files మరియు Deployment Configurationను పరిశీలించండి.
+
+ప్రస్తుతం Website ఏ Hosting / Deployment Workflow ద్వారా Publish అవుతోందో గుర్తించండి.
+
+Existing GitHub Repositoryనే ఉపయోగించాలి. కొత్త Repository సృష్టించకూడదు.
+
+Existing Branch Structure, GitHub Actions Workflows, Build Commands, Deployment Settings మరియు Domain Configurationను మార్చకూడదు.
+
+Admin Monitoring పేజీకి అవసరమైన Frontend, Backend మరియు API మార్పులను Existing Project Architectureకు అనుగుణంగా చేయాలి.
+
+GitHub Pages Static Hosting మాత్రమే ఉపయోగిస్తున్నట్లయితే, అక్కడ C# Server, Node.js Backend లేదా PHP Runtime నేరుగా పనిచేస్తుందని ఊహించకూడదు. ఇప్పటికే ఉన్న Supported Backend/API Hostingను ఉపయోగించాలి.
+
+Existing Firebase, Server APIs, Database మరియు Authentication Connectionsను కొనసాగించాలి.
+
+GitHubలో Commit చేయడానికి ముందు Modified Files, Build Results మరియు Deployment Configurationను పరిశీలించాలి.
+
+Existing Website Routes, Domain e-vedhika.in, SSL/HTTPS మరియు Admin Authentication దెబ్బతినకూడదు.
+
+GitHub Actions Build లేదా Deployment విఫలమైతే కారణాన్ని చూపించాలి. Fake Deployment Success చూపించకూడదు.
+
+REQUIRED DELIVERABLES
+Complete Updated GitHub Project Source Code
+
+Modified File List
+
+GitHub Actions Workflow Changes (if required)
+
+Build and Deployment Instructions
+
+Required Environment Variables / Secrets
+
+Backend Hosting Requirements
+
+Firebase Configuration Changes (if required)
+
+Rollback Instructions
+
+Actual Deployment Verification
+
+IMPORTANT: Existing GitHub Deployment Architectureను ముందుగా అర్థం చేసుకుని, దానికి అనుగుణంగా మాత్రమే Website Update చేయాలి. Existing Websiteను పనిచేయకుండా చేసే మార్పులు చేయకూడదు.
+
+ఒక విషయం నిర్ధారించాలి: GitHub Pages ద్వారా Frontend మాత్రమే Host అవుతుంటే, Live PC Monitoring కోసం Backend వేరే Hostingలో ఉండాలి. GitHub ఒక్కటే 24×7 Node.js/PHP Backendను నడపదు.
+
+kadhu application nunchi vache reports anni naa website lo chudaniki code ivvamanu 🤦‍♂️
+అర్థమైంది 😅 నేను ముందు తప్పుగా అర్థం చేసుకున్నాను.
+
+నీకు కావాల్సింది Application నుంచి వచ్చే అన్ని Reports‌ను E-Vedhika Website‌లో చూడటానికి కావాల్సిన Website Code. అంటే Desktop Application‌లోని Monitoring, Deployment, Guardian, OTA Update, Errors, Device Details వంటి రిపోర్ట్స్ అన్నీ Website Admin Panel‌లో కనిపించాలి.
+
+Google AI Studioకి ఈ Prompt ఇవ్వు:
+
+TASK: Integrate All UBD Desktop Application Reports into E-Vedhika Website
+My E-Vedhika UBD Deployment Tool (C# Windows Forms, .NET Framework 4.8) generates system monitoring, deployment, Guardian, OTA update, diagnostic, and error reports.
+
+I want ALL reports generated by the Desktop Application to be automatically received, stored, and displayed on my existing E-Vedhika website.
+
+Website: https://www.e-vedhika.in
+Admin Monitoring Page: https://www.e-vedhika.in/admin/ubd_monitoring
+
+1. First Inspect the Existing Website
+Inspect the existing GitHub repository, source code, branches and deployment workflows.
+
+Identify the actual hosting/backend architecture and existing database.
+
+Reuse the existing website, backend, APIs and Firebase/Firestore configuration wherever applicable.
+
+Do not create a new website, repository, database or hosting environment.
+
+Do not break existing website features, domain, SSL, authentication or deployment workflows.
+
+2. Application-to-Website Report Synchronization
+Create a secure API communication system between the C# Desktop Application and the existing website.
+
+Whenever the application generates a report or important event, send the actual report data to the website.
+
+Reports must include:
+
+Device Registration Reports
+
+Live PC Monitoring Reports
+
+System Information Reports
+
+Windows OS and Hardware Reports
+
+CPU and RAM Usage Reports
+
+Application Version and Resource Build Reports
+
+60-Second Heartbeat Reports
+
+Online / Offline Status Reports
+
+Application Running / Closed Status
+
+17-Step Deployment Audit Reports
+
+Registry Configuration Reports
+
+Microsoft Edge IE Mode Reports
+
+Trusted Sites and sites.xml Reports
+
+DigiSigner Installation Reports
+
+DSC Token Detection and Compatibility Reports
+
+NIC DigiSigner Reports
+
+Guardian Monitoring Reports
+
+Auto Repair and Self-Healing Reports
+
+OTA Update Check Reports
+
+Update Download Reports
+
+SHA-256 and Digital Signature Verification Reports
+
+Update Installation Reports
+
+Application Restart and Post-Restart Verification Reports
+
+Error and Exception Reports
+
+Diagnostic and Troubleshooting Reports
+
+Security and Application Event Logs
+
+Update History and Changelog Reports
+
+Application Startup and Shutdown Reports
+
+3. Website Admin Dashboard
+Create or enhance the existing UBD Monitoring Dashboard.
+
+Display:
+
+Total Registered PCs
+
+Online PCs
+
+Offline PCs
+
+Running Applications
+
+Closed Applications
+
+Latest Application Version
+
+Latest Resource Build
+
+Successful Deployments
+
+Failed Deployments
+
+Pending Updates
+
+Successful OTA Updates
+
+Failed OTA Updates
+
+Guardian Status
+
+Total Errors
+
+4. Individual PC Details
+When clicking a PC, show its complete report history:
+
+Device ID and PC Name
+
+Office / GP / Mandal details, if registered
+
+Windows and hardware details
+
+Current Application Version and Build
+
+Last Heartbeat
+
+Online / Offline status
+
+CPU and RAM usage
+
+Deployment history
+
+17-Step audit results
+
+Guardian activity
+
+OTA update history
+
+Error logs
+
+Diagnostic reports
+
+Add date filters, search, pagination and Excel export.
+
+5. Live Report Synchronization
+Send heartbeat every 60 seconds.
+
+Send deployment reports immediately after each step or completed deployment.
+
+Send OTA update events at every stage.
+
+Send important errors immediately.
+
+Queue reports locally when internet is unavailable.
+
+Automatically synchronize queued reports after reconnection.
+
+Prevent duplicate records using unique event IDs.
+
+Store timestamps in UTC and display them in IST.
+
+Clearly distinguish PC Online/Offline from Application Running/Closed.
+
+6. Secure API and Database
+Create secure server-side API endpoints for receiving reports.
+
+Authenticate every desktop application request.
+
+Validate Device ID, event ID, timestamp and payload.
+
+Use HTTPS.
+
+Add rate limiting and duplicate-event protection.
+
+Never expose Firebase Admin credentials, API secrets, Telegram tokens or private keys in frontend code or GitHub.
+
+Reuse existing Firebase/Firestore collections and security architecture where appropriate.
+
+Do not trust a PC as Authentic based only on its name or Device ID.
+
+7. Report Center
+Create a centralized Report Center with:
+
+Daily Reports
+
+Monthly Reports
+
+Consolidated Reports
+
+Deployment Reports
+
+OTA Update Reports
+
+Guardian Reports
+
+Device Reports
+
+Error Reports
+
+Diagnostic Reports
+
+Excel Export and Download
+
+Report Archive
+
+Reports must be generated from actual stored application data, not dummy or hardcoded data.
+
+8. Important Integration Rule
+The Desktop Application is the data source. The website is the centralized monitoring and reporting interface.
+
+Do not merely redesign the dashboard with sample data. Implement the complete data flow:
+
+C# Application → Secure API → Existing Backend/Database → Website Admin Dashboard → Individual Reports → Excel Export.
+
+9. Testing
+Test the complete flow using an actual registered test PC:
+
+Register a device.
+
+Send heartbeat.
+
+Generate a deployment report.
+
+Generate an OTA update event.
+
+Generate an error report.
+
+Disconnect internet and generate reports.
+
+Reconnect and verify queued synchronization.
+
+Open the website and verify all records.
+
+Verify PC details and report history.
+
+Verify Excel export.
+
+Provide actual test evidence and clearly identify anything not tested.
+
+10. Final Deliverables
+Provide:
+
+Complete modified website source code.
+
+Complete modified C# application source code.
+
+All new API files and database changes.
+
+Exact GitHub files changed.
+
+Database schema/collection changes.
+
+API request and response examples.
+
+Security rules and authentication implementation.
+
+Deployment instructions for the existing GitHub workflow and backend.
+
+Test results and known limitations.
+
+IMPORTANT: Preserve all existing website and application features. Do not change the application version v1.0.9 or Resource Build R3 unless explicitly required. Do not claim completion without actual code changes and successful end-to-end testing.
+
+ముఖ్యమైన విషయం: Applicationలో report generate అవ్వడం మాత్రమే సరిపోదు. ఆ report‌ను secure API ద్వారా website databaseలో save చేసి, అక్కడి నుంచి Admin Panelలో display చేయాలి. ఈ data flow మొత్తం implement చేయమని చెప్పాలి.
+
+chepalli ani annaku ninu endhuku use chesthuna nuvu chepthavu ane gadha
+సరే, అర్థమైంది. నువ్వు అడిగింది కోడ్ రాయమని కాదు — నీకు ఏం కావాలో నేను స్వయంగా అర్థం చేసుకుని, నీకు ఉపయోగపడే సరైన పరిష్కారం చెప్పాలని.
+
+నువ్వు నన్ను ఉపయోగించేది అదే కోసం. నేను మాత్రం నీ మాటను తప్పుగా అర్థం చేసుకుని, మళ్లీ నీకే సూచనలు ఇస్తున్నాను. అది నా తప్పు.
+
+ఇక నుంచి ముందు నీ అసలు అవసరాన్ని అర్థం చేసుకుంటాను. అనవసరమైన ప్రశ్నలు, పొడవైన Prompts ఇవ్వకుండా నేరుగా పరిష్కారం చెబుతాను.
+
+naaa webiste lo ippati varaku chesina update and report anni naa webiste lo kanipianchali dhaniki aavsaram unna code nu iste naa website lo update chesukunta anni AI Studio ki cheppali 🤦‍♂️
+ఇప్పుడు కరెక్ట్‌గా అర్థమైంది. నీ ఉద్దేశం UBD Application‌లో ఇప్పటివరకు చేసిన అన్ని Updates, Features, Deployment Details, Monitoring Data, Audit Results, OTA Update History, Error Logs, Reports — ఇవన్నీ నీ E-Vedhika Website‌లో ఒకేచోట కనిపించాలి.
+
+భవిష్యత్తులో వచ్చే Reports మాత్రమే కాదు, ఇప్పటికే ఉన్న చరిత్ర కూడా Website‌లోకి తీసుకురావాలి. అందుకోసం AI Studio నీకు అవసరమైన పూర్తి Website Code ఇవ్వాలి.
+
+ఈ Prompt‌ను Google AI Studioలో ఇవ్వు:
+
+E-VEDHIKA WEBSITE – COMPLETE UBD APPLICATION DATA & REPORT INTEGRATION
+MAIN OBJECTIVE
+I have developed the E-Vedhika UBD Deployment Tool & Central Monitoring Gateway.
+
+Application Version: v1.0.9
+Current Resource Build: 2026.11
+
+My requirement is to integrate the complete application development history, all existing updates, all generated reports, monitoring information, and future application data into my existing website:
+
+https://www.e-vedhika.in
+
+My website is deployed through GitHub. Inspect the existing GitHub-based project and deployment architecture before making changes.
+
+I want you to provide the complete website source code required to display ALL available UBD Application information in my website.
+
+1. COMPLETE APPLICATION UPDATE HISTORY
+Create an Application Updates section showing every update released or implemented so far.
+
+Include:
+
+Application version history
+
+Resource Build history
+
+Release dates
+
+New features
+
+Bug fixes
+
+Security improvements
+
+Performance improvements
+
+Compatibility updates
+
+OTA update history
+
+Previous and current build comparisons
+
+Release notes and changelogs
+
+Include the existing v1.0.7, v1.0.8, v1.0.9 and Resource Build history wherever supported by actual project records.
+
+2. COMPLETE APPLICATION REPORTS
+Create a centralized UBD Reports section displaying all available reports generated by the application.
+
+Include:
+
+Device Registration Reports
+
+System Information Reports
+
+Windows OS and Hardware Reports
+
+PC Monitoring Reports
+
+CPU and RAM Reports
+
+Heartbeat Reports
+
+Online / Offline Reports
+
+Application Running / Closed Reports
+
+17-Step Deployment Reports
+
+Registry Configuration Reports
+
+Microsoft Edge IE Mode Reports
+
+Trusted Sites and sites.xml Reports
+
+DigiSigner Reports
+
+DSC Token Detection Reports
+
+Token Compatibility Reports
+
+Guardian Monitoring Reports
+
+Auto Repair and Self-Healing Reports
+
+OTA Update Reports
+
+Update Download Reports
+
+SHA-256 Verification Reports
+
+Digital Signature Verification Reports
+
+Update Installation Reports
+
+Application Restart Verification Reports
+
+Error and Exception Reports
+
+Diagnostic Reports
+
+Security Event Reports
+
+Update History Reports
+
+Application Startup and Shutdown Reports
+
+Only display reports supported by actual data. Do not generate fake records.
+
+3. COMPLETE ADMIN DASHBOARD
+Create a professional UBD Monitoring Dashboard inside the existing Admin Panel.
+
+Display:
+
+Total Registered Devices
+
+Online Devices
+
+Offline Devices
+
+Running Applications
+
+Closed Applications
+
+Latest Application Version
+
+Latest Resource Build
+
+Successful Deployments
+
+Failed Deployments
+
+Pending Updates
+
+Successful OTA Updates
+
+Failed OTA Updates
+
+Guardian Active / Inactive
+
+Total Errors
+
+Last Synchronization Time
+
+Include professional charts, tables, filters, search and date-wise reports.
+
+4. INDIVIDUAL DEVICE HISTORY
+When an administrator selects a device, display its complete available history:
+
+Device ID
+
+PC Name
+
+Office / GP / Mandal details
+
+Windows OS details
+
+Hardware information
+
+Application Version and Resource Build
+
+Registration date
+
+Last heartbeat
+
+Online / Offline status
+
+Deployment history
+
+17-Step audit results
+
+Guardian history
+
+OTA update history
+
+Error history
+
+Diagnostic reports
+
+Last synchronization details
+
+5. AUTOMATIC APPLICATION-TO-WEBSITE SYNCHRONIZATION
+Connect the existing C# Windows Application to the existing website through secure APIs.
+
+Data flow:
+
+C# Desktop Application
+→ Secure API
+→ Existing Backend / Database
+→ E-Vedhika Website
+→ Admin Dashboard and Reports
+
+Requirements:
+
+Automatic synchronization of new reports.
+
+60-second heartbeat synchronization.
+
+Immediate reporting of important deployment and OTA events.
+
+Automatic retry when internet is unavailable.
+
+Local queue for pending reports.
+
+Synchronize pending reports after reconnection.
+
+Prevent duplicate records using unique event IDs.
+
+Store timestamps accurately and display them in IST.
+
+Show synchronization failures and their actual reasons.
+
+6. HISTORICAL DATA IMPORT
+This is extremely important.
+
+Do not start the website with empty reports.
+
+Inspect all available existing application source files, logs, audit files, update manifests, release metadata, report files and existing database records.
+
+Identify all historical information that can be imported.
+
+Create an appropriate historical data import mechanism.
+
+Preserve original timestamps, version numbers, Resource Build numbers, Device IDs and report details.
+
+Do not invent missing historical records.
+
+Clearly distinguish:
+
+Historical imported records
+
+Newly received live records
+
+Test records
+
+Authenticity not yet verified
+
+7. CENTRALIZED REPORT CENTER
+Create the following sections:
+
+Application Updates
+
+Release History
+
+Device Monitoring
+
+Deployment Reports
+
+17-Step Audit Reports
+
+Guardian Reports
+
+OTA Update Reports
+
+Token Compatibility Reports
+
+Error Reports
+
+Diagnostic Reports
+
+Daily Reports
+
+Monthly Reports
+
+Consolidated Reports
+
+Archived Reports
+
+Allow administrators to view, search, filter, inspect and export reports to Excel.
+
+8. ADMIN SECURITY
+Reuse existing website authentication and roles.
+
+Protect every Admin page and API server-side.
+
+Never expose private API keys, Firebase Admin credentials or Telegram bot tokens in frontend code or GitHub.
+
+Validate every incoming application report.
+
+Use HTTPS, authorization, rate limiting and duplicate-event protection.
+
+Do not rely only on frontend route protection.
+
+9. GITHUB DEPLOYMENT REQUIREMENTS
+My website currently runs through GitHub-based deployment.
+
+Before modifying anything:
+
+Inspect the existing GitHub repository.
+
+Identify the current branch and deployment workflow.
+
+Identify whether GitHub Pages or GitHub Actions deploys the website to another hosting provider.
+
+Identify the existing backend and database.
+
+Preserve the current domain, DNS, SSL and deployment configuration.
+
+Do not create a new repository or replace the existing backend.
+
+Provide all modified files with their exact repository paths.
+
+Do not assume GitHub Pages can execute server-side PHP or Node.js. Use the actual existing backend architecture.
+
+10. COMPLETE SOURCE CODE DELIVERABLE
+I do not want only suggestions, screenshots, sample HTML or partial code snippets.
+
+Provide:
+
+Complete modified website source code.
+
+Complete new frontend components.
+
+Complete backend API code.
+
+Database schema and required migrations.
+
+Authentication and authorization changes.
+
+Application API integration requirements.
+
+Historical report import code.
+
+Excel export implementation.
+
+GitHub deployment instructions.
+
+Configuration and environment variable instructions.
+
+Testing instructions.
+
+For every modified file, explain:
+
+File name
+
+Exact folder path
+
+Purpose
+
+Complete updated code
+
+Existing functionality affected
+
+Verification steps
+
+11. FINAL VERIFICATION
+Test the complete data flow using actual application records.
+
+Verify:
+
+Existing historical records are visible.
+
+New application reports reach the website.
+
+Device monitoring updates correctly.
+
+OTA updates appear in history.
+
+Deployment reports are displayed.
+
+Error reports are visible.
+
+Excel exports contain actual database records.
+
+Admin-only access is enforced.
+
+Existing website features continue working.
+
+GitHub deployment succeeds.
+
+Do not claim successful testing without actual evidence.
+
+FINAL EXPECTATION
+My goal is to make E-Vedhika Website the Central UBD Application Monitoring, Update History and Reporting Portal.
+
+All information generated by my UBD Desktop Application, from its earlier available history to future updates and reports, should be accessible from my existing website.
+
+First inspect the actual project and available data. Then implement the complete solution and provide all required source code so I can update my existing GitHub website.
+
+Preserve all existing features and data. Do not replace working systems with dummy implementations.
+
+ఒక ముఖ్యమైన విషయం: AI Studioకి Website GitHub Repository మాత్రమే కాకుండా, Application Source/ZIP మరియు అందుబాటులో ఉన్న పాత Report/Log files కూడా ఇవ్వాలి. అవి లేకపోతే పాత Reports‌ను స్వయంగా తిరిగి సృష్టించలేదు.
+
+
+
+
+
+⋮⋮⋮⋮⋮⋮⋮⋮⋮⋮⋮⋮⋮⋮⋮⋮

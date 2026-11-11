@@ -29,6 +29,7 @@ import { TelemetryDashboard } from './components/TelemetryDashboard';
 import { VersionFleetLiveDashboardView } from './components/VersionFleetLiveDashboardView';
 import { NetworkFlowView } from './components/NetworkFlowView';
 import { UbdSettingManagerView } from './components/UbdSettingManagerView';
+import { ReportCenter } from './components/ReportCenter';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
@@ -906,6 +907,7 @@ Report Timestamp: ${reportDate}
           {activeTab === 'pcboost' && <PCBoostView />}
           {activeTab === 'version-fleet' && <VersionFleetLiveDashboardView />}
           {activeTab === 'telemetry-dashboard' && <TelemetryDashboard />}
+          {activeTab === 'report-center' && <ReportCenter />}
           {activeTab === 'github-dashboard' && <GithubDashboardView />}
           {activeTab === 'network-flow' && <NetworkFlowView />}
           {activeTab === 'settings' && (
