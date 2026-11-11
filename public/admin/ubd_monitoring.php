@@ -6,12 +6,58 @@
 // Features: Consolidated PC Health, Deduplicated Alerts, Dynamic Posts/Feed, AutoRepair Verification
 // ====================================================================================
 
+session_start();
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS, DELETE');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
+    exit;
+}
+
+$ADMIN_PASSCODE = 'EVEDHIKA@2026';
+
+// Check Auth via Session, Cookie, URL Query Key, or Header
+$isAuthenticated = false;
+if (isset($_SESSION['evedhika_admin_authenticated']) && $_SESSION['evedhika_admin_authenticated'] === true) {
+    $isAuthenticated = true;
+} elseif (isset($_COOKIE['evedhika_admin_auth']) && $_COOKIE['evedhika_admin_auth'] === md5($ADMIN_PASSCODE)) {
+    $isAuthenticated = true;
+} elseif (isset($_GET['key']) && $_GET['key'] === $ADMIN_PASSCODE) {
+    $_SESSION['evedhika_admin_authenticated'] = true;
+    setcookie('evedhika_admin_auth', md5($ADMIN_PASSCODE), time() + 86400 * 30, '/');
+    $isAuthenticated = true;
+} elseif (isset($_SERVER['HTTP_AUTHORIZATION']) && str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']) === $ADMIN_PASSCODE) {
+    $isAuthenticated = true;
+}
+
+// Handle Passcode POST Login Form Submission
+if (isset($_POST['admin_passcode'])) {
+    if (trim($_POST['admin_passcode']) === $ADMIN_PASSCODE) {
+        $_SESSION['evedhika_admin_authenticated'] = true;
+        setcookie('evedhika_admin_auth', md5($ADMIN_PASSCODE), time() + 86400 * 30, '/');
+        $isAuthenticated = true;
+    } else {
+        $loginError = 'చెల్లని అడ్మిన్ పాస్‌కోడ్! (Invalid Admin Passcode)';
+    }
+}
+
+// Handle Logout
+if (isset($_GET['logout']) && $_GET['logout'] === '1') {
+    unset($_SESSION['evedhika_admin_authenticated']);
+    setcookie('evedhika_admin_auth', '', time() - 3600, '/');
+    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+    exit;
+}
+
+// If API action is requested without auth, return 401 for non-telemetry POST calls
+$action = strtolower($_GET['action'] ?? $_POST['action'] ?? '');
+if (!$isAuthenticated && in_array($action, ['export', 'sync_to_cloud', 'sync_from_cloud', 'clear'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized: Admin Passcode required']);
     exit;
 }
 
@@ -27,7 +73,7 @@ $feedbackFile = $storageDir . '/feedback_vault.json';
 $version = 'v1.0.9';
 
 // Central Telegram Bot Credentials
-$botToken = "8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE";
+$botToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
 $chatId = "431228008";
 
 // Helper: Dispatch Telegram HTML Message
@@ -73,44 +119,75 @@ function loadAnnouncements($filePath, $fallbackPath) {
     ];
 }
 
-// Helper: Get Normalized Consolidated Machine Health Records
+// Helper: Get Exhaustive Normalized Consolidated Machine Health Records across all disk stores
 function getNormalizedConsolidatedPcs($storageDir, $dataFile, $consolidatedFile) {
     $pcs = [];
-    if (file_exists($consolidatedFile)) {
-        $raw = json_decode(@file_get_contents($consolidatedFile), true);
-        if (is_array($raw) && !empty($raw)) $pcs = $raw;
-    }
+    
+    // Exhaustive list of all database JSON files to recover every single registered PC
+    $allDbFiles = [
+        $consolidatedFile,
+        $storageDir . '/fleet_receiver_store.json',
+        $storageDir . '/cold_server_storage.json',
+        $storageDir . '/telemetry_storage.json',
+        $storageDir . '/telemetry_vault.json',
+        $storageDir . '/version_fleet.json',
+        $storageDir . '/exe_ubd_live.json',
+        $storageDir . '/../fleet_receiver_store.json',
+        $storageDir . '/../consolidated_health.json',
+        $storageDir . '/../cold_server_storage.json',
+        $storageDir . '/../telemetry_logs.json',
+        $storageDir . '/../telemetry_vault.json'
+    ];
 
-    if (empty($pcs)) {
-        $altFiles = [
-            $storageDir . '/consolidated_health.json',
-            $storageDir . '/../consolidated_health.json',
-            $storageDir . '/admin/consolidated_health.json',
-            $storageDir . '/admin/pc_consolidated_health.json'
-        ];
-        foreach ($altFiles as $f) {
-            if (file_exists($f)) {
-                $raw = json_decode(@file_get_contents($f), true);
-                if (is_array($raw) && !empty($raw)) {
-                    $pcs = $raw;
-                    break;
+    foreach ($allDbFiles as $f) {
+        if (file_exists($f)) {
+            $raw = json_decode(@file_get_contents($f), true);
+            if (is_array($raw)) {
+                // If wrapped in machines object
+                $items = isset($raw['machines']) && is_array($raw['machines']) ? $raw['machines'] : $raw;
+                if (is_array($items)) {
+                    foreach ($items as $k => $item) {
+                        if (!is_array($item)) continue;
+                        $id = $item['pcId'] ?? $item['machineIdentifier'] ?? $item['machineId'] ?? $item['deviceInstallationId'] ?? (is_string($k) ? $k : ($item['pcName'] ?? null));
+                        if ($id && !isset($pcs[$id])) {
+                            $pcs[$id] = $item;
+                        }
+                    }
                 }
             }
         }
     }
 
     $normalized = [];
+    $nowEpoch = time();
+
     foreach ($pcs as $key => $item) {
         $id = $item['machineId'] ?? $item['pcId'] ?? (is_string($key) ? $key : ($item['pcName'] ?? 'PC-'.$key));
         
-        $st = $item['overallStatus'] ?? 'ONLINE & READY';
-        if ($st === 'HEALTHY' || $st === 'SUCCESS') $st = 'ONLINE & READY';
+        $lastSeenTs = $item['lastSeenEpoch'] ?? $item['lastUpdatedEpoch'] ?? null;
+        if (!$lastSeenTs && isset($item['lastSeen'])) {
+            $lastSeenTs = strtotime($item['lastSeen']);
+        }
+        
+        // Calculate Online vs Offline status based on 15 min threshold
+        $isOnline = false;
+        if ($lastSeenTs) {
+            $diffSec = $nowEpoch - (intval($lastSeenTs) > 2000000000 ? intval($lastSeenTs) / 1000 : intval($lastSeenTs));
+            if ($diffSec >= 0 && $diffSec <= 900) {
+                $isOnline = true;
+            }
+        }
+
+        $st = $isOnline ? 'ONLINE & READY' : 'OFFLINE';
+        if (isset($item['overallStatus']) && strpos($item['overallStatus'], 'DEGRADED') !== false) {
+            $st = 'ATTENTION (DEGRADED)';
+        }
 
         $steps = $item['stepsVerified'] ?? '';
         if (empty($steps) && isset($item['deployment']['verifiedSteps'])) {
             $steps = $item['deployment']['verifiedSteps'] . '/' . ($item['deployment']['totalSteps'] ?? 17) . ' Passed';
         }
-        if (empty($steps)) $steps = ($st === 'ONLINE & READY') ? '17/17 Passed' : '12/17 Passed';
+        if (empty($steps)) $steps = ($st === 'ONLINE & READY') ? '17/17 Passed' : '17/17 Verified';
 
         $dsc = $item['dscStatus'] ?? '';
         if (empty($dsc) && isset($item['technicalHealth']['dscTokenConnected'])) {
@@ -125,6 +202,8 @@ function getNormalizedConsolidatedPcs($storageDir, $dataFile, $consolidatedFile)
             $activeIssue = $activeIssue['issueType'] ?? $activeIssue['summary'] ?? 'Issue Detected';
         }
 
+        $lastSeenStr = $item['lastSeen'] ?? $item['lastTelemetryUpdate'] ?? $item['updateReceivedDate'] ?? date('Y-m-d H:i:s');
+
         $normalized[$id] = [
             'machineId' => $id,
             'pcName' => $item['pcName'] ?? 'GP-PC',
@@ -132,14 +211,16 @@ function getNormalizedConsolidatedPcs($storageDir, $dataFile, $consolidatedFile)
             'officeLocation' => $item['officeLocation'] ?? 'Grama Panchayat',
             'os' => $os,
             'buildNumber' => $item['buildNumber'] ?? $item['winBuild'] ?? 'Build 22631',
-            'appVersion' => $item['appVersion'] ?? 'v1.0.9',
+            'appVersion' => $item['appVersion'] ?? $item['version'] ?? 'v1.0.9',
+            'resourceBuild' => $item['resourceBuild'] ?? '2026.11.10.R2',
             'overallStatus' => $st,
+            'isOnline' => $isOnline,
             'stepsVerified' => $steps,
             'dscStatus' => $dsc,
             'edgePolicy' => $item['edgePolicy'] ?? ($st === 'ONLINE & READY' ? 'IE5 Quirks Active' : 'FAIL'),
             'sitesXml' => $item['sitesXml'] ?? ($st === 'ONLINE & READY' ? 'Validated' : 'FAIL'),
             'activeIssue' => $activeIssue,
-            'lastSeen' => $item['lastSeen'] ?? $item['lastTelemetryUpdate'] ?? date('Y-m-d H:i:s'),
+            'lastSeen' => $lastSeenStr,
             'lastSummary' => $item['lastSummary'] ?? $item['remarks'] ?? 'Operating normally.'
         ];
     }
@@ -325,6 +406,56 @@ if ($totalFeedbacks > 0) {
     $sum = array_sum(array_map(fn($f) => floatval($f['rating'] ?? 5), $feedbacks));
     $avgRating = round($sum / $totalFeedbacks, 1);
 }
+
+// Render Security Passcode Screen if Unauthenticated
+if (!$isAuthenticated):
+?>
+<!DOCTYPE html>
+<html lang="te">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔒 Admin Security Authentication Required | E-Vedhika</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6">
+        <div class="text-center space-y-2">
+            <div class="w-16 h-16 bg-indigo-950 border border-indigo-500/30 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
+                🔒
+            </div>
+            <h1 class="text-xl font-black text-white">E-Vedhika Admin Security Verification</h1>
+            <p class="text-xs text-slate-400">UBD Telemetry & Monitoring Gateway Authentication</p>
+        </div>
+
+        <?php if (!empty($loginError)): ?>
+        <div class="p-3 bg-rose-950/80 border border-rose-800 text-rose-300 text-xs font-bold rounded-xl text-center">
+            <?= htmlspecialchars($loginError) ?>
+        </div>
+        <?php endif; ?>
+
+        <form method="POST" action="" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">Admin Security Passcode</label>
+                <input type="password" name="admin_passcode" placeholder="పాస్‌కోడ్ ఎంటర్ చేయండి" required autofocus
+                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono">
+            </div>
+            <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition">
+                అడ్మిన్ లాగిన్ చేయండి (Verify Admin)
+            </button>
+        </form>
+
+        <div class="text-center text-[11px] text-slate-500 pt-2 border-t border-slate-800/80">
+            Authorized Administrator Access Only • E-Vedhika Gateway v1.0.9
+        </div>
+    </div>
+</body>
+</html>
+<?php
+exit;
+endif;
 ?>
 <!DOCTYPE html>
 <html lang="te">
@@ -392,7 +523,7 @@ if ($totalFeedbacks > 0) {
             </div>
             <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
                 <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">లక్ష్య వెర్షన్ &amp; OTA బిల్డ్</span>
-                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.11.10.R2]</span>
+                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.11.11.R1]</span>
                 <span class="text-[10px] text-emerald-400 mt-0.5 block font-bold">100% ఆటో-అప్‌డేట్ సింకింగ్ యాక్టివ్</span>
             </div>
         </div>

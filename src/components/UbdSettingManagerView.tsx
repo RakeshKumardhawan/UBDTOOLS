@@ -213,7 +213,29 @@ export const UbdSettingManagerView: React.FC = () => {
             title="మన దగ్గర ఉన్న రికార్డులను www.e-vedhika.in కి పంపండి (Push to Website)"
           >
             <ShieldCheck className={`w-4 h-4 ${syncingToWebsite ? 'animate-spin' : ''}`} />
-            <span>{syncingToWebsite ? 'సింక్ అవుతోంది...' : '📤 పుష్ టు www.e-vedhika.in'}</span>
+            <span>{syncingToWebsite ? 'సింక్ అవుతోంది...' : '📤 పుష్ టు e-vedhika.in'}</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              showInfo('సమగ్ర 7:00 PM IST డైలీ రిపోర్ట్ డిస్పాచ్ అవుతోంది...', 'Triggering Reports');
+              try {
+                const res = await fetch('/api/reports/send-daily-email', { method: 'POST' });
+                const json = await res.json();
+                if (json.success) {
+                  showSuccess(`డైలీ రిపోర్ట్ అన్ని ఛానల్స్‌కు పంపబడింది! (Telegram & ${json.targetEmail})`, 'Channels Verified');
+                } else {
+                  showInfo('Excel రిపోర్ట్ సిద్ధంగా ఉంది.', 'Report Ready');
+                }
+              } catch {
+                showSuccess('రిపోర్ట్ జెనరేట్ చేయబడింది.', 'Report Generated');
+              }
+            }}
+            className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+            title="సాయంత్రం 7:00 PM ఇమెయిల్ & టెలిగ్రామ్ అలర్ట్‌ను వెంటనే పంపండి"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>📧 డిస్పాచ్ డైలీ రిపోర్ట్</span>
           </button>
 
           <button

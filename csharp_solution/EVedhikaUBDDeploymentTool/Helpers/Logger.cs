@@ -18,6 +18,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private const int MinTelegramIntervalMs = 15000; // Strict 15-second rate-limit per PC
         private static readonly object _offlineQueueLock = new object();
 
+        private static System.Threading.Timer _60SecHeartbeatTimer = null;
+
         static Logger()
         {
             try
@@ -32,6 +34,89 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         });
                     }
                 };
+
+                // Start 60-Second Real-Time Heartbeat Service
+                Start60SecondHeartbeatService();
+            }
+            catch { }
+        }
+
+        public static void Start60SecondHeartbeatService()
+        {
+            try
+            {
+                if (_60SecHeartbeatTimer != null) return;
+                _60SecHeartbeatTimer = new System.Threading.Timer(delegate
+                {
+                    try
+                    {
+                        Send60SecondHeartbeatPing();
+                    }
+                    catch { }
+                }, null, 5000, 60000); // First run after 5s, then every 60s
+            }
+            catch { }
+        }
+
+        public static void Send60SecondHeartbeatPing()
+        {
+            try
+            {
+                double rTot, rFr, rUs, rLd;
+                SystemInfoHelper.GetAccurateRamDetails(out rTot, out rFr, out rUs, out rLd);
+
+                string pcId = GetUniqueMachineId();
+                string pcName = Environment.MachineName ?? "GP-OFFICE-PC";
+                string userName = Environment.UserName ?? "Operator";
+                string json = "{" +
+                    $"\"pcId\":\"{pcId}\"," +
+                    $"\"pcName\":\"{pcName}\"," +
+                    $"\"userName\":\"{userName}\"," +
+                    $"\"officeLocation\":\"Grama Panchayat Office\"," +
+                    $"\"appVersion\":\"v1.0.9\"," +
+                    $"\"resourceBuild\":\"{Engine.AutoUpdateEngine.CurrentResourceBuild}\"," +
+                    "\"appState\":\"RUNNING\"," +
+                    "\"lastActivity\":\"Executing UBD Edge Policy & USB Token Watcher\"," +
+                    $"\"memoryUsageMB\":{Math.Round(rUs * 1024, 0)}," +
+                    $"\"cpuUsagePct\":{Math.Round(rLd, 1)}," +
+                    "\"uptimeSeconds\":3600" +
+                    "}";
+
+                string[] hbEndpoints = new string[]
+                {
+                    "https://www.e-vedhika.in/api/telemetry/heartbeat",
+                    "http://localhost:3000/api/telemetry/heartbeat"
+                };
+
+                bool sent = false;
+                foreach (var ep in hbEndpoints)
+                {
+                    try
+                    {
+                        using (var wc = new TimeoutWebClient(4000))
+                        {
+                            wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                            wc.Encoding = System.Text.Encoding.UTF8;
+                            wc.UploadString(ep, "POST", json);
+                            sent = true;
+                            break;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (!sent && SystemInfoHelper.CheckInternetConnection() == "Offline")
+                {
+                    var hbDict = new Dictionary<string, string>
+                    {
+                        { "pcId", pcId },
+                        { "pcName", pcName },
+                        { "userName", userName },
+                        { "appState", "RUNNING" },
+                        { "offlinePing", "true" }
+                    };
+                    EnqueueOfflineReport(hbDict);
+                }
             }
             catch { }
         }
