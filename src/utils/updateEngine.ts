@@ -43,14 +43,14 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
-    version: 'v1.0.9',
+    version: 'v1.0.9 (Resource Build 2026.11.11.R2)',
     date: 'November 2026',
     changes: [
-      'Full English localization across all system modules and UI components',
-      '4-Pillar Network Flow Architecture with dynamic personal WhatsApp & Telegram gateway sync',
-      'DigiSigner Bridge Service v2.0.4.1 certificate whitelist verification',
-      'Enhanced System Status & Software Version control widget with live System Console logging',
-      'Clean 1-Click System Wipe and Revert Engine'
+      'Fixed OTA Update Engine CS0236 field initializer and CS0103 ThreadPool & EscapeJson compilation errors',
+      'Corrected UpdateInfo and ResourceUpdateInfo constructors for .NET Framework 4.8 compatibility',
+      'Added System Tray "Check for Updates" menu item with direct interactive OTA trigger',
+      'Categorized What\'s New Notification Popup showing Previous vs Current Version & Build',
+      'Automatic Single-Instance Application Restart Workflow with state persistence & restart loop prevention'
     ]
   },
   {

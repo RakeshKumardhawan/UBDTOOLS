@@ -7,6 +7,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
 using EVedhikaUBDDeploymentTool.Helpers;
 
@@ -16,7 +17,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         public const string CurrentVersion = "v1.0.9";
         public const int CurrentVersionCode = 10090;
-        public const string CurrentResourceBuild = "2026.11.11.R1";
+        public const string CurrentResourceBuild = "2026.11.11.R2";
         public const string ResourceDate = "2026-11-11";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update";
@@ -36,6 +37,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
             return "";
         }
 
+        private static string EscapeJson(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Replace("\\", "\\\\")
+                       .Replace("\"", "\\\"")
+                       .Replace("\r", "")
+                       .Replace("\n", "\\n")
+                       .Replace("\t", "\\t");
+        }
+
         public class ChangelogInfo
         {
             public List<string> NewFeatures { get; set; } = new List<string>();
@@ -51,35 +62,58 @@ namespace EVedhikaUBDDeploymentTool.Engine
         public class UpdateInfo
         {
             public bool Success { get; set; }
-            public string AppName { get; set; } = "E-Vedhika UBD Deployment Tool";
-            public string PreviousVersion { get; set; } = CurrentVersion;
-            public string CurrentVersion { get; set; } = CurrentVersion;
-            public string LatestVersion { get; set; } = CurrentVersion;
-            public string PreviousResourceBuild { get; set; } = CurrentResourceBuild;
-            public string CurrentResourceBuild { get; set; } = CurrentResourceBuild;
-            public string LatestResourceBuild { get; set; } = CurrentResourceBuild;
-            public string ReleaseDate { get; set; } = ResourceDate;
-            public string DownloadSize { get; set; } = "8.5 MB";
-            public string Sha256Hash { get; set; } = "";
+            public string AppName { get; set; }
+            public string PreviousVersion { get; set; }
+            public string CurrentVersion { get; set; }
+            public string LatestVersion { get; set; }
+            public string PreviousResourceBuild { get; set; }
+            public string CurrentResourceBuild { get; set; }
+            public string LatestResourceBuild { get; set; }
+            public string ReleaseDate { get; set; }
+            public string DownloadSize { get; set; }
+            public string Sha256Hash { get; set; }
             public int VersionCode { get; set; }
             public string ReleaseNotes { get; set; }
-            public ChangelogInfo CategorizedChangelog { get; set; } = new ChangelogInfo();
+            public ChangelogInfo CategorizedChangelog { get; set; }
             public string DownloadUrl { get; set; }
             public bool IsUpdateAvailable { get; set; }
             public bool IsSilent { get; set; }
-            public bool IsRestartRequired { get; set; } = true;
+            public bool IsRestartRequired { get; set; }
             public string Message { get; set; }
+
+            public UpdateInfo()
+            {
+                AppName = "E-Vedhika UBD Deployment Tool";
+                PreviousVersion = AutoUpdateEngine.CurrentVersion;
+                CurrentVersion = AutoUpdateEngine.CurrentVersion;
+                LatestVersion = AutoUpdateEngine.CurrentVersion;
+                PreviousResourceBuild = AutoUpdateEngine.CurrentResourceBuild;
+                CurrentResourceBuild = AutoUpdateEngine.CurrentResourceBuild;
+                LatestResourceBuild = AutoUpdateEngine.CurrentResourceBuild;
+                ReleaseDate = AutoUpdateEngine.ResourceDate;
+                DownloadSize = "8.5 MB";
+                Sha256Hash = "";
+                CategorizedChangelog = new ChangelogInfo();
+                IsRestartRequired = true;
+            }
         }
 
         public class ResourceUpdateInfo
         {
             public bool Success { get; set; }
-            public string AppVersion { get; set; } = CurrentVersion;
-            public string ActiveResourceBuild { get; set; } = CurrentResourceBuild;
-            public string ServerResourceBuild { get; set; } = CurrentResourceBuild;
+            public string AppVersion { get; set; }
+            public string ActiveResourceBuild { get; set; }
+            public string ServerResourceBuild { get; set; }
             public string ResourceNotes { get; set; }
             public bool IsNewResourceAvailable { get; set; }
             public string Message { get; set; }
+
+            public ResourceUpdateInfo()
+            {
+                AppVersion = AutoUpdateEngine.CurrentVersion;
+                ActiveResourceBuild = AutoUpdateEngine.CurrentResourceBuild;
+                ServerResourceBuild = AutoUpdateEngine.CurrentResourceBuild;
+            }
         }
 
         public static ChangelogInfo ParseCategorizedChangelog(string releaseNotes)

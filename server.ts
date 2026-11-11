@@ -1979,9 +1979,10 @@ async function startServer() {
     releaseNotes: '[NEW FEATURES]\n• System Tray \'Check for Updates\' Menu Item with interactive OTA update trigger\n• Categorized \'What\'s New\' Popup Notification showing Previous vs Current Version & Build\n• Automatic Application Restart Workflow with state persistence & restart loop prevention\n\n[BUG FIXES]\n• Fixed Heartbeat Deduplication & Process State Timeout in Central Telemetry Engine\n• Resolved Duplicate Process Guardian Launch Conflict on system startup\n\n[PERFORMANCE IMPROVEMENTS]\n• Enhanced OTA Package Verification with SHA-256 Digest Audit\n• Optimized 60-Second Real-Time Telemetry Relay and memory footprint\n\n[SECURITY UPDATES]\n• Authenticode Digital Signature & Certificate Whitelist Validation\n• Enforced Encrypted HTTPS Update Downloads and payload verification',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.11.R1',
+    latestResourceBuild: '2026.11.11.R2',
     resourceBuildDate: '2026-11-11',
-    resourceBuild: '2026.11.11.R1'
+    resourceBuild: '2026.11.11.R2',
+    manifestVersion: '2026.11.11.R2'
   };
 
 
@@ -2043,9 +2044,10 @@ async function startServer() {
           currentVersionConfig.versionCode = highestWeight;
           currentVersionConfig.downloadUrl = highestDownloadUrl;
           currentVersionConfig.executableName = highestExeName;
-          currentVersionConfig.latestResourceBuild = '2026.11.11.R1';
+          currentVersionConfig.latestResourceBuild = '2026.11.11.R2';
           currentVersionConfig.resourceBuildDate = '2026-11-11';
-          currentVersionConfig.resourceBuild = '2026.11.11.R1';
+          currentVersionConfig.resourceBuild = '2026.11.11.R2';
+          currentVersionConfig.manifestVersion = '2026.11.11.R2';
           currentVersionConfig.releaseDate = '2026-11-11';
           
           try {
@@ -2054,7 +2056,7 @@ async function startServer() {
             if (!fs.existsSync(apiVersionDir)) fs.mkdirSync(apiVersionDir, { recursive: true });
             fs.writeFileSync(path.join(apiVersionDir, 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
           } catch (err) {}
-          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.11.R1)`);
+          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.11.R2)`);
         }
       }
     } catch (e: any) {
