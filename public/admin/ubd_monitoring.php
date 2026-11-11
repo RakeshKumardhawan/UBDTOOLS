@@ -523,7 +523,7 @@ endif;
             </div>
             <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow">
                 <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">లక్ష్య వెర్షన్ &amp; OTA బిల్డ్</span>
-                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.11.11.R1]</span>
+                <span class="text-lg font-black text-indigo-300 mt-1 block font-mono"><?= $version ?> [2026.11.11.R3]</span>
                 <span class="text-[10px] text-emerald-400 mt-0.5 block font-bold">100% ఆటో-అప్‌డేట్ సింకింగ్ యాక్టివ్</span>
             </div>
         </div>
