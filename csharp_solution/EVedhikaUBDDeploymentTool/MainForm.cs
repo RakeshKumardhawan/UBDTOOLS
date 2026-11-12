@@ -1254,29 +1254,15 @@ namespace EVedhikaUBDDeploymentTool
                 });
             });
             
+            // 17 Steps Completed: Auto-launch UBD Portal strictly in Microsoft Edge (IE Mode) and E-Vedhika Web App
             try
             {
-#if !DEBUG
-                if (!System.Diagnostics.Debugger.IsAttached)
+                SafeInvoke(delegate()
                 {
-                    SafeInvoke(delegate() { LogMessage("DEPLOY", "Auto-launching UBD Portal in Microsoft Edge (IE Mode) and E-Vedhika Web App..."); });
-                    
-                    // 1. Launch UBD Portal in Microsoft Edge
-                    string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
-                    if (!File.Exists(edgePath)) edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
-                    if (File.Exists(edgePath))
-                    {
-                        System.Diagnostics.Process.Start(edgePath, currentTargetLaunchUrl);
-                    }
-                    else
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = currentTargetLaunchUrl, UseShellExecute = true });
-                    }
-
-                    // 2. Launch E-Vedhika Web App in Default Browser
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = "https://www.e-vedhika.in/", UseShellExecute = true });
-                }
-#endif
+                    LogMessage("DEPLOY", "17 Steps Completed! Auto-launching UBD Portal in Microsoft Edge (IE Mode) and E-Vedhika Web App...");
+                    LaunchGovernmentPortalStatic(currentTargetLaunchUrl);
+                    LaunchEVedhikaWebPortalStatic();
+                });
             }
             catch (Exception ex)
             {
@@ -1655,10 +1641,19 @@ namespace EVedhikaUBDDeploymentTool
             });
         }
 
-        private void LaunchGovernmentPortal(string url)
+        public static void LaunchGovernmentPortalStatic(string url)
         {
             try
             {
+                // Ensure sites.xml and IE Mode policies are active before launch
+                try
+                {
+                    string xmlPath = Engine.EdgePolicyEngine.GenerateSiteListXml(new string[] { "ubd.telangana.gov.in", "ubd.ap.gov.in" });
+                    Engine.EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
+                }
+                catch { }
+
+                // 1. Check all standard and custom Microsoft Edge installation directories
                 string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
                 if (!File.Exists(edgePath)) edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
                 if (!File.Exists(edgePath))
@@ -1690,23 +1685,52 @@ namespace EVedhikaUBDDeploymentTool
                         Arguments = $"\"{url}\"",
                         UseShellExecute = true
                     });
+                    return;
                 }
-                else
+
+                // 2. Windows 10/11 native Microsoft Edge protocol handler (Guaranteed to open strictly in Microsoft Edge)
+                try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "microsoft-edge:" + url,
+                        UseShellExecute = true
+                    });
+                    return;
                 }
-                LogMessage("PORTAL", "Launched " + url + " in Microsoft Edge (IE Mode configured).");
+                catch { }
+
+                // 3. Fallback to default browser
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
             }
             catch (Exception ex)
             {
-                LogMessage("PORTAL-ERROR", "Could not launch portal: " + ex.Message);
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = "microsoft-edge:" + url, UseShellExecute = true });
                 }
                 catch { }
                 EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently("UBD Portal Launch Failed", "Failed to launch " + url + ": " + ex.Message, "PORTAL-LAUNCH");
             }
+        }
+
+        public static void LaunchEVedhikaWebPortalStatic()
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://www.e-vedhika.in/",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+
+        private void LaunchGovernmentPortal(string url)
+        {
+            LaunchGovernmentPortalStatic(url);
+            LogMessage("PORTAL", "Launched " + url + " in Microsoft Edge (IE Mode configured).");
         }
 
         // We leave timerDeploy_Tick empty so the designer doesn't break if it was hooked up
@@ -2186,11 +2210,7 @@ namespace EVedhikaUBDDeploymentTool
                     }
                     else
                     {
-                        MessageBox.Show(
-                            $"{info.Message}",
-                            "E-Vedhika Software Status",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
+                        AutoUpdateEngine.ShowSoftwareStatusDialog(this, info);
                     }
                 });
             });
