@@ -27,10 +27,6 @@ PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
 CloseApplications=yes
 CloseApplicationsFilter=*.exe
-SignedUninstaller=yes
-#ifdef SignToolPresent
-SignTool=signtool
-#endif
 
 [Registry]
 ; Prevent Windows 11 Smart App Control & Error 4551 Temp Execution Block

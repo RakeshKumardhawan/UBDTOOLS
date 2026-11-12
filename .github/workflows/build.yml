@@ -81,27 +81,29 @@ jobs:
         Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $pfxPass | Out-Null
         Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
 
-        # 3. Sign EVedhikaUBDDeploymentTool.exe before packaging
+        # 3. Compile Inno Setup Installer
         $outputDir = "csharp_solution\EVedhikaUBDDeploymentTool\Output"
         if (-not (Test-Path $outputDir)) {
             New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
         }
 
+        # Sign the inner application executable first
         if ($signtool -and (Test-Path $pfxPath)) {
+            Write-Host "Signing main application executable..."
             & $signtool sign /f "$pfxPath" /p "EVedhika2026!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "csharp_solution\EVedhikaUBDDeploymentTool\bin\Release\net48\EVedhikaUBDDeploymentTool.exe"
-            # In Inno Setup 6 command-line compiler, /S takes: /Sname=command $p
-            # We configure signtool via /S with proper argument quoting
-            $signParam = '/Ssigntool="' + $signtool + '" sign /f "' + $pfxPath + '" /p EVedhika2026! /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $f'
-            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DSignToolPresent=1" $signParam "csharp_solution\EVedhikaUBDDeploymentTool\EVedhikaUBDDeploymentTool_Setup.iss"
+        }
 
-            # Verify and sign the generated output executable if needed
-            if (Test-Path $outputDir) {
-                Get-ChildItem -Path "$outputDir\*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
-                    & $signtool timestamp /tr "http://timestamp.digicert.com" /td SHA256 $_.FullName
-                }
+        # Compile Setup with Inno Setup compiler (ISCC)
+        Write-Host "Compiling Inno Setup package..."
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "csharp_solution\EVedhikaUBDDeploymentTool\EVedhikaUBDDeploymentTool_Setup.iss"
+
+        # Sign all generated setup executables in Output directory
+        if ($signtool -and (Test-Path $pfxPath) -and (Test-Path $outputDir)) {
+            Write-Host "Signing generated installer executables..."
+            Get-ChildItem -Path "$outputDir\*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-Host "Signing installer: $($_.FullName)"
+                & $signtool sign /f "$pfxPath" /p "EVedhika2026!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 $_.FullName
             }
-        } else {
-            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "csharp_solution\EVedhikaUBDDeploymentTool\EVedhikaUBDDeploymentTool_Setup.iss"
         }
 
     - name: Create Release Link (Fixed URL)
