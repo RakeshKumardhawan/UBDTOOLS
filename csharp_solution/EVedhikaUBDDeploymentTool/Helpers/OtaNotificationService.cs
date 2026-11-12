@@ -13,12 +13,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
         private static readonly string[] WebEndpoints = new string[]
         {
+            "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=ingest_report",
+            "https://www.e-vedhika.in/admin/ubd_monitoring?action=ingest_report",
             "https://www.e-vedhika.in/api/reports/ota",
-            "https://www.e-vedhika.in/api/reports/sync",
-            "https://www.e-vedhika.in/api/telemetry/ota-event",
-            "http://localhost:3000/api/reports/ota",
-            "http://localhost:3000/api/reports/sync",
-            "http://localhost:3000/api/telemetry/ota-event"
+            "https://www.e-vedhika.in/api/reports/sync"
         };
 
         public static void SendOtaTriggeredNotification(string oldVersion, string targetVersion, string downloadUrl, string releaseNotes)
@@ -144,7 +142,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             {
                 string pcId = Logger.GetUniqueMachineId();
                 string pcName = Environment.MachineName;
-                string jsonPayload = $"{{\"eventType\":\"{EscapeJson(eventType)}\",\"pcId\":\"{EscapeJson(pcId)}\",\"pcName\":\"{EscapeJson(pcName)}\",\"oldVersion\":\"{EscapeJson(oldVersion)}\",\"newVersion\":\"{EscapeJson(newVersion)}\",\"downloadUrl\":\"{EscapeJson(downloadUrl)}\",\"details\":\"{EscapeJson(details)}\",\"status\":\"{EscapeJson(status)}\",\"timestamp\":\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"}}";
+                string jsonPayload = $"{{\"eventType\":\"{EscapeJson(eventType)}\",\"pcId\":\"{EscapeJson(pcId)}\",\"pcName\":\"{EscapeJson(pcName)}\",\"userName\":\"{EscapeJson(Environment.UserName)}\",\"version\":\"v1.0.9\",\"resourceBuild\":\"{EscapeJson(Engine.AutoUpdateEngine.CurrentResourceBuild)}\",\"buildVersion\":\"{EscapeJson(Engine.AutoUpdateEngine.CurrentResourceBuild)}\",\"oldVersion\":\"{EscapeJson(oldVersion)}\",\"newVersion\":\"{EscapeJson(newVersion)}\",\"downloadUrl\":\"{EscapeJson(downloadUrl)}\",\"remarks\":\"{EscapeJson(details)}\",\"details\":\"{EscapeJson(details)}\",\"status\":\"{EscapeJson(status)}\",\"livePresence\":\"ONLINE\",\"appState\":\"RUNNING\",\"timestamp\":\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"}}";
+
+                string err;
+                if (Logger.DeliverToWebsiteGuaranteed(jsonPayload, out err)) return;
 
                 foreach (var ep in WebEndpoints)
                 {

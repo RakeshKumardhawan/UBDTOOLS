@@ -79,7 +79,7 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
     osVersion: 'Windows 11 Pro',
     winBuild: 'Build 22631',
     appVersion: 'v1.0.9',
-    resourceBuild: '2026.11.11.R3',
+    resourceBuild: '2026.11.12.R4',
     pcConnectivity: 'ONLINE',
     appState: 'RUNNING',
     lastHeartbeatTime: 'Just Now',

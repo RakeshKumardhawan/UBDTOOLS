@@ -43,7 +43,7 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
-    version: 'v1.0.9 (Resource Build 2026.11.11.R3)',
+    version: 'v1.0.9 (Resource Build 2026.11.12.R4)',
     date: 'November 2026',
     changes: [
       'Fixed OTA Update Engine CS0236 field initializer and CS0103 ThreadPool & EscapeJson compilation errors',
@@ -144,7 +144,7 @@ export const CURRENT_APP_VERSION = 'v1.0.9';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.11.R3',
+  manifestVersion: '2026.11.12.R4',
   appVersion: 'v1.0.9',
   lastSyncTimestamp: '2026-11-11T00:00:00.000Z',
   totalResources: 5,
@@ -154,8 +154,8 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'ubd-sites-xml',
       name: 'UBD Sites Enterprise List (sites.xml)',
       category: 'Portal Policy',
-      currentVersion: '2026.11.11.R3',
-      latestVersion: '2026.11.11.R3',
+      currentVersion: '2026.11.12.R4',
+      latestVersion: '2026.11.12.R4',
       hash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
       latestHash: 'a8f7c9e102b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9',
       lastUpdated: '2026-11-11',
@@ -167,8 +167,8 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'zone2-registry-policy',
       name: 'Zone 2 Trusted Sites & ActiveX Flags',
       category: 'Registry Policy',
-      currentVersion: '2026.11.11.R3',
-      latestVersion: '2026.11.11.R3',
+      currentVersion: '2026.11.12.R4',
+      latestVersion: '2026.11.12.R4',
       hash: 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2',
       latestHash: 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2',
       lastUpdated: '2026-11-11',
@@ -180,8 +180,8 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'live-announcements-feed',
       name: 'Live Government Notices & Bulletins Feed',
       category: 'Live Feed',
-      currentVersion: '2026.11.11.R3',
-      latestVersion: '2026.11.11.R3',
+      currentVersion: '2026.11.12.R4',
+      latestVersion: '2026.11.12.R4',
       hash: 'c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4',
       latestHash: 'c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4',
       lastUpdated: '2026-11-11',
@@ -193,8 +193,8 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'dsc-driver-catalog',
       name: 'DSC Token & SmartCard Driver Catalog',
       category: 'Driver Catalog',
-      currentVersion: '2026.11.11.R3',
-      latestVersion: '2026.11.11.R3',
+      currentVersion: '2026.11.12.R4',
+      latestVersion: '2026.11.12.R4',
       hash: 'd5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6',
       latestHash: 'd5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6',
       lastUpdated: '2026-11-11',
@@ -206,8 +206,8 @@ export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
       id: 'nic-digisigner-bridge',
       name: 'NIC DigiSigner Port 8080/8443 Bridge Rules',
       category: 'Bridge Config',
-      currentVersion: '2026.11.11.R3',
-      latestVersion: '2026.11.11.R3',
+      currentVersion: '2026.11.12.R4',
+      latestVersion: '2026.11.12.R4',
       hash: 'e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
       latestHash: 'e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
       lastUpdated: '2026-11-11',
@@ -486,7 +486,7 @@ export async function checkForUpdates(
   };
 }
 
-export const LOCAL_BUILD_VERSION = '2026.11.11.R3';
+export const LOCAL_BUILD_VERSION = '2026.11.12.R4';
 
 export interface OtaCheckResult {
   hasOtaUpdate: boolean;

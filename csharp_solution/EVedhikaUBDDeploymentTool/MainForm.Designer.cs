@@ -198,7 +198,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblRemoteStatus.Name = "lblRemoteStatus";
             this.lblRemoteStatus.Size = new System.Drawing.Size(420, 17);
             this.lblRemoteStatus.TabIndex = 1;
-            this.lblRemoteStatus.Text = "Status: 🟢 LIVE ONLINE & STREAMING TO CENTRAL CLOUD DASHBOARD";
+            this.lblRemoteStatus.Text = "Status: 🟢 LIVE ONLINE & REPORTING TO E-VEDHIKA WEBSITE";
             // 
             // lblPcNameInfo
             // 
@@ -208,7 +208,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblPcNameInfo.Name = "lblPcNameInfo";
             this.lblPcNameInfo.Size = new System.Drawing.Size(380, 17);
             this.lblPcNameInfo.TabIndex = 2;
-            this.lblPcNameInfo.Text = "Endpoint: https://www.e-vedhika.in/admin/exe_ubd_live";
+            this.lblPcNameInfo.Text = "Endpoint: https://www.e-vedhika.in/admin/ubd_monitoring";
             // 
             // btnToggleRemote
             // 
@@ -234,7 +234,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnSendTelemetryManual.Name = "btnSendTelemetryManual";
             this.btnSendTelemetryManual.Size = new System.Drawing.Size(320, 35);
             this.btnSendTelemetryManual.TabIndex = 4;
-            this.btnSendTelemetryManual.Text = "📤 Send Live Telemetry Report to Cloud Now";
+            this.btnSendTelemetryManual.Text = "📤 Send Live Report to E-Vedhika Website Now";
             this.btnSendTelemetryManual.UseVisualStyleBackColor = false;
             this.btnSendTelemetryManual.Click += new System.EventHandler(this.btnSendTelemetryManual_Click);
             // 

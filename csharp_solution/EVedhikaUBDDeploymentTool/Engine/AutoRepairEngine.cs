@@ -20,7 +20,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string exePath = Application.ExecutablePath;
                 string appDir = AppDomain.CurrentDomain.BaseDirectory;
 
-                // 1. Add to Windows Startup Registry Key with -silent flag for 24x7 silent tray boot
+                // 1. Add to Windows Startup Registry Keys (HKCU & HKLM) with -silent flag for 24x7 silent tray boot across Windows 7, 8, 10 & 11
                 using (RegistryKey runKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                 {
                     if (runKey != null)
@@ -29,6 +29,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         if (logCallback != null) logCallback("[AutoRepair] Registered 'EVedhikaUBDGuardian' (-silent mode) in Windows Startup Registry (HKCU\\...\\Run).");
                     }
                 }
+                try
+                {
+                    using (RegistryKey hklmRun = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
+                    {
+                        if (hklmRun != null)
+                        {
+                            hklmRun.SetValue("EVedhikaUBDGuardian", string.Format("\"{0}\" -silent", exePath), RegistryValueKind.String);
+                        }
+                    }
+                }
+                catch { }
 
                 // 2. Ensure exactly ONE Desktop Shortcut exists (Prevent duplicate shortcuts on Windows Desktop)
                 try
@@ -142,7 +153,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         public static bool PerformSelfHealingAudit(Action<string> logCallback)
         {
-            // Flush any queued offline reports if network is now available
+            // 1. Automatically maintain Smart App Control bypass, Error 4551 Temp policies & unblock Downloads
+            try
+            {
+                BrowserSecurityEngine.ConfigureAntivirusSelfExclusion();
+            }
+            catch { }
+
+            // 2. Flush any queued offline reports if network is now available
             try
             {
                 Logger.FlushOfflineQueue();

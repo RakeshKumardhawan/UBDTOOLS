@@ -188,9 +188,11 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
         }
       } catch (e) {}
 
-      // 2. If running on GitHub Pages (e-vedhika.in) where /api/telemetry returns HTML redirect, try static JSON files
+      // 2. If running on GitHub Pages (e-vedhika.in) where /api/telemetry returns HTML redirect, try live Cloud Run gateway & static JSON files
       if (!fetchedSuccessfully) {
         const fallbackUrls = [
+          `https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/telemetry?t=${Date.now()}`,
+          `https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/telemetry?t=${Date.now()}`,
           `/api/telemetry.json?t=${Date.now()}`,
           `/telemetry_logs.json?t=${Date.now()}`,
           `/ubd_issues.json?t=${Date.now()}`,
@@ -279,9 +281,11 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
           }
         } catch (err) {}
 
-        // 2. Try static JSON fallbacks for GitHub Pages & static hosting
+        // 2. Try Cloud Run live gateway & static JSON fallbacks for GitHub Pages & static hosting
         if (!machineFetchSuccess) {
           const staticMachineUrls = [
+            `https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/consolidated-health?t=${Date.now()}`,
+            `https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/consolidated-health?t=${Date.now()}`,
             `/admin/consolidated_health.json?t=${Date.now()}`,
             `/public/admin/consolidated_health.json?t=${Date.now()}`,
             `/admin/pc_consolidated_health.json?t=${Date.now()}`,
@@ -542,7 +546,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                       {consolidatedMachines.length} PCs Tracked
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">Central Diagnostic Cloud</span>
+                    <span className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">E-Vedhika Website Live Receiver</span>
                   </div>
                 </div>
               </div>
@@ -676,7 +680,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
             <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
               <div className="space-y-2">
                 <h3 className="text-xl font-black flex items-center gap-2">
-                  Central Cloud Auto-Update Manager (ఆటో-అప్డేట్ గేట్వే)
+                  E-Vedhika OTA Auto-Update Manager (ఆటో-అప్డేట్ గేట్వే)
                 </h3>
                 <p className="text-xs text-slate-400">GitHub నుండి నేరుగా వెర్షన్ వివరాలను ఇక్కడ అప్డేట్ చేయవచ్చు.</p>
                 {githubSyncMsg && <div className="text-emerald-400 text-sm font-bold animate-bounce">{githubSyncMsg}</div>}
@@ -1211,7 +1215,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                   <MessageSquare className="w-4 h-4 text-amber-500" />
                   <span>ఆపరేటర్ ఫీడ్‌బ్యాక్ జాబితా (Operator Feedback Records)</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">రియల్-టైమ్ సెంట్రల్ క్లౌడ్ వాల్ట్ నుండి సేకరించబడిన ఫీడ్‌బ్యాక్స్</p>
+                <p className="text-xs text-slate-500 mt-0.5">రియల్-టైమ్ E-Vedhika వెబ్‌సైట్ నుండి సేకరించబడిన ఫీడ్‌బ్యాక్స్</p>
               </div>
               <span className="text-xs font-mono font-bold bg-slate-100 px-3 py-1 rounded-full text-slate-700">
                 {feedbacks.filter(f => feedbackFilterRating === 'ALL' || f.rating === feedbackFilterRating).length} Records
@@ -1403,7 +1407,7 @@ export const BackupsView: React.FC<BackupsViewProps> = ({
                      <div>• SmartCard Reader  : <span className="text-emerald-400">{selectedLogFor90Params.smartCardReader || 'Detected'}</span></div>
                      <div>• UBD Login URL     : <span className="text-emerald-400">Reachable</span></div>
                      <div>• ePanchayat URL    : <span className="text-emerald-400">Reachable</span></div>
-                     <div>• IFMIS Portal URL  : <span className="text-emerald-400">Reachable</span></div>
+                     <div>• E-Vedhika Website : <span className="text-emerald-400">Reachable</span></div>
                      <div>• PRRD Portal URL   : <span className="text-emerald-400">Reachable</span></div>
                      <div>• Execution Time    : <span className="text-cyan-300">{selectedLogFor90Params.deployDuration || '25 seconds'}</span></div>
                      <div>• Verification      : <span className="text-emerald-400 font-bold">{selectedLogFor90Params.verification || 'Passed (15/15)'}</span></div>

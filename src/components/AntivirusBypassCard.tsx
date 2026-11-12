@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export const AntivirusBypassCard: React.FC = () => {
-  const [expandedAv, setExpandedAv] = useState<string | null>('defender');
+  const [expandedAv, setExpandedAv] = useState<string | null>('error4551');
 
   const toggleAv = (id: string) => {
     setExpandedAv(expandedAv === id ? null : id);
@@ -30,10 +30,10 @@ export const AntivirusBypassCard: React.FC = () => {
           </div>
           <div>
             <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <span>యాంటీవైరస్ ఆటో-అన్‌బ్లాకర్ & వైట్‌లిస్ట్ విభాగాలు (Antivirus False Positive Resolver)</span>
+              <span>Smart App Control, Error 4551 & యాంటీవైరస్ ఆటో-అన్‌బ్లాకర్</span>
             </h3>
             <p className="text-xs text-amber-200/80 font-medium mt-0.5">
-              QuickHeal, NPAV, Avast, Kaspersky లేదా Windows Defender వల్ల ఇన్స్టాలేషన్ ఆగిపోతే 1-క్లిక్‌తో అన్‌బ్లాక్ చేయండి.
+              Windows 11 Smart App Control, Error 4551 (Temp Directory Block), QuickHeal, NPAV లేదా Windows Defender బ్లాక్ చేస్తే 1-క్లిక్‌తో పరిష్కరించండి.
             </p>
           </div>
         </div>
@@ -46,7 +46,7 @@ export const AntivirusBypassCard: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>1-Click Auto Whitelister (.bat)</span>
+            <span>1-Click Fix Error 4551 & Smart App Control (.bat)</span>
           </a>
         </div>
       </div>
@@ -55,9 +55,9 @@ export const AntivirusBypassCard: React.FC = () => {
       <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-xs text-amber-100">
         <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <strong className="text-amber-300 block">యాంటీవైరస్ ఎందుకు ఆపుతుంది? (Why Antivirus Blocks Installation)</strong>
+          <strong className="text-amber-300 block">Error 4551 & Smart App Control ఎందుకు వస్తుంది? (Why This Happens on Windows 11)</strong>
           <p className="leading-relaxed opacity-90">
-            E-Vedhika C# అప్లికేషన్ బ్రౌజర్‌లో Edge IE5 Quirks Mode రిజిస్ట్రీ కీలు అప్‌డేట్ చేయడం మరియు USB DSC Token డ్రైవర్లను కాన్ఫిగర్ చేయడం వల్ల QuickHeal, NPAV లేదా Windows Defender దీనిని అజ్ఞాత సాఫ్ట్‌వేర్‌గా భావించి (False Positive) బ్లాక్ చేస్తుంది. క్రింది 1-క్లిక్ స్క్రిప్ట్ రన్ చేస్తే సరిపోతుంది.
+            బ్రౌజర్ నుండి <code>EVedhika_Setup_v1.0.9.exe</code> డౌన్‌లోడ్ చేసినప్పుడు Windows 11 దానికి <code>Zone.Identifier</code> (Mark-of-the-Web) పెడుతుంది మరియు <code>%TEMP%</code> ఫోల్డర్ నుండి సెటప్ ఫైల్స్ రన్ అవ్వకుండా <strong>Smart App Control (Error 4551)</strong> ఆపుతుంది. క్రింది 1-లైన్ కమాండ్ లేదా <code>.bat</code> ఫైల్ రన్ చేస్తే వెంటనే ఇన్స్టాల్ అవుతుంది.
           </p>
         </div>
       </div>
@@ -65,8 +65,35 @@ export const AntivirusBypassCard: React.FC = () => {
       {/* Accordions for popular Antivirus software */}
       <div className="space-y-2 text-xs font-mono">
         <p className="text-slate-300 font-bold uppercase text-[11px] tracking-wider mb-2">
-          యాంటీవైరస్ సాఫ్ట్‌వేర్ వారిగా అన్‌బ్లాక్ చేసే విధానం (Step-by-Step Manual Bypass):
+          ఎర్రర్ మరియు యాంటీవైరస్ వారిగా అన్‌బ్లాక్ చేసే విధానం (Step-by-Step Bypass):
         </p>
+
+        {/* 0. Error 4551 & Smart App Control */}
+        <div className="bg-slate-900 border border-rose-500/50 rounded-xl overflow-hidden shadow-lg">
+          <button
+            onClick={() => toggleAv('error4551')}
+            className="w-full p-3 flex items-center justify-between text-left bg-rose-950/50 hover:bg-rose-900/50 transition-colors font-bold text-rose-300 cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
+              <span>0. Windows 11 "Smart App Control blocked an app" & "Error 4551: Unable to execute file in the temporary directory"</span>
+            </div>
+            {expandedAv === 'error4551' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {expandedAv === 'error4551' && (
+            <div className="p-4 space-y-2.5 text-slate-200 bg-slate-950/95 border-t border-rose-500/30 leading-relaxed font-sans text-xs">
+              <p className="font-bold text-emerald-300">పద్ధతి 1 (అత్యంత సులభం - 10 సెకన్లలో): PowerShell (Run as Administrator) ఓపెన్ చేసి ఈ ఒక్క లైన్ పేస్ట్ చేసి Enter నొక్కండి:</p>
+              <div className="p-3 bg-slate-900 border border-cyan-500/40 rounded-xl font-mono text-[11px] text-cyan-300 select-all overflow-x-auto">
+                mkdir C:\ProgramData\EVedhika\SetupTemp -Force; $env:TEMP=&apos;C:\ProgramData\EVedhika\SetupTemp&apos;; $env:TMP=&apos;C:\ProgramData\EVedhika\SetupTemp&apos;; Unblock-File &quot;$env:USERPROFILE\Downloads\EVedhika_Setup_v1.0.9.exe&quot;; Start-Process &quot;$env:USERPROFILE\Downloads\EVedhika_Setup_v1.0.9.exe&quot;
+              </div>
+              <p className="font-bold text-amber-300 pt-1">పద్ధతి 2 (Windows Security లో Smart App Control ఆఫ్ చేయడం):</p>
+              <p>1. Windows Start మెనూలో <strong>Windows Security</strong> ఓపెన్ చేయండి.</p>
+              <p>2. <strong>App &amp; browser control ➔ Smart App Control settings</strong> పై క్లిక్ చేసి <strong>Off</strong> చేయండి.</p>
+              <p>3. <code>Downloads\EVedhika_Setup_v1.0.9.exe</code> పై రైట్-క్లిక్ చేసి <strong>Properties ➔ Unblock (టిక్ పెట్టండి) ➔ Apply ➔ OK</strong> నొక్కి ఆపై రన్ చేయండి.</p>
+            </div>
+          )}
+        </div>
 
         {/* 1. Windows Defender & SmartScreen */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">

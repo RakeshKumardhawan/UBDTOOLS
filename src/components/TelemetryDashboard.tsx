@@ -12,7 +12,6 @@ import {
 import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
 
 import { LiveStepMonitoringWidget } from './LiveStepMonitoringWidget';
-import { NetworkDataFlowDiagram } from './NetworkDataFlowDiagram';
 import { ReportingReceiverView } from './ReportingReceiverView';
 
 interface MachineRecord {
@@ -51,82 +50,96 @@ export const TelemetryDashboard: React.FC = () => {
 
   const fetchTelemetryData = async () => {
     setRefreshing(true);
-    try {
-      // 1. Try Consolidated Health Store endpoint (Live API)
-      const res = await fetch('/api/consolidated-health?t=' + Date.now());
-      if (res.ok) {
-        const data = await res.json();
-        const machinesList = data.machines || (Array.isArray(data) ? data : []);
-        if (Array.isArray(machinesList) && machinesList.length > 0) {
-          const mapped: MachineRecord[] = machinesList.map((item: any) => ({
-            pcId: item.pcId || item.machineIdentifier || 'EVD-PC-UNKNOWN',
-            pcName: item.pcName || 'GP-OFFICE-PC',
-            userName: item.userName || 'Operator',
-            officeLocation: item.officeLocation || 'Gram Panchayat Office',
-            district: item.district || 'District',
-            state: item.state || 'Telangana',
-            osVersion: item.osVersion || 'Windows 10/11 Pro',
-            healthScore: item.overallStatus === 'HEALTHY' ? 100 : item.overallStatus === 'WARNING' ? 80 : 65,
-            status: item.overallStatus === 'HEALTHY' ? 'SUCCESS' : item.overallStatus || 'DEGRADED',
-            verification: item.deployment?.deployProfile || item.verification || '17/17 Steps Verified',
-            dscStatus: (item.technicalHealth?.dscDriverStatus === 'PASS' || String(item.dscStatus).includes('Active')) ? 'USB Token Active' : 'Check Token',
-            nicDigiSigner: (item.technicalHealth?.digiSignerStatus === 'PASS' || String(item.nicDigiSigner).includes('Active')) ? 'Port 8080 Active' : 'Inactive',
-            edgeIeMode: (item.technicalHealth?.edgeIeModeStatus === 'PASS' || String(item.edgeIeMode).includes('Active')) ? 'IE5 Quirks Active' : 'Policy Reset',
-            sitesXml: (item.technicalHealth?.sitesXmlStatus === 'PASS' || String(item.sitesXml).includes('Active')) ? 'sites.xml Valid' : 'Missing',
-            macAddress: item.macAddress || 'A4:BB:6D:88:21:EF',
-            hardwareUuid: item.hardwareUuid || localHw.hardwareUuid,
-            lastSeen: item.lastTelemetryUpdate || item.lastSeen || 'Just Now',
-            date: (item.lastTelemetryUpdate || item.date)?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-            time: (item.lastTelemetryUpdate || item.time)?.slice(11) || new Date().toLocaleTimeString(),
-            remarks: item.activeIssue?.summary || item.remarks || 'All 17 deployment steps verified successfully.'
-          }));
-          setRecords(mapped);
-          setLoading(false);
-          setRefreshing(false);
-          return;
+    const consolidatedEndpoints = [
+      `/api/consolidated-health?t=${Date.now()}`,
+      `https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/consolidated-health?t=${Date.now()}`,
+      `https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/consolidated-health?t=${Date.now()}`
+    ];
+
+    for (const url of consolidatedEndpoints) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
+          const data = await res.json();
+          const machinesList = data.machines || (Array.isArray(data) ? data : []);
+          if (Array.isArray(machinesList) && machinesList.length > 0) {
+            const mapped: MachineRecord[] = machinesList.map((item: any) => ({
+              pcId: item.pcId || item.machineIdentifier || 'EVD-PC-UNKNOWN',
+              pcName: item.pcName || 'GP-OFFICE-PC',
+              userName: item.userName || 'Operator',
+              officeLocation: item.officeLocation || 'Gram Panchayat Office',
+              district: item.district || 'District',
+              state: item.state || 'Telangana',
+              osVersion: item.osVersion || 'Windows 10/11 Pro',
+              healthScore: item.overallStatus === 'HEALTHY' ? 100 : item.overallStatus === 'WARNING' ? 80 : 65,
+              status: item.overallStatus === 'HEALTHY' ? 'SUCCESS' : item.overallStatus || 'DEGRADED',
+              verification: item.deployment?.deployProfile || item.verification || '17/17 Steps Verified',
+              dscStatus: (item.technicalHealth?.dscDriverStatus === 'PASS' || String(item.dscStatus).includes('Active')) ? 'USB Token Active' : 'Check Token',
+              nicDigiSigner: (item.technicalHealth?.digiSignerStatus === 'PASS' || String(item.nicDigiSigner).includes('Active')) ? 'Port 8080 Active' : 'Inactive',
+              edgeIeMode: (item.technicalHealth?.edgeIeModeStatus === 'PASS' || String(item.edgeIeMode).includes('Active')) ? 'IE5 Quirks Active' : 'Policy Reset',
+              sitesXml: (item.technicalHealth?.sitesXmlStatus === 'PASS' || String(item.sitesXml).includes('Active')) ? 'sites.xml Valid' : 'Missing',
+              macAddress: item.macAddress || 'A4:BB:6D:88:21:EF',
+              hardwareUuid: item.hardwareUuid || localHw.hardwareUuid,
+              lastSeen: item.lastTelemetryUpdate || item.lastSeen || 'Just Now',
+              date: (item.lastTelemetryUpdate || item.date)?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+              time: (item.lastTelemetryUpdate || item.time)?.slice(11) || new Date().toLocaleTimeString(),
+              remarks: item.activeIssue?.summary || item.remarks || 'All 17 deployment steps verified successfully.'
+            }));
+            setRecords(mapped);
+            setLoading(false);
+            setRefreshing(false);
+            return;
+          }
         }
+      } catch (e) {
+        // Try next live gateway endpoint
       }
-    } catch (e) {
-      console.warn('[TELEMETRY DASHBOARD] Consolidated endpoint fallback:', e);
     }
 
-    // Pure Live Fetch without dummy sample records
-    try {
-      const liveRes = await fetch('/api/telemetry');
-      if (liveRes.ok) {
-        const liveData = await liveRes.json();
-        const logsList = liveData.logs || (Array.isArray(liveData) ? liveData : []);
-        if (Array.isArray(logsList) && logsList.length > 0) {
-          const mapped: MachineRecord[] = logsList.map((item: any) => ({
-            pcId: item.pcId || item.id || 'EVD-PC-UNKNOWN',
-            pcName: item.pcName || 'GP-OFFICE-PC',
-            userName: item.userName || 'Operator',
-            officeLocation: item.officeLocation || 'Gram Panchayat Office',
-            district: item.district || 'District',
-            state: item.state || 'Telangana',
-            osVersion: item.osVersion || item.winEdition || 'Windows 10/11 Pro',
-            healthScore: item.healthScore || (item.status === 'SUCCESS' ? 100 : 80),
-            status: item.status || 'SUCCESS',
-            verification: item.verification || '17/17 Steps Passed',
-            dscStatus: item.dscStatus || 'USB Token Active',
-            nicDigiSigner: item.nicDigiSigner || 'Port 8080 Active',
-            edgeIeMode: item.edgeIeMode || 'IE5 Quirks Active',
-            sitesXml: item.sitesXml || 'sites.xml Valid',
-            macAddress: item.macAddress || localHw.macSuffix,
-            hardwareUuid: item.hardwareUuid || localHw.hardwareUuid,
-            lastSeen: item.lastSeen || item.time || 'Just Now',
-            date: item.date || new Date().toISOString().slice(0, 10),
-            time: item.time || new Date().toLocaleTimeString(),
-            remarks: item.remarks || '17/17 deployment steps verified.'
-          }));
-          setRecords(mapped);
-          setLoading(false);
-          setRefreshing(false);
-          return;
+    const telemetryEndpoints = [
+      '/api/telemetry',
+      'https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/telemetry',
+      'https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/telemetry'
+    ];
+
+    for (const url of telemetryEndpoints) {
+      try {
+        const liveRes = await fetch(url, { cache: 'no-store' });
+        if (liveRes.ok && (liveRes.headers.get('content-type') || '').includes('application/json')) {
+          const liveData = await liveRes.json();
+          const logsList = liveData.logs || (Array.isArray(liveData) ? liveData : []);
+          if (Array.isArray(logsList) && logsList.length > 0) {
+            const mapped: MachineRecord[] = logsList.map((item: any) => ({
+              pcId: item.pcId || item.id || 'EVD-PC-UNKNOWN',
+              pcName: item.pcName || 'GP-OFFICE-PC',
+              userName: item.userName || 'Operator',
+              officeLocation: item.officeLocation || 'Gram Panchayat Office',
+              district: item.district || 'District',
+              state: item.state || 'Telangana',
+              osVersion: item.osVersion || item.winEdition || 'Windows 10/11 Pro',
+              healthScore: item.healthScore || (item.status === 'SUCCESS' ? 100 : 80),
+              status: item.status || 'SUCCESS',
+              verification: item.verification || '17/17 Steps Passed',
+              dscStatus: item.dscStatus || 'USB Token Active',
+              nicDigiSigner: item.nicDigiSigner || 'Port 8080 Active',
+              edgeIeMode: item.edgeIeMode || 'IE5 Quirks Active',
+              sitesXml: item.sitesXml || 'sites.xml Valid',
+              macAddress: item.macAddress || localHw.macSuffix,
+              hardwareUuid: item.hardwareUuid || localHw.hardwareUuid,
+              lastSeen: item.lastSeen || item.time || 'Just Now',
+              date: item.date || new Date().toISOString().slice(0, 10),
+              time: item.time || new Date().toLocaleTimeString(),
+              remarks: item.remarks || '17/17 deployment steps verified.'
+            }));
+            setRecords(mapped);
+            setLoading(false);
+            setRefreshing(false);
+            return;
+          }
         }
+      } catch (err) {
+        // Try next endpoint
       }
-    } catch (err) {
-      console.warn('[TELEMETRY DASHBOARD] Live /api/telemetry fetch error:', err);
     }
 
     // Zero dummy records fallback: empty array when no live PCs registered
@@ -205,7 +218,7 @@ export const TelemetryDashboard: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="bg-emerald-500/20 text-emerald-300 text-[0.65rem] font-mono font-bold px-2.5 py-1 rounded border border-emerald-500/30">
-              REAL-TIME CLOUD TELEMETRY
+              100% LIVE E-VEDHIKA WEBSITE REPORTING (e-vedhika.in/admin/ubd_monitoring)
             </span>
             <span className="bg-cyan-500/20 text-cyan-300 text-[0.65rem] font-mono font-bold px-2.5 py-1 rounded border border-cyan-500/30">
               HARDWARE FINGERPRINTING ACTIVE
@@ -237,13 +250,10 @@ export const TelemetryDashboard: React.FC = () => {
       {/* Central Fleet Reporting Receiver (రిపోర్టింగ్ రిసీవర్) */}
       <ReportingReceiverView />
 
-      {/* Application Data Flow Network Architecture Diagram (Cold Server <-> Website <-> Telegram) */}
-      <NetworkDataFlowDiagram />
-
       {/* Real-time 17-Step Live Execution Visualizer Widget */}
       <LiveStepMonitoringWidget />
 
-      {/* Today 29 October 2026 Installation Summary Banner */}
+      {/* Live Installation Summary Banner */}
       <div className="bg-gradient-to-r from-emerald-900/60 via-slate-900 to-cyan-900/60 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
@@ -252,7 +262,7 @@ export const TelemetryDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-bold text-emerald-300 uppercase tracking-wider">
-                TODAY'S INSTALLATIONS REPORT (29 OCTOBER 2026)
+                LIVE APPLICATION REPORTS (https://www.e-vedhika.in/admin/ubd_monitoring)
               </span>
               <span className="bg-emerald-500 text-slate-950 text-[0.65rem] font-extrabold px-2 py-0.5 rounded-full font-mono">
                 {records.length} PCs SYNCED
@@ -260,11 +270,11 @@ export const TelemetryDashboard: React.FC = () => {
             </div>
             <h2 className="text-base sm:text-lg font-bold text-white font-mono mt-0.5">
               {records.length > 0 
-                ? `${records.length} Grama Panchayat & Mandal PCs Deployed Today with 17/17 Steps Verified`
-                : 'Live Cloud Listening Active — Waiting for client PC installations'}
+                ? `${records.length} Grama Panchayat & Mandal PCs Reported Live with 17/17 Steps Verified`
+                : 'Live Website Receiver Active — Waiting for client PC installations'}
             </h2>
             <p className="text-xs text-slate-300 mt-0.5">
-              Accurate, real-time cloud telemetry across Telangana & AP offices. Direct reporting via Cold Server, Website, and Telegram.
+              100% real-time reporting directly to https://www.e-vedhika.in/admin/ubd_monitoring and Telegram (No external Cloud Storage).
             </p>
           </div>
         </div>
@@ -497,7 +507,7 @@ export const TelemetryDashboard: React.FC = () => {
                         ఇంకా కంప్యూటర్ల డేటా నమోదు కాలేదు (Waiting for Real PCs)
                       </h4>
                       <p className="text-xs text-slate-500 max-w-sm mx-auto font-mono">
-                        Live Cloud Listening Active. Grama Panchayat / Mandal PCs will appear here automatically upon running the E-Vedhika Tool.
+                        Live Website Receiver Active. Grama Panchayat / Mandal PCs will appear here automatically upon running the E-Vedhika Tool.
                       </p>
                     </div>
                   </td>

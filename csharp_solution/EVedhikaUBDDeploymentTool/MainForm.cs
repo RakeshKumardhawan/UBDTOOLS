@@ -107,9 +107,9 @@ namespace EVedhikaUBDDeploymentTool
             string buildDate = Engine.AutoUpdateEngine.CurrentResourceBuild;
             SafeInvoke(delegate() {
                 lblHeaderSubtitle.Text = string.Format("E-Vedhika Suite (v1.0.9) | Build: {0} | State: {1} | ID: {2}", buildDate, currentStateName, pcId);
-                this.Text = "E-Vedhika UBD Deployment Tool - Build: " + buildDate;
-                lblStatusStep.Text = string.Format("Selected Target: {0}", currentTargetDomain);
-                LogMessage("APP-START", string.Format("Build: {0} | Target state: {1} ({2}) | PC ID: {3}", buildDate, currentStateName, currentTargetDomain, pcId));
+                this.Text = "E-Vedhika UBD Deployment Tool v1.0.9 - Build: " + buildDate;
+                lblStatusStep.Text = string.Format("Selected Target: {0} | Version: v1.0.9 ({1})", currentTargetDomain, buildDate);
+                LogMessage("APP-START", string.Format("Version: v1.0.9 | Build: {0} | Target state: {1} ({2}) | PC ID: {3}", buildDate, currentStateName, currentTargetDomain, pcId));
             });
         }
 
@@ -195,7 +195,7 @@ namespace EVedhikaUBDDeploymentTool
                 Padding = new Padding(12, 10, 8, 8)
             };
             Label lblBrand = new Label {
-                Text = "⚡ E-VEDHIKA PRO SUITE",
+                Text = "⚡ E-VEDHIKA PRO v1.0.9",
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(52, 211, 153),
                 AutoSize = true,
@@ -211,7 +211,7 @@ namespace EVedhikaUBDDeploymentTool
                 Padding = new Padding(10, 8, 10, 8)
             };
             Label lblSideStatus = new Label {
-                Text = string.Format("● Online | PC: {0}\nRAM: {1}%\nReady (17-Step Engine)", Environment.MachineName, Helpers.SystemInfoHelper.GetRamUsagePercentage()),
+                Text = string.Format("● Online | PC: {0}\nVer: v1.0.9 | {1}\nRAM: {2}% | Ready (17-Step)", Environment.MachineName, Engine.AutoUpdateEngine.CurrentResourceBuild, Helpers.SystemInfoHelper.GetRamUsagePercentage()),
                 Font = new Font("Segoe UI", 8f),
                 ForeColor = Color.FromArgb(148, 163, 184),
                 AutoSize = true,
@@ -574,7 +574,7 @@ namespace EVedhikaUBDDeploymentTool
 
                 if (lblPcNameInfo != null)
                 {
-                    lblPcNameInfo.Text = "Gateway: https://www.e-vedhika.in/admin/exe_ubd_live | Machine: " + Environment.MachineName + " (User: " + Environment.UserName + ")";
+                    lblPcNameInfo.Text = "Gateway: https://www.e-vedhika.in/admin/ubd_monitoring | Machine: " + Environment.MachineName + " (User: " + Environment.UserName + ")";
                     lblPcNameInfo.Font = new Font("Segoe UI", 9, FontStyle.Regular);
                     lblPcNameInfo.ForeColor = Color.FromArgb(148, 163, 184); // Slate 400
                     lblPcNameInfo.Location = new Point(15, 36);
@@ -641,7 +641,7 @@ namespace EVedhikaUBDDeploymentTool
                 txtRemoteLog.Visible = true;
 
                 Button btnTestCloud = new Button();
-                btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
+                btnTestCloud.Text = "🌐 Test E-Vedhika Website Connection";
                 btnTestCloud.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
                 btnTestCloud.BackColor = Color.FromArgb(30, 41, 59); // slate-800
                 btnTestCloud.ForeColor = Color.White;
@@ -656,9 +656,9 @@ namespace EVedhikaUBDDeploymentTool
                     
                     ThreadPool.QueueUserWorkItem(delegate {
                         string[] testUrls = new string[] {
-                            "https://www.e-vedhika.in/api/ping",
-                            "https://ais-dev-54cvk7cjdeugn77dw5lddj-585783354343.asia-southeast1.run.app/api/ping",
-                            "https://www.e-vedhika.in/api/telemetry"
+                            "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=ping",
+                            "https://www.e-vedhika.in/admin/ubd_monitoring",
+                            "https://www.e-vedhika.in/api/ping"
                         };
                         bool reachable = false;
                         string msg = "";
@@ -682,11 +682,11 @@ namespace EVedhikaUBDDeploymentTool
                         
                         SafeInvoke(delegate() {
                             btnTestCloud.Enabled = true;
-                            btnTestCloud.Text = "🌐 Test Network & Cloud (Network Check)";
+                            btnTestCloud.Text = "🌐 Test E-Vedhika Website Connection";
                             if (reachable)
-                                MessageBox.Show("✅ Cloud server is REACHABLE!\n\nYour PC can successfully communicate with www.e-vedhika.in.", "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                MessageBox.Show("✅ E-Vedhika Website (www.e-vedhika.in) is REACHABLE!\n\nYour PC can successfully send live reports to https://www.e-vedhika.in/admin/ubd_monitoring.", "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             else
-                                MessageBox.Show("⚠️ Cloud server is NOT reachable.\n\nError: " + msg + "\n\nThis system might be blocked by a firewall or proxy.", "Network Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                MessageBox.Show("⚠️ E-Vedhika Website (www.e-vedhika.in) is NOT reachable.\n\nError: " + msg + "\n\nThis system might be blocked by a firewall or proxy.", "Network Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         });
                     });
                 };
@@ -801,7 +801,7 @@ namespace EVedhikaUBDDeploymentTool
                                "✔ Windows CryptoAPI & PKCS#11 CSP: ProxKey, ePass2003, Class 3 mToken Active\n" +
                                "✔ NIC DigiSigner WebSocket: Port 8080 Firewall Loopback Unlocked\n" +
                                "✔ DigiSignHelper & CAPICOM ActiveX: 32-Bit SysWOW64 Dual Reg Healed\n" +
-                               "✔ Central Cloud Telemetry: Auto-Reporting to https://www.e-vedhika.in/api/telemetry";
+                               "✔ Direct Website Reporting: 100% Live Reporting to https://www.e-vedhika.in/admin/ubd_monitoring";
                 lblEnv1.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
                 lblEnv1.ForeColor = Color.FromArgb(203, 213, 225);
                 lblEnv1.Location = new Point(12, 30);
@@ -1196,7 +1196,6 @@ namespace EVedhikaUBDDeploymentTool
                 { "ubdWebsiteReachable", "Reachable" },
                 { "ubdLoginAccessible", "Accessible" },
                 { "ePanchayatAccessible", "Accessible" },
-                { "ifmisAccessible", "Accessible" },
                 { "prrdAccessible", "Accessible" },
                 { "deployStart", DateTime.Now.AddSeconds(-25).ToString("HH:mm:ss") },
                 { "reportId", "RPT-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper() },
@@ -1246,7 +1245,7 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     if (success)
                     {
-                        LogMessage("TELEMETRY", string.Format("[SUCCESS] Live telemetry report sent to Cloud Dashboard ({0})", resultMsg));
+                        LogMessage("TELEMETRY", string.Format("[SUCCESS] Live report sent to E-Vedhika Website ({0})", resultMsg));
                     }
                     else
                     {
@@ -1509,7 +1508,7 @@ namespace EVedhikaUBDDeploymentTool
                         Directory.CreateDirectory(Path.GetDirectoryName(exceptionFile));
                         string[] sites = currentStateName == "Andhra Pradesh"
                             ? new[] { "http://www.ubd.ap.gov.in", "http://www.ubd.ap.gov.in:8080" }
-                            : new[] { "https://ubd.telangana.gov.in", "https://ifmis.telangana.gov.in" };
+                            : new[] { "https://ubd.telangana.gov.in", "https://www.e-vedhika.in" };
                         File.WriteAllLines(exceptionFile, sites);
                         LogMessage("JAVA", $"[OK] Java exception.sites configured ({sites.Length} entries).");
                     } catch (Exception ex) {
@@ -1972,16 +1971,14 @@ namespace EVedhikaUBDDeploymentTool
                 string[] portals = currentStateName == "Telangana" ? new string[]
                 {
                     "https://ubd.telangana.gov.in",
-                    "https://ifmis.telangana.gov.in",
+                    "https://www.e-vedhika.in/admin/ubd_monitoring",
                     "https://epanchayat.telangana.gov.in",
-                    "https://treasury.telangana.gov.in",
                     "https://prrd.telangana.gov.in"
                 } : new string[]
                 {
                     "http://www.ubd.ap.gov.in:8080/UBDNEW",
-                    "http://www.ubd.ap.gov.in:8080/UBDMIS",
-                    "https://epanchayat.ap.gov.in",
-                    "https://cfms.ap.gov.in"
+                    "https://www.e-vedhika.in/admin/ubd_monitoring",
+                    "https://epanchayat.ap.gov.in"
                 };
 
                 foreach (var url in portals)
@@ -2067,7 +2064,7 @@ namespace EVedhikaUBDDeploymentTool
                     lblAiStatus.Text = "✅ సమస్య రిపోర్ట్ టెలిగ్రామ్ & AI స్టూడియోకు పంపబడింది! (Report dispatched to Telegram & Support)";
                     lblAiStatus.ForeColor = Color.FromArgb(16, 185, 129);
                 }
-                LogMessage("REPORT", "✅ Issue Report dispatched to Telegram Alerts (@DhawanRakesh) & Central Cloud Dashboard!");
+                LogMessage("REPORT", "✅ Issue Report dispatched to Telegram Alerts (@DhawanRakesh) & E-Vedhika Website (ubd_monitoring)!");
             }
             catch (Exception ex)
             {
@@ -2146,7 +2143,7 @@ namespace EVedhikaUBDDeploymentTool
         private void ExecuteCheckForUpdatesInteractive()
         {
             if (btnCheckUpdates != null) btnCheckUpdates.Enabled = false;
-            LogMessage("AUTO-UPDATE", "Checking central cloud server https://www.e-vedhika.in/admin/exe_ubd_live?action=check_update for software updates...");
+            LogMessage("AUTO-UPDATE", "Checking E-Vedhika Website https://www.e-vedhika.in/admin/ubd_monitoring.php?action=check_update for software updates...");
 
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
@@ -2252,7 +2249,7 @@ namespace EVedhikaUBDDeploymentTool
                 Helpers.NativeRemoteAgent.StartRemoteSession();
                 isRemotePaused = false;
                 btnToggleRemote.Text = "⏸️ Pause Remote Agent";
-                lblRemoteStatus.Text = "Status: 🟢 LIVE ONLINE & STREAMING TO CENTRAL CLOUD DASHBOARD";
+                lblRemoteStatus.Text = "Status: 🟢 LIVE ONLINE & REPORTING TO E-VEDHIKA WEBSITE";
                 lblRemoteStatus.ForeColor = System.Drawing.Color.FromArgb(16, 185, 129);
                 LogRemoteMessage("REMOTE", "Remote screen sharing session resumed successfully.");
             }
@@ -2260,7 +2257,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnSendTelemetryManual_Click(object sender, EventArgs e)
         {
-            LogRemoteMessage("TELEMETRY", "Posting live machine telemetry report to support portal https://www.e-vedhika.in/admin/exe_ubd_live ...");
+            LogRemoteMessage("TELEMETRY", "Posting live machine telemetry report to support portal https://www.e-vedhika.in/admin/ubd_monitoring ...");
             
             int manHScore;
             string manHStatus, manHDiag;
@@ -2330,7 +2327,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (success)
                     {
                         LogRemoteMessage("TELEMETRY", $"HTTP POST Telemetry payload sent successfully ({resultMsg})");
-                        LogMessage("TELEMETRY", $"Live telemetry report submitted to central cloud dashboard ({resultMsg})");
+                        LogMessage("TELEMETRY", $"Live telemetry report submitted to E-Vedhika Website ({resultMsg})");
                     }
                     else
                     {
@@ -2389,7 +2386,7 @@ namespace EVedhikaUBDDeploymentTool
                 }
 
                 // Seamlessly update live resources (news, policies, sites.xml) without restart
-                LogMessage("SYNC", "[RESOURCE ENGINE] Syncing live cloud resources (No restart required)...");
+                LogMessage("SYNC", "[RESOURCE ENGINE] Syncing live resources from E-Vedhika Website (No restart required)...");
                 var resInfo = EVedhikaUBDDeploymentTool.Engine.AutoUpdateEngine.CheckAndApplyLiveResources(delegate(string msg) {
                     LogMessage("RESOURCE", msg);
                 });
@@ -2397,6 +2394,46 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     LogMessage("SYNC SUCCESS", resInfo.Message);
                 }
+
+                // Automatically check for OTA Updates (Version or Resource Build) in background and notify user clearly
+                ThreadPool.QueueUserWorkItem(delegate
+                {
+                    try
+                    {
+                        Logger.Send60SecondHeartbeatPing();
+                        var otaInfo = AutoUpdateEngine.CheckForUpdates(msg => SafeInvoke(() => LogMessage("AUTO-UPDATE", msg)));
+                        if (otaInfo != null && otaInfo.IsUpdateAvailable)
+                        {
+                            SafeInvoke(delegate
+                            {
+                                try
+                                {
+                                    if (trayNotifyIcon != null)
+                                    {
+                                        trayNotifyIcon.ShowBalloonTip(
+                                            8000,
+                                            "✨ E-Vedhika OTA Update Available",
+                                            $"New Release {otaInfo.LatestVersion} (Build: {otaInfo.LatestResourceBuild}) is ready to install!",
+                                            ToolTipIcon.Info
+                                        );
+                                    }
+                                    AutoUpdateEngine.ShowInteractiveUpdateDialog(
+                                        this,
+                                        otaInfo,
+                                        msg => SafeInvoke(() => LogMessage("AUTO-UPDATE", msg)),
+                                        progress => SafeInvoke(() =>
+                                        {
+                                            if (pbUpdateProgress != null) { pbUpdateProgress.Visible = true; pbUpdateProgress.Value = progress; }
+                                            if (lblUpdateStatus != null) { lblUpdateStatus.Visible = true; lblUpdateStatus.Text = $"Downloading Update: {progress}%"; }
+                                        })
+                                    );
+                                }
+                                catch { }
+                            });
+                        }
+                    }
+                    catch { }
+                });
             }
             catch (Exception ex)
             {
@@ -2433,7 +2470,7 @@ namespace EVedhikaUBDDeploymentTool
                 trayContextMenu.Items.Add(itemExit);
 
                 trayNotifyIcon = new NotifyIcon();
-                trayNotifyIcon.Text = "E-Vedhika 24x7 Guardian (USB DSC Auto-Detector Active)";
+                trayNotifyIcon.Text = $"E-Vedhika v1.0.9 ({AutoUpdateEngine.CurrentResourceBuild}) - 24x7 Guardian";
                 try
                 {
                     string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.ico");
@@ -2479,13 +2516,18 @@ namespace EVedhikaUBDDeploymentTool
             this.Hide();
             if (trayNotifyIcon != null)
             {
-                trayNotifyIcon.Text = "E-Vedhika UBD Tool v1.0.9 - Silent Guardian Active";
+                trayNotifyIcon.Text = $"E-Vedhika v1.0.9 ({AutoUpdateEngine.CurrentResourceBuild}) - Silent Guardian";
             }
         }
 
         private void ExitApplicationFromTray()
         {
             isExitingFromTray = true;
+            try
+            {
+                Logger.SendApplicationOfflinePing();
+            }
+            catch { }
             if (trayNotifyIcon != null)
             {
                 trayNotifyIcon.Visible = false;
@@ -2846,7 +2888,7 @@ namespace EVedhikaUBDDeploymentTool
                 if (btnSubmitFeedback != null)
                 {
                     btnSubmitFeedback.Enabled = false;
-                    btnSubmitFeedback.Text = "Submitting to Central Cloud...";
+                    btnSubmitFeedback.Text = "Submitting to E-Vedhika Website...";
                 }
 
                 int rating = 5;
@@ -2899,8 +2941,8 @@ namespace EVedhikaUBDDeploymentTool
                     bool success = false;
                     string respMsg = "";
                     string[] targetUrls = new string[] {
-                        "https://www.e-vedhika.in/api/feedback",
-                        "http://localhost:3000/api/feedback"
+                        "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=ingest_report",
+                        "https://www.e-vedhika.in/api/feedback"
                     };
 
                     foreach (string url in targetUrls)
@@ -2990,6 +3032,7 @@ namespace EVedhikaUBDDeploymentTool
 
             try
             {
+                Logger.SendApplicationOfflinePing();
                 dscPollTimer?.Stop();
                 dscPollTimer?.Dispose();
                 trayNotifyIcon?.Dispose();

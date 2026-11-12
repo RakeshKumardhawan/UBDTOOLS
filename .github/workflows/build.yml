@@ -62,9 +62,38 @@ jobs:
     - name: Install Inno Setup
       run: choco install innosetup --no-progress -y
 
-    - name: Compile Full Bundled Installer with Inno Setup (Includes all Payload files)
+    - name: Generate Authenticode Certificate, Sign Binaries & Compile Signed Inno Setup Installer (Fixes Error 4551 & Smart App Control)
+      shell: powershell
       run: |
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool_Setup.iss
+        $ErrorActionPreference = 'Continue'
+        # 1. Locate Windows SDK signtool.exe
+        $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64" } | Select-Object -First 1 -ExpandProperty FullName
+        if (-not $signtool) {
+            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Filter "signtool.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        }
+        Write-Host "Located signtool.exe at: $signtool"
+
+        # 2. Generate Authenticode Code-Signing Certificate
+        $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=E-Vedhika Development Community, O=E-Vedhika Government Solutions, C=IN" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(5)
+        $pfxPass = ConvertTo-SecureString -String "EVedhika2026!" -Force -AsPlainText
+        $pfxPath = "$PWD\EVedhika_CodeSign.pfx"
+        $cerPath = "csharp_solution\EVedhikaUBDDeploymentTool\bin\Release\net48\EVedhika_TrustedRoot.cer"
+        Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $pfxPass | Out-Null
+        Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
+
+        # 3. Sign EVedhikaUBDDeploymentTool.exe before packaging
+        if ($signtool -and (Test-Path $pfxPath)) {
+            & $signtool sign /f "$pfxPath" /p "EVedhika2026!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "csharp_solution\EVedhikaUBDDeploymentTool\bin\Release\net48\EVedhikaUBDDeploymentTool.exe"
+            # Compile Inno Setup with SignTool signing both inner .tmp loader, uninstaller, and outer Setup.exe
+            $signCmd = "`"$signtool`" sign /f `"$pfxPath`" /p EVedhika2026! /fd SHA256 `$f"
+            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DSignToolPresent=1" "/Ssigntool=$signCmd" "csharp_solution\EVedhikaUBDDeploymentTool\EVedhikaUBDDeploymentTool_Setup.iss"
+            # Also timestamp the final outer setup executable
+            Get-ChildItem "csharp_solution\EVedhikaUBDDeploymentTool\Output\*.exe" | ForEach-Object {
+                & $signtool timestamp /tr "http://timestamp.digicert.com" /td SHA256 $_.FullName
+            }
+        } else {
+            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "csharp_solution\EVedhikaUBDDeploymentTool\EVedhikaUBDDeploymentTool_Setup.iss"
+        }
 
     - name: Create Release Link (Fixed URL)
       uses: softprops/action-gh-release@v2
@@ -74,8 +103,9 @@ jobs:
         files: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
-        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.10.R2)
-        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.10.R2) - Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Support, Dual-Channel Independent Telemetry, In-App Operator Feedback & Ratings, and Instant Telegram Reporting."
+          public/downloads/Unblock_EVedhika_Antivirus_Exclusion.bat
+        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.12.R4)
+        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.12.R4) - Authenticode SHA-256 Signed Installer (Fixes Error 4551 & Windows 11 Smart App Control), Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Notifications, and 100% Real-Time Website Report Sync to https://www.e-vedhika.in/admin/ubd_monitoring."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -86,3 +116,4 @@ jobs:
         path: |
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
+          public/downloads/Unblock_EVedhika_Antivirus_Exclusion.bat

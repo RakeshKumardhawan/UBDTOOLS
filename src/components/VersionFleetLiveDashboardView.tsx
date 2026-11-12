@@ -97,7 +97,38 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
   const [auditOfficeLocation, setAuditOfficeLocation] = useState<string>('Khammam Mandal Praja Parishad Office');
   const [auditDistrict, setAuditDistrict] = useState<string>('Khammam');
   const [auditState, setAuditState] = useState<string>('Telangana');
-  const [auditAppVersion, setAuditAppVersion] = useState<string>('v1.0.8');
+  const [auditAppVersion, setAuditAppVersion] = useState<string>('v1.0.9');
+
+  // Telegram 25 PCs Bulk Import Modal State
+  const [showTelegramImportModal, setShowTelegramImportModal] = useState<boolean>(false);
+  const [telegramRawText, setTelegramRawText] = useState<string>('');
+  const [isImportingTelegram, setIsImportingTelegram] = useState<boolean>(false);
+  const [telegramImportStatus, setTelegramImportStatus] = useState<string>('');
+
+  const handleBulkTelegramImport = async () => {
+    if (!telegramRawText.trim()) return;
+    setIsImportingTelegram(true);
+    setTelegramImportStatus('');
+    try {
+      const res = await fetch('/api/reports/import-telegram-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText: telegramRawText })
+      });
+      const data = await res.json();
+      if (data.success && data.importedCount > 0) {
+        setTelegramImportStatus(`✅ విజయవంతంగా ${data.importedCount} PC రిపోర్ట్‌లు (${(data.machines || []).join(', ')}) లైవ్ డ్యాష్‌బోర్డ్‌లోకి యాడ్ చేయబడ్డాయి!`);
+        setTelegramRawText('');
+        await fetchLiveFleetData();
+      } else {
+        setTelegramImportStatus(data.message || '⚠️ టెక్స్ట్‌లో PC ID లేదా Computer Name కనుగొనబడలేదు. టెలిగ్రామ్ మెసేజ్‌ను పూర్తిగా కాపీ చేసి పేస్ట్ చేయండి.');
+      }
+    } catch (e: any) {
+      setTelegramImportStatus(`❌ లోపం: ${e.message}`);
+    } finally {
+      setIsImportingTelegram(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -192,8 +223,9 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
 
     const endpoints = [
       '/api/version-fleet/live',
+      'https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/version-fleet/live',
+      'https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/version-fleet/live',
       'https://www.e-vedhika.in/api/version-fleet/live',
-      'https://ais-dev-3gqiosyli66lnxejdrqbmr-585783354343.asia-southeast1.run.app/api/version-fleet/live',
       '/version_fleet.json',
       '/admin/version_fleet.json',
       '/telemetry_vault.json',
@@ -443,6 +475,17 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+            <button
+              onClick={() => {
+                setTelegramImportStatus('');
+                setShowTelegramImportModal(true);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:to-pink-400 text-white font-black text-xs transition-all shadow-lg shadow-indigo-500/30 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>📲 Import Telegram PC Reports (25 PCs)</span>
+            </button>
+
             <button
               onClick={() => {
                 setAuditStatus('idle');
@@ -1532,6 +1575,66 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Telegram 25 PC Reports Importer Modal */}
+      {showTelegramImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-indigo-500/40 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <span>📲 టెలిగ్రామ్ లో వచ్చిన 25 PC రిపోర్ట్‌లను ఇక్కడికి ఇంపోర్ట్ చేయండి</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  మీ టెలిగ్రామ్ (@DhawanRakesh) లో ఉన్న 25 PC రిపోర్ట్ మెసేజ్‌లను సెలెక్ట్ చేసి (Copy) ఇక్కడ పేస్ట్ చేయండి — లేదా టెలిగ్రామ్ బాట్ (<strong>@ubd_installation_alerts_bot</strong>) కు ఆ 25 మెసేజ్‌లను <strong>Forward</strong> చేయండి (6 సెకన్లలో ఆటోమేటిక్‌గా సింక్ అవుతాయి!).
+                </p>
+              </div>
+              <button
+                onClick={() => setShowTelegramImportModal(false)}
+                className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <textarea
+              value={telegramRawText}
+              onChange={e => setTelegramRawText(e.target.value)}
+              rows={9}
+              placeholder={`మీ టెలిగ్రామ్ లో వచ్చిన 1 నుండి 25 PC రిపోర్ట్ మెసేజ్‌లను ఒకేసారి కాపీ చేసి ఇక్కడ పేస్ట్ చేయండి...\n\nఉదాహరణకు:\n🖥️ PC Name: DESKTOP-GP01\n🆔 Machine ID: EVD-PC-8A12-9F01\n👤 User Name: PANCHAYAT SECRETARY\n📍 Office: Khammam GP\n📦 Version: v1.0.9 (2026.11.12.R4)`}
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
+            />
+
+            {telegramImportStatus && (
+              <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/40 text-xs font-bold text-indigo-200">
+                {telegramImportStatus}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <span className="text-[11px] text-slate-400 font-mono">
+                💡 ఒకేసారి 25 మెసేజ్‌లు కలిపి పేస్ట్ చేసినా సిస్టమ్ ప్రతి PC ని వేరువేరుగా గుర్తించి డ్యాష్‌బోర్డ్‌లో యాడ్ చేస్తుంది.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowTelegramImportModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
+                >
+                  రద్దు చేయి
+                </button>
+                <button
+                  onClick={handleBulkTelegramImport}
+                  disabled={isImportingTelegram || !telegramRawText.trim()}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 disabled:opacity-50 text-white text-xs font-black shadow-lg cursor-pointer"
+                >
+                  {isImportingTelegram ? 'ఇంపోర్ట్ అవుతోంది...' : '🚀 ఇప్పుడే 25 PC రిపోర్ట్‌లను యాడ్ చేయండి'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

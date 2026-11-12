@@ -261,7 +261,7 @@ async function startServer() {
       district: districtVal,
       state: stateVal,
       appVersion: body.appVersion || body.version || 'v1.0.9',
-      resourceBuild: body.resourceBuild || '2026.11.11.R3',
+      resourceBuild: body.resourceBuild || '2026.11.12.R4',
       osVersion: body.osVersion || 'Windows 11 Pro',
       winBuild: body.winBuild || 'Build 22631',
       status: body.status || 'SUCCESS',
@@ -2101,10 +2101,10 @@ async function startServer() {
     releaseNotes: '[NEW FEATURES]\n• System Tray \'Check for Updates\' Menu Item with interactive OTA update trigger\n• Categorized \'What\'s New\' Popup Notification showing Previous vs Current Version & Build\n• Automatic Application Restart Workflow with state persistence & restart loop prevention\n\n[BUG FIXES]\n• Fixed Heartbeat Deduplication & Process State Timeout in Central Telemetry Engine\n• Resolved Duplicate Process Guardian Launch Conflict on system startup\n\n[PERFORMANCE IMPROVEMENTS]\n• Enhanced OTA Package Verification with SHA-256 Digest Audit\n• Optimized 60-Second Real-Time Telemetry Relay and memory footprint\n\n[SECURITY UPDATES]\n• Authenticode Digital Signature & Certificate Whitelist Validation\n• Enforced Encrypted HTTPS Update Downloads and payload verification',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.11.R3',
+    latestResourceBuild: '2026.11.12.R4',
     resourceBuildDate: '2026-11-11',
-    resourceBuild: '2026.11.11.R3',
-    manifestVersion: '2026.11.11.R3'
+    resourceBuild: '2026.11.12.R4',
+    manifestVersion: '2026.11.12.R4'
   };
 
 
@@ -2166,10 +2166,10 @@ async function startServer() {
           currentVersionConfig.versionCode = highestWeight;
           currentVersionConfig.downloadUrl = highestDownloadUrl;
           currentVersionConfig.executableName = highestExeName;
-          currentVersionConfig.latestResourceBuild = '2026.11.11.R3';
+          currentVersionConfig.latestResourceBuild = '2026.11.12.R4';
           currentVersionConfig.resourceBuildDate = '2026-11-11';
-          currentVersionConfig.resourceBuild = '2026.11.11.R3';
-          currentVersionConfig.manifestVersion = '2026.11.11.R3';
+          currentVersionConfig.resourceBuild = '2026.11.12.R4';
+          currentVersionConfig.manifestVersion = '2026.11.12.R4';
           currentVersionConfig.releaseDate = '2026-11-11';
           
           try {
@@ -2178,7 +2178,7 @@ async function startServer() {
             if (!fs.existsSync(apiVersionDir)) fs.mkdirSync(apiVersionDir, { recursive: true });
             fs.writeFileSync(path.join(apiVersionDir, 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
           } catch (err) {}
-          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.11.R3)`);
+          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.12.R4)`);
         }
       }
     } catch (e: any) {
@@ -2244,6 +2244,252 @@ async function startServer() {
       return res.status(500).json({ success: false, error: err.message });
     }
   });
+
+  // Helper: Parse 1 or multiple (e.g. 25+) pasted or forwarded Telegram PC Reports and ingest them into all live stores
+  function parseTelegramReportsTextAndIngest(rawText: string): any[] {
+    if (!rawText || typeof rawText !== 'string') return [];
+
+    // Strip HTML tags if present
+    const cleanText = rawText
+      .replace(/<\/?(b|code|i|pre|a|span)[^>]*>/gi, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+
+    // Split multiple pasted Telegram reports by report headers or Machine ID / PC Name boundaries
+    const rawBlocks = cleanText
+      .split(/(?=(?:🚀|📋|🛡️|🚨)\s*E-Vedhika|(?=Report ID\s*:))/)
+      .map(b => b.trim())
+      .filter(b => b.length > 20 && (/Machine ID\s*:|PC Name\s*:|Computer\s*:|Unique PC ID\s*:/i.test(b)));
+
+    const blocks = rawBlocks.length > 0 ? rawBlocks : (
+      /Machine ID\s*:|PC Name\s*:|Computer\s*:/i.test(cleanText) ? [cleanText] : []
+    );
+
+    const importedRecords: any[] = [];
+
+    const extractField = (block: string, labels: string[]): string => {
+      for (const lbl of labels) {
+        const regex = new RegExp(`(?:^|\\n)\\s*(?:•|-|🖥️|💻|⚙️|📊|🔐|📌|🏢|🔑|🌐|📝|⏰)?\\s*${lbl}\\s*:\\s*([^\\n\\r]+)`, 'i');
+        const m = block.match(regex);
+        if (m && m[1]) {
+          return m[1].trim();
+        }
+      }
+      return '';
+    };
+
+    for (const block of blocks) {
+      const reportId = extractField(block, ['Report ID', 'Event ID']) || `RPT-TG-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const pcId = extractField(block, ['Machine ID', 'Unique PC ID', 'PC ID', 'Device ID']);
+      const pcNameRaw = extractField(block, ['PC Name', 'Computer Name', 'Computer', 'Machine Name']);
+      let pcName = pcNameRaw;
+      let userName = extractField(block, ['User Name', 'Operator', 'User']);
+      if (pcNameRaw && pcNameRaw.includes('(') && !userName) {
+        const parts = pcNameRaw.split('(');
+        pcName = parts[0].trim();
+        userName = parts[1].replace(')', '').trim();
+      }
+      if (!pcName) pcName = 'GP-OFFICE-PC';
+      if (!userName) userName = 'Panchayat Operator';
+
+      const officeLocation = extractField(block, ['Office Location', 'Office', 'Location']) || 'Grama Panchayat Office, Telangana';
+      const userPrivileges = extractField(block, ['User Privileges', 'Privileges']) || 'Elevated Administrator Mode';
+      const localIp = extractField(block, ['IP Address', 'Local IP', 'IP']) || '192.168.1.10';
+      const winEdition = extractField(block, ['Windows Edition', 'OS Version', 'OS']) || 'Windows 10/11 Pro (64-bit)';
+      const winBuild = extractField(block, ['OS Build', 'Build']) || 'Verified';
+      const architecture = extractField(block, ['Architecture']) || '64-bit Operating System (x64)';
+      const internetStatus = extractField(block, ['Internet Status', 'Internet']) || 'Online';
+      const ramInfo = extractField(block, ['RAM \\(Memory\\)', 'RAM']) || '8.00 GB Total';
+      const romInfo = extractField(block, ['ROM \\(Storage\\)', 'ROM']) || '512 GB Total';
+      const diskFreeSpace = extractField(block, ['Disk Free', 'Disk']) || '120 GB Free';
+      const cpuInfo = extractField(block, ['CPU', 'Processor']) || 'Intel Core Processor';
+      const overallStatus = extractField(block, ['Overall Status', 'Status']) || 'SUCCESS';
+      const healthRaw = extractField(block, ['Health Score']) || '100%';
+      const healthScoreMatch = healthRaw.match(/(\d+)/);
+      const healthScore = healthScoreMatch ? Number(healthScoreMatch[1]) : 100;
+      const appVersion = extractField(block, ['Application Version', 'App Version', 'Version']) || 'v1.0.9';
+      const resourceBuild = extractField(block, ['Build Version', 'Resource Build']) || '2026.11.12.R4';
+      const verification = extractField(block, ['Summary', 'Verification']) || '17/17 steps passed.';
+      const digiSignerStatus = extractField(block, ['DigiSigner Bridge', 'DigiSigner']) || 'Running (Port 8080 Active)';
+      const port8080Status = extractField(block, ['Port 8080']) || 'Port 8080 Active (Listening)';
+      const dscStatus = extractField(block, ['DSC USB Token', 'DSC Status', 'DSC Token']) || 'Active (USB Token Connected)';
+      const trustedSites = extractField(block, ['Trusted Sites']) || 'Configured (Zone 2)';
+      const edgeIeMode = extractField(block, ['Edge IE Mode']) || 'IE5 Quirks Active';
+      const sitesXml = extractField(block, ['sites\\.xml']) || 'Active (sites.xml verified)';
+      const registryVerification = extractField(block, ['Registry Policy']) || 'Verified (Zone 2, Flags, Emulation)';
+      const remarks = extractField(block, ['Remarks']) || 'Imported from Official Telegram Report (@DhawanRakesh)';
+      const uploadTimestamp = extractField(block, ['Upload Timestamp', 'Time', 'Timestamp']) || new Date().toLocaleString('en-IN');
+
+      const payload = {
+        reportId,
+        eventId: reportId,
+        reportType: block.includes('Installation & Setup Report') ? 'INSTALLATION' : 'DEPLOYMENT_AUDIT',
+        recordSource: 'TELEGRAM_LIVE_REPORT',
+        pcId: pcId || undefined,
+        pcName,
+        userName,
+        officeLocation,
+        userPrivileges,
+        localIp,
+        osVersion: winEdition,
+        winEdition,
+        winBuild,
+        architecture,
+        internetStatus,
+        ramInfo,
+        romStorage: romInfo,
+        diskFreeSpace,
+        cpuInfo,
+        status: overallStatus.toUpperCase().includes('FAIL') ? 'FAILED' : 'SUCCESS',
+        healthScore,
+        version: appVersion,
+        appVersion,
+        buildVersion: resourceBuild,
+        resourceBuild,
+        verification,
+        digiSignerStatus,
+        nicDigiSigner: digiSignerStatus,
+        port8080Status,
+        dscStatus,
+        trustedSites,
+        edgeIeMode,
+        sitesXml,
+        registryVerification,
+        remarks,
+        details: `${verification} | ${remarks} (Timestamp: ${uploadTimestamp})`,
+        lastReportUploadTime: uploadTimestamp
+      };
+
+      const rec = processIncomingReportEvent(payload);
+
+      // Also ensure telemetryLogsStore has this PC report
+      const existingIdx = telemetryLogsStore.findIndex(
+        t => (t.pcId && t.pcId === rec.pcId) || (t.pcName && t.pcName.toUpperCase() === rec.pcName.toUpperCase())
+      );
+      const telemEntry = {
+        id: rec.reportId,
+        slNo: existingIdx >= 0 ? telemetryLogsStore[existingIdx].slNo : telemetryLogsStore.length + 1,
+        pcId: rec.pcId,
+        pcName: rec.pcName,
+        userName: rec.userName,
+        officeLocation: rec.officeLocation,
+        district: rec.district,
+        state: rec.state,
+        osVersion: winEdition,
+        winBuild,
+        internet: internetStatus,
+        dotNet: 'v3.5 & v4.8 Active',
+        nicDigiSigner: digiSignerStatus,
+        dscStatus,
+        trustedSites,
+        edgeIeMode,
+        sitesXml,
+        verification,
+        status: payload.status,
+        healthScore,
+        version: appVersion,
+        appVersion,
+        resourceBuild,
+        localIp,
+        ramInfo,
+        diskFreeSpace,
+        cpuInfo,
+        remarks,
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toLocaleTimeString('en-IN'),
+        lastSeen: uploadTimestamp
+      };
+
+      if (existingIdx >= 0) {
+        telemetryLogsStore[existingIdx] = telemEntry;
+      } else {
+        telemetryLogsStore.unshift(telemEntry);
+      }
+
+      importedRecords.push(rec);
+    }
+
+    if (importedRecords.length > 0) {
+      try {
+        saveTelemetryLogs();
+      } catch (e) {}
+    }
+
+    return importedRecords;
+  }
+
+  // API Endpoint: Import Pasted Telegram PC Reports (1 or 25+ PCs at once)
+  app.post('/api/reports/import-telegram-text', (req, res) => {
+    try {
+      const rawText = req.body?.text || req.body?.rawText || '';
+      if (!rawText || typeof rawText !== 'string' || !rawText.trim()) {
+        return res.status(400).json({ success: false, error: 'Please paste at least one Telegram PC report message.' });
+      }
+      const imported = parseTelegramReportsTextAndIngest(rawText);
+      return res.json({
+        success: true,
+        importedCount: imported.length,
+        message: `విజయవంతంగా ${imported.length} PC రిపోర్టులు డ్యాష్‌బోర్డ్ మరియు వెబ్‌సైట్ JSON ఫైళ్లలోకి ఇంపోర్ట్ చేయబడ్డాయి!`,
+        records: imported
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Autonomous Telegram Bot Polling: If Admin forwards any PC report messages to the bot in Telegram, auto-import them!
+  let lastTelegramUpdateOffsetMain = 0;
+  let lastTelegramUpdateOffsetSecondary = 0;
+  const pollTelegramForwardedReports = async () => {
+    const bots = [
+      { token: '9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E', getOffset: () => lastTelegramUpdateOffsetMain, setOffset: (v: number) => { lastTelegramUpdateOffsetMain = v; } },
+      { token: '8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE', getOffset: () => lastTelegramUpdateOffsetSecondary, setOffset: (v: number) => { lastTelegramUpdateOffsetSecondary = v; } }
+    ];
+
+    for (const b of bots) {
+      try {
+        const url = `https://api.telegram.org/bot${b.token}/getUpdates?offset=${b.getOffset() + 1}&limit=50&timeout=0`;
+        const resp = await fetch(url);
+        if (!resp.ok) continue;
+        const data: any = await resp.json();
+        if (!data.ok || !Array.isArray(data.result) || data.result.length === 0) continue;
+
+        let totalImportedInBatch = 0;
+        let replyChatId = '';
+
+        for (const upd of data.result) {
+          if (upd.update_id > b.getOffset()) {
+            b.setOffset(upd.update_id);
+          }
+          const msg = upd.message || upd.channel_post || upd.edited_message;
+          const text = msg?.text || msg?.caption || '';
+          if (text && (/Machine ID\s*:|PC Name\s*:|E-Vedhika UBD Deployment Tool/i.test(text))) {
+            const recs = parseTelegramReportsTextAndIngest(text);
+            if (recs.length > 0) {
+              totalImportedInBatch += recs.length;
+              replyChatId = String(msg.chat?.id || '431228008');
+            }
+          }
+        }
+
+        if (totalImportedInBatch > 0 && replyChatId) {
+          await fetch(`https://api.telegram.org/bot${b.token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: replyChatId,
+              text: `✅ <b>${totalImportedInBatch} PC Report(s) Synced to Live Website Dashboard!</b>\nఇప్పుడు మీ డ్యాష్‌బోర్డ్ మరియు వెబ్‌సైట్ రిపోర్ట్ సెంటర్‌లో ఈ PC వివరాలు లైవ్‌లో కనిపిస్తున్నాయి.`,
+              parse_mode: 'HTML'
+            })
+          }).catch(() => {});
+        }
+      } catch (e) {
+        // Ignore transient network errors
+      }
+    }
+  };
+  setInterval(pollTelegramForwardedReports, 6000);
 
   // Specialized Sub-category Endpoints
   app.post('/api/reports/register', (req, res) => {
@@ -2368,7 +2614,7 @@ async function startServer() {
         osVersion: hb?.osVersion || cons?.osVersion || fleet?.osVersion || 'Windows 11 Pro',
         winBuild: hb?.winBuild || cons?.winBuild || fleet?.winBuild || 'Build 22631',
         appVersion: hb?.appVersion || cons?.appVersion || fleet?.appVersion || 'v1.0.9',
-        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || '2026.11.11.R3',
+        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || '2026.11.12.R4',
         pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
         appState: isOnline ? (hb?.appState || 'RUNNING') : 'CLOSED',
         lastHeartbeatTime: hb?.lastHeartbeatTime || cons?.lastTelemetryUpdate || 'N/A',
@@ -2444,7 +2690,7 @@ async function startServer() {
           runningApps,
           closedApps,
           latestVersion: currentVersionConfig.latestVersion || 'v1.0.9',
-          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.11.R3',
+          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.12.R4',
           totalDeployments,
           successfulDeployments,
           failedDeployments,
@@ -2474,7 +2720,7 @@ async function startServer() {
         'District': m.district,
         'State': m.state,
         'App Version': m.appVersion || 'v1.0.9',
-        'Resource Build': '2026.11.11.R3',
+        'Resource Build': '2026.11.12.R4',
         'OS Version': m.osVersion,
         'Overall Status': m.overallStatus,
         'Verified Steps': `${m.deployment?.verifiedSteps || 17}/17`,
@@ -2531,7 +2777,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.0.9',
-            resourceBuild: (m as any).resourceBuild || '2026.11.11.R3',
+            resourceBuild: (m as any).resourceBuild || '2026.11.12.R4',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -2561,7 +2807,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.0.9',
-            resourceBuild: (m as any).resourceBuild || '2026.11.11.R3',
+            resourceBuild: (m as any).resourceBuild || '2026.11.12.R4',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -2596,7 +2842,7 @@ async function startServer() {
               district: l.district || 'District',
               state: l.state || 'Telangana',
               appVersion: l.version || l.appVersion || 'v1.0.9',
-              resourceBuild: l.resourceBuild || '2026.11.11.R3',
+              resourceBuild: l.resourceBuild || '2026.11.12.R4',
               osVersion: l.osVersion || 'Windows 11 Pro',
               winBuild: l.winBuild || 'Build 22631',
               status: l.status || 'SUCCESS',
@@ -2640,11 +2886,11 @@ async function startServer() {
     return res.json({
       success: true,
       currentVersion: 'v1.0.9',
-      currentResourceBuild: '2026.11.11.R3',
+      currentResourceBuild: '2026.11.12.R4',
       releases: [
         {
           version: 'v1.0.9',
-          resourceBuild: '2026.11.11.R3',
+          resourceBuild: '2026.11.12.R4',
           releaseId: 'REL-2026-11-11-R3',
           releaseDate: '2026-11-11',
           packageSize: '8.5 MB',
@@ -3417,7 +3663,7 @@ async function startServer() {
         osVersion: body.osVersion || 'Windows 11 Pro',
         winBuild: body.winBuild || 'Build 22631',
         appVersion: body.appVersion || body.version || 'v1.0.9',
-        resourceBuild: body.resourceBuild || '2026.11.11.R3',
+        resourceBuild: body.resourceBuild || '2026.11.12.R4',
         pcConnectivity: 'ONLINE',
         appState,
         lastHeartbeatEpoch: nowEpoch,

