@@ -13,6 +13,76 @@ namespace EVedhikaUBDDeploymentTool.Engine
         /// <summary>
         /// Cleans up duplicate legacy/old Control Panel entries to prevent multiple entries in Add/Remove Programs.
         /// <summary>
+        /// Detects whether Inno Setup is installed on this PC across 32-bit (WOW6432Node) and 64-bit registry views.
+        /// </summary>
+        public static bool IsInnoSetupInstalled(out RegistryView foundView)
+        {
+            string innoSetupKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1";
+
+            // 1. Check 32-bit view (Inno Setup 32-bit writes to WOW6432Node on 64-bit Windows)
+            try
+            {
+                using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32))
+                using (var k = baseKey.OpenSubKey(innoSetupKey))
+                {
+                    if (k != null)
+                    {
+                        foundView = RegistryView.Registry32;
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Check 64-bit view if 64-bit OS
+            if (Environment.Is64BitOperatingSystem)
+            {
+                try
+                {
+                    using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                    using (var k = baseKey.OpenSubKey(innoSetupKey))
+                    {
+                        if (k != null)
+                        {
+                            foundView = RegistryView.Registry64;
+                            return true;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // 3. Check default LocalMachine view
+            try
+            {
+                using (var k = Registry.LocalMachine.OpenSubKey(innoSetupKey))
+                {
+                    if (k != null)
+                    {
+                        foundView = RegistryView.Default;
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            // 4. Check if unins000.exe exists in the application directory
+            try
+            {
+                string unins = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "unins000.exe");
+                if (File.Exists(unins))
+                {
+                    foundView = RegistryView.Registry32;
+                    return true;
+                }
+            }
+            catch { }
+
+            foundView = Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32;
+            return false;
+        }
+
+        /// <summary>
         /// Cleans up all legacy, duplicate, or old version uninstall keys from Windows Control Panel
         /// ensuring zero duplicates remain in HKLM (64-bit & 32-bit) and HKCU.
         /// </summary>
@@ -20,7 +90,6 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                string innoSetupKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1";
                 string customKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool";
 
                 string[] targetKeys = new string[]
@@ -38,17 +107,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.8"
                 };
 
-                // Check if Inno Setup official installation key exists
-                bool innoExists = false;
-                try
-                {
-                    using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32))
-                    using (var k = baseKey.OpenSubKey(innoSetupKey))
-                    {
-                        if (k != null) innoExists = true;
-                    }
-                }
-                catch { }
+                // Check if Inno Setup official installation exists in any hive/view
+                bool innoExists = IsInnoSetupInstalled(out RegistryView innoView);
 
                 // Helper to delete subkey from a specific hive and view
                 Action<RegistryHive, RegistryView, string> deleteKey = (hive, view, subKey) =>
@@ -67,20 +127,40 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 foreach (var kPath in targetKeys)
                 {
                     deleteKey(RegistryHive.CurrentUser, RegistryView.Default, kPath);
+                    deleteKey(RegistryHive.CurrentUser, RegistryView.Registry32, kPath);
+                    deleteKey(RegistryHive.CurrentUser, RegistryView.Registry64, kPath);
                     deleteKey(RegistryHive.LocalMachine, RegistryView.Registry32, kPath);
                     deleteKey(RegistryHive.LocalMachine, RegistryView.Registry64, kPath);
+                    deleteKey(RegistryHive.LocalMachine, RegistryView.Default, kPath);
                 }
 
-                // If Inno Setup key exists, DELETE all custom standalone keys so ONLY Inno Setup key remains!
+                // If Inno Setup key exists, DELETE the second standalone 'EVedhikaUBDTool' key from ALL hives & views!
+                // This eliminates the 271 MB duplicate entry so strictly ONLY the single 139 MB Inno Setup entry appears.
                 if (innoExists)
                 {
                     deleteKey(RegistryHive.CurrentUser, RegistryView.Default, customKey);
+                    deleteKey(RegistryHive.CurrentUser, RegistryView.Registry32, customKey);
+                    deleteKey(RegistryHive.CurrentUser, RegistryView.Registry64, customKey);
                     deleteKey(RegistryHive.LocalMachine, RegistryView.Registry32, customKey);
                     deleteKey(RegistryHive.LocalMachine, RegistryView.Registry64, customKey);
+                    deleteKey(RegistryHive.LocalMachine, RegistryView.Default, customKey);
+
+                    try
+                    {
+                        using (var hklm = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", true))
+                        {
+                            hklm?.DeleteSubKeyTree("EVedhikaUBDTool", false);
+                        }
+                        using (var wow = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", true))
+                        {
+                            wow?.DeleteSubKeyTree("EVedhikaUBDTool", false);
+                        }
+                    }
+                    catch { }
                 }
                 else
                 {
-                    // If standalone, ensure we don't have duplicate keys in both 32-bit and 64-bit views!
+                    // If standalone, ensure we don't have duplicate keys in both 32-bit and 64-bit views
                     if (Environment.Is64BitOperatingSystem)
                     {
                         deleteKey(RegistryHive.LocalMachine, RegistryView.Registry32, customKey);
@@ -113,32 +193,30 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 CleanLegacyUninstallEntries();
 
                 string innoSetupKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1";
-                RegistryView targetView = Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32;
 
-                // 1. Check if Official Inno Setup key exists
-                bool innoExists = false;
-                try
+                // 1. Check if Official Inno Setup key exists across 32-bit and 64-bit registry views
+                if (IsInnoSetupInstalled(out RegistryView innoView))
                 {
-                    using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, targetView))
-                    using (var k = baseKey.OpenSubKey(innoSetupKey, true))
+                    try
                     {
-                        if (k != null)
+                        using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, innoView))
+                        using (var k = baseKey.OpenSubKey(innoSetupKey, true))
                         {
-                            innoExists = true;
-                            string icoPath = Path.Combine(Path.GetDirectoryName(exePath) ?? "", "app.ico");
-                            string iconVal = File.Exists(icoPath) ? icoPath : string.Format("\"{0}\",0", exePath);
-                            k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
-                            k.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
-                            k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
-                            k.SetValue("DisplayIcon", iconVal, RegistryValueKind.String);
+                            if (k != null)
+                            {
+                                string icoPath = Path.Combine(Path.GetDirectoryName(exePath) ?? "", "app.ico");
+                                string iconVal = File.Exists(icoPath) ? icoPath : string.Format("\"{0}\",0", exePath);
+                                k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
+                                k.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
+                                k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
+                                k.SetValue("DisplayIcon", iconVal, RegistryValueKind.String);
+                            }
                         }
                     }
-                }
-                catch { }
+                    catch { }
 
-                // If Inno Setup key exists, we are DONE! Strictly 1 entry exists in Control Panel.
-                if (innoExists)
-                {
+                    // Inno Setup is already handling the Control Panel entry (139 MB).
+                    // Do NOT create any second standalone entry!
                     if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.0.9).");
                     return true;
                 }
@@ -153,6 +231,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string customKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool";
                 string standaloneIco = Path.Combine(installDir ?? "", "app.ico");
                 string standaloneIconVal = File.Exists(standaloneIco) ? standaloneIco : string.Format("\"{0}\",0", exePath);
+                RegistryView targetView = Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32;
 
                 using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, targetView))
                 using (var keyLM = baseKey.CreateSubKey(customKey))
@@ -568,7 +647,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.lnk"),
                     Path.Combine(desktopPath, "E-Vedhika UBD Deployment Tool.url"),
                     Path.Combine(desktopPath, "E-Vedhika Web App (www.e-vedhika.in).url"),
-                    Path.Combine(commonDesktop, "UBD Portal (Edge IE Mode).url"),
+                    Path.Combine(desktopPath, "UBD Portal (Telangana).url"),
+                    Path.Combine(desktopPath, "UBD Portal (Telangana).lnk"),
+                    Path.Combine(desktopPath, "E-Vedhika Web Portal.url"),
+                    Path.Combine(desktopPath, "E-Vedhika Web Portal.lnk"),
+                    Path.Combine(commonDesktop, "UBD Portal (Telangana).url"),
+                    Path.Combine(commonDesktop, "UBD Portal (Telangana).lnk"),
+                    Path.Combine(commonDesktop, "E-Vedhika Web Portal.url"),
+                    Path.Combine(commonDesktop, "E-Vedhika Web Portal.lnk"),
                     Path.Combine(commonDesktop, "E-Vedhika UBD Deployment Tool.lnk"),
                     Path.Combine(commonDesktop, "E-Vedhika UBD Deployment Tool.url")
                 };

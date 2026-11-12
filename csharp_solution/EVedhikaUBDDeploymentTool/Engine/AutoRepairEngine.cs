@@ -80,25 +80,34 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         }
                     }
 
-                    // 2. Ensure UBD Government Portal Shortcut exists on Desktop (Launches https://ubd.telangana.gov.in)
-                    string ubdPortalUrl = Path.Combine(desktopPath, "UBD Portal (Telangana).url");
-                    if (!File.Exists(ubdPortalUrl))
+                    // 2. Actively purge unwanted shortcuts (UBD Portal & E-Vedhika Web Portal) so ONLY 'E-Vedhika UBD Tool' remains on Desktop
+                    string[] unwantedShortcutFiles = new string[]
                     {
-                        string content = "[InternetShortcut]\r\nURL=https://ubd.telangana.gov.in/\r\nIconIndex=0\r\n";
-                        if (File.Exists(icoPath)) content += $"IconFile={icoPath}\r\n";
-                        File.WriteAllText(ubdPortalUrl, content);
+                        "UBD Portal (Telangana).url",
+                        "UBD Portal (Telangana).lnk",
+                        "E-Vedhika Web Portal.url",
+                        "E-Vedhika Web Portal.lnk",
+                        "UBD Portal (Edge IE Mode).url",
+                        "UBD Portal (Edge IE Mode).lnk",
+                        "E-Vedhika Web App (www.e-vedhika.in).url"
+                    };
+
+                    string[] allDesktopDirs = new string[] { desktopPath, userDesktop, commonDesktop };
+                    foreach (var dir in allDesktopDirs)
+                    {
+                        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
+                        foreach (var unwanted in unwantedShortcutFiles)
+                        {
+                            try
+                            {
+                                string f = Path.Combine(dir, unwanted);
+                                if (File.Exists(f)) File.Delete(f);
+                            }
+                            catch { }
+                        }
                     }
 
-                    // 3. Ensure E-Vedhika Main Web App Shortcut exists on Desktop (Launches https://www.e-vedhika.in)
-                    string eVedhikaUrl = Path.Combine(desktopPath, "E-Vedhika Web Portal.url");
-                    if (!File.Exists(eVedhikaUrl))
-                    {
-                        string content = "[InternetShortcut]\r\nURL=https://www.e-vedhika.in/\r\nIconIndex=0\r\n";
-                        if (File.Exists(icoPath)) content += $"IconFile={icoPath}\r\n";
-                        File.WriteAllText(eVedhikaUrl, content);
-                    }
-
-                    if (logCallback != null) logCallback("[AutoRepair] Verified official Desktop Shortcuts for E-Vedhika Tool, UBD Portal & Web App.");
+                    if (logCallback != null) logCallback("[AutoRepair] Verified clean single Desktop Shortcut: E-Vedhika UBD Tool.");
                 }
                 catch { }
 

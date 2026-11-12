@@ -103,23 +103,22 @@ namespace EVedhikaUBDDeploymentTool
                         }
                         catch { }
 
-                        // 2. Send immediate installation check-in telemetry report as soon as setup completes
-                        SendPostInstallInstallationTelemetry();
-
-                        // 3. Automatically launch Microsoft Edge and redirect directly to UBD Telangana portal (IE Mode configured)
-                        LaunchPortalRedirect();
-
-                        // 4. Launch the main E-Vedhika GUI Application
+                        // 2. Clean legacy duplicate Control Panel entries to ensure strictly 1 entry
                         try
                         {
-                            ProcessStartInfo startInfo = new ProcessStartInfo();
-                            startInfo.FileName = Application.ExecutablePath;
-                            startInfo.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                            startInfo.UseShellExecute = true;
-                            Process.Start(startInfo);
+                            UninstallEngine.CleanLegacyUninstallEntries();
                         }
                         catch { }
 
+                        // 3. Send immediate installation check-in telemetry report as soon as setup completes
+                        try
+                        {
+                            SendPostInstallInstallationTelemetry();
+                        }
+                        catch { }
+
+                        // User explicitly requested: Do NOT auto-launch UBD Portal or website during/before setup completion.
+                        // The user will launch the tool when installation finishes.
                         return;
                     }
                 }

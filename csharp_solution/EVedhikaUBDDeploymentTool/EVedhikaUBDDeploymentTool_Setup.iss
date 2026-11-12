@@ -21,6 +21,8 @@ OutputBaseFilename=EVedhika_Setup_v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=app.ico
+WizardImageFile=WizardImageFile.bmp
+WizardSmallImageFile=WizardSmallImageFile.bmp
 UninstallDisplayIcon={app}\{#MyAppExeName},0
 WizardStyle=modern
 PrivilegesRequired=admin
@@ -64,6 +66,14 @@ Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
 Type: files; Name: "{userdesktop}\{#MyAppName}.lnk"
 Type: files; Name: "{commondesktop}\E-Vedhika UBD Deployment Tool.lnk"
 Type: files; Name: "{userdesktop}\E-Vedhika UBD Deployment Tool.lnk"
+Type: files; Name: "{commondesktop}\UBD Portal (Telangana).url"
+Type: files; Name: "{userdesktop}\UBD Portal (Telangana).url"
+Type: files; Name: "{commondesktop}\E-Vedhika Web Portal.url"
+Type: files; Name: "{userdesktop}\E-Vedhika Web Portal.url"
+Type: files; Name: "{commondesktop}\UBD Portal (Telangana).lnk"
+Type: files; Name: "{userdesktop}\UBD Portal (Telangana).lnk"
+Type: files; Name: "{commondesktop}\E-Vedhika Web Portal.lnk"
+Type: files; Name: "{userdesktop}\E-Vedhika Web Portal.lnk"
 Type: files; Name: "{group}\{#MyAppName}.lnk"
 Type: filesandordirs; Name: "C:\enterprise_compat"
 Type: filesandordirs; Name: "{commonappdata}\EVedhika"
@@ -106,18 +116,29 @@ begin
     DeleteFile(UserDesk + '\UBD Deployment Tool.lnk');
     DeleteFile(UserDesk + '\UBD Portal (Edge IE Mode).lnk');
     DeleteFile(UserDesk + '\UBD Portal (Edge IE Mode).url');
+    DeleteFile(UserDesk + '\UBD Portal (Telangana).lnk');
+    DeleteFile(UserDesk + '\UBD Portal (Telangana).url');
+    DeleteFile(UserDesk + '\E-Vedhika Web Portal.lnk');
+    DeleteFile(UserDesk + '\E-Vedhika Web Portal.url');
+    DeleteFile(UserDesk + '\E-Vedhika Web App (www.e-vedhika.in).url');
 
-    // Purge legacy alternate names from Common Desktop as well
+    // Purge legacy alternate names and unwanted portal shortcuts from Common Desktop as well
     DeleteFile(CommDesk + '\E-Vedhika UBD Deployment Tool.lnk');
     DeleteFile(CommDesk + '\EVedhikaUBDDeploymentTool.lnk');
     DeleteFile(CommDesk + '\UBD Deployment Tool.lnk');
     DeleteFile(CommDesk + '\UBD Portal (Edge IE Mode).lnk');
     DeleteFile(CommDesk + '\UBD Portal (Edge IE Mode).url');
+    DeleteFile(CommDesk + '\UBD Portal (Telangana).lnk');
+    DeleteFile(CommDesk + '\UBD Portal (Telangana).url');
+    DeleteFile(CommDesk + '\E-Vedhika Web Portal.lnk');
+    DeleteFile(CommDesk + '\E-Vedhika Web Portal.url');
+    DeleteFile(CommDesk + '\E-Vedhika Web App (www.e-vedhika.in).url');
 
     // Purge legacy standalone duplicate uninstall entries from Windows Registry
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDDeploymentTool');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhika_UBD_Deployment_Tool');
+    RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.0');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.1');
     RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.2');
