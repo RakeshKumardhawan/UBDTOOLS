@@ -87,6 +87,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                     deleteKey(RegistryHive.CurrentUser, RegistryView.Default, customKey);
                 }
+
+                // Clean legacy temporary updater and downloaded installer files from temp
+                try
+                {
+                    string tempUpd = Path.Combine(Path.GetTempPath(), "EVedhika_Update");
+                    if (Directory.Exists(tempUpd)) Directory.Delete(tempUpd, true);
+                    string progUpd = @"C:\ProgramData\EVedhika\Updates";
+                    if (Directory.Exists(progUpd)) Directory.Delete(progUpd, true);
+                }
+                catch { }
             }
             catch { }
         }

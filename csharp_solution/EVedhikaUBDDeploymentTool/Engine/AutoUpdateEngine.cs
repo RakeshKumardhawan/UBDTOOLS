@@ -222,10 +222,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string jsonResponse = "";
                 string[] candidateUrls = new string[]
                 {
-                    "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=check_update",
-                    "https://www.e-vedhika.in/admin/ubd_monitoring?action=check_update",
-                    "https://www.e-vedhika.in/version.json",
-                    "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json"
+                    "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
+                    "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json",
+                    "https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/version.json",
+                    "https://www.e-vedhika.in/version.json"
                 };
 
                 foreach (var url in candidateUrls)
@@ -313,11 +313,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             string[] candidateUrls = new string[]
             {
-                "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=check_update",
-                "https://www.e-vedhika.in/admin/ubd_monitoring?action=check_update",
-                "https://www.e-vedhika.in/version.json",
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json",
+                "https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/version.json",
+                "https://www.e-vedhika.in/version.json",
                 "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest"
             };
 
@@ -409,8 +408,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         if (string.IsNullOrEmpty(serverResBuild)) serverResBuild = ExtractJsonValue(jsonResponse, "resourceBuild");
                         if (!string.IsNullOrEmpty(serverResBuild))
                         {
-                            ActiveResourceBuild = serverResBuild;
-                            info.LatestResourceBuild = serverResBuild;
+                            if (string.Compare(serverResBuild, CurrentResourceBuild, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                ActiveResourceBuild = serverResBuild;
+                                info.LatestResourceBuild = serverResBuild;
+                            }
+                            else
+                            {
+                                ActiveResourceBuild = CurrentResourceBuild;
+                                info.LatestResourceBuild = CurrentResourceBuild;
+                            }
+                        }
+                        else
+                        {
+                            ActiveResourceBuild = CurrentResourceBuild;
+                            info.LatestResourceBuild = CurrentResourceBuild;
                         }
 
                         if (!string.IsNullOrEmpty(latestVer))
