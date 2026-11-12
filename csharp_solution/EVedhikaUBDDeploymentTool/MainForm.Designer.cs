@@ -208,7 +208,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblPcNameInfo.Name = "lblPcNameInfo";
             this.lblPcNameInfo.Size = new System.Drawing.Size(380, 17);
             this.lblPcNameInfo.TabIndex = 2;
-            this.lblPcNameInfo.Text = "Endpoint: https://www.e-vedhika.in/admin/ubd_monitoring";
+            this.lblPcNameInfo.Text = "System Status: Verified & Ready";
             // 
             // btnToggleRemote
             // 

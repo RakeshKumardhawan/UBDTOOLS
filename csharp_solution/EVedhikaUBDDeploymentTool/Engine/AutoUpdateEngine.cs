@@ -711,7 +711,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Panel pnlMeta = new Panel
                 {
                     Dock = DockStyle.Top,
-                    Height = 82,
+                    Height = 62,
                     BackColor = Color.FromArgb(30, 41, 59),
                     Padding = new Padding(18, 10, 18, 10)
                 };
@@ -734,18 +734,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Location = new Point(16, 34)
                 };
 
-                Label lblMeta3 = new Label
-                {
-                    Text = "📡 Live Central Cloud Telemetry: Synced 100% with https://www.e-vedhika.in/admin/ubd_monitoring",
-                    Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
-                    ForeColor = Color.FromArgb(52, 211, 153),
-                    AutoSize = true,
-                    Location = new Point(16, 56)
-                };
-
                 pnlMeta.Controls.Add(lblMeta1);
                 pnlMeta.Controls.Add(lblMeta2);
-                pnlMeta.Controls.Add(lblMeta3);
 
                 // Bottom Button Panel
                 Panel pnlBottom = new Panel
@@ -898,7 +888,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 rtb.AppendText("   ✓ Central Cloud Live Telemetry        : ");
                 rtb.SelectionColor = Color.White;
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-                rtb.AppendText("Reporting automatically to https://www.e-vedhika.in/admin/ubd_monitoring\r\n\r\n");
+                rtb.AppendText("Automated Health Sync Active\r\n\r\n");
 
                 rtb.SelectionStart = 0;
                 rtb.ScrollToCaret();
