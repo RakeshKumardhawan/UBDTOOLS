@@ -201,7 +201,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (File.Exists(cerPath))
                     {
                         X509Certificate2 cert = new X509Certificate2(cerPath);
-                        using (X509Store rootStore = new X509Store(StoreName.Root, StoreLocation.LocalMachine))
+                        X509Store rootStore = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
+                        try
                         {
                             rootStore.Open(OpenFlags.ReadWrite);
                             if (!rootStore.Certificates.Contains(cert))
@@ -209,13 +210,23 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 rootStore.Add(cert);
                             }
                         }
-                        using (X509Store pubStore = new X509Store(StoreName.TrustedPublisher, StoreLocation.LocalMachine))
+                        finally
+                        {
+                            rootStore.Close();
+                        }
+
+                        X509Store pubStore = new X509Store(StoreName.TrustedPublisher, StoreLocation.LocalMachine);
+                        try
                         {
                             pubStore.Open(OpenFlags.ReadWrite);
                             if (!pubStore.Certificates.Contains(cert))
                             {
                                 pubStore.Add(cert);
                             }
+                        }
+                        finally
+                        {
+                            pubStore.Close();
                         }
                     }
                 }
