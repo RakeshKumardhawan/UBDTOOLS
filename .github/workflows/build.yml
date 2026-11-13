@@ -60,7 +60,7 @@ jobs:
         dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48
 
     - name: Install Inno Setup 6.2.2 (Universal Windows Vista / 7 SP0 / 7 SP1 / 8 / 10 / 11 Support)
-      run: choco install innosetup --version 6.2.2 --no-progress -y
+      run: choco install innosetup --version=6.2.2 --allow-downgrade --force --no-progress -y
 
     - name: Generate Authenticode Certificate, Sign Binaries & Compile Signed Inno Setup Installer (Fixes Error 4551 & Smart App Control)
       shell: powershell
