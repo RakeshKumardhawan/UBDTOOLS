@@ -59,8 +59,8 @@ jobs:
       run: |
         dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48
 
-    - name: Install Inno Setup
-      run: choco install innosetup --no-progress -y
+    - name: Install Inno Setup 6.2.2 (Universal Windows Vista / 7 SP0 / 7 SP1 / 8 / 10 / 11 Support)
+      run: choco install innosetup --version 6.2.2 --no-progress -y
 
     - name: Generate Authenticode Certificate, Sign Binaries & Compile Signed Inno Setup Installer (Fixes Error 4551 & Smart App Control)
       shell: powershell
@@ -115,8 +115,8 @@ jobs:
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
           public/downloads/Unblock_EVedhika_Antivirus_Exclusion.bat
-        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.12.R4)
-        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.12.R4) - Authenticode SHA-256 Signed Installer (Fixes Error 4551 & Windows 11 Smart App Control), Full Windows 7, 8, 10 & 11 (.NET 4.8 Architecture), 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, Live OTA Update Notifications, and 100% Real-Time Website Report Sync to https://www.e-vedhika.in/admin/ubd_monitoring."
+        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.12.R5)
+        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.12.R5) - Universal Windows Vista / 7 RTM (SP0) / 7 SP1 / 8 / 8.1 / 10 / 11 (32-bit & 64-bit) Zero-Blocker Installer, .NET 4.0-4.8 Native Architecture, Authenticode SHA-256 Signed Installer, 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, and Real-Time Central Telemetry Sync."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -120,7 +120,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             try
             {
-                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
+                try { ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls; }
+                catch { try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls; } catch { } }
                 ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
 
                 string url = $"https://api.telegram.org/bot{TelegramBotToken}/sendMessage";

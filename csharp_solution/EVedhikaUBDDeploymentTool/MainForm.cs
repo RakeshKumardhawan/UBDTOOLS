@@ -1173,7 +1173,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "dotnet30", "Installed" },
                     { "dotnet35", SystemInfoHelper.CheckDotNetFramework() },
                     { "dotNet", SystemInfoHelper.CheckDotNetFramework() },
-                    { "dotnet4x", "v4.8 Active" },
+                    { "dotnet4x", "Active (.NET 4.0-4.8)" },
                     { "cppRuntime", "Installed" },
                     { "digiSignerInstalled", "Yes" },
                     { "digiSignerVersion", "v2.1" },

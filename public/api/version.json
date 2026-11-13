@@ -12,7 +12,7 @@
   "silent": true,
   "downloadSize": "8.5 MB",
   "sha256": "",
-  "releaseNotes": "[NEW FEATURES]\n• Updated Resource Build to 2026.11.12.R5 with 100% Live Website Reporting & Zero-Error Windows 7-11 Compatibility\n• Enhanced Win7 RTM/SP0 Compatibility & Automatic UAC Elevation Protection\n• Real-time Online/Offline PC Presence & Instant Application Exit Offline Ping\n• Enhanced OTA Update Notification Engine for Resource Build releases\n\n[SECURITY UPDATES]\n• Zero-Cost ($0) Windows 7, 8, 10 & 11 Defender, SmartScreen & Smart App Control Permission Management\n• Native Win32 DeleteFileW (:Zone.Identifier) & Trusted Root Certificate installation",
+  "releaseNotes": "[NEW FEATURES]\n• Universal All-Windows Compatibility (Windows 7 RTM SP0, Windows 7 SP1, Windows 8/8.1, Windows 10, Windows 11 — 32-bit & 64-bit)\n• Updated Resource Build to 2026.11.12.R5 with zero-blocker installer & native .NET 4.0-4.8 support\n• Real-time Online/Offline PC Presence & 17-Step Automated Portal Deployment\n• Enhanced OTA Update Notification Engine & Modern Dark Software Status Dialog\n\n[SECURITY UPDATES]\n• Zero-Cost ($0) Windows 7, 8, 10 & 11 Defender, SmartScreen & Smart App Control Permission Management\n• Native Win32 DeleteFileW (:Zone.Identifier) & Trusted Root Certificate installation",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://www.e-vedhika.in/admin/exe_ubd_live",
   "latestResourceBuild": "2026.11.12.R5",

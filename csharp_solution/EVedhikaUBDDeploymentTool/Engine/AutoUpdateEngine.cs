@@ -1116,10 +1116,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 string prevVer = CurrentVersion;
                 string currVer = CurrentVersion;
-                string prevBuild = "2026.11.11.R3";
+                string prevBuild = "2026.11.12.R4";
                 string currBuild = CurrentResourceBuild;
                 string relDate = ResourceDate;
-                string relNotes = "[NEW FEATURES]\n• Updated Resource Build to 2026.11.12.R4 with 100% Live Website Reporting to e-vedhika.in/admin/ubd_monitoring\n• Real-time Online/Offline PC Presence & Dedicated Inbuilt Receiver Endpoint\n• Enhanced OTA Update Notification Engine for Resource Build releases\n[SECURITY UPDATES]\n• Zero-Cost Windows 7, 8, 10 & 11 Defender, SmartScreen & Smart App Control Permission Management";
+                string relNotes = "[NEW FEATURES]\n• Universal Windows Compatibility (Windows 7 RTM SP0, 7 SP1, 8, 8.1, 10, 11 — 32/64-bit)\n• Updated Resource Build to 2026.11.12.R5 with zero-blocker installer & native .NET 4.0-4.8 support\n• Real-time Online/Offline PC Presence & 17-Step Automated Portal Deployment\n[SECURITY UPDATES]\n• Zero-Cost Windows 7, 8, 10 & 11 Defender, SmartScreen & Smart App Control Permission Management";
                 bool shouldShowWhatsNew = false;
 
                 if (File.Exists(stateFilePath))

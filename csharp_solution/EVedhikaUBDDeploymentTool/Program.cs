@@ -42,8 +42,21 @@ namespace EVedhikaUBDDeploymentTool
 
             try
             {
-                // Auto-Elevate to Administrator if launched without Admin rights
-                if (!IsAdministrator())
+                // Attempt optional Administrator elevation once if not elevated (unless already attempted or running silently)
+                bool elevationAlreadyTried = false;
+                if (args != null)
+                {
+                    foreach (string a in args)
+                    {
+                        if (string.Equals(a, "--elevated-tried", StringComparison.OrdinalIgnoreCase))
+                        {
+                            elevationAlreadyTried = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!IsAdministrator() && !elevationAlreadyTried)
                 {
                     try
                     {
@@ -51,23 +64,15 @@ namespace EVedhikaUBDDeploymentTool
                         proc.UseShellExecute = true;
                         proc.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
                         proc.FileName = Application.ExecutablePath;
-                        if (args != null && args.Length > 0)
-                        {
-                            proc.Arguments = string.Join(" ", args);
-                        }
-                        proc.Verb = "runas"; // Prompts Windows UAC for Administrator Elevation
+                        string joinedArgs = (args != null && args.Length > 0) ? string.Join(" ", args) + " --elevated-tried" : "--elevated-tried";
+                        proc.Arguments = joinedArgs;
+                        proc.Verb = "runas";
                         Process.Start(proc);
-                        return; // Exit non-admin process instance
+                        return; // Exit non-admin process instance cleanly
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        MessageBox.Show(
-                            "E-Vedhika UBD Deployment Tool requires Administrator privileges to configure ActiveX, IE Mode, and DSC Drivers.\n\n" +
-                            "(ఈ అప్లికేషన్ రన్ కావడం కోసం Administrator అనుమతులు అవసరం. దయచేసి 'Yes' క్లిక్ చేసి Administrator అనుమతులు ఇవ్వండి.)\n\nDetail: " + ex.Message,
-                            "Administrator Privileges Required",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        return; // Crucial: Exit process when UAC is denied to prevent non-admin crash
+                        // Standard/Restricted User or GPO-disabled UAC: gracefully continue without blocking startup
                     }
                 }
 
