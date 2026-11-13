@@ -174,15 +174,7 @@ end;
 function InitializeSetup: Boolean;
 begin
   Result := True;
-  if not IsWin7SP1OrHigher then
-  begin
-    if MsgBox('⚠️ Windows 7 Service Pack 1 (SP1) is required for this tool.' + #13#10#13#10 +
-              'మీ పీసీలో Windows 7 SP1 అప్‌డేట్ లేదు. దయచేసి SP1 ఇన్‌స్టాల్ చేసి మళ్లీ ప్రయత్నించండి.' + #13#10#13#10 +
-              'Do you want to continue anyway?', mbConfirmation, MB_YESNO) = IDNO then
-    begin
-      Result := False;
-    end;
-  end;
+  // Allow Windows 7 RTM and SP1 to proceed without blocking the user
 end;
 
 function NeedsDotNet48: Boolean;
