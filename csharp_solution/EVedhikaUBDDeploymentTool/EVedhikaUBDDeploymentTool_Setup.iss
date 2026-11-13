@@ -26,6 +26,7 @@ WizardSmallImageFile=WizardSmallImageFile.bmp
 UninstallDisplayIcon={app}\{#MyAppExeName},0
 WizardStyle=modern
 PrivilegesRequired=admin
+MinVersion=6.0
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
 CloseApplications=yes
 CloseApplicationsFilter=*.exe
