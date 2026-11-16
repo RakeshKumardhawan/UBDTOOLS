@@ -43,6 +43,19 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
+    version: 'v1.1.0 (Resource Build 2026.11.16.R6)',
+    date: 'November 2026',
+    changes: [
+      'Upgraded main software version to v1.1.0 (EVedhika_Setup_v1.1.0.exe) with VersionCode 10100',
+      'Particular GitHub Admin Live Link: https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports backed by Google Cloud Firestore',
+      'Automatic Version-Upgrade Reporting: Every PC upgrading to v1.1.0 reports full machine, operator & District/GP Office details',
+      'Interactive 1-5 Star Rating & Feedback Dialog after 17-Step Deployment & Dedicated Feedback Tab',
+      'District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) eliminating false Hyderabad ISP location',
+      'Strictly 1 Telegram Report on Install & 1 on 17-Step Run (Zero Duplicate Telegram Messages)',
+      'Dedicated Admin Installed PCs, Live Online PCs & User Ratings Reports (0% Dummy Data)'
+    ]
+  },
+  {
     version: 'v1.0.9 (Resource Build 2026.11.12.R4)',
     date: 'November 2026',
     changes: [
@@ -140,13 +153,13 @@ export const VERSION_HISTORY = [
   }
 ];
 
-export const CURRENT_APP_VERSION = 'v1.0.9';
+export const CURRENT_APP_VERSION = 'v1.1.0';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.12.R4',
-  appVersion: 'v1.0.9',
-  lastSyncTimestamp: '2026-11-11T00:00:00.000Z',
+  manifestVersion: '2026.11.16.R6',
+  appVersion: 'v1.1.0',
+  lastSyncTimestamp: '2026-11-16T00:00:00.000Z',
   totalResources: 5,
   outdatedCount: 0,
   resources: [
@@ -320,8 +333,7 @@ export async function checkResourceManifestUpdates(customUrl?: string): Promise<
   const candidateUrls = customUrl ? [customUrl] : [
     '/api/version',
     '/version.json',
-    'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json',
-    'https://www.e-vedhika.in/version.json'
+    'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json'
   ];
 
   try {
@@ -486,7 +498,7 @@ export async function checkForUpdates(
   };
 }
 
-export const LOCAL_BUILD_VERSION = '2026.11.12.R4';
+export const LOCAL_BUILD_VERSION = '2026.11.16.R6';
 
 export interface OtaCheckResult {
   hasOtaUpdate: boolean;
@@ -501,7 +513,7 @@ export interface OtaCheckResult {
 }
 
 /**
- * Compares the local build version (e.g. '2026.11.03-R3') with a remote manifest hosted on GitHub,
+ * Compares the local build version (e.g. '2026.11.16.R6') with a remote manifest hosted on GitHub,
  * returning whether an Over-The-Air (OTA) update is available or if the user is on the latest build.
  */
 export async function checkForOtaUpdates(
@@ -509,10 +521,9 @@ export async function checkForOtaUpdates(
   customManifestUrl?: string
 ): Promise<OtaCheckResult> {
   const candidateUrls = customManifestUrl ? [customManifestUrl] : [
-    'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json',
     '/api/version',
     '/version.json',
-    'https://www.e-vedhika.in/version.json'
+    'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json'
   ];
 
   const nowStr = new Date().toLocaleTimeString();

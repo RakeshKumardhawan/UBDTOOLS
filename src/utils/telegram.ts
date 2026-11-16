@@ -61,7 +61,7 @@ async function dispatchSingleConsolidatedMessage(summary: DeploymentSummaryPaylo
   const totalSteps = summary.totalSteps || 17;
   const stepsPassed = summary.stepsPassed || 17;
   const passRate = Math.round((stepsPassed / totalSteps) * 100);
-  const version = summary.version || 'v1.0.9';
+  const version = summary.version || 'v1.1.0';
   const overallStatus = summary.status || 'SUCCESS';
 
   const getStat = (val?: string) => {
@@ -78,7 +78,7 @@ async function dispatchSingleConsolidatedMessage(summary: DeploymentSummaryPaylo
     ? 'http://www.ubd.ap.gov.in:8080/UBDNEW/' 
     : 'https://ubd.telangana.gov.in/login.do';
 
-  const message = `📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report</b>\n` +
+  const message = `📋 <b>E-Vedhika UBD Deployment Tool ${version} and Installation Report</b>\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
     `🖥️ <b>Machine & Office Details</b>\n` +
     `<b>Installation ID:</b> <code>${summary.deviceInstallationId || 'INST-UNKNOWN'}</code>\n` +
@@ -94,7 +94,7 @@ async function dispatchSingleConsolidatedMessage(summary: DeploymentSummaryPaylo
     `<b>CPU:</b> ${summary.cpuInfo || 'Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz'}\n\n` +
     `📊 <b>Deployment Status & Health</b>\n` +
     `<b>Overall Status:</b> <b>${overallStatus}</b>\n` +
-    `<b>Version:</b> v1.0.9 (24*7 Guardian Build)\n` +
+    `<b>Version:</b> ${version} (24*7 Guardian Build)\n` +
     `<b>Health Score:</b> <b>${summary.healthScore || passRate}% (${summary.healthStatus || (passRate >= 95 ? 'EXCELLENT' : passRate >= 80 ? 'OPTIMAL' : 'ATTENTION')})</b>\n` +
     (summary.healthDiagnosis ? `<b>Health Diagnosis:</b> ${summary.healthDiagnosis}\n` : '') +
     `<b>Successful Steps/Checks:</b> ${stepsPassed}/${totalSteps} steps passed.\n` +

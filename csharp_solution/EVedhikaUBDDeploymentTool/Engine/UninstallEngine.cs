@@ -104,7 +104,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.5",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.6",
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.7",
-                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.8"
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.8",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.0.9",
+                    @"Software\Microsoft\Windows\CurrentVersion\Uninstall\E-Vedhika UBD Tool 1.1.0"
                 };
 
                 // Check if Inno Setup official installation exists in any hive/view
@@ -206,8 +208,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 string icoPath = Path.Combine(Path.GetDirectoryName(exePath) ?? "", "app.ico");
                                 string iconVal = File.Exists(icoPath) ? icoPath : string.Format("\"{0}\",0", exePath);
-                                k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
-                                k.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
+                                k.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.1.0)", RegistryValueKind.String);
+                                k.SetValue("DisplayVersion", "1.1.0", RegistryValueKind.String);
                                 k.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                                 k.SetValue("DisplayIcon", iconVal, RegistryValueKind.String);
                             }
@@ -217,7 +219,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                     // Inno Setup is already handling the Control Panel entry (139 MB).
                     // Do NOT create any second standalone entry!
-                    if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.0.9).");
+                    if (logCallback != null) logCallback("[UNINSTALL REG] Verified single official Inno Setup Control Panel entry (v1.1.0).");
                     return true;
                 }
 
@@ -238,8 +240,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (keyLM != null)
                     {
-                        keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.0.9)", RegistryValueKind.String);
-                        keyLM.SetValue("DisplayVersion", "1.0.9", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayName", "E-Vedhika UBD Tool (v1.1.0)", RegistryValueKind.String);
+                        keyLM.SetValue("DisplayVersion", "1.1.0", RegistryValueKind.String);
                         keyLM.SetValue("Publisher", "E-Vedhika Development Community (Rakesh Dhawan)", RegistryValueKind.String);
                         keyLM.SetValue("UninstallString", string.Format("\"{0}\" --uninstall", exePath), RegistryValueKind.String);
                         keyLM.SetValue("QuietUninstallString", string.Format("\"{0}\" --uninstall --silent", exePath), RegistryValueKind.String);
@@ -282,7 +284,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 AutoRepairEngine.Stop24x7BackgroundGuardian();
 
                 int currentPid = Process.GetCurrentProcess().Id;
-                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.0.9", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
+                string[] processNames = new string[] { "EVedhikaUBDDeploymentTool", "EVedhika_Setup_v1.1.0", "EVedhika_Setup_v1.0.9", "EVedhika_Setup_v1.0.8", "EVedhika_Setup_v1.0.7", "EVedhika_Setup" };
 
                 foreach (var pName in processNames)
                 {

@@ -167,7 +167,7 @@ export function WhatsAppAndGoogleChatCard() {
           userName: 'E-Vedhika Admin',
           officeLocation: 'E-Vedhika Central Monitoring Station',
           state: 'Telangana',
-          district: 'Hyderabad',
+          district: 'Central Monitoring Hub',
           status: 'SUCCESS',
           remarks: 'Instant WhatsApp Live Test Alert from E-Vedhika Web Dashboard!'
         })

@@ -92,12 +92,12 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
   const [auditStatus, setAuditStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [auditResultMsg, setAuditResultMsg] = useState<string>('');
   
-  const [auditPcName, setAuditPcName] = useState<string>('HOST-LIVE-PC');
-  const [auditUserName, setAuditUserName] = useState<string>('Rakesh Dhawan (Admin)');
-  const [auditOfficeLocation, setAuditOfficeLocation] = useState<string>('Khammam Mandal Praja Parishad Office');
-  const [auditDistrict, setAuditDistrict] = useState<string>('Khammam');
+  const [auditPcName, setAuditPcName] = useState<string>('');
+  const [auditUserName, setAuditUserName] = useState<string>('');
+  const [auditOfficeLocation, setAuditOfficeLocation] = useState<string>('');
+  const [auditDistrict, setAuditDistrict] = useState<string>('');
   const [auditState, setAuditState] = useState<string>('Telangana');
-  const [auditAppVersion, setAuditAppVersion] = useState<string>('v1.0.9');
+  const [auditAppVersion, setAuditAppVersion] = useState<string>('v1.1.0');
 
   // Telegram 25 PCs Bulk Import Modal State
   const [showTelegramImportModal, setShowTelegramImportModal] = useState<boolean>(false);
@@ -140,60 +140,52 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
   }, []);
 
   const runLiveClientAuditAndSendToTelegram = async () => {
+    if (!auditPcName.trim() || !auditOfficeLocation.trim() || !auditDistrict.trim()) {
+      setAuditStatus('error');
+      setAuditResultMsg('దయచేసి అసలు PC Name, Office Location మరియు District వివరాలను ఎంటర్ చేయండి.');
+      return;
+    }
+
     setAuditStatus('running');
     setAuditStep(1);
 
     // Step 1: Detect real client environment
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isWin = ua.includes('Windows');
-    const osDetected = isWin ? (ua.includes('Windows NT 10.0') ? 'Windows 11 / 10 Pro (64-bit)' : 'Windows Pro (64-bit)') : (typeof navigator !== 'undefined' ? navigator.platform : 'Windows 11 Pro');
-    const cpuCores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 8;
-    const ramGB = (typeof navigator !== 'undefined' && (navigator as any).deviceMemory) || 8;
+    const osDetected = isWin ? (ua.includes('Windows NT 10.0') ? 'Windows 11 / 10 (Browser Client)' : 'Windows (Browser Client)') : (typeof navigator !== 'undefined' ? navigator.platform : 'Web Client');
+    const ramGB = (typeof navigator !== 'undefined' && (navigator as any).deviceMemory) || 0;
 
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 300));
     setAuditStep(2);
 
     // Step 2: Measure network latency
-    const startPing = Date.now();
     try {
       await fetch('/api/version-fleet/live', { cache: 'no-store' });
     } catch (e) {}
-    const pingMs = Math.max(10, Date.now() - startPing);
 
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 300));
     setAuditStep(3);
 
-    // Step 3: Package genuine 17/17 audit payload
+    // Step 3: Package real operator audit payload without synthetic IPs/MACs
+    const distCode = auditDistrict.trim().slice(0, 3).toUpperCase() || 'TS';
+    const cleanPcSlug = auditPcName.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'PC';
     const payload = {
-      pcId: `EVD-TS-${auditDistrict.slice(0, 3).toUpperCase()}-${Math.floor(10 + Math.random() * 89)}`,
-      pcName: auditPcName.trim() || 'HOST-LIVE-PC',
-      userName: auditUserName.trim() || 'Rakesh Dhawan (Admin)',
-      officeLocation: auditOfficeLocation.trim() || 'Gram Panchayat Office',
-      district: auditDistrict.trim() || 'Khammam',
+      pcId: `EVD-WEB-${distCode}-${cleanPcSlug}`,
+      pcName: auditPcName.trim(),
+      userName: auditUserName.trim() || 'Operator',
+      officeLocation: auditOfficeLocation.trim(),
+      district: auditDistrict.trim(),
       state: auditState,
       appVersion: auditAppVersion,
       osVersion: osDetected,
-      winBuild: 'Build 22631 (23H2/24H2)',
-      localIp: '192.168.1.' + Math.floor(10 + Math.random() * 80),
-      publicIp: '183.82.98.11',
-      macAddress: '48-2A-E3-' + Math.floor(10 + Math.random() * 89) + '-BF-C9',
-      cpuUsage: Math.floor(14 + Math.random() * 15),
-      ramUsageGB: Math.round((ramGB * 0.35) * 10) / 10,
       ramTotalGB: ramGB,
-      diskFreeGB: 280,
-      diskTotalGB: 512,
-      dscStatus: 'Active (ProxKey Token Connected)',
-      edgeIeStatus: 'Enforced (IE5 Quirks Mode)',
-      edgeIeMode: 'IE5 Quirks Active',
-      sitesXml: 'IE5 Quirks Active (sites.xml present)',
-      trustedSites: 'Zone 2 Configured (ubd.telangana.gov.in)',
       targetDomain: auditState.includes('Andhra') ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in',
-      verification: '17/17 steps passed.',
+      verification: 'Manual Web Operator Submission',
       healthScore: 100,
       status: 'SUCCESS',
       forceTelegram: true,
       sendTelegram: true,
-      remarks: 'Live PC Audit executed. 17/17 steps verified with zero manual clicks!'
+      remarks: 'Operator-submitted audit report via E-Vedhika Web Hub.'
     };
 
     setAuditStep(4);
@@ -420,7 +412,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
       { wch: 15 }, { wch: 18 }, { wch: 24 }, { wch: 16 }, { wch: 10 },
       { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 22 }
     ];
-    XLSX.utils.book_append_sheet(wb, ws, 'Live Fleet v1.0-v1.0.8');
+    XLSX.utils.book_append_sheet(wb, ws, 'Live Fleet v1.0-v1.1.0');
 
     const dateStr = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(wb, `EVedhika_Live_Fleet_Report_${selectedVersion}_${dateStr}.xlsx`);
@@ -454,14 +446,14 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
       <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-cyan-950 rounded-2xl p-5 sm:p-6 border border-slate-800 text-white shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+        <div className="flex flex-col gap-4 relative z-10">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="p-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                 <Monitor className="w-5 h-5" />
               </span>
             <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
-                <span>v1.0 ➔ v1.0.9 Live PC Monitoring Dashboard</span>
+                <span>v1.0 ➔ v1.1.0 Live PC Monitoring Dashboard</span>
               </h2>
               <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold border border-emerald-500/30">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
@@ -469,12 +461,12 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
-              Real-time online status, CPU, RAM, Disk, and DSC Token telemetry details for all Grama Panchayat & Mandal computers from v1.0 to v1.0.9.
+              Real-time online status, CPU, RAM, Disk, and DSC Token telemetry details for all Grama Panchayat & Mandal computers from v1.0 to v1.1.0.
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => {
                 setTelegramImportStatus('');
@@ -559,7 +551,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
             <span className="text-2xl font-black font-mono text-cyan-300 tabular-nums">
               {summary?.totalRegisteredPcs || machines.length}
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">v1.0 ➔ v1.0.9 All Fleet</span>
+            <span className="text-[10px] text-slate-400 font-mono">v1.0 ➔ v1.1.0 All Fleet</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div className="bg-cyan-400 h-full w-full" />
@@ -622,10 +614,10 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 4: Latest v1.0.9 Adoption */}
+        {/* Card 4: Latest v1.1.0 Adoption */}
         <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 space-y-2 relative overflow-hidden">
           <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>v1.0.9 Adoption</span>
+            <span>v1.1.0 Adoption</span>
             <Zap className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="flex items-baseline justify-between">
@@ -633,7 +625,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
               {summary?.latestVersionAdoptionPct || 100}%
             </span>
             <span className="text-[10px] text-slate-400 font-mono">
-              {summary?.versionCounts?.['v1.0.9'] || machines.filter(m => m.appVersion === 'v1.0.9').length} PCs on v1.0.9
+              {summary?.versionCounts?.['v1.1.0'] || machines.filter(m => m.appVersion === 'v1.1.0').length} PCs on v1.1.0
             </span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
@@ -706,7 +698,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
                 </span>
               </h3>
               <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                Version details for every computer at a glance (e.g. PC-1 ➔ v1.0.1, PC-2 ➔ v1.0.2, PC-3 ➔ v1.0.9...)
+                Version details for every computer at a glance (e.g. PC-1 ➔ v1.0.1, PC-2 ➔ v1.0.9, PC-3 ➔ v1.1.0...)
               </p>
             </div>
           </div>
@@ -729,7 +721,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
             {machines.map((m, index) => {
               const isSelectedInTable = selectedMachine?.pcId === m.pcId;
               const verColor =
-                m.appVersion === 'v1.0.9' || m.appVersion === 'v1.0.8'
+                m.appVersion === 'v1.1.0' || m.appVersion === 'v1.0.9' || m.appVersion === 'v1.0.8'
                   ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                   : m.appVersion === 'v1.0.7'
                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
@@ -853,7 +845,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
           <div className="flex items-center gap-2">
             <Monitor className="w-4 h-4 text-cyan-400" />
             <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-              Live PC Audit Matrix (v1.0 - v1.0.9 Fleet Table)
+              Live PC Audit Matrix (v1.0 - v1.1.0 Fleet Table)
             </h3>
           </div>
           <span className="text-[11px] text-slate-400 font-mono">
@@ -940,7 +932,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
                     <td className="py-3 px-4 whitespace-nowrap">
                       <span
                         className={`px-2 py-0.5 rounded-md font-bold text-[11px] border ${
-                          m.appVersion === 'v1.0.9' || m.appVersion === 'v1.0.8'
+                          m.appVersion === 'v1.1.0' || m.appVersion === 'v1.0.9' || m.appVersion === 'v1.0.8'
                             ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                             : m.appVersion === 'v1.0.7'
                             ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
@@ -1097,7 +1089,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
           <div className="flex items-center gap-2">
             <Monitor className="w-4 h-4 text-cyan-400" />
             <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-              లైవ్ PC ఆడిట్ మ్యాట్రిక్స్ (v1.0 - v1.0.9 Fleet Table)
+              లైవ్ PC ఆడిట్ మ్యాట్రిక్స్ (v1.0 - v1.1.0 Fleet Table)
             </h3>
           </div>
           <span className="text-[11px] text-slate-400 font-mono">
@@ -1184,7 +1176,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
                     <td className="py-3 px-4 whitespace-nowrap">
                       <span
                         className={`px-2 py-0.5 rounded-md font-bold text-[11px] border ${
-                          m.appVersion === 'v1.0.9' || m.appVersion === 'v1.0.8'
+                          m.appVersion === 'v1.1.0' || m.appVersion === 'v1.0.9' || m.appVersion === 'v1.0.8'
                             ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                             : m.appVersion === 'v1.0.7'
                             ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
@@ -1601,7 +1593,7 @@ export const VersionFleetLiveDashboardView: React.FC = () => {
               value={telegramRawText}
               onChange={e => setTelegramRawText(e.target.value)}
               rows={9}
-              placeholder={`మీ టెలిగ్రామ్ లో వచ్చిన 1 నుండి 25 PC రిపోర్ట్ మెసేజ్‌లను ఒకేసారి కాపీ చేసి ఇక్కడ పేస్ట్ చేయండి...\n\nఉదాహరణకు:\n🖥️ PC Name: DESKTOP-GP01\n🆔 Machine ID: EVD-PC-8A12-9F01\n👤 User Name: PANCHAYAT SECRETARY\n📍 Office: Khammam GP\n📦 Version: v1.0.9 (2026.11.12.R4)`}
+              placeholder={`మీ టెలిగ్రామ్ లో వచ్చిన 1 నుండి 25 PC రిపోర్ట్ మెసేజ్‌లను ఒకేసారి కాపీ చేసి ఇక్కడ పేస్ట్ చేయండి...\n\nఉదాహరణకు:\n🖥️ PC Name: DESKTOP-GP01\n🆔 Machine ID: EVD-PC-8A12-9F01\n👤 User Name: PANCHAYAT SECRETARY\n📍 Office: Khammam GP\n📦 Version: v1.1.0 (2026.11.16.R6)`}
               className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
             />
 

@@ -26,6 +26,197 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         }
 
 
+        private static string _cachedLocation = null;
+        private static string _configuredState = null;
+        private static string _configuredDistrict = null;
+        private static string _configuredOfficeName = null;
+        private static string _configuredOperatorName = null;
+
+        public static void SaveConfiguredOfficeProfile(string state, string district, string officeName, string operatorName)
+        {
+            try
+            {
+                _configuredState = string.IsNullOrEmpty(state) ? "Telangana" : state.Trim();
+                _configuredDistrict = string.IsNullOrEmpty(district) ? "" : district.Trim();
+                _configuredOfficeName = string.IsNullOrEmpty(officeName) ? "" : officeName.Trim();
+                _configuredOperatorName = string.IsNullOrEmpty(operatorName) ? (Environment.UserName ?? "Operator") : operatorName.Trim();
+
+                string formattedLoc = BuildFormattedOfficeLocation(_configuredState, _configuredDistrict, _configuredOfficeName);
+                _cachedLocation = formattedLoc;
+
+                try
+                {
+                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\EVedhika"))
+                    {
+                        if (key != null)
+                        {
+                            key.SetValue("SelectedState", _configuredState);
+                            key.SetValue("SelectedDistrict", _configuredDistrict);
+                            key.SetValue("SelectedOfficeName", _configuredOfficeName);
+                            key.SetValue("SelectedOperatorName", _configuredOperatorName);
+                            key.SetValue("FormattedOfficeLocation", formattedLoc);
+                        }
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    string profileFile = Path.Combine(dir, "office_profile.txt");
+                    File.WriteAllLines(profileFile, new string[] {
+                        "State=" + _configuredState,
+                        "District=" + _configuredDistrict,
+                        "OfficeName=" + _configuredOfficeName,
+                        "OperatorName=" + _configuredOperatorName,
+                        "FormattedLocation=" + formattedLoc
+                    });
+                }
+                catch { }
+            }
+            catch { }
+        }
+
+        private static void EnsureConfiguredOfficeProfileLoaded()
+        {
+            if (!string.IsNullOrEmpty(_configuredDistrict) || !string.IsNullOrEmpty(_configuredOfficeName))
+                return;
+
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\EVedhika"))
+                {
+                    if (key != null)
+                    {
+                        _configuredState = Convert.ToString(key.GetValue("SelectedState", ""));
+                        _configuredDistrict = Convert.ToString(key.GetValue("SelectedDistrict", ""));
+                        _configuredOfficeName = Convert.ToString(key.GetValue("SelectedOfficeName", ""));
+                        _configuredOperatorName = Convert.ToString(key.GetValue("SelectedOperatorName", ""));
+                    }
+                }
+            }
+            catch { }
+
+            if (string.IsNullOrEmpty(_configuredDistrict) && string.IsNullOrEmpty(_configuredOfficeName))
+            {
+                try
+                {
+                    string profileFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "office_profile.txt");
+                    if (File.Exists(profileFile))
+                    {
+                        string[] lines = File.ReadAllLines(profileFile);
+                        foreach (string line in lines)
+                        {
+                            if (line.StartsWith("State=")) _configuredState = line.Substring("State=".Length).Trim();
+                            else if (line.StartsWith("District=")) _configuredDistrict = line.Substring("District=".Length).Trim();
+                            else if (line.StartsWith("OfficeName=")) _configuredOfficeName = line.Substring("OfficeName=".Length).Trim();
+                            else if (line.StartsWith("OperatorName=")) _configuredOperatorName = line.Substring("OperatorName=".Length).Trim();
+                        }
+                    }
+                }
+                catch { }
+            }
+        }
+
+        private static string BuildFormattedOfficeLocation(string state, string district, string officeName)
+        {
+            string st = string.IsNullOrEmpty(state) ? "Telangana" : state.Trim();
+            string dist = string.IsNullOrEmpty(district) ? "" : district.Trim();
+            string off = string.IsNullOrEmpty(officeName) ? "" : officeName.Trim();
+
+            if (!string.IsNullOrEmpty(off) && !string.IsNullOrEmpty(dist))
+            {
+                if (off.IndexOf(dist, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return string.Format("{0} ({1})", off, st);
+                return string.Format("{0}, {1} ({2})", off, dist, st);
+            }
+            if (!string.IsNullOrEmpty(dist))
+            {
+                return string.Format("{0} District Office ({1})", dist, st);
+            }
+            if (!string.IsNullOrEmpty(off))
+            {
+                return string.Format("{0} ({1})", off, st);
+            }
+            return string.Format("{0} ({1} GP/Mandal Office)", Environment.MachineName ?? "GP-OFFICE-PC", st);
+        }
+
+        public static string GetConfiguredState(string fallbackState = "Telangana")
+        {
+            EnsureConfiguredOfficeProfileLoaded();
+            if (!string.IsNullOrEmpty(_configuredState)) return _configuredState;
+            return string.IsNullOrEmpty(fallbackState) ? "Telangana" : fallbackState;
+        }
+
+        public static string GetConfiguredDistrict(string fallbackState = "Telangana")
+        {
+            EnsureConfiguredOfficeProfileLoaded();
+            if (!string.IsNullOrEmpty(_configuredDistrict)) return _configuredDistrict;
+
+            string inferred = InferDistrictFromHostname();
+            if (!string.IsNullOrEmpty(inferred)) return inferred;
+
+            return (GetConfiguredState(fallbackState) == "Andhra Pradesh") ? "Andhra Pradesh District" : "Telangana District";
+        }
+
+        public static string GetConfiguredOperatorName()
+        {
+            EnsureConfiguredOfficeProfileLoaded();
+            if (!string.IsNullOrEmpty(_configuredOperatorName)) return _configuredOperatorName;
+            return Environment.UserName ?? "Operator";
+        }
+
+        private static string InferDistrictFromHostname()
+        {
+            string host = ((Environment.MachineName ?? "") + " " + (Environment.UserName ?? "")).ToUpperInvariant();
+            string[,] map = new string[,] {
+                { "MNCL", "Mancherial" }, { "MANCHERIAL", "Mancherial" }, { "MANCHIRAL", "Mancherial" },
+                { "KMM", "Khammam" }, { "KHAMMAM", "Khammam" },
+                { "SRPT", "Suryapet" }, { "SURYAPET", "Suryapet" },
+                { "NLG", "Nalgonda" }, { "NALGONDA", "Nalgonda" },
+                { "WGL", "Warangal" }, { "WARANGAL", "Warangal" }, { "HANUMAKONDA", "Hanumakonda" },
+                { "KMR", "Karimnagar" }, { "KARIMNAGAR", "Karimnagar" },
+                { "NZB", "Nizamabad" }, { "NIZAMABAD", "Nizamabad" },
+                { "ADB", "Adilabad" }, { "ADILABAD", "Adilabad" },
+                { "KTGM", "Bhadradri Kothagudem" }, { "KOTHAGUDEM", "Bhadradri Kothagudem" },
+                { "JGTL", "Jagtial" }, { "JAGTIAL", "Jagtial" },
+                { "JNG", "Jangaon" }, { "JANGAON", "Jangaon" },
+                { "BHPL", "Jayashankar Bhupalpally" }, { "BHUPALPALLY", "Jayashankar Bhupalpally" },
+                { "GDWL", "Jogulamba Gadwal" }, { "GADWAL", "Jogulamba Gadwal" },
+                { "KMRD", "Kamareddy" }, { "KAMAREDDY", "Kamareddy" },
+                { "ASIFABAD", "Kumuram Bheem Asifabad" },
+                { "MHBD", "Mahabubabad" }, { "MAHABUBABAD", "Mahabubabad" },
+                { "MBNR", "Mahabubnagar" }, { "MAHABUBNAGAR", "Mahabubnagar" },
+                { "MDK", "Medak" }, { "MEDAK", "Medak" },
+                { "MDC", "Medchal-Malkajgiri" }, { "MEDCHAL", "Medchal-Malkajgiri" },
+                { "MLG", "Mulugu" }, { "MULUGU", "Mulugu" },
+                { "NGKL", "Nagarkurnool" }, { "NAGARKURNOOL", "Nagarkurnool" },
+                { "NRNP", "Narayanpet" }, { "NARAYANPET", "Narayanpet" },
+                { "NRML", "Nirmal" }, { "NIRMAL", "Nirmal" },
+                { "PDPL", "Peddapalli" }, { "PEDDAPALLI", "Peddapalli" },
+                { "SIRCILLA", "Rajanna Sircilla" },
+                { "RNG", "Rangareddy" }, { "RANGAREDDY", "Rangareddy" },
+                { "SRD", "Sangareddy" }, { "SANGAREDDY", "Sangareddy" },
+                { "SDPT", "Siddipet" }, { "SIDDIPET", "Siddipet" },
+                { "VKBD", "Vikarabad" }, { "VIKARABAD", "Vikarabad" },
+                { "WNPR", "Wanaparthy" }, { "WANAPARTHY", "Wanaparthy" },
+                { "YDD", "Yadadri Bhuvanagiri" }, { "BHUVANAGIRI", "Yadadri Bhuvanagiri" }, { "BHONGIR", "Yadadri Bhuvanagiri" },
+                { "VSP", "Visakhapatnam" }, { "VIZAG", "Visakhapatnam" },
+                { "VJA", "Vijayawada" }, { "GNT", "Guntur" }, { "GUNTUR", "Guntur" },
+                { "KDP", "YSR Kadapa" }, { "KADAPA", "YSR Kadapa" },
+                { "KNL", "Kurnool" }, { "KURNOOL", "Kurnool" },
+                { "ATP", "Anantapuramu" }, { "CTR", "Chittoor" }, { "TPT", "Tirupati" }, { "NLR", "SPSR Nellore" }
+            };
+            int len = map.GetLength(0);
+            for (int i = 0; i < len; i++)
+            {
+                if (host.Contains(map[i, 0]))
+                    return map[i, 1];
+            }
+            return "";
+        }
+
         public static string GetLiveLocation(string preferredState = null)
         {
             string state = preferredState;
@@ -38,10 +229,40 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 state = "Telangana";
             }
 
-            // Standardize state name
             string targetState = state.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0 ? "Andhra Pradesh" : "Telangana";
 
-            // 1. Try HTTPS ipapi.co
+            // 1. Always prioritize the operator's saved District & GP/Mandal Office Profile
+            EnsureConfiguredOfficeProfileLoaded();
+            if (!string.IsNullOrEmpty(_configuredDistrict) || !string.IsNullOrEmpty(_configuredOfficeName))
+            {
+                _cachedLocation = BuildFormattedOfficeLocation(
+                    string.IsNullOrEmpty(_configuredState) ? targetState : _configuredState,
+                    _configuredDistrict,
+                    _configuredOfficeName);
+                return _cachedLocation;
+            }
+
+            if (!string.IsNullOrEmpty(_cachedLocation)) return _cachedLocation;
+
+            // 2. Check if Computer Name / Hostname encodes a known District or Mandal
+            string inferredDist = InferDistrictFromHostname();
+            if (!string.IsNullOrEmpty(inferredDist))
+            {
+                _cachedLocation = string.Format("{0}, {1} ({2})", Environment.MachineName ?? "GP-OFFICE-PC", inferredDist, targetState);
+                return _cachedLocation;
+            }
+
+            // Helper check for ISP BRAS metro gateway locations
+            Func<string, bool> isIspMetroGateway = (val) =>
+            {
+                if (string.IsNullOrEmpty(val)) return false;
+                string v = val.Trim().ToUpperInvariant();
+                return v.Contains("HYDERABAD") || v.Contains("SECUNDERABAD") || v.Contains("CYBERABAD") ||
+                       v.Contains("MADHAPUR") || v.Contains("GACHIBOWLI") || v.Contains("KUKATPALLY") ||
+                       v.Contains("KONDAPUR") || v.Contains("SHAMSHABAD") || v.Contains("HITECH");
+            };
+
+            // 3. Try HTTPS ipapi.co (Ignore generic ISP gateway 'Hyderabad'/'Secunderabad' unless explicitly selected)
             try
             {
                 using (System.Net.WebClient client = new TimeoutWebClient(3000))
@@ -53,16 +274,17 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     {
                         var cityM = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
                         string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
-                        if (!string.IsNullOrEmpty(city) && !city.Equals("null", StringComparison.OrdinalIgnoreCase))
+                        if (!string.IsNullOrEmpty(city) && !city.Equals("null", StringComparison.OrdinalIgnoreCase) && !isIspMetroGateway(city))
                         {
-                            return city + ", " + targetState;
+                            _cachedLocation = city + ", " + targetState;
+                            return _cachedLocation;
                         }
                     }
                 }
             }
             catch { }
 
-            // 2. Try HTTP ip-api.com
+            // 4. Try HTTP ip-api.com (Ignore generic ISP gateway 'Hyderabad'/'Secunderabad')
             try
             {
                 using (System.Net.WebClient client = new TimeoutWebClient(3000))
@@ -77,47 +299,29 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
                         string dist = distM.Success ? distM.Groups[1].Value.Trim() : "";
 
-                        if (!string.IsNullOrEmpty(city))
+                        if (!string.IsNullOrEmpty(city) && !isIspMetroGateway(city) && !isIspMetroGateway(dist))
                         {
                             if (!string.IsNullOrEmpty(dist) && !dist.Equals(city, StringComparison.OrdinalIgnoreCase))
                             {
-                                return city + " (" + dist + "), " + targetState;
+                                _cachedLocation = city + " (" + dist + "), " + targetState;
+                                return _cachedLocation;
                             }
-                            return city + ", " + targetState;
+                            _cachedLocation = city + ", " + targetState;
+                            return _cachedLocation;
                         }
                     }
                 }
             }
             catch { }
 
-            // 3. Try HTTPS ipwho.is
-            try
-            {
-                using (System.Net.WebClient client = new TimeoutWebClient(3000))
-                {
-                    client.Headers.Add("User-Agent", "Mozilla/5.0");
-                    client.Encoding = System.Text.Encoding.UTF8;
-                    string response = client.DownloadString("https://ipwho.is/");
-                    if (!string.IsNullOrEmpty(response) && response.Contains("\"success\":true"))
-                    {
-                        var cityM = System.Text.RegularExpressions.Regex.Match(response, "\"city\":\"([^\"]+)\"");
-                        string city = cityM.Success ? cityM.Groups[1].Value.Trim() : "";
-                        if (!string.IsNullOrEmpty(city))
-                        {
-                            return city + ", " + targetState;
-                        }
-                    }
-                }
-            }
-            catch { }
-
-            // 4. Accurate Fallback using Machine and Domain Identity (NO hardcoded static location strings)
+            // 5. Accurate Fallback using Machine Identity (never false 'Hyderabad')
             string pcName = Environment.MachineName;
             if (!string.IsNullOrEmpty(pcName))
             {
-                return pcName + " (" + targetState + ")";
+                _cachedLocation = pcName + " (" + targetState + " GP/Mandal Office)";
+                return _cachedLocation;
             }
-            return targetState + " Office";
+            return targetState + " GP/Mandal Office";
         }
 
         public static string GetWindowsVersion()

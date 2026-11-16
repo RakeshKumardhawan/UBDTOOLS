@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("E-Vedhika One-Click Deployment Tool")]
-[assembly: AssemblyDescription("E-Vedhika Portal IE Mode, Registry & DSC Token Deployment Suite")]
+[assembly: AssemblyDescription("E-Vedhika Portal IE Mode, Registry & DSC Token Deployment Suite (Free Access Active | Future Plan: ₹10/Mo)")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("E-Vedhika | Developer: Rakesh Kumar Dhawan")]
 [assembly: AssemblyProduct("E-Vedhika One-Click Deployment Tool")]
-[assembly: AssemblyCopyright("Copyright © 2026 Rakesh Kumar Dhawan")]
+[assembly: AssemblyCopyright("Copyright © 2026 Rakesh Kumar Dhawan (Free Now / ₹10-Mo Future Plan)")]
 [assembly: AssemblyTrademark("E-Vedhika (Rakesh Kumar Dhawan)")]
 [assembly: AssemblyCulture("")]
 
@@ -32,6 +32,6 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.9.0")]
-[assembly: AssemblyFileVersion("1.0.9.0")]
-[assembly: AssemblyInformationalVersion("1.0.9 (Build 2026.11.12.R5)")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyInformationalVersion("1.1.0 (Build 2026.11.16.R6)")]

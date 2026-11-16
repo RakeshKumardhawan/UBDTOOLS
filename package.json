@@ -1,7 +1,8 @@
 {
   "name": "react-example",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.1.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -11,6 +12,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/d3": "^7.4.3",
@@ -18,7 +20,9 @@
     "@vitejs/plugin-react": "^5.0.4",
     "d3": "^7.9.0",
     "dotenv": "^17.2.3",
+    "eslint": "^10.15.0",
     "express": "^4.21.2",
+    "firebase": "^13.3.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "nodemailer": "^10.2.1",

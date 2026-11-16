@@ -226,6 +226,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
             foreach (var file in prioritizedFiles)
             {
                 string fileName = Path.GetFileName(file);
+                if (!IsValidInstallerBinary(file))
+                {
+                    if (logCallback != null) logCallback(string.Format("[SKIP INVALID] '{0}' is not a valid Win32/Win64 installer package.", fileName));
+                    continue;
+                }
                 if (logCallback != null) logCallback(string.Format("[LOCAL INSTALLER] Found compatible package: {0}. Executing silent installation...", fileName));
                 bool success = ExecuteInstaller(file, logCallback);
                 if (success && IsEdgeInstalled())
@@ -235,34 +240,90 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 }
             }
 
-            // 2. If no local installer found, download and install official Microsoft Edge universal bootstrapper
-            if (logCallback != null) logCallback(string.Format("[2/3] No matching local installer found. Downloading official Microsoft Edge {0} installer...", archName));
-            try
+            // 2. If no local installer found, download verified Microsoft Edge installer
+            bool isWin10OrNewer = Environment.OSVersion.Version.Major >= 10;
+            if (!isWin10OrNewer)
             {
-                string tempInstallerPath = Path.Combine(Path.GetTempPath(), "MicrosoftEdgeSetup.exe");
-                
-                // Ensure TLS 1.2 (with safe .NET 4.0 fallback)
-                try { ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls; }
-                catch { try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls; } catch { } }
-
-                // Official Microsoft Universal Web Bootstrapper
-                // When MicrosoftEdgeSetup.exe runs, it automatically queries the Windows Kernel (GetSystemInfo/IsWow64Process)
-                // and downloads the exact matching 32-Bit or 64-Bit Edge payload directly from Microsoft CDN.
-                string downloadUrl = "https://go.microsoft.com/fwlink/?linkid=2108834";
-
-                using (WebClient client = new WebClient())
+                if (logCallback != null) logCallback("[WINDOWS 7/8 EDGE NOTICE] Modern Edge online installers (v110+) no longer support Windows 7/8/8.1. Skipping web stub; use Edge 109 offline MSI in 'installers/' folder if needed.");
+            }
+            else
+            {
+                if (logCallback != null) logCallback(string.Format("[2/3] No matching local installer found. Downloading official Microsoft Edge {0} installer...", archName));
+                string tempDir = Path.GetTempPath();
+                try
                 {
-                    client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-                    client.DownloadFile(downloadUrl, tempInstallerPath);
+                    // Clean up any stale/corrupt MicrosoftEdgeSetup.exe left in TEMP
+                    string staleTempExe = Path.Combine(tempDir, "MicrosoftEdgeSetup.exe");
+                    if (File.Exists(staleTempExe)) { try { File.Delete(staleTempExe); } catch { } }
+
+                    // Ensure TLS 1.2 (with safe .NET 4.0 fallback)
+                    try { ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls; }
+                    catch { try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls; } catch { } }
+
+                    // Official Microsoft Edge Stable Web Bootstrapper (replaces deprecated linkid=2108834)
+                    string[] candidateDownloads = new string[]
+                    {
+                        "https://go.microsoft.com/fwlink/?linkid=2109047&Channel=Stable&language=en&consent=1",
+                        is64BitOS
+                            ? "https://go.microsoft.com/fwlink/?LinkID=2093437"
+                            : "https://go.microsoft.com/fwlink/?LinkID=2093505"
+                    };
+
+                    foreach (string downloadUrl in candidateDownloads)
+                    {
+                        bool isMsiUrl = downloadUrl.IndexOf("2093437", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                        downloadUrl.IndexOf("2093505", StringComparison.OrdinalIgnoreCase) >= 0;
+                        string tempInstallerPath = Path.Combine(tempDir, isMsiUrl ? "EVedhika_EdgeSetup.msi" : "EVedhika_EdgeSetup.exe");
+
+                        try
+                        {
+                            if (File.Exists(tempInstallerPath)) File.Delete(tempInstallerPath);
+
+                            using (WebClient client = new WebClient())
+                            {
+                                client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                                client.DownloadFile(downloadUrl, tempInstallerPath);
+                            }
+
+                            // Strictly validate PE (MZ) or MSI binary header BEFORE executing (prevents 'Unsupported 16-Bit Application' on HTML responses!)
+                            if (!IsValidInstallerBinary(tempInstallerPath))
+                            {
+                                if (logCallback != null) logCallback("[DOWNLOAD SKIPPED] Downloaded Edge response was not a valid Windows executable/MSI (possible proxy/HTML redirect).");
+                                try { if (File.Exists(tempInstallerPath)) File.Delete(tempInstallerPath); } catch { }
+                                continue;
+                            }
+
+                            if (logCallback != null) logCallback(string.Format("[DOWNLOAD COMPLETE] Launching Microsoft Edge {0} silent installer...", archName));
+                            ExecuteInstaller(tempInstallerPath, logCallback);
+
+                            try { if (File.Exists(tempInstallerPath)) File.Delete(tempInstallerPath); } catch { }
+
+                            if (IsEdgeInstalled())
+                            {
+                                if (logCallback != null) logCallback(string.Format("[SUCCESS] Microsoft Edge ({0}) downloaded and installed successfully!", archName));
+                                return true;
+                            }
+                        }
+                        catch (Exception innerEx)
+                        {
+                            try { if (File.Exists(tempInstallerPath)) File.Delete(tempInstallerPath); } catch { }
+                            if (logCallback != null) logCallback(string.Format("[DOWNLOAD NOTICE] Edge download attempt notice: {0}", innerEx.Message));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (logCallback != null) logCallback(string.Format("[DOWNLOAD NOTICE] Online Edge download failed: {0}", ex.Message));
                 }
 
-                if (File.Exists(tempInstallerPath) && new FileInfo(tempInstallerPath).Length > 1024)
+                // 3. Fallback: Try winget if available on Windows 10/11
+                if (logCallback != null) logCallback("[3/3] Trying Windows Package Manager (winget) fallback...");
+                try
                 {
-                    if (logCallback != null) logCallback(string.Format("[DOWNLOAD COMPLETE] Launching Microsoft Edge {0} silent installer...", archName));
                     var psi = new ProcessStartInfo
                     {
-                        FileName = tempInstallerPath,
-                        Arguments = "/silent /install",
+                        FileName = "powershell.exe",
+                        Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"winget install --id Microsoft.Edge --silent --accept-source-agreements --accept-package-agreements\"",
                         CreateNoWindow = true,
                         UseShellExecute = false,
                         WindowStyle = ProcessWindowStyle.Hidden
@@ -270,48 +331,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                     using (var proc = Process.Start(psi))
                     {
-                        if (proc != null) proc.WaitForExit(90000); // Wait up to 90 seconds
+                        if (proc != null) proc.WaitForExit(60000);
                     }
-
-                    try { File.Delete(tempInstallerPath); } catch { }
 
                     if (IsEdgeInstalled())
                     {
-                        if (logCallback != null) logCallback(string.Format("[SUCCESS] Microsoft Edge ({0}) downloaded and installed successfully!", archName));
+                        if (logCallback != null) logCallback("[SUCCESS] Microsoft Edge installed via Windows Package Manager!");
                         return true;
                     }
                 }
+                catch { }
             }
-            catch (Exception ex)
-            {
-                if (logCallback != null) logCallback(string.Format("[DOWNLOAD NOTICE] Online Edge download failed: {0}", ex.Message));
-            }
-
-            // 3. Fallback: Try winget if available on Windows 10/11
-            if (logCallback != null) logCallback("[3/3] Trying Windows Package Manager (winget) fallback...");
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"winget install --id Microsoft.Edge --silent --accept-source-agreements --accept-package-agreements\"",
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                };
-
-                using (var proc = Process.Start(psi))
-                {
-                    if (proc != null) proc.WaitForExit(60000);
-                }
-
-                if (IsEdgeInstalled())
-                {
-                    if (logCallback != null) logCallback("[SUCCESS] Microsoft Edge installed via Windows Package Manager!");
-                    return true;
-                }
-            }
-            catch { }
 
             if (IsEdgeInstalled())
             {
@@ -319,8 +349,63 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 return true;
             }
 
-            if (logCallback != null) logCallback("[USER GUIDANCE] Could not automatically install Edge. Please place 'MicrosoftEdgeSetup.exe' in the 'installers/' folder and run the tool again.");
+            if (logCallback != null) logCallback("[USER GUIDANCE] Microsoft Edge could not be auto-installed on this OS. On Windows 7, place Edge 109 offline installer in 'installers/' if Edge is not installed.");
             return false;
+        }
+
+        /// <summary>
+        /// Verifies that a downloaded or local installer is a genuine 32-bit/64-bit Windows PE (.exe) or OLE Compound (.msi).
+        /// Prevents executing HTML error pages, 0-byte stubs, or incompatible binaries that trigger 'Unsupported 16-Bit Application'.
+        /// </summary>
+        public static bool IsValidInstallerBinary(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return false;
+                FileInfo fi = new FileInfo(filePath);
+                if (fi.Length < 65536) return false; // Real Edge EXE/MSI installers are >= ~1.8 MB (never < 64 KB)
+
+                string ext = Path.GetExtension(filePath).ToLowerInvariant();
+                using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    if (ext == ".msi")
+                    {
+                        byte[] oleHeader = new byte[8];
+                        if (fs.Read(oleHeader, 0, 8) < 8) return false;
+                        // OLE2 / MSI magic: D0 CF 11 E0 A1 B1 1A E1
+                        return oleHeader[0] == 0xD0 && oleHeader[1] == 0xCF &&
+                               oleHeader[2] == 0x11 && oleHeader[3] == 0xE0 &&
+                               oleHeader[4] == 0xA1 && oleHeader[5] == 0xB1 &&
+                               oleHeader[6] == 0x1A && oleHeader[7] == 0xE1;
+                    }
+                    else
+                    {
+                        byte[] dosHeader = new byte[64];
+                        if (fs.Read(dosHeader, 0, 64) < 64) return false;
+                        // Must start with 'MZ' (0x4D, 0x5A)
+                        if (dosHeader[0] != 0x4D || dosHeader[1] != 0x5A) return false;
+
+                        int peOffset = BitConverter.ToInt32(dosHeader, 0x3C);
+                        if (peOffset <= 0 || peOffset > fi.Length - 6) return false;
+
+                        fs.Seek(peOffset, SeekOrigin.Begin);
+                        byte[] peSig = new byte[6];
+                        if (fs.Read(peSig, 0, 6) < 6) return false;
+                        // Must contain valid 'PE\0\0' signature (excludes 16-bit NE/LE/HTML binaries!)
+                        if (peSig[0] != 0x50 || peSig[1] != 0x45 || peSig[2] != 0x00 || peSig[3] != 0x00) return false;
+
+                        ushort machine = BitConverter.ToUInt16(peSig, 4);
+                        // If running on 32-bit OS, reject x64-only (0x8664) binaries
+                        if (!Environment.Is64BitOperatingSystem && machine == 0x8664) return false;
+
+                        return machine == 0x014C || machine == 0x8664 || machine == 0xAA64;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -363,6 +448,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
+                if (!IsValidInstallerBinary(filePath))
+                {
+                    if (logCallback != null) logCallback(string.Format("[INVALID BINARY BLOCKED] '{0}' failed PE/MSI validation.", Path.GetFileName(filePath)));
+                    return false;
+                }
+
                 string ext = Path.GetExtension(filePath).ToLowerInvariant();
                 ProcessStartInfo psi;
 

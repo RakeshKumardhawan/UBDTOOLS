@@ -240,8 +240,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       operatorName: 'Web Portal Operator',
       category: 'Web App / Portal Integration',
       primaryUrl: selectedProfile?.primaryUrl || 'https://ubd.telangana.gov.in',
-      appVersion: 'v1.0.9',
-      resourceBuild: '2026.11.10.R2',
+      appVersion: 'v1.1.0',
+      resourceBuild: '2026.11.16.R6',
       source: 'E-Vedhika Web App Settings'
     };
 
@@ -367,7 +367,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
             <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">App Version</span>
-            <span className="text-xs font-bold font-mono text-slate-900">v1.0.9</span>
+            <span className="text-xs font-bold font-mono text-slate-900">v1.1.0</span>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">

@@ -1,0 +1,245 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (
+          request.auth.token.email == 'Rakeshkumardhawan123@gmail.com' &&
+          request.auth.token.email_verified == true
+        ) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidInstalledPc(data, pcId) {
+      return data.keys().hasAll([
+          'pcId', 'pcName', 'district', 'state', 'officeLocation',
+          'appVersion', 'appState', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'pcId', 'pcName', 'userName', 'district', 'state', 'officeLocation',
+          'osVersion', 'appVersion', 'resourceBuild', 'appState', 'pcConnectivity',
+          'verification', 'dscStatus', 'edgeIeMode', 'healthScore', 'lastSeenAt', 'updatedAt'
+        ]) &&
+        data.pcId == pcId &&
+        isValidId(data.pcId) &&
+        data.pcName is string && data.pcName.size() >= 1 && data.pcName.size() <= 128 &&
+        (!('userName' in data) || (data.userName is string && data.userName.size() <= 128)) &&
+        data.district is string && data.district.size() >= 1 && data.district.size() <= 100 &&
+        data.state is string && data.state.size() >= 1 && data.state.size() <= 64 &&
+        data.officeLocation is string && data.officeLocation.size() >= 1 && data.officeLocation.size() <= 200 &&
+        (!('osVersion' in data) || (data.osVersion is string && data.osVersion.size() <= 120)) &&
+        data.appVersion is string && data.appVersion.size() >= 1 && data.appVersion.size() <= 32 &&
+        (!('resourceBuild' in data) || (data.resourceBuild is string && data.resourceBuild.size() <= 48)) &&
+        data.appState in ['RUNNING', 'CLOSED', 'NOT_RESPONDING'] &&
+        (!('pcConnectivity' in data) || data.pcConnectivity in ['ONLINE', 'OFFLINE']) &&
+        (!('verification' in data) || (data.verification is string && data.verification.size() <= 160)) &&
+        (!('dscStatus' in data) || (data.dscStatus is string && data.dscStatus.size() <= 160)) &&
+        (!('edgeIeMode' in data) || (data.edgeIeMode is string && data.edgeIeMode.size() <= 160)) &&
+        (!('healthScore' in data) || ((data.healthScore is int || data.healthScore is float) && data.healthScore >= 0 && data.healthScore <= 100)) &&
+        (!('lastSeenAt' in data) || (data.lastSeenAt is string && data.lastSeenAt.size() <= 64)) &&
+        data.updatedAt == request.time;
+    }
+
+    function isValidPcReportEvent(data, reportId) {
+      return data.keys().hasAll([
+          'reportId', 'pcId', 'pcName', 'reportType', 'status', 'appVersion', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'reportId', 'pcId', 'pcName', 'userName', 'district', 'state',
+          'officeLocation', 'reportType', 'status', 'appVersion', 'details', 'createdAt'
+        ]) &&
+        data.reportId == reportId &&
+        isValidId(data.reportId) &&
+        isValidId(data.pcId) &&
+        data.pcName is string && data.pcName.size() >= 1 && data.pcName.size() <= 128 &&
+        (!('userName' in data) || (data.userName is string && data.userName.size() <= 128)) &&
+        (!('district' in data) || (data.district is string && data.district.size() <= 100)) &&
+        (!('state' in data) || (data.state is string && data.state.size() <= 64)) &&
+        (!('officeLocation' in data) || (data.officeLocation is string && data.officeLocation.size() <= 200)) &&
+        data.reportType is string && data.reportType.size() >= 1 && data.reportType.size() <= 64 &&
+        data.status is string && data.status.size() >= 1 && data.status.size() <= 48 &&
+        data.appVersion is string && data.appVersion.size() >= 1 && data.appVersion.size() <= 32 &&
+        (!('details' in data) || (data.details is string && data.details.size() <= 1000)) &&
+        data.createdAt == request.time;
+    }
+
+    function isValidUserFeedback(data, feedbackId) {
+      return data.keys().hasAll([
+          'feedbackId', 'pcId', 'pcName', 'operatorName', 'rating', 'comments', 'appVersion', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'feedbackId', 'pcId', 'pcName', 'operatorName', 'district', 'state',
+          'officeLocation', 'rating', 'comments', 'appVersion', 'createdAt'
+        ]) &&
+        data.feedbackId == feedbackId &&
+        isValidId(data.feedbackId) &&
+        isValidId(data.pcId) &&
+        data.pcName is string && data.pcName.size() >= 1 && data.pcName.size() <= 128 &&
+        data.operatorName is string && data.operatorName.size() >= 1 && data.operatorName.size() <= 128 &&
+        (!('district' in data) || (data.district is string && data.district.size() <= 100)) &&
+        (!('state' in data) || (data.state is string && data.state.size() <= 64)) &&
+        (!('officeLocation' in data) || (data.officeLocation is string && data.officeLocation.size() <= 200)) &&
+        data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+        data.comments is string && data.comments.size() >= 1 && data.comments.size() <= 1000 &&
+        data.appVersion is string && data.appVersion.size() >= 1 && data.appVersion.size() <= 32 &&
+        data.createdAt == request.time;
+    }
+
+    function isValidLicensePolicy(data, policyId) {
+      return data.keys().hasAll([
+          'policyId', 'mode', 'monthlyPriceInr', 'durationDays', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'policyId', 'mode', 'monthlyPriceInr', 'durationDays', 'upiId', 'paymentLinkUrl', 'paymentNote', 'updatedAt'
+        ]) &&
+        data.policyId == policyId &&
+        isValidId(policyId) &&
+        data.mode in ['FREE_FOR_ALL', 'PAID_MONTHLY'] &&
+        (data.monthlyPriceInr is int || data.monthlyPriceInr is float) &&
+        data.monthlyPriceInr >= 0 && data.monthlyPriceInr <= 10000 &&
+        data.durationDays is int && data.durationDays >= 1 && data.durationDays <= 3650 &&
+        (!('upiId' in data) || (data.upiId is string && data.upiId.size() <= 120)) &&
+        (!('paymentLinkUrl' in data) || (data.paymentLinkUrl is string && data.paymentLinkUrl.size() <= 300)) &&
+        (!('paymentNote' in data) || (data.paymentNote is string && data.paymentNote.size() <= 400)) &&
+        data.updatedAt == request.time;
+    }
+
+    function isValidPcLicense(data, pcId) {
+      return data.keys().hasAll([
+          'pcId', 'planType', 'status', 'amountInr', 'validUntilIso', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'pcId', 'pcName', 'planType', 'status', 'amountInr', 'validUntilIso', 'paymentRef', 'updatedAt'
+        ]) &&
+        data.pcId == pcId &&
+        isValidId(data.pcId) &&
+        (!('pcName' in data) || (data.pcName is string && data.pcName.size() <= 128)) &&
+        data.planType in ['FREE_ACCESS', 'PAID_30_DAYS'] &&
+        data.status in ['ACTIVE', 'EXPIRED', 'REVOKED'] &&
+        (data.amountInr is int || data.amountInr is float) &&
+        data.amountInr >= 0 && data.amountInr <= 10000 &&
+        data.validUntilIso is string && data.validUntilIso.size() >= 4 && data.validUntilIso.size() <= 64 &&
+        (!('paymentRef' in data) || (data.paymentRef is string && data.paymentRef.size() <= 128)) &&
+        data.updatedAt == request.time;
+    }
+
+    function isValidPaymentClaim(data, claimId) {
+      return data.keys().hasAll([
+          'claimId', 'utrNumber', 'pcId', 'pcName', 'amountInr', 'status', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'claimId', 'utrNumber', 'pcId', 'pcName', 'operatorName',
+          'district', 'state', 'amountInr', 'status', 'note', 'createdAt'
+        ]) &&
+        data.claimId == claimId &&
+        isValidId(claimId) &&
+        data.utrNumber is string &&
+        data.utrNumber.matches('^[A-Z0-9]{8,36}$') &&
+        claimId == 'UTR-' + data.utrNumber &&
+        isValidId(data.pcId) &&
+        data.pcName is string && data.pcName.size() >= 1 && data.pcName.size() <= 128 &&
+        (!('operatorName' in data) || (data.operatorName is string && data.operatorName.size() <= 128)) &&
+        (!('district' in data) || (data.district is string && data.district.size() <= 100)) &&
+        (!('state' in data) || (data.state is string && data.state.size() <= 64)) &&
+        (data.amountInr is int || data.amountInr is float) &&
+        data.amountInr >= 1 && data.amountInr <= 10000 &&
+        data.status in ['PENDING', 'APPROVED', 'REJECTED'] &&
+        (!('note' in data) || (data.note is string && data.note.size() <= 300)) &&
+        data.createdAt is timestamp;
+    }
+
+    match /installed_pcs/{pcId} {
+      allow get: if isAdmin() && isValidId(pcId);
+      allow list: if isAdmin();
+      allow create: if isValidId(pcId) && isValidInstalledPc(incoming(), pcId);
+      allow update: if isValidId(pcId) &&
+        isValidInstalledPc(incoming(), pcId) &&
+        incoming().pcId == existing().pcId &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'pcName', 'userName', 'district', 'state', 'officeLocation',
+          'osVersion', 'appVersion', 'resourceBuild', 'appState', 'pcConnectivity',
+          'verification', 'dscStatus', 'edgeIeMode', 'healthScore', 'lastSeenAt', 'updatedAt'
+        ]);
+      allow delete: if isAdmin() && isValidId(pcId);
+    }
+
+    match /pc_reports/{reportId} {
+      allow get: if isAdmin() && isValidId(reportId);
+      allow list: if isAdmin();
+      allow create: if isValidId(reportId) && isValidPcReportEvent(incoming(), reportId);
+      allow update, delete: if isAdmin() && isValidId(reportId);
+    }
+
+    match /user_feedbacks/{feedbackId} {
+      allow get: if isAdmin() && isValidId(feedbackId);
+      allow list: if isAdmin();
+      allow create: if isValidId(feedbackId) && isValidUserFeedback(incoming(), feedbackId);
+      allow update, delete: if isAdmin() && isValidId(feedbackId);
+    }
+
+    match /app_settings/{policyId} {
+      allow get: if isValidId(policyId) && policyId == 'licensing';
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidId(policyId) && isValidLicensePolicy(incoming(), policyId);
+      allow update: if isAdmin() && isValidId(policyId) &&
+        isValidLicensePolicy(incoming(), policyId) &&
+        incoming().policyId == existing().policyId;
+      allow delete: if isAdmin() && isValidId(policyId);
+    }
+
+    match /pc_licenses/{pcId} {
+      allow get: if isValidId(pcId);
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidId(pcId) && isValidPcLicense(incoming(), pcId);
+      allow update: if isAdmin() && isValidId(pcId) &&
+        isValidPcLicense(incoming(), pcId) &&
+        incoming().pcId == existing().pcId;
+      allow delete: if isAdmin() && isValidId(pcId);
+    }
+
+    match /payment_claims/{claimId} {
+      allow get: if isAdmin() && isValidId(claimId);
+      allow list: if isAdmin();
+      allow create: if isValidId(claimId) &&
+        isValidPaymentClaim(incoming(), claimId) &&
+        incoming().status == 'PENDING' &&
+        incoming().createdAt == request.time;
+      allow update: if isAdmin() &&
+        isValidId(claimId) &&
+        isValidPaymentClaim(incoming(), claimId) &&
+        incoming().claimId == existing().claimId &&
+        incoming().utrNumber == existing().utrNumber &&
+        incoming().pcId == existing().pcId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'note']);
+      allow delete: if isAdmin() && isValidId(claimId);
+    }
+
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && request.auth.uid == adminUid;
+      allow list, write: if false;
+    }
+  }
+}

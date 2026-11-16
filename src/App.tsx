@@ -30,10 +30,12 @@ import { VersionFleetLiveDashboardView } from './components/VersionFleetLiveDash
 import { NetworkFlowView } from './components/NetworkFlowView';
 import { UbdSettingManagerView } from './components/UbdSettingManagerView';
 import { ReportCenter } from './components/ReportCenter';
+import { PublicPaymentCheckout } from './components/PublicPaymentCheckout';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
 import { getDeviceHardwareIdentity } from './utils/hardwareIdentity';
+import { resolveRouteFromLocation } from './utils/urlRouting';
 
 import { 
   NavigationTab, 
@@ -164,8 +166,9 @@ function MainAppContent() {
 
     const checkVersionAndNotify = async () => {
       try {
+        const baseUrl = import.meta.env.BASE_URL || '/';
         const candidateUrls = [
-          '/version.json',
+          `${baseUrl}version.json`,
           '/api/version',
           'https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json'
         ];
@@ -174,7 +177,8 @@ function MainAppContent() {
         for (const url of candidateUrls) {
           try {
             const res = await fetch(url, { cache: 'no-cache' });
-            if (res.ok) {
+            const cType = res.headers.get('content-type') || '';
+            if (res.ok && (cType.includes('application/json') || url.endsWith('.json'))) {
               remoteData = await res.json();
               if (remoteData) break;
             }
@@ -232,87 +236,29 @@ function MainAppContent() {
     };
   }, [showInfo]);
 
-  // Sync tab from URL search parameters on load & popstate
+  // Sync tab from URL path, search parameters & hash on load / popstate / hashchange (supports /UBDTOOLS/live-pc-reports)
   React.useEffect(() => {
     const handleUrlTab = () => {
-      const path = window.location.pathname.toLowerCase();
-      
-      // 1. Check for Version Fleet & Telemetry path variations
-      if (path.includes('version-fleet') || path.includes('fleet') || path.includes('v1-fleet')) {
-        setActiveTab('version-fleet');
-        return;
+      const resolved = resolveRouteFromLocation(
+        window.location.pathname,
+        window.location.search,
+        window.location.hash
+      );
+      if (resolved.slug) {
+        setSelectedPostSlug(resolved.slug);
       }
-
-      if (
-        path.includes('telemetry') || 
-        path.includes('monitoring') || 
-        path.includes('ubd_monitoring') || 
-        path.includes('ubdlivemonitoring') || 
-        path.includes('/admin/ubd') ||
-        path.includes('/admin/telemetry') ||
-        path.includes('/admin/monitoring') ||
-        path.includes('telemetry-dashboar') ||
-        path.includes('telemetry-dashboard')
-      ) {
-        setActiveTab('telemetry-dashboard');
-        return;
-      }
-
-      // 2. Check for Blog Post routes
-      if (path.includes('/post/')) {
-        const parts = path.split('/post/');
-        if (parts[1]) {
-          const cleanSlug = parts[1].replace(/\/$/, '');
-          setSelectedPostSlug(cleanSlug || 'ubd-setting-issues-one-click-all-in-one-setup');
-          setActiveTab('post-detail');
-          return;
-        }
-      }
-
-      // 3. Check search params & tab parameters
-      const params = new URLSearchParams(window.location.search);
-      const slugParam = params.get('slug') || params.get('postId');
-      if (slugParam && !path.includes('monitoring') && !path.includes('telemetry')) {
-        setSelectedPostSlug(slugParam);
-        setActiveTab('post-detail');
-        return;
-      }
-
-      const tabParam = params.get('tab');
-      if (tabParam) {
-        const normalized = tabParam.toLowerCase();
-        if (
-          normalized.includes('monitoring') ||
-          normalized.includes('telemetry') ||
-          normalized === 'ubd_monitoring' ||
-          normalized === 'ubdlivemonitoring' || 
-          normalized === 'livemonitoring'
-        ) {
-          setActiveTab('telemetry-dashboard');
-        } else if (
-          normalized === 'admin/post' ||
-          normalized === 'admin/posts' ||
-          normalized === 'post' ||
-          normalized === 'posts' ||
-          normalized === 'publisher' ||
-          normalized === 'announcements'
-        ) {
-          setActiveTab('posts');
-        } else if (normalized === 'post-detail' || normalized === 'article') {
-          setActiveTab('post-detail');
-        } else if ([
-          'dashboard', 'posts', 'post-detail', 'deploy', 'csharp', 'repair', 'diagnostics', 'remote',
-          'drivers', 'browser', 'registry', 'auditor', 'dsc', 'ai', 
-          'downloads', 'backups', 'pcboost', 'settings', 'help', 'about', 'telemetry-dashboard'
-        ].includes(normalized)) {
-          setActiveTab(normalized as NavigationTab);
-        }
+      if (resolved.tab) {
+        setActiveTab(resolved.tab as NavigationTab);
       }
     };
 
     handleUrlTab();
     window.addEventListener('popstate', handleUrlTab);
-    return () => window.removeEventListener('popstate', handleUrlTab);
+    window.addEventListener('hashchange', handleUrlTab);
+    return () => {
+      window.removeEventListener('popstate', handleUrlTab);
+      window.removeEventListener('hashchange', handleUrlTab);
+    };
   }, []);
 
   const openPostDetail = (slug: string = 'ubd-setting-issues-one-click-all-in-one-setup') => {
@@ -640,7 +586,7 @@ function MainAppContent() {
     const ipInfo = '183.82.98.11';
     const deviceId = getDeviceHardwareIdentity().deviceInstallationId;
     
-    const reportText = `📋 E-Vedhika UBD Deployment Tool v1.0.9 and Installation Report
+    const reportText = `📋 E-Vedhika UBD Deployment Tool ${CURRENT_APP_VERSION} and Installation Report
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🖥️ Machine & Office Details
 Installation ID: ${deviceId}
@@ -657,7 +603,7 @@ CPU: ${cpuInfo}
 
 📊 Deployment Status & Health
 Overall Status: SUCCESS
-Versions: v1.0.9 (24*7 Guardian Build)
+Versions: ${CURRENT_APP_VERSION} (24*7 Guardian Build)
 Health Score: 100%
 Successful Steps/Checks: 17/17 steps passed.
 DSC Token Patch: SHA256 v2.0.0.0 (Applied), though hardware DSC status shows "Detected"
@@ -925,6 +871,7 @@ Report Timestamp: ${reportDate}
           )}
           {activeTab === 'help' && <HelpView />}
           {activeTab === 'about' && <AboutView />}
+          {activeTab === 'pay-checkout' && <PublicPaymentCheckout />}
         </main>
 
         {/* Desktop System Panel (visible on xl screens and up) */}

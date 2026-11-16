@@ -26,8 +26,8 @@ export async function sendOtaStatusChangeNotification(payload: OtaNotificationPa
         eventType: payload.eventType || 'STATUS_CHANGED',
         pcId: payload.pcId || 'EVD-WEB-CLIENT',
         pcName: payload.pcName || 'E-VEDHIKA-WEB-CONSOLE',
-        oldVersion: payload.oldVersion || 'v1.0.8',
-        newVersion: payload.newVersion || 'v1.0.9',
+        oldVersion: payload.oldVersion || 'v1.0.9',
+        newVersion: payload.newVersion || 'v1.1.0',
         downloadUrl: payload.downloadUrl || '',
         details: payload.details || 'Real-time version status notification triggered from Admin Portal',
         status: payload.status || 'SUCCESS'

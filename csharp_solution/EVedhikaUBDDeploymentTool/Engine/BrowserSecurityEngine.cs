@@ -327,7 +327,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         {
                             if (!string.IsNullOrEmpty(exeName)) procKey.SetValue(exeName, 0, RegistryValueKind.DWord);
                             procKey.SetValue("EVedhikaUBDDeploymentTool.exe", 0, RegistryValueKind.DWord);
-                            procKey.SetValue("EVedhika_Setup_v1.0.9.exe", 0, RegistryValueKind.DWord);
+                            procKey.SetValue("EVedhika_Setup_v1.1.0.exe", 0, RegistryValueKind.DWord);
                             procKey.SetValue("EVedhikaAutoRepair.exe", 0, RegistryValueKind.DWord);
                         }
                     }

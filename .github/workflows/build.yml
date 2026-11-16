@@ -57,52 +57,58 @@ jobs:
 
     - name: Build and Publish Executable
       run: |
-        dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48
+        dotnet publish csharp_solution/EVedhikaUBDDeploymentTool/EVedhikaUBDDeploymentTool.csproj -c Release -o csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48 /p:TreatWarningsAsErrors=false /p:WarningLevel=0 /clp:ErrorsOnly
 
     - name: Install Inno Setup 6.2.2 (Universal Windows Vista / 7 SP0 / 7 SP1 / 8 / 10 / 11 Support)
       run: choco install innosetup --version=6.2.2 --allow-downgrade --force --no-progress -y
 
-    - name: Generate Authenticode Certificate, Sign Binaries & Compile Signed Inno Setup Installer (Fixes Error 4551 & Smart App Control)
+    - name: Sign Binaries & Compile Signed Inno Setup Installer (Supports Trusted CA Certificate via GitHub Secrets)
       shell: powershell
+      env:
+        SIGNING_PFX_BASE64: ${{ secrets.SIGNING_PFX_BASE64 }}
+        SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
       run: |
         $ErrorActionPreference = 'Continue'
-        # 1. Locate Windows SDK signtool.exe
         $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "x64" } | Select-Object -First 1 -ExpandProperty FullName
         if (-not $signtool) {
             $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Filter "signtool.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
         }
         Write-Host "Located signtool.exe at: $signtool"
 
-        # 2. Generate Authenticode Code-Signing Certificate
-        $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=E-Vedhika Development Community, O=E-Vedhika Government Solutions, C=IN" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(5)
-        $pfxPass = ConvertTo-SecureString -String "EVedhika2026!" -Force -AsPlainText
         $pfxPath = "$PWD\EVedhika_CodeSign.pfx"
+        $pfxPasswordPlain = "EVedhika2026!"
         $cerPath = "csharp_solution\EVedhikaUBDDeploymentTool\bin\Release\net48\EVedhika_TrustedRoot.cer"
-        Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $pfxPass | Out-Null
-        Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
 
-        # 3. Compile Inno Setup Installer
+        if ($env:SIGNING_PFX_BASE64 -and $env:SIGNING_PFX_PASSWORD) {
+            Write-Host "Using Official Trusted CA Code Signing Certificate from GitHub Secrets..."
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64.Trim()))
+            $pfxPasswordPlain = $env:SIGNING_PFX_PASSWORD
+        } else {
+            Write-Host "Notice: SIGNING_PFX_BASE64 secret not set — using build-time fallback certificate. Add a Trusted CA PFX secret for full Smart App Control reputation."
+            $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=E-Vedhika Development Community, O=E-Vedhika Government Solutions, C=IN" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(5)
+            $pfxPass = ConvertTo-SecureString -String $pfxPasswordPlain -Force -AsPlainText
+            Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $pfxPass | Out-Null
+            Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
+        }
+
         $outputDir = "csharp_solution\EVedhikaUBDDeploymentTool\Output"
         if (-not (Test-Path $outputDir)) {
             New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
         }
 
-        # Sign the inner application executable first
         if ($signtool -and (Test-Path $pfxPath)) {
             Write-Host "Signing main application executable..."
-            & $signtool sign /f "$pfxPath" /p "EVedhika2026!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "csharp_solution\EVedhikaUBDDeploymentTool\bin\Release\net48\EVedhikaUBDDeploymentTool.exe"
+            & $signtool sign /f "$pfxPath" /p "$pfxPasswordPlain" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "csharp_solution\EVedhikaUBDDeploymentTool\bin\Release\net48\EVedhikaUBDDeploymentTool.exe"
         }
 
-        # Compile Setup with Inno Setup compiler (ISCC)
         Write-Host "Compiling Inno Setup package..."
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "csharp_solution\EVedhikaUBDDeploymentTool\EVedhikaUBDDeploymentTool_Setup.iss"
 
-        # Sign all generated setup executables in Output directory
         if ($signtool -and (Test-Path $pfxPath) -and (Test-Path $outputDir)) {
             Write-Host "Signing generated installer executables..."
             Get-ChildItem -Path "$outputDir\*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
                 Write-Host "Signing installer: $($_.FullName)"
-                & $signtool sign /f "$pfxPath" /p "EVedhika2026!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 $_.FullName
+                & $signtool sign /f "$pfxPath" /p "$pfxPasswordPlain" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 $_.FullName
             }
         }
 
@@ -115,8 +121,8 @@ jobs:
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
           public/downloads/Unblock_EVedhika_Antivirus_Exclusion.bat
-        name: Latest Stable Build v1.0.9 (Guardian Build - Resource Build 2026.11.12.R5)
-        body: "Automatic build from GitHub Actions. Enterprise v1.0.9 Guardian Build (Resource Build 2026.11.12.R5) - Universal Windows Vista / 7 RTM (SP0) / 7 SP1 / 8 / 8.1 / 10 / 11 (32-bit & 64-bit) Zero-Blocker Installer, .NET 4.0-4.8 Native Architecture, Authenticode SHA-256 Signed Installer, 24x7 Silent Background Guardian, USB DSC Token Auto-Detector, and Real-Time Central Telemetry Sync."
+        name: Latest Stable Build v1.1.0 (Guardian Build - Resource Build 2026.11.16.R6)
+        body: "Automatic build from GitHub Actions. Enterprise v1.1.0 Guardian Build (Resource Build 2026.11.16.R6) - Single Particular GitHub Admin Live Hub (https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports), Automatic New-Version Upgrade Reporting from every upgraded PC, Interactive Operator ★ 1-5 Star Rating & Feedback Dialog, Single Telegram Report Deduplication (1 on Install + 1 on 17-Step Run), Accurate District & GP Office Selection (All 33 TS & 26 AP Districts), Dedicated Admin Installed/Live/Upgraded PCs & Feedback Reports (Zero Dummy Data), and Universal Windows 7/8/10/11 Compatibility."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

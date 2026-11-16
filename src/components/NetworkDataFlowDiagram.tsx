@@ -91,7 +91,7 @@ export const NetworkDataFlowDiagram: React.FC = () => {
           userName: 'Admin Operator',
           officeLocation: 'E-Vedhika Central Command',
           state: 'Telangana',
-          district: 'Hyderabad',
+          district: 'Central Monitoring Hub',
           status: 'SUCCESS',
           remarks: 'Instant Live WhatsApp Alert Test from 4-Pillar Network Flow Architecture!'
         })

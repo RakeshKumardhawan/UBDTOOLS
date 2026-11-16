@@ -18,7 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const workflowItems = [
     { id: 'dashboard' as NavigationTab, label: 'DASHBOARD' },
-    { id: 'version-fleet' as NavigationTab, label: 'v1.0-v1.0.8 LIVE FLEET', tag: 'LIVE' },
+    { id: 'version-fleet' as NavigationTab, label: 'v1.0-v1.1.0 LIVE FLEET', tag: 'LIVE' },
     { id: 'telemetry-dashboard' as NavigationTab, label: '📊 UBD_MONITORING', tag: 'FLEET' },
     { id: 'report-center' as NavigationTab, label: '📑 REPORT_CENTER', tag: 'REPORTS' },
     { id: 'github-dashboard' as NavigationTab, label: 'GITHUB_DASHBOARD', tag: 'MD' },

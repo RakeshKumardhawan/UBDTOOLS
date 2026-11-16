@@ -57,7 +57,7 @@ export const AntivirusBypassCard: React.FC = () => {
         <div className="space-y-1">
           <strong className="text-amber-300 block">Error 4551 & Smart App Control ఎందుకు వస్తుంది? (Why This Happens on Windows 11)</strong>
           <p className="leading-relaxed opacity-90">
-            బ్రౌజర్ నుండి <code>EVedhika_Setup_v1.0.9.exe</code> డౌన్‌లోడ్ చేసినప్పుడు Windows 11 దానికి <code>Zone.Identifier</code> (Mark-of-the-Web) పెడుతుంది మరియు <code>%TEMP%</code> ఫోల్డర్ నుండి సెటప్ ఫైల్స్ రన్ అవ్వకుండా <strong>Smart App Control (Error 4551)</strong> ఆపుతుంది. క్రింది 1-లైన్ కమాండ్ లేదా <code>.bat</code> ఫైల్ రన్ చేస్తే వెంటనే ఇన్స్టాల్ అవుతుంది.
+            బ్రౌజర్ నుండి <code>EVedhika_Setup_v1.1.0.exe</code> డౌన్‌లోడ్ చేసినప్పుడు Windows 11 దానికి <code>Zone.Identifier</code> (Mark-of-the-Web) పెడుతుంది మరియు <code>%TEMP%</code> ఫోల్డర్ నుండి సెటప్ ఫైల్స్ రన్ అవ్వకుండా <strong>Smart App Control (Error 4551)</strong> ఆపుతుంది. క్రింది 1-లైన్ కమాండ్ లేదా <code>.bat</code> ఫైల్ రన్ చేస్తే వెంటనే ఇన్స్టాల్ అవుతుంది.
           </p>
         </div>
       </div>
@@ -85,12 +85,12 @@ export const AntivirusBypassCard: React.FC = () => {
             <div className="p-4 space-y-2.5 text-slate-200 bg-slate-950/95 border-t border-rose-500/30 leading-relaxed font-sans text-xs">
               <p className="font-bold text-emerald-300">పద్ధతి 1 (అత్యంత సులభం - 10 సెకన్లలో): PowerShell (Run as Administrator) ఓపెన్ చేసి ఈ ఒక్క లైన్ పేస్ట్ చేసి Enter నొక్కండి:</p>
               <div className="p-3 bg-slate-900 border border-cyan-500/40 rounded-xl font-mono text-[11px] text-cyan-300 select-all overflow-x-auto">
-                mkdir C:\ProgramData\EVedhika\SetupTemp -Force; $env:TEMP=&apos;C:\ProgramData\EVedhika\SetupTemp&apos;; $env:TMP=&apos;C:\ProgramData\EVedhika\SetupTemp&apos;; Unblock-File &quot;$env:USERPROFILE\Downloads\EVedhika_Setup_v1.0.9.exe&quot;; Start-Process &quot;$env:USERPROFILE\Downloads\EVedhika_Setup_v1.0.9.exe&quot;
+                mkdir C:\ProgramData\EVedhika\SetupTemp -Force; $env:TEMP=&apos;C:\ProgramData\EVedhika\SetupTemp&apos;; $env:TMP=&apos;C:\ProgramData\EVedhika\SetupTemp&apos;; Unblock-File &quot;$env:USERPROFILE\Downloads\EVedhika_Setup_v1.1.0.exe&quot;; Start-Process &quot;$env:USERPROFILE\Downloads\EVedhika_Setup_v1.1.0.exe&quot;
               </div>
               <p className="font-bold text-amber-300 pt-1">పద్ధతి 2 (Windows Security లో Smart App Control ఆఫ్ చేయడం):</p>
               <p>1. Windows Start మెనూలో <strong>Windows Security</strong> ఓపెన్ చేయండి.</p>
               <p>2. <strong>App &amp; browser control ➔ Smart App Control settings</strong> పై క్లిక్ చేసి <strong>Off</strong> చేయండి.</p>
-              <p>3. <code>Downloads\EVedhika_Setup_v1.0.9.exe</code> పై రైట్-క్లిక్ చేసి <strong>Properties ➔ Unblock (టిక్ పెట్టండి) ➔ Apply ➔ OK</strong> నొక్కి ఆపై రన్ చేయండి.</p>
+              <p>3. <code>Downloads\EVedhika_Setup_v1.1.0.exe</code> పై రైట్-క్లిక్ చేసి <strong>Properties ➔ Unblock (టిక్ పెట్టండి) ➔ Apply ➔ OK</strong> నొక్కి ఆపై రన్ చేయండి.</p>
             </div>
           )}
         </div>

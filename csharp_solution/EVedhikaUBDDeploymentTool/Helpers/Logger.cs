@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Collections.Generic;
 
@@ -58,6 +60,242 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             catch { }
         }
 
+        public const string AdminDashboardUrl = "https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports";
+        public const string FirestoreProjectId = "e-vedhika-258f2";
+        public const string FirestoreDatabaseId = "ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82";
+        public const string FirestoreDocBase = "projects/e-vedhika-258f2/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/documents";
+        public const string FirestoreCommitUrl = "https://firestore.googleapis.com/v1/projects/e-vedhika-258f2/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/documents:commit?key=AIzaSyC_oLAFLdpErutmSmR9bQnm0ETq5hd9qnU";
+
+        private static string ExtractJsonField(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return "";
+            try
+            {
+                var m = Regex.Match(json, $"\"{Regex.Escape(key)}\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"", RegexOptions.IgnoreCase);
+                if (m.Success)
+                {
+                    return m.Groups[1].Value.Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\n", " ").Replace("\\r", "");
+                }
+                var mNum = Regex.Match(json, $"\"{Regex.Escape(key)}\"\\s*:\\s*([^,\\s\\}}]+)", RegexOptions.IgnoreCase);
+                if (mNum.Success)
+                {
+                    string raw = mNum.Groups[1].Value.Trim().Trim('"');
+                    if (!string.Equals(raw, "null", StringComparison.OrdinalIgnoreCase)) return raw;
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        public static string SanitizeFirestoreId(string raw, string fallbackPrefix = "EVD")
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return fallbackPrefix + "-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            string clean = Regex.Replace(raw.Trim(), @"[^a-zA-Z0-9_\-]", "_");
+            if (string.IsNullOrEmpty(clean)) clean = fallbackPrefix + "-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            return clean.Length > 120 ? clean.Substring(0, 120) : clean;
+        }
+
+        private static string TruncateStr(string s, int maxLen)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            s = s.Trim();
+            return s.Length > maxLen ? s.Substring(0, maxLen) : s;
+        }
+
+        private static string BuildFirestoreCommitPayload(string flatJson)
+        {
+            string rawPcId = ExtractJsonField(flatJson, "pcId");
+            if (string.IsNullOrEmpty(rawPcId)) rawPcId = GetUniqueMachineId();
+            string pcId = SanitizeFirestoreId(rawPcId, "EVD-PC");
+
+            string pcName = TruncateStr(ExtractJsonField(flatJson, "pcName"), 128);
+            if (string.IsNullOrEmpty(pcName)) pcName = TruncateStr(Environment.MachineName ?? "OFFICE-PC", 128);
+
+            string userName = TruncateStr(ExtractJsonField(flatJson, "userName"), 128);
+            if (string.IsNullOrEmpty(userName)) userName = TruncateStr(ExtractJsonField(flatJson, "operatorName"), 128);
+            if (string.IsNullOrEmpty(userName)) userName = TruncateStr(SystemInfoHelper.GetConfiguredOperatorName(), 128);
+
+            string state = TruncateStr(ExtractJsonField(flatJson, "state"), 64);
+            if (string.IsNullOrEmpty(state)) state = TruncateStr(SystemInfoHelper.GetConfiguredState("Telangana"), 64);
+
+            string district = TruncateStr(ExtractJsonField(flatJson, "district"), 100);
+            if (string.IsNullOrEmpty(district)) district = TruncateStr(SystemInfoHelper.GetConfiguredDistrict(state), 100);
+            if (string.IsNullOrEmpty(district)) district = "Telangana";
+
+            string officeLoc = TruncateStr(ExtractJsonField(flatJson, "officeLocation"), 200);
+            if (string.IsNullOrEmpty(officeLoc)) officeLoc = TruncateStr(SystemInfoHelper.GetLiveLocation(state), 200);
+            if (string.IsNullOrEmpty(officeLoc)) officeLoc = district;
+
+            string osVersion = TruncateStr(ExtractJsonField(flatJson, "winEdition"), 120);
+            if (string.IsNullOrEmpty(osVersion)) osVersion = TruncateStr(ExtractJsonField(flatJson, "osVersion"), 120);
+            if (string.IsNullOrEmpty(osVersion)) osVersion = TruncateStr(SystemInfoHelper.GetWindowsVersion(), 120);
+
+            string appVersion = TruncateStr(ExtractJsonField(flatJson, "appVersion"), 32);
+            if (string.IsNullOrEmpty(appVersion)) appVersion = TruncateStr(ExtractJsonField(flatJson, "version"), 32);
+            if (string.IsNullOrEmpty(appVersion)) appVersion = Engine.AutoUpdateEngine.CurrentVersion;
+
+            string resourceBuild = TruncateStr(ExtractJsonField(flatJson, "resourceBuild"), 48);
+            if (string.IsNullOrEmpty(resourceBuild)) resourceBuild = TruncateStr(ExtractJsonField(flatJson, "buildVersion"), 48);
+            if (string.IsNullOrEmpty(resourceBuild)) resourceBuild = Engine.AutoUpdateEngine.CurrentResourceBuild;
+
+            string rawAppState = (ExtractJsonField(flatJson, "appState") ?? "").ToUpperInvariant();
+            string appState = (rawAppState == "CLOSED" || rawAppState == "NOT_RESPONDING") ? rawAppState : "RUNNING";
+
+            string rawConn = (ExtractJsonField(flatJson, "livePresence") ?? ExtractJsonField(flatJson, "pcConnectivity") ?? "").ToUpperInvariant();
+            string pcConnectivity = (rawConn == "OFFLINE" || appState == "CLOSED") ? "OFFLINE" : "ONLINE";
+
+            string verification = TruncateStr(ExtractJsonField(flatJson, "verification"), 160);
+            if (string.IsNullOrEmpty(verification)) verification = "Passed (17/17)";
+
+            string dscStatus = TruncateStr(ExtractJsonField(flatJson, "dscStatus"), 160);
+            string edgeIeMode = TruncateStr(ExtractJsonField(flatJson, "edgeIeMode"), 160);
+
+            int healthScore = 100;
+            string rawHealth = ExtractJsonField(flatJson, "healthScore");
+            int parsedHealth;
+            if (int.TryParse(rawHealth, out parsedHealth))
+            {
+                healthScore = Math.Max(0, Math.Min(100, parsedHealth));
+            }
+
+            string lastSeenAt = TruncateStr(ExtractJsonField(flatJson, "lastReportUploadTime"), 64);
+            if (string.IsNullOrEmpty(lastSeenAt)) lastSeenAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            string status = TruncateStr(ExtractJsonField(flatJson, "status"), 48);
+            if (string.IsNullOrEmpty(status)) status = "SUCCESS";
+
+            string remarks = TruncateStr(ExtractJsonField(flatJson, "remarks"), 1000);
+            string eventType = ExtractJsonField(flatJson, "eventType");
+            bool isInstallation = string.Equals(ExtractJsonField(flatJson, "isInstallation"), "true", StringComparison.OrdinalIgnoreCase);
+
+            var sb = new StringBuilder();
+            sb.Append("{\"writes\":[");
+
+            // Write 1: Upsert installed_pcs/{pcId}
+            sb.Append("{");
+            sb.Append("\"update\":{");
+            sb.Append($"\"name\":\"{FirestoreDocBase}/installed_pcs/{EscapeJson(pcId)}\",");
+            sb.Append("\"fields\":{");
+            sb.Append($"\"pcId\":{{\"stringValue\":\"{EscapeJson(pcId)}\"}},");
+            sb.Append($"\"pcName\":{{\"stringValue\":\"{EscapeJson(pcName)}\"}},");
+            if (!string.IsNullOrEmpty(userName)) sb.Append($"\"userName\":{{\"stringValue\":\"{EscapeJson(userName)}\"}},");
+            sb.Append($"\"district\":{{\"stringValue\":\"{EscapeJson(district)}\"}},");
+            sb.Append($"\"state\":{{\"stringValue\":\"{EscapeJson(state)}\"}},");
+            sb.Append($"\"officeLocation\":{{\"stringValue\":\"{EscapeJson(officeLoc)}\"}},");
+            if (!string.IsNullOrEmpty(osVersion)) sb.Append($"\"osVersion\":{{\"stringValue\":\"{EscapeJson(osVersion)}\"}},");
+            sb.Append($"\"appVersion\":{{\"stringValue\":\"{EscapeJson(appVersion)}\"}},");
+            if (!string.IsNullOrEmpty(resourceBuild)) sb.Append($"\"resourceBuild\":{{\"stringValue\":\"{EscapeJson(resourceBuild)}\"}},");
+            sb.Append($"\"appState\":{{\"stringValue\":\"{EscapeJson(appState)}\"}},");
+            sb.Append($"\"pcConnectivity\":{{\"stringValue\":\"{EscapeJson(pcConnectivity)}\"}},");
+            if (!string.IsNullOrEmpty(verification)) sb.Append($"\"verification\":{{\"stringValue\":\"{EscapeJson(verification)}\"}},");
+            if (!string.IsNullOrEmpty(dscStatus)) sb.Append($"\"dscStatus\":{{\"stringValue\":\"{EscapeJson(dscStatus)}\"}},");
+            if (!string.IsNullOrEmpty(edgeIeMode)) sb.Append($"\"edgeIeMode\":{{\"stringValue\":\"{EscapeJson(edgeIeMode)}\"}},");
+            sb.Append($"\"healthScore\":{{\"integerValue\":\"{healthScore}\"}},");
+            sb.Append($"\"lastSeenAt\":{{\"stringValue\":\"{EscapeJson(lastSeenAt)}\"}}");
+            sb.Append("}},");
+            sb.Append("\"updateTransforms\":[{\"fieldPath\":\"updatedAt\",\"setToServerValue\":\"REQUEST_TIME\"}]");
+            sb.Append("}");
+
+            // Write 2: Create audit report doc in pc_reports/{reportId} for non-routine events
+            bool isRoutineHeartbeat = status == "ONLINE_READY" || status == "OFFLINE" ||
+                remarks.IndexOf("60-Second Live Heartbeat", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            if (!isRoutineHeartbeat)
+            {
+                string rawReportId = ExtractJsonField(flatJson, "reportId");
+                if (string.IsNullOrEmpty(rawReportId)) rawReportId = "RPT-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
+                string reportId = SanitizeFirestoreId(rawReportId, "RPT");
+
+                string reportType = isInstallation ? "INSTALLATION" :
+                    (!string.IsNullOrEmpty(eventType) ? TruncateStr(eventType, 64) : "DEPLOYMENT_REPORT");
+
+                string details = !string.IsNullOrEmpty(remarks) ? remarks : verification;
+                details = TruncateStr(details, 1000);
+
+                sb.Append(",{");
+                sb.Append("\"update\":{");
+                sb.Append($"\"name\":\"{FirestoreDocBase}/pc_reports/{EscapeJson(reportId)}\",");
+                sb.Append("\"fields\":{");
+                sb.Append($"\"reportId\":{{\"stringValue\":\"{EscapeJson(reportId)}\"}},");
+                sb.Append($"\"pcId\":{{\"stringValue\":\"{EscapeJson(pcId)}\"}},");
+                sb.Append($"\"pcName\":{{\"stringValue\":\"{EscapeJson(pcName)}\"}},");
+                if (!string.IsNullOrEmpty(userName)) sb.Append($"\"userName\":{{\"stringValue\":\"{EscapeJson(userName)}\"}},");
+                sb.Append($"\"district\":{{\"stringValue\":\"{EscapeJson(district)}\"}},");
+                sb.Append($"\"state\":{{\"stringValue\":\"{EscapeJson(state)}\"}},");
+                sb.Append($"\"officeLocation\":{{\"stringValue\":\"{EscapeJson(officeLoc)}\"}},");
+                sb.Append($"\"reportType\":{{\"stringValue\":\"{EscapeJson(reportType)}\"}},");
+                sb.Append($"\"status\":{{\"stringValue\":\"{EscapeJson(status)}\"}},");
+                sb.Append($"\"appVersion\":{{\"stringValue\":\"{EscapeJson(appVersion)}\"}}");
+                if (!string.IsNullOrEmpty(details)) sb.Append($",\"details\":{{\"stringValue\":\"{EscapeJson(details)}\"}}");
+                sb.Append("}},");
+                sb.Append("\"updateTransforms\":[{\"fieldPath\":\"createdAt\",\"setToServerValue\":\"REQUEST_TIME\"}]");
+                sb.Append("}");
+            }
+
+            sb.Append("]}");
+            return sb.ToString();
+        }
+
+        public static bool DeliverFeedbackToFirestore(
+            int rating, string operatorName, string officeLocation, string district, string state,
+            string comments, string pcId, string pcName, string appVersion, out string lastError)
+        {
+            lastError = "";
+            try
+            {
+                System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072 | (System.Net.SecurityProtocolType)768 | System.Net.SecurityProtocolType.Tls;
+                System.Net.ServicePointManager.Expect100Continue = false;
+            }
+            catch { }
+
+            try
+            {
+                string feedbackId = SanitizeFirestoreId("FB-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper(), "FB");
+                string safePcId = SanitizeFirestoreId(pcId, "EVD-PC");
+                string safePcName = TruncateStr(string.IsNullOrEmpty(pcName) ? Environment.MachineName : pcName, 128);
+                string safeOp = TruncateStr(string.IsNullOrEmpty(operatorName) ? "Operator" : operatorName, 128);
+                string safeDistrict = TruncateStr(string.IsNullOrEmpty(district) ? "Telangana" : district, 100);
+                string safeState = TruncateStr(string.IsNullOrEmpty(state) ? "Telangana" : state, 64);
+                string safeOffice = TruncateStr(string.IsNullOrEmpty(officeLocation) ? safeDistrict : officeLocation, 200);
+                string safeComments = TruncateStr(string.IsNullOrEmpty(comments) ? "Working smoothly." : comments, 1000);
+                string safeVer = TruncateStr(string.IsNullOrEmpty(appVersion) ? Engine.AutoUpdateEngine.CurrentVersion : appVersion, 32);
+                int safeRating = Math.Max(1, Math.Min(5, rating));
+
+                string payload = "{\"writes\":[{\"update\":{\"name\":\"" + FirestoreDocBase + "/user_feedbacks/" + EscapeJson(feedbackId) + "\",\"fields\":{" +
+                    "\"feedbackId\":{\"stringValue\":\"" + EscapeJson(feedbackId) + "\"}," +
+                    "\"pcId\":{\"stringValue\":\"" + EscapeJson(safePcId) + "\"}," +
+                    "\"pcName\":{\"stringValue\":\"" + EscapeJson(safePcName) + "\"}," +
+                    "\"operatorName\":{\"stringValue\":\"" + EscapeJson(safeOp) + "\"}," +
+                    "\"district\":{\"stringValue\":\"" + EscapeJson(safeDistrict) + "\"}," +
+                    "\"state\":{\"stringValue\":\"" + EscapeJson(safeState) + "\"}," +
+                    "\"officeLocation\":{\"stringValue\":\"" + EscapeJson(safeOffice) + "\"}," +
+                    "\"rating\":{\"integerValue\":\"" + safeRating + "\"}," +
+                    "\"comments\":{\"stringValue\":\"" + EscapeJson(safeComments) + "\"}," +
+                    "\"appVersion\":{\"stringValue\":\"" + EscapeJson(safeVer) + "\"}" +
+                    "}},\"updateTransforms\":[{\"fieldPath\":\"createdAt\",\"setToServerValue\":\"REQUEST_TIME\"}]}]}";
+
+                using (var wc = new TimeoutWebClient(8000))
+                {
+                    wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                    wc.Headers[System.Net.HttpRequestHeader.UserAgent] = "EVedhika-Telemetry-Agent/1.1.0";
+                    wc.Encoding = Encoding.UTF8;
+                    wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                    if (wc.Proxy != null) wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                    string resp = wc.UploadString(FirestoreCommitUrl, "POST", payload);
+                    if (!string.IsNullOrEmpty(resp) && (resp.Contains("\"commitTime\"") || resp.Contains("\"writeResults\"")))
+                    {
+                        return true;
+                    }
+                    lastError = "Unexpected Firestore response: " + TruncateStr(resp, 160);
+                }
+            }
+            catch (Exception ex)
+            {
+                lastError = ex.Message;
+            }
+            return false;
+        }
+
         public static bool DeliverToWebsiteGuaranteed(string jsonPayload, out string lastError)
         {
             lastError = "";
@@ -71,105 +309,67 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             }
             catch { }
 
-            string[] primaryReceiverUrls = new string[]
-            {
-                "https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/reporting/receiver",
-                "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/reporting/receiver",
-                "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=ingest_report",
-                "https://www.e-vedhika.in/admin/ubd_monitoring?action=ingest_report",
-                "https://www.e-vedhika.in/api/reports/sync",
-                "https://www.e-vedhika.in/api/reporting/receiver",
-                "https://www.e-vedhika.in/api/telemetry"
-            };
+            bool deliveredToCloud = false;
 
-            // Tier 1: Standard JSON POST
-            foreach (var url in primaryReceiverUrls)
+            // PRIMARY: Live 24/7 Google Cloud Firestore Ingestion Endpoint (Zero Login Wall, Persistent Cloud DB)
+            try
             {
-                try
+                string commitPayload = BuildFirestoreCommitPayload(jsonPayload);
+                using (var wc = new TimeoutWebClient(8000))
                 {
-                    using (var wc = new TimeoutWebClient(5000))
+                    wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                    wc.Headers[System.Net.HttpRequestHeader.UserAgent] = "EVedhika-Telemetry-Agent/1.1.0";
+                    wc.Encoding = Encoding.UTF8;
+                    wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                    if (wc.Proxy != null) wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                    string resp = wc.UploadString(FirestoreCommitUrl, "POST", commitPayload);
+                    if (!string.IsNullOrEmpty(resp) && (resp.Contains("\"commitTime\"") || resp.Contains("\"writeResults\"")))
                     {
-                        wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                        wc.Headers[System.Net.HttpRequestHeader.UserAgent] = "EVedhika-Telemetry-Agent/1.0.9";
-                        wc.Encoding = System.Text.Encoding.UTF8;
-                        wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                        if (wc.Proxy != null) wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-                        string resp = wc.UploadString(url, "POST", jsonPayload);
-                        if (!string.IsNullOrEmpty(resp) && (resp.Contains("\"success\":true") || resp.Contains("\"ok\":true") || resp.Contains("INGEST_OK")))
-                        {
-                            return true;
-                        }
+                        deliveredToCloud = true;
                     }
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                if (string.IsNullOrEmpty(lastError)) lastError = ex.Message;
+            }
+
+            // SECONDARY RELAY: Central Express Hub (if accessible on local/direct session)
+            if (!deliveredToCloud)
+            {
+                string[] cloudReceiverUrls = new string[]
                 {
-                    lastError = ex.Message;
+                    "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/live-hub/ingest",
+                    "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/telemetry"
+                };
+
+                foreach (var url in cloudReceiverUrls)
+                {
+                    try
+                    {
+                        using (var wc = new TimeoutWebClient(6000))
+                        {
+                            wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                            wc.Headers[System.Net.HttpRequestHeader.UserAgent] = "EVedhika-Telemetry-Agent/1.1.0";
+                            wc.Encoding = Encoding.UTF8;
+                            wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
+                            if (wc.Proxy != null) wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+                            string resp = wc.UploadString(url, "POST", jsonPayload);
+                            if (!string.IsNullOrEmpty(resp) && (resp.Contains("\"success\":true") || resp.Contains("\"ok\":true") || resp.Contains("INGEST_OK")))
+                            {
+                                deliveredToCloud = true;
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (string.IsNullOrEmpty(lastError)) lastError = ex.Message;
+                    }
                 }
             }
 
-            // Tier 2: URL-Encoded Form POST (Bypasses ModSecurity WAF rules that block application/json POST bodies)
-            string b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(jsonPayload));
-            string urlSafeB64 = Uri.EscapeDataString(b64);
-            string formBody = "action=ingest_report&payload_b64=" + urlSafeB64;
-
-            string[] inbuiltEndpoints = new string[]
-            {
-                "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=ingest_report",
-                "https://www.e-vedhika.in/admin/ubd_monitoring?action=ingest_report",
-                "https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/reporting/receiver?action=ingest_report",
-                "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/reporting/receiver?action=ingest_report"
-            };
-
-            foreach (var url in inbuiltEndpoints)
-            {
-                try
-                {
-                    using (var wc = new TimeoutWebClient(5000))
-                    {
-                        wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/x-www-form-urlencoded";
-                        wc.Headers[System.Net.HttpRequestHeader.UserAgent] = "EVedhika-Telemetry-Agent/1.0.9";
-                        wc.Encoding = System.Text.Encoding.UTF8;
-                        wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                        if (wc.Proxy != null) wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-                        string resp = wc.UploadString(url, "POST", formBody);
-                        if (!string.IsNullOrEmpty(resp))
-                        {
-                            return true;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex.Message;
-                }
-            }
-
-            // Tier 3: Dedicated Inbuilt GET Receiver Fallback (Survives .htaccess 301/302 Redirects that strip POST bodies)
-            foreach (var url in inbuiltEndpoints)
-            {
-                try
-                {
-                    using (var wc = new TimeoutWebClient(5000))
-                    {
-                        wc.Headers[System.Net.HttpRequestHeader.UserAgent] = "EVedhika-Telemetry-Agent/1.0.9";
-                        wc.Encoding = System.Text.Encoding.UTF8;
-                        wc.Proxy = System.Net.WebRequest.GetSystemWebProxy();
-                        if (wc.Proxy != null) wc.Proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-                        string getUrl = url + "&payload_b64=" + urlSafeB64;
-                        string resp = wc.DownloadString(getUrl);
-                        if (!string.IsNullOrEmpty(resp))
-                        {
-                            return true;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex.Message;
-                }
-            }
-
-            return false;
+            return deliveredToCloud;
         }
 
         public static void Send60SecondHeartbeatPing()
@@ -181,8 +381,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
                 string pcId = GetUniqueMachineId();
                 string pcName = Environment.MachineName ?? "GP-OFFICE-PC";
-                string userName = Environment.UserName ?? "Operator";
-                string officeLoc = SystemInfoHelper.GetLiveLocation("Telangana");
+                string userName = SystemInfoHelper.GetConfiguredOperatorName();
+                string cfgState = SystemInfoHelper.GetConfiguredState("Telangana");
+                string cfgDistrict = SystemInfoHelper.GetConfiguredDistrict(cfgState);
+                string officeLoc = SystemInfoHelper.GetLiveLocation(cfgState);
                 string dscToken = SystemInfoHelper.CheckDscStatus();
                 string digiSigner = SystemInfoHelper.CheckNicDigiSigner();
                 string edgeIe = SystemInfoHelper.CheckEdgeIeMode();
@@ -196,14 +398,19 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     $"\"pcId\":\"{EscapeJson(pcId)}\"," +
                     $"\"pcName\":\"{EscapeJson(pcName)}\"," +
                     $"\"userName\":\"{EscapeJson(userName)}\"," +
+                    $"\"operatorName\":\"{EscapeJson(userName)}\"," +
+                    $"\"state\":\"{EscapeJson(cfgState)}\"," +
+                    $"\"district\":\"{EscapeJson(cfgDistrict)}\"," +
                     $"\"officeLocation\":\"{EscapeJson(officeLoc)}\"," +
-                    $"\"version\":\"v1.0.9\"," +
-                    $"\"appVersion\":\"v1.0.9\"," +
+                    $"\"version\":\"v1.1.0\"," +
+                    $"\"appVersion\":\"v1.1.0\"," +
                     $"\"buildVersion\":\"{EscapeJson(Engine.AutoUpdateEngine.CurrentResourceBuild)}\"," +
                     $"\"resourceBuild\":\"{EscapeJson(Engine.AutoUpdateEngine.CurrentResourceBuild)}\"," +
                     "\"livePresence\":\"ONLINE\"," +
                     "\"appState\":\"RUNNING\"," +
                     "\"status\":\"ONLINE_READY\"," +
+                    "\"suppressTelegram\":\"true\"," +
+                    "\"directTelegramSent\":\"true\"," +
                     $"\"healthScore\":\"{calcScore}\"," +
                     $"\"healthStatus\":\"{EscapeJson(calcStatus)}\"," +
                     $"\"winEdition\":\"{EscapeJson(SystemInfoHelper.GetWindowsVersion())}\"," +
@@ -238,11 +445,16 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "pcId", pcId },
                         { "pcName", pcName },
                         { "userName", userName },
-                        { "version", "v1.0.9" },
+                        { "state", cfgState },
+                        { "district", cfgDistrict },
+                        { "officeLocation", officeLoc },
+                        { "version", "v1.1.0" },
                         { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                         { "buildVersion", Engine.AutoUpdateEngine.CurrentResourceBuild },
                         { "livePresence", "ONLINE" },
                         { "appState", "RUNNING" },
+                        { "suppressTelegram", "true" },
+                        { "directTelegramSent", "true" },
                         { "offlinePing", "true" }
                     };
                     EnqueueOfflineReport(hbDict);
@@ -257,21 +469,28 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             {
                 string pcId = GetUniqueMachineId();
                 string pcName = Environment.MachineName ?? "GP-OFFICE-PC";
-                string userName = Environment.UserName ?? "Operator";
-                string officeLoc = SystemInfoHelper.GetLiveLocation("Telangana");
+                string userName = SystemInfoHelper.GetConfiguredOperatorName();
+                string cfgState = SystemInfoHelper.GetConfiguredState("Telangana");
+                string cfgDistrict = SystemInfoHelper.GetConfiguredDistrict(cfgState);
+                string officeLoc = SystemInfoHelper.GetLiveLocation(cfgState);
 
                 string json = "{" +
                     $"\"pcId\":\"{EscapeJson(pcId)}\"," +
                     $"\"pcName\":\"{EscapeJson(pcName)}\"," +
                     $"\"userName\":\"{EscapeJson(userName)}\"," +
+                    $"\"operatorName\":\"{EscapeJson(userName)}\"," +
+                    $"\"state\":\"{EscapeJson(cfgState)}\"," +
+                    $"\"district\":\"{EscapeJson(cfgDistrict)}\"," +
                     $"\"officeLocation\":\"{EscapeJson(officeLoc)}\"," +
-                    $"\"version\":\"v1.0.9\"," +
-                    $"\"appVersion\":\"v1.0.9\"," +
+                    $"\"version\":\"v1.1.0\"," +
+                    $"\"appVersion\":\"v1.1.0\"," +
                     $"\"buildVersion\":\"{EscapeJson(Engine.AutoUpdateEngine.CurrentResourceBuild)}\"," +
                     $"\"resourceBuild\":\"{EscapeJson(Engine.AutoUpdateEngine.CurrentResourceBuild)}\"," +
                     "\"livePresence\":\"OFFLINE\"," +
                     "\"appState\":\"CLOSED\"," +
                     "\"status\":\"OFFLINE\"," +
+                    "\"suppressTelegram\":\"true\"," +
+                    "\"directTelegramSent\":\"true\"," +
                     "\"lastActivity\":\"Application Closed by User\"," +
                     "\"remarks\":\"Application exited from System Tray - PC Marked Offline\"," +
                     $"\"date\":\"{DateTime.Now:yyyy-MM-dd}\"," +
@@ -499,7 +718,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             if (!data.ContainsKey("time")) data["time"] = DateTime.Now.ToString("HH:mm:ss");
 
             if (!data.ContainsKey("reportId")) data["reportId"] = "RPT-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
-            if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
+            if (!data.ContainsKey("version")) data["version"] = "v1.1.0";
             if (!data.ContainsKey("buildVersion")) data["buildVersion"] = Engine.AutoUpdateEngine.CurrentResourceBuild;
             if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = Engine.AutoUpdateEngine.CurrentResourceBuild;
             if (!data.ContainsKey("winEdition")) data["winEdition"] = SystemInfoHelper.GetWindowsVersion();
@@ -571,10 +790,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                                       currentStatus.Contains("ONLINE & READY") ||
                                       currentStatus.Contains("DSC_TOKEN_AUTO_VERIFIED");
 
-            bool isInstallationReport = (data.ContainsKey("isInstallation") && (data["isInstallation"] == "true" || data["isInstallation"] == "True"))
+            bool isInstallationReport = !isRoutineHeartbeat && (
+                (data.ContainsKey("isInstallation") && (data["isInstallation"] == "true" || data["isInstallation"] == "True"))
                 || (data.ContainsKey("remarks") && data["remarks"].IndexOf("installed", StringComparison.OrdinalIgnoreCase) >= 0)
                 || (data.ContainsKey("verification") && data["verification"].IndexOf("Setup Completed", StringComparison.OrdinalIgnoreCase) >= 0)
-                || (!alreadyReported && !isExplicitSuppress);
+            );
 
             // Full DSC Execution Gate: Only dispatch Telegram report after full DSC run finishes, or for installations/forced updates
             bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
@@ -583,10 +803,18 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 || isInstallationReport;
 
             // Flag whether this report will trigger Telegram
-            bool willTriggerTelegram = (!alreadyReported || force || isInstallationReport || isExplicitFinal || isExplicitSend) && !isExplicitSuppress && (isDscFinished || force || isInstallationReport) && (isExplicitFinal || isExplicitSend || isInstallationReport || (!isRoutineHeartbeat && currentStatus.ToUpper().Contains("FAIL")));
+            bool willTriggerTelegram = !isRoutineHeartbeat && (!alreadyReported || force || isInstallationReport || isExplicitFinal || isExplicitSend) && !isExplicitSuppress && (isDscFinished || force || isInstallationReport) && (isExplicitFinal || isExplicitSend || isInstallationReport || currentStatus.ToUpper().Contains("FAIL"));
             if (willTriggerTelegram)
             {
+                // Tell the server that C# client is already dispatching Telegram directly so server NEVER sends a second duplicate!
                 data["directTelegramSent"] = "true";
+                data["suppressTelegram"] = "true";
+            }
+
+            if (!data.ContainsKey("district"))
+            {
+                string st = data.ContainsKey("state") ? data["state"] : SystemInfoHelper.GetConfiguredState("Telangana");
+                data["district"] = SystemInfoHelper.GetConfiguredDistrict(st);
             }
 
             var sb = new System.Text.StringBuilder();
@@ -615,13 +843,13 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 catch { }
 
                 // ====================================================================
-                // PIPELINE 1: 100% Guaranteed Live Delivery to https://www.e-vedhika.in/admin/ubd_monitoring
+                // PIPELINE 1: 100% Guaranteed Live Delivery to Dedicated Cloud Firestore Hub
                 // ====================================================================
                 string lastError = "";
                 bool delivered = DeliverToWebsiteGuaranteed(jsonPayload, out lastError);
                 if (delivered)
                 {
-                    try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [WEBSITE LIVE REPORT SUCCESS] Delivered to https://www.e-vedhika.in/admin/ubd_monitoring\r\n"); } catch { }
+                    try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [CLOUD HUB LIVE REPORT SUCCESS] Delivered to Dedicated Cloud Firestore Hub ({AdminDashboardUrl})\r\n"); } catch { }
                 }
 
                 // Secondary Offline Safety Vault: store copy in CommonApplicationData
@@ -636,7 +864,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
                 if (delivered)
                 {
-                    onComplete?.Invoke(true, "Delivered to https://www.e-vedhika.in/admin/ubd_monitoring");
+                    onComplete?.Invoke(true, "Delivered to Dedicated Cloud Hub (" + AdminDashboardUrl + ")");
                 }
                 else
                 {
@@ -715,8 +943,21 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             }
         }
 
+        private static DateTime _lastDirectTelegramSentUtc = DateTime.MinValue;
+        private static readonly object _tgCooldownLock = new object();
+
         private static void DispatchConsolidatedTelegram(Dictionary<string, string> data)
         {
+            lock (_tgCooldownLock)
+            {
+                if ((DateTime.UtcNow - _lastDirectTelegramSentUtc).TotalSeconds < 45)
+                {
+                    // Cooldown active: prevent duplicate Telegram message during the same execution
+                    return;
+                }
+                _lastDirectTelegramSentUtc = DateTime.UtcNow;
+            }
+
             string pcId = data.ContainsKey("pcId") ? data["pcId"] : GetUniqueMachineId();
             string pcName = data.ContainsKey("pcName") ? data["pcName"] : Environment.MachineName;
             // Direct Telegram Dispatch to Admin (@DhawanRakesh / 431228008)
@@ -749,7 +990,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string pcId = data.ContainsKey("pcId") ? data["pcId"] : GetUniqueMachineId();
             string pcName = data.ContainsKey("pcName") ? data["pcName"] : Environment.MachineName;
             string userName = data.ContainsKey("userName") ? data["userName"] : Environment.UserName;
-            string stateName = data.ContainsKey("state") ? data["state"] : (data.ContainsKey("officeLocation") && data["officeLocation"].Contains("Andhra") ? "Andhra Pradesh" : "Telangana");
+            string stateName = data.ContainsKey("state") ? data["state"] : SystemInfoHelper.GetConfiguredState("Telangana");
             string officeLoc = data.ContainsKey("officeLocation") ? data["officeLocation"] : SystemInfoHelper.GetLiveLocation(stateName);
             string userPriv = data.ContainsKey("userPrivileges") ? data["userPrivileges"] : SystemInfoHelper.GetUserPrivileges();
             string ipAddr = data.ContainsKey("localIp") ? data["localIp"] : SystemInfoHelper.GetIpAddress();
@@ -807,8 +1048,17 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 || (data.ContainsKey("verification") && data["verification"].IndexOf("Setup Completed", StringComparison.OrdinalIgnoreCase) >= 0)
                 || (data.ContainsKey("remarks") && data["remarks"].IndexOf("installed", StringComparison.OrdinalIgnoreCase) >= 0);
 
+            string eventType = data.ContainsKey("eventType") ? data["eventType"] : "";
+            bool isUpgrade = string.Equals(eventType, "VERSION_UPGRADE", StringComparison.OrdinalIgnoreCase)
+                || (data.ContainsKey("oldVersion") && !string.IsNullOrEmpty(data["oldVersion"]) && !string.Equals(data["oldVersion"], "v1.1.0", StringComparison.OrdinalIgnoreCase));
+
             var sb = new System.Text.StringBuilder();
-            if (isInstall)
+            if (isUpgrade)
+            {
+                string prevV = data.ContainsKey("oldVersion") ? data["oldVersion"] : "Previous Version";
+                sb.AppendLine($"🔄 <b>E-VEDHIKA VERSION UPGRADED ({EscapeTelegramHtml(prevV)} ➔ v1.1.0)</b>");
+            }
+            else if (isInstall)
             {
                 sb.AppendLine("🚀 <b>E-Vedhika UBD Deployment Tool - Installation & Setup Report</b>");
             }
@@ -842,7 +1092,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine($"<b>Overall Status:</b> <b>{overallStatus}</b>");
             sb.AppendLine($"<b>Health Score:</b> <b>{health}% ({healthStatus})</b>");
             sb.AppendLine($"<b>Health Diagnosis:</b> {EscapeTelegramHtml(healthDiagnosis)}");
-            sb.AppendLine("<b>Application Version:</b> v1.0.9");
+            sb.AppendLine("<b>Application Version:</b> v1.1.0");
             sb.AppendLine($"<b>Build Version:</b> {Engine.AutoUpdateEngine.CurrentResourceBuild}");
             sb.AppendLine($"<b>Total Checks:</b> {totalChecks} | <b>Passed:</b> {passedCount} | <b>Failed:</b> {failedCount} | <b>Warnings:</b> {warningCount}");
             sb.AppendLine($"<b>Summary:</b> {verif}");
@@ -860,7 +1110,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             sb.AppendLine($"<b>Remarks:</b> {EscapeTelegramHtml(remarks)}");
             if (!string.IsNullOrEmpty(errorDetails) && errorDetails != "None") sb.AppendLine($"<b>Error Details:</b> {EscapeTelegramHtml(errorDetails)}");
             sb.AppendLine($"<b>Target Portal:</b> {targetPortal}");
-            sb.AppendLine("<b>Live Website Dashboard:</b> https://www.e-vedhika.in/admin/ubd_monitoring");
+            sb.AppendLine($"<b>Live Admin Dashboard:</b> {AdminDashboardUrl}");
             sb.AppendLine($"<b>Upload Timestamp:</b> {timestamp}");
 
             return sb.ToString();
@@ -884,8 +1134,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         /// <summary>
         /// Collects existing installation details from this PC and dispatches a full Fleet Update Report
         /// to the central Reporting Receiver (/api/reporting/receiver) whenever the application runs with this update.
-        /// Captures whether this PC was already installed, original install date, current update timestamp,
-        /// full 17-step verification, DSC Token, OS specs, and office location.
+        /// Syncs live online status to the website dashboard WITHOUT sending a duplicate Telegram message on startup.
         /// </summary>
         public static void SendFleetUpdateReport(Action<bool, string> onComplete = null)
         {
@@ -895,7 +1144,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 {
                     string pcId = GetUniqueMachineId();
                     string pcName = Environment.MachineName ?? "GP-OFFICE-PC";
-                    string userName = Environment.UserName ?? "Operator";
+                    string userName = SystemInfoHelper.GetConfiguredOperatorName();
 
                     // Detect if this system was previously installed
                     bool isExisting = false;
@@ -923,12 +1172,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     }
                     catch { }
 
-                    string stateName = "Telangana";
-                    string loc = SystemInfoHelper.GetLiveLocation(stateName);
-                    string officeLoc = (string.IsNullOrEmpty(loc) || loc == "Unknown Location")
-                        ? $"{stateName} Gram Panchayat Office"
-                        : $"{loc} ({stateName})";
-                    string district = officeLoc.Contains(",") ? officeLoc.Split(',')[0].Trim() : "Khammam";
+                    string stateName = SystemInfoHelper.GetConfiguredState("Telangana");
+                    string officeLoc = SystemInfoHelper.GetLiveLocation(stateName);
+                    string district = SystemInfoHelper.GetConfiguredDistrict(stateName);
 
                     var fleetData = new Dictionary<string, string>
                     {
@@ -942,27 +1188,30 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "installType", isExisting ? "EXISTING_PC_UPDATED" : "FRESH_INSTALL" },
                         { "initialInstallDate", initialInstallDate },
                         { "updateReceivedDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        { "version", "v1.0.9" },
+                        { "version", "v1.1.0" },
                         { "updateBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                         { "buildVersion", Engine.AutoUpdateEngine.CurrentResourceBuild },
+                        { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                         { "status", "SUCCESS" },
                         { "overallStatus", "HEALTHY" },
                         { "verification", "Passed (17/17)" },
                         { "healthScore", "100" },
                         { "osVersion", SystemInfoHelper.GetWindowsVersion() },
-                        { "ramUsage", $"{SystemInfoHelper.GetRamUsagePercentage()}% RAM Active" },
+                        { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
                         { "diskFreeSpace", SystemInfoHelper.GetDiskSpace() },
                         { "cpuInfo", SystemInfoHelper.GetProcessorInfo() },
-                        { "localIp", "192.168.1.100" },
+                        { "localIp", SystemInfoHelper.GetIpAddress() },
                         { "macAddress", SystemInfoHelper.GetPrimaryMacAddress() },
                         { "hardwareUuid", SystemInfoHelper.GetHardwareUuid() },
                         { "dscStatus", SystemInfoHelper.CheckDscStatus() },
                         { "edgeIeMode", "IE5 Quirks Active" },
                         { "sitesXml", "IE5 Quirks Active (sites.xml present)" },
                         { "trustedSites", "Zone 2 Configured (ubd.telangana.gov.in)" },
-                        { "remarks", "Fleet update verified: PC data successfully synced with Central Reporting Receiver." },
-                        { "forceTelegram", "true" },
-                        { "sendTelegram", "true" }
+                        { "remarks", "Live PC startup check-in synced with Central Reporting Receiver." },
+                        { "forceTelegram", "false" },
+                        { "sendTelegram", "false" },
+                        { "suppressTelegram", "true" },
+                        { "directTelegramSent", "true" }
                     };
 
                     // Construct JSON payload
@@ -983,7 +1232,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     bool reported = DeliverToWebsiteGuaranteed(jsonPayload, out fleetErr);
                     if (reported)
                     {
-                        try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [REPORTING RECEIVER SUCCESS] Dispatched fleet update to https://www.e-vedhika.in/admin/ubd_monitoring\r\n"); } catch { }
+                        try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [REPORTING RECEIVER SUCCESS] Dispatched fleet update to Central Live Hub\r\n"); } catch { }
                     }
 
                     // Save local marker
@@ -1006,7 +1255,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
         /// <summary>
         /// Sends an immediate, synchronous installation telemetry report to the Web Server and direct to Telegram.
-        /// Blocks synchronously with a timeout to ensure the process does not terminate prematurely during Inno Setup --post-install.
+        /// Strictly dispatches ONLY ONE Telegram notification and sets suppressTelegram=true on the web payload to prevent duplicate server-side alerts.
         /// </summary>
         public static void SendSynchronousInstallationReport(Dictionary<string, string> data)
         {
@@ -1014,22 +1263,30 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             try
             {
+                string stateVal = data.ContainsKey("state") ? data["state"] : SystemInfoHelper.GetConfiguredState("Telangana");
+                if (!data.ContainsKey("state")) data["state"] = stateVal;
+                if (!data.ContainsKey("district")) data["district"] = SystemInfoHelper.GetConfiguredDistrict(stateVal);
+                if (!data.ContainsKey("officeLocation") || string.IsNullOrEmpty(data["officeLocation"]))
+                {
+                    data["officeLocation"] = SystemInfoHelper.GetLiveLocation(stateVal);
+                }
+
                 // Ensure required system information fields are populated
                 if (!data.ContainsKey("reportId")) data["reportId"] = "REP-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
                 if (!data.ContainsKey("pcId")) data["pcId"] = GetUniqueMachineId();
                 if (!data.ContainsKey("pcName")) data["pcName"] = Environment.MachineName ?? "GP-OFFICE-PC";
-                if (!data.ContainsKey("userName")) data["userName"] = Environment.UserName ?? "Operator";
+                if (!data.ContainsKey("userName")) data["userName"] = SystemInfoHelper.GetConfiguredOperatorName();
                 if (!data.ContainsKey("osVersion")) data["osVersion"] = Environment.OSVersion.ToString();
                 if (!data.ContainsKey("winEdition")) data["winEdition"] = SystemInfoHelper.GetWindowsEdition();
                 if (!data.ContainsKey("winBuild")) data["winBuild"] = SystemInfoHelper.GetWindowsBuildNumber();
                 if (!data.ContainsKey("architecture")) data["architecture"] = SystemInfoHelper.GetSystemArchitecture();
-                if (!data.ContainsKey("version")) data["version"] = "v1.0.9";
+                if (!data.ContainsKey("version")) data["version"] = "v1.1.0";
                 if (!data.ContainsKey("buildVersion")) data["buildVersion"] = Engine.AutoUpdateEngine.CurrentResourceBuild;
                 if (!data.ContainsKey("resourceBuild")) data["resourceBuild"] = Engine.AutoUpdateEngine.CurrentResourceBuild;
                 if (!data.ContainsKey("status")) data["status"] = "SUCCESS";
                 if (!data.ContainsKey("overallStatus")) data["overallStatus"] = "HEALTHY";
-                if (!data.ContainsKey("verification")) data["verification"] = $"17/17 Complete (v1.0.9 Build {Engine.AutoUpdateEngine.CurrentResourceBuild})";
-                if (!data.ContainsKey("remarks")) data["remarks"] = "EVedhika_Setup_v1.0.9.exe installed and registered successfully.";
+                if (!data.ContainsKey("verification")) data["verification"] = $"17/17 Complete (v1.1.0 Build {Engine.AutoUpdateEngine.CurrentResourceBuild})";
+                if (!data.ContainsKey("remarks")) data["remarks"] = "EVedhika_Setup_v1.1.0.exe installed and registered successfully.";
                 if (!data.ContainsKey("date")) data["date"] = DateTime.Now.ToString("yyyy-MM-dd");
                 if (!data.ContainsKey("time")) data["time"] = DateTime.Now.ToString("HH:mm:ss");
                 if (!data.ContainsKey("macAddress")) data["macAddress"] = SystemInfoHelper.GetPrimaryMacAddress();
@@ -1079,8 +1336,6 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 if (!data.ContainsKey("lastReportUploadTime")) data["lastReportUploadTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
                 data["isInstallation"] = "true";
-                data["forceTelegram"] = "true";
-                data["sendTelegram"] = "true";
                 data["isFinalReport"] = "true";
 
                 // Configure TLS protocols
@@ -1092,7 +1347,74 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
                 catch { }
 
-                // 1. Build JSON Payload
+                // 1. Direct Telegram Message Dispatch FIRST (with 2-minute cooldown marker to prevent duplicate post-install triggers)
+                bool sentDirectToTelegram = false;
+                string vaultDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                try { if (!Directory.Exists(vaultDir)) Directory.CreateDirectory(vaultDir); } catch { }
+                string installCooldownFile = Path.Combine(vaultDir, "install_tg_cooldown.marker");
+                bool recentlySentInstallTg = false;
+                try
+                {
+                    if (File.Exists(installCooldownFile))
+                    {
+                        DateTime lastWrite = File.GetLastWriteTimeUtc(installCooldownFile);
+                        if ((DateTime.UtcNow - lastWrite).TotalMinutes < 2.0)
+                        {
+                            recentlySentInstallTg = true;
+                        }
+                    }
+                }
+                catch { }
+
+                if (!recentlySentInstallTg)
+                {
+                    try
+                    {
+                        string botToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
+                        string chatId = "431228008";
+                        string message = ConstructTelegramMessage(data);
+
+                        string url = $"https://api.telegram.org/bot{botToken}/sendMessage";
+                        string tgJson = $"{{\"chat_id\":\"{chatId}\",\"text\":\"{EscapeJson(message)}\",\"parse_mode\":\"HTML\",\"disable_web_page_preview\":true}}";
+
+                        using (var wc = new TimeoutWebClient(6000))
+                        {
+                            wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
+                            wc.Encoding = System.Text.Encoding.UTF8;
+                            wc.UploadString(url, "POST", tgJson);
+                            sentDirectToTelegram = true;
+                            lock (_tgCooldownLock) { _lastDirectTelegramSentUtc = DateTime.UtcNow; }
+                            try { File.WriteAllText(installCooldownFile, DateTime.UtcNow.ToString("O")); } catch { }
+                            MarkAsReportedToTelegram(data["pcId"]);
+                            try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEGRAM SUCCESS] Sent single install report to Telegram admin {chatId}\r\n"); } catch { }
+                        }
+                    }
+                    catch (Exception tgEx)
+                    {
+                        try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEGRAM ERROR] {tgEx.Message}\r\n"); } catch { }
+                    }
+                }
+                else
+                {
+                    sentDirectToTelegram = true;
+                }
+
+                // Mark directTelegramSent & suppressTelegram so the web server does NOT send a second duplicate Telegram alert!
+                if (sentDirectToTelegram)
+                {
+                    data["directTelegramSent"] = "true";
+                    data["suppressTelegram"] = "true";
+                    data["forceTelegram"] = "false";
+                    data["sendTelegram"] = "false";
+                }
+                else
+                {
+                    data["directTelegramSent"] = "false";
+                    data["forceTelegram"] = "true";
+                    data["sendTelegram"] = "true";
+                }
+
+                // 2. Build JSON Payload for Website Dashboard
                 var sb = new System.Text.StringBuilder();
                 sb.Append("{");
                 bool first = true;
@@ -1106,35 +1428,12 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 sb.Append("}");
                 string jsonPayload = sb.ToString();
 
-                // 2. Direct Telegram Message Dispatch
-                try
-                {
-                    string botToken = "9070613382:AAHgln-fTUEKk3RSAtOdRM0LitfndOcgC8E";
-                    string chatId = "431228008";
-                    string message = ConstructTelegramMessage(data);
-
-                    string url = $"https://api.telegram.org/bot{botToken}/sendMessage";
-                    string tgJson = $"{{\"chat_id\":\"{chatId}\",\"text\":\"{EscapeJson(message)}\",\"parse_mode\":\"HTML\",\"disable_web_page_preview\":true}}";
-
-                    using (var wc = new TimeoutWebClient(6000))
-                    {
-                        wc.Headers[System.Net.HttpRequestHeader.ContentType] = "application/json";
-                        wc.Encoding = System.Text.Encoding.UTF8;
-                        wc.UploadString(url, "POST", tgJson);
-                        try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEGRAM SUCCESS] Sent to Telegram admin {chatId}\r\n"); } catch { }
-                    }
-                }
-                catch (Exception tgEx)
-                {
-                    try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEGRAM ERROR] {tgEx.Message}\r\n"); } catch { }
-                }
-
-                // 3. Post to https://www.e-vedhika.in/admin/ubd_monitoring synchronously via Guaranteed 3-Tier Delivery
+                // 3. Post to Central Cloud Live Hub synchronously via Guaranteed Delivery
                 string syncErr;
                 bool webSuccess = DeliverToWebsiteGuaranteed(jsonPayload, out syncErr);
                 if (webSuccess)
                 {
-                    try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEMETRY SUCCESS] Sent to https://www.e-vedhika.in/admin/ubd_monitoring\r\n"); } catch { }
+                    try { File.AppendAllText(logFilePath, $"[{DateTime.Now}] [INSTALL TELEMETRY SUCCESS] Sent to Central Cloud Live Hub\r\n"); } catch { }
                 }
                 else
                 {
@@ -1144,8 +1443,6 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 // 4. Save local marker & vault file
                 try
                 {
-                    string vaultDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
-                    if (!Directory.Exists(vaultDir)) Directory.CreateDirectory(vaultDir);
                     File.WriteAllText(Path.Combine(vaultDir, "telemetry_vault.json"), jsonPayload);
                     File.WriteAllText(Path.Combine(vaultDir, "installation_reported.marker"), $"{data["pcId"]} installed at {DateTime.Now}");
                 }

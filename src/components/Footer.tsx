@@ -38,8 +38,8 @@ export const Footer: React.FC<FooterProps> = ({ onToggleConsole }) => {
             <span>CONSOLE</span>
           </button>
         )}
-        <span className="label text-[0.55rem] sm:text-[0.6rem] text-emerald-400">ID: PC_IDENTIFIED</span>
-        <span className="label text-[0.55rem] sm:text-[0.6rem]">V1.0.9</span>
+        <span className="label text-[0.55rem] sm:text-[0.6rem] text-emerald-400">FREE ACCESS NOW</span>
+        <span className="label text-[0.55rem] sm:text-[0.6rem]">V1.1.0</span>
         <span className="label text-[0.55rem] sm:text-[0.6rem]">UPTIME: {formatUptime(uptime)}</span>
       </div>
     </footer>

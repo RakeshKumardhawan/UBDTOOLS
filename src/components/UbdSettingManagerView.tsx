@@ -451,7 +451,7 @@ export const UbdSettingManagerView: React.FC = () => {
                         <td className="py-4 px-4 text-slate-600 font-mono">{r.lastSeen}</td>
                         <td className="py-4 px-4">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold border border-slate-200">
-                            v1.0.9
+                            v1.1.0
                           </span>
                         </td>
                         <td className="py-4 px-4 text-right">

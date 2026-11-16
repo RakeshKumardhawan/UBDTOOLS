@@ -1,5 +1,5 @@
 #define MyAppName "E-Vedhika UBD Tool"
-#define MyAppVersion "1.0.9"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "E-Vedhika Development Community"
 #define MyAppURL "https://www.e-vedhika.in"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
@@ -37,6 +37,7 @@ CloseApplicationsFilter=*.exe
 RestartApplications=no
 AlwaysRestart=no
 RestartIfNeededByRun=no
+VersionInfoCopyright=Copyright (c) 2026 Rakesh Kumar Dhawan (Free Early Access / ₹10-Mo Plan)
 
 [Registry]
 ; Prevent Windows 11 Smart App Control & Error 4551 Temp Execution Block (safely ignored on non-admin or legacy OS)
@@ -50,6 +51,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Policies\Associat
 [Files]
 ; Universal .NET 4.0-4.8 executable & embedded resources
 Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "bin\Release\net48\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\*"; DestDir: "{app}\Payload"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 Source: "installers\*"; DestDir: "{app}\Installers"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist

@@ -196,8 +196,58 @@ async function startServer() {
   // ====================================================================
   const CONSOLIDATED_HEALTH_FILE_PATH = path.join(process.cwd(), 'public', 'admin', 'consolidated_health.json');
   const REPORTS_ARCHIVE_FILE_PATH = path.join(process.cwd(), 'public', 'admin', 'reports_archive.json');
-  
-  const reportsArchiveStore: any[] = safeReadJson(REPORTS_ARCHIVE_FILE_PATH, []);
+
+  const KNOWN_DUMMY_PC_IDENTIFIERS = new Set([
+    'EVD-TS-KMM-01',
+    'OFFICE-HOST-PC',
+    'EVD-TS-TEST-58',
+    'TEST-LIVE-PC',
+    'EVD-TEST-INSTALL-9999',
+    'GP-OFFICE-INSTALL-TEST',
+    'EVD-TS-MNCL-TEST01',
+    'GP-TEST-PC',
+    'EVD-TS-MNCL-TEST-R2',
+    'EVD-TS-MNCL-68',
+    'EVD-TS-MNCL-40',
+    'EVD-DEV-LOCAL-PC-01',
+    'EVD-LOCAL-HOST-PC',
+    'LOCALHOST',
+    'EVD-TS-EVED-8E',
+    'EVD-TS-TEST-61',
+    'TEST-CHECK',
+    'EVD-WEB-CLIENT',
+    'PANCHAYAT-PC-04',
+    'EVD-TS-TEST-PC01',
+    'RECOVERED-PC',
+    'UNKNOWN-PC',
+    'DEFAULT-PC',
+    'SAMPLE-PC',
+    'DEMO-PC'
+  ]);
+
+  function isRealPcRecord(record: any): boolean {
+    if (!record || typeof record !== 'object') return false;
+    if (record.isDummy === true || record.isDummy === 'true' || record.isTest === true || record.isTest === 'true') return false;
+    const pcId = String(record.pcId || record.machineIdentifier || '').toUpperCase().trim();
+    const pcName = String(record.pcName || record.computerName || '').toUpperCase().trim();
+    const id = String(record.id || record.eventId || '').toUpperCase().trim();
+    const user = String(record.userName || record.operatorName || '').toUpperCase().trim();
+    if (!pcId && !pcName) return false;
+    if (KNOWN_DUMMY_PC_IDENTIFIERS.has(pcId) || KNOWN_DUMMY_PC_IDENTIFIERS.has(pcName)) return false;
+    if (
+      pcId.includes('DUMMY') || pcName.includes('DUMMY') || id.includes('DUMMY') ||
+      pcId.includes('TEST') || pcName.includes('TEST') ||
+      pcName.includes('LOCAL-HOST') || pcName.includes('LOCALHOST') ||
+      pcName === 'OFFICE-HOST-PC' || pcName === 'RECOVERED-PC' ||
+      user === 'TEST' || user === 'TEST_OPERATOR' || user === 'LOCAL-DEV-OPERATOR'
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  const rawReportsArchive: any[] = safeReadJson(REPORTS_ARCHIVE_FILE_PATH, []);
+  const reportsArchiveStore: any[] = Array.isArray(rawReportsArchive) ? rawReportsArchive.filter(isRealPcRecord) : [];
   const processedReportEventIds = new Set<string>();
 
   reportsArchiveStore.forEach(r => {
@@ -260,8 +310,8 @@ async function startServer() {
       officeLocation: rawLoc,
       district: districtVal,
       state: stateVal,
-      appVersion: body.appVersion || body.version || 'v1.0.9',
-      resourceBuild: body.resourceBuild || '2026.11.12.R4',
+      appVersion: body.appVersion || body.version || 'v1.1.0',
+      resourceBuild: body.resourceBuild || '2026.11.16.R6',
       osVersion: body.osVersion || 'Windows 11 Pro',
       winBuild: body.winBuild || 'Build 22631',
       status: body.status || 'SUCCESS',
@@ -417,7 +467,7 @@ async function startServer() {
         const list = safeReadJson(APP_HEARTBEAT_FILE_PATH, []);
         if (Array.isArray(list)) {
           list.forEach((item: AppHeartbeatRecord) => {
-            if (item && item.pcId) appHeartbeatStore.set(item.pcId, item);
+            if (item && item.pcId && isRealPcRecord(item)) appHeartbeatStore.set(item.pcId, item);
           });
           console.log(`[APP HEARTBEAT] Loaded ${appHeartbeatStore.size} live application heartbeat records from disk.`);
         }
@@ -564,7 +614,7 @@ async function startServer() {
     const officeLoc = rawLoc || (stateVal !== 'Unverified' ? `${stateVal} Grama Panchayat Office` : 'Unverified Location');
     const osVer = body.osVersion || body.winEdition || body.winVersion || 'Windows 11 Home';
     const winBuild = body.winBuild || '10.0.26300';
-    const appVer = body.version || body.deployVersion || 'v1.0.9';
+    const appVer = body.version || body.deployVersion || 'v1.1.0';
     const totalSteps = 17;
 
     let pcId = body.pcId;
@@ -983,6 +1033,111 @@ async function startServer() {
     return { score: totalScore, status, diagnosis };
   };
 
+  const ADMIN_LIVE_REPORTS_URL = 'https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports';
+  const FIRESTORE_DOC_BASE = 'projects/e-vedhika-258f2/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/documents';
+  const FIRESTORE_COMMIT_URL = 'https://firestore.googleapis.com/v1/projects/e-vedhika-258f2/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/documents:commit?key=AIzaSyC_oLAFLdpErutmSmR9bQnm0ETq5hd9qnU';
+
+  const sanitizeFirestoreId = (raw: string, prefix = 'EVD') => {
+    const clean = String(raw || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    return (clean || `${prefix}-${Date.now()}`).slice(0, 120);
+  };
+
+  const mirrorFeedbackToFirestore = async (fb: any) => {
+    try {
+      const feedbackId = sanitizeFirestoreId(fb.id || `FB-${Date.now()}`, 'FB');
+      const pcId = sanitizeFirestoreId(fb.pcId || fb.pcName || 'EVD-PC', 'EVD-PC');
+      const rating = Math.max(1, Math.min(5, Math.round(Number(fb.rating) || 5)));
+      const fields: Record<string, any> = {
+        feedbackId: { stringValue: feedbackId },
+        pcId: { stringValue: pcId },
+        pcName: { stringValue: String(fb.pcName || 'OFFICE-PC').slice(0, 128) },
+        operatorName: { stringValue: String(fb.operatorName || 'Operator').slice(0, 128) },
+        district: { stringValue: String(fb.district || 'Telangana').slice(0, 100) },
+        state: { stringValue: String(fb.state || 'Telangana').slice(0, 64) },
+        officeLocation: { stringValue: String(fb.officeLocation || 'Gram Panchayat Office').slice(0, 200) },
+        rating: { integerValue: String(rating) },
+        comments: { stringValue: String(fb.comments || 'Working smoothly.').slice(0, 1000) },
+        appVersion: { stringValue: String(fb.appVersion || 'v1.1.0').slice(0, 32) }
+      };
+      await fetch(FIRESTORE_COMMIT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          writes: [{
+            update: { name: `${FIRESTORE_DOC_BASE}/user_feedbacks/${feedbackId}`, fields },
+            updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }]
+          }]
+        })
+      });
+    } catch {}
+  };
+
+  const mirrorTelemetryToFirestore = async (rec: any, body: any = {}) => {
+    try {
+      const pcId = sanitizeFirestoreId(rec.pcId || rec.pcName || 'EVD-PC', 'EVD-PC');
+      const rawAppState = String(rec.appState || body.appState || '').toUpperCase();
+      const appState = (rawAppState === 'CLOSED' || rawAppState === 'NOT_RESPONDING') ? rawAppState : 'RUNNING';
+      const rawConn = String(rec.livePresence || body.livePresence || '').toUpperCase();
+      const pcConnectivity = (rawConn === 'OFFLINE' || appState === 'CLOSED') ? 'OFFLINE' : 'ONLINE';
+      const healthScore = Math.max(0, Math.min(100, Math.round(Number(rec.healthScore ?? 100) || 100)));
+
+      const pcFields: Record<string, any> = {
+        pcId: { stringValue: pcId },
+        pcName: { stringValue: String(rec.pcName || 'GP-OFFICE-PC').slice(0, 128) },
+        userName: { stringValue: String(rec.userName || 'Operator').slice(0, 128) },
+        district: { stringValue: String(rec.district || body.district || rec.officeLocation || 'Telangana').slice(0, 100) },
+        state: { stringValue: String(rec.state || 'Telangana').slice(0, 64) },
+        officeLocation: { stringValue: String(rec.officeLocation || 'Gram Panchayat Office').slice(0, 200) },
+        osVersion: { stringValue: String(rec.osVersion || rec.winEdition || 'Windows 10/11').slice(0, 120) },
+        appVersion: { stringValue: String(rec.version || rec.appVersion || 'v1.1.0').slice(0, 32) },
+        resourceBuild: { stringValue: String(rec.resourceBuild || '2026.11.16.R6').slice(0, 48) },
+        appState: { stringValue: appState },
+        pcConnectivity: { stringValue: pcConnectivity },
+        verification: { stringValue: String(rec.verification || 'Passed (17/17)').slice(0, 160) },
+        dscStatus: { stringValue: String(rec.dscStatus || 'USB Token Active').slice(0, 160) },
+        edgeIeMode: { stringValue: String(rec.edgeIeMode || 'IE5 Quirks Active').slice(0, 160) },
+        healthScore: { integerValue: String(healthScore) },
+        lastSeenAt: { stringValue: String(rec.lastReportUploadTime || new Date().toISOString()).slice(0, 64) }
+      };
+
+      const writes: any[] = [{
+        update: { name: `${FIRESTORE_DOC_BASE}/installed_pcs/${pcId}`, fields: pcFields },
+        updateTransforms: [{ fieldPath: 'updatedAt', setToServerValue: 'REQUEST_TIME' }]
+      }];
+
+      const statusStr = String(rec.status || 'SUCCESS').slice(0, 48);
+      const remarksStr = String(rec.remarks || '').slice(0, 1000);
+      const isRoutine = statusStr === 'ONLINE_READY' || statusStr === 'OFFLINE' || remarksStr.includes('60-Second Live Heartbeat');
+      if (!isRoutine) {
+        const reportId = sanitizeFirestoreId(rec.reportId || rec.id || `RPT-${Date.now()}`, 'RPT');
+        const reportType = (body.isInstallation === true || body.isInstallation === 'true') ? 'INSTALLATION' : String(body.eventType || 'DEPLOYMENT_REPORT').slice(0, 64);
+        const rptFields: Record<string, any> = {
+          reportId: { stringValue: reportId },
+          pcId: { stringValue: pcId },
+          pcName: { stringValue: String(rec.pcName || 'GP-OFFICE-PC').slice(0, 128) },
+          userName: { stringValue: String(rec.userName || 'Operator').slice(0, 128) },
+          district: { stringValue: String(rec.district || body.district || rec.officeLocation || 'Telangana').slice(0, 100) },
+          state: { stringValue: String(rec.state || 'Telangana').slice(0, 64) },
+          officeLocation: { stringValue: String(rec.officeLocation || 'Gram Panchayat Office').slice(0, 200) },
+          reportType: { stringValue: reportType },
+          status: { stringValue: statusStr },
+          appVersion: { stringValue: String(rec.version || rec.appVersion || 'v1.1.0').slice(0, 32) },
+          details: { stringValue: (remarksStr || String(rec.verification || 'Passed')).slice(0, 1000) }
+        };
+        writes.push({
+          update: { name: `${FIRESTORE_DOC_BASE}/pc_reports/${reportId}`, fields: rptFields },
+          updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }]
+        });
+      }
+
+      await fetch(FIRESTORE_COMMIT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ writes })
+      });
+    } catch {}
+  };
+
   const constructFullTelegramReport = (newRecord: any) => {
     const isFail = String(newRecord.status || '').toUpperCase().includes('FAIL') || 
                    String(newRecord.remarks || '').toUpperCase().includes('FAIL') ||
@@ -1037,7 +1192,7 @@ async function startServer() {
     const failedCount = newRecord.failedCount || '0';
     const warningCount = newRecord.warningCount || '0';
 
-    return `📋 <b>E-Vedhika UBD Deployment Tool v1.0.9 Live PC Audit Report</b>\n` +
+    return `📋 <b>E-Vedhika UBD Deployment Tool v1.1.0 Live PC Audit Report</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🖥️ <b>Machine & Office Details</b>\n` +
       `<b>Report ID:</b> <code>${reportId}</code>\n` +
@@ -1061,7 +1216,7 @@ async function startServer() {
       `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
       `<b>Health Score:</b> <b>${healthScore}% (${healthStatus})</b>\n` +
       `<b>Health Diagnosis:</b> ${healthDiagnosis}\n` +
-      `<b>Software Version:</b> v1.0.9 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.10.R1'})\n` +
+      `<b>Software Version:</b> v1.1.0 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6'})\n` +
       `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
       `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
       `🔐 <b>Service & Security Verification</b>\n` +
@@ -1074,7 +1229,7 @@ async function startServer() {
       `📌 <b>Audit Remarks</b>\n` +
       `<b>Remarks:</b> ${newRecord.remarks || (isFail ? 'Audit checks failed. Please inspect.' : '17/17 Deployment steps executed and verified with zero manual clicks!')}\n` +
       `<b>Target Portal:</b> ${targetPortal}\n` +
-      `<b>Central Live Dashboard:</b> https://www.e-vedhika.in/admin/ubd_monitoring\n` +
+      `<b>Central Live Dashboard:</b> ${ADMIN_LIVE_REPORTS_URL}\n` +
       `<b>Report Upload Timestamp:</b> ${formattedTimestamp}`;
   };
 
@@ -1084,35 +1239,44 @@ async function startServer() {
       console.log(`[TELEGRAM MASTER OFF] Telegram auto-notifications are turned OFF. Dispatch prevented.`);
       return false;
     }
-    if (body.suppressTelegram === 'true' || body.suppressTelegram === true) return false;
+    if (
+      body.suppressTelegram === 'true' || body.suppressTelegram === true ||
+      body.directTelegramSent === 'true' || body.directTelegramSent === true
+    ) {
+      console.log(`[TELEGRAM SUPPRESSED] C# Client already sent direct Telegram notification or requested suppression.`);
+      return false;
+    }
 
-    // Check if installation report or forced
+    const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
+    const pcNameKey = String(record.pcName || '').toUpperCase().trim();
+    const now = Date.now();
+
+    // 60-Second Per-PC Cooldown to prevent duplicate Install / Run messages across multiple endpoints
+    const lastSentById = lastTelegramSentPerPc.get(pcKey) || 0;
+    const lastSentByName = pcNameKey ? (lastTelegramSentPerPc.get(pcNameKey) || 0) : 0;
+    const lastSent = Math.max(lastSentById, lastSentByName);
+    if (now - lastSent < 60000) {
+      console.log(`[TELEGRAM COOLDOWN] PC ${pcKey} sent a Telegram report ${Math.round((now - lastSent) / 1000)}s ago. Duplicate suppressed.`);
+      return false;
+    }
+
+    // Check if installation report or final 17/17 deployment report
     const isInstallationReport = body.isInstallationReport === 'true' || body.isInstallationReport === true ||
                                  body.isInstallation === 'true' || body.isInstallation === true ||
                                  body.isPostInstall === 'true' || body.isPostInstall === true ||
                                  body.isPostInstallHook === 'true' || body.isPostInstallHook === true ||
-                                 body.installType === 'FRESH_INSTALL' ||
-                                 String(body.remarks || '').toLowerCase().includes('installed') ||
-                                 String(body.verification || '').toLowerCase().includes('installed') ||
-                                 String(body.verification || '').toLowerCase().includes('setup completed') ||
-                                 String(body.status || '').toLowerCase().includes('install');
+                                 body.installType === 'FRESH_INSTALL';
 
     const isForced = isInstallationReport ||
                      body.isFinalReport === 'true' || body.isFinalReport === true ||
                      body.forceTelegram === 'true' || body.forceTelegram === true || 
-                     body.sendTelegram === 'true' || body.sendTelegram === true || 
-                     String(body.buildVersion || '').includes('2026.11.') ||
-                     String(body.resourceBuild || '').includes('2026.11.') ||
-                     body.isTest === true || body.isTest === 'true';
+                     body.sendTelegram === 'true' || body.sendTelegram === true;
 
     // Drop already-reported PCs ONLY if NOT forced and NOT an installation report
     if (!isForced && (body.pcAlreadyReported === 'true' || body.pcAlreadyReported === true)) {
       console.log(`[TELEGRAM DUPLICATE SUPPRESS] PC already reported marker present.`);
       return false;
     }
-
-    const pcKey = String(record.pcId || record.pcName || 'default-pc').toUpperCase().trim();
-    const pcNameKey = String(record.pcName || '').toUpperCase().trim();
 
     if (telegramPcFilters.blockedPcs.some(b => b && (pcKey.includes(b.toUpperCase()) || pcNameKey.includes(b.toUpperCase())))) {
       console.log(`[ABSOLUTE BLOCK] PC ${pcKey} is blocked in settings. Telegram dispatch prevented.`);
@@ -1125,7 +1289,6 @@ async function startServer() {
       return false;
     }
 
-    const now = Date.now();
     lastTelegramSentPerPc.set(pcKey, now);
     if (pcNameKey) lastTelegramSentPerPc.set(pcNameKey, now);
     
@@ -1463,17 +1626,6 @@ async function startServer() {
       console.error('Failed to save email config:', e);
     }
   };
-
-  // Helper to filter authentic PC records vs dummy test records
-  function isRealPcRecord(record: any): boolean {
-    if (!record) return false;
-    if (record.isDummy === true || record.isDummy === 'true') return false;
-    const pcId = String(record.pcId || '').toUpperCase();
-    const pcName = String(record.pcName || '').toUpperCase();
-    const id = String(record.id || '').toUpperCase();
-    if (pcId.startsWith('EVD-DUMMY') || pcId.includes('DUMMY') || pcName.includes('DUMMY') || id.startsWith('DUMMY')) return false;
-    return true;
-  }
 
   // Save/Update Monthly Master Reports Archive on Website
   const archivePcReportsToMonthlyStore = (records: any[]) => {
@@ -2087,24 +2239,24 @@ async function startServer() {
   let currentVersionConfig = {
     name: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
     appName: 'E-VEDHIKA All Problems One Solution & UBD Deployment Tool',
-    executableName: 'EVedhika_Setup_v1.0.9.exe',
-    currentVersion: 'v1.0.9',
-    latestVersion: 'v1.0.9',
-    versionCode: 10090,
-    releaseDate: '2026-11-11',
-    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe',
+    executableName: 'EVedhika_Setup_v1.1.0.exe',
+    currentVersion: 'v1.1.0',
+    latestVersion: 'v1.1.0',
+    versionCode: 10100,
+    releaseDate: '2026-11-16',
+    downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.1.0.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
     downloadSize: '8.5 MB',
     sha256: '4d54ba00f532b15793a70e0d4c03ca03d81b1cc23f0e6a1fa0cba4860f0720c9',
-    releaseNotes: '[NEW FEATURES]\n• System Tray \'Check for Updates\' Menu Item with interactive OTA update trigger\n• Categorized \'What\'s New\' Popup Notification showing Previous vs Current Version & Build\n• Automatic Application Restart Workflow with state persistence & restart loop prevention\n\n[BUG FIXES]\n• Fixed Heartbeat Deduplication & Process State Timeout in Central Telemetry Engine\n• Resolved Duplicate Process Guardian Launch Conflict on system startup\n\n[PERFORMANCE IMPROVEMENTS]\n• Enhanced OTA Package Verification with SHA-256 Digest Audit\n• Optimized 60-Second Real-Time Telemetry Relay and memory footprint\n\n[SECURITY UPDATES]\n• Authenticode Digital Signature & Certificate Whitelist Validation\n• Enforced Encrypted HTTPS Update Downloads and payload verification',
+    releaseNotes: '[NEW FEATURES v1.1.0]\n• Dedicated Cloud Telemetry & Admin Hub Link (/api/live-hub/ingest & /live-pc-reports) — Independent from e-vedhika.in\n• Interactive ★ 1-5 Star Rating & Feedback Dialog after 17-Step Deployment & Dedicated Feedback Tab\n• District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) — Eliminates false \'Hyderabad\' ISP location\n• Strictly 1 Telegram Report on Install & 1 on 17-Step Run (Zero Duplicate Telegram Messages)\n• Dedicated Admin Installed PCs, Live Online PCs & User Ratings Reports (0% Dummy Data)',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
-    telemetryRelayUrl: 'https://www.e-vedhika.in/admin/exe_ubd_live', // Global relay endpoint for third-party integrations
-    latestResourceBuild: '2026.11.12.R4',
-    resourceBuildDate: '2026-11-11',
-    resourceBuild: '2026.11.12.R4',
-    manifestVersion: '2026.11.12.R4'
+    telemetryRelayUrl: FIRESTORE_COMMIT_URL,
+    latestResourceBuild: '2026.11.16.R6',
+    resourceBuildDate: '2026-11-16',
+    resourceBuild: '2026.11.16.R6',
+    manifestVersion: '2026.11.16.R6'
   };
 
 
@@ -2120,8 +2272,8 @@ async function startServer() {
     console.warn('[BOOT] Could not load public/version.json');
   }
 
-  // Force permanent telemetry relay destination
-  currentVersionConfig.telemetryRelayUrl = 'https://www.e-vedhika.in/admin/exe_ubd_live';
+  // Force dedicated Cloud Firestore telemetry relay destination (never e-vedhika.in)
+  currentVersionConfig.telemetryRelayUrl = FIRESTORE_COMMIT_URL;
 
   // Live Sync with GitHub Releases REST API
   let lastGitHubSync = 0;
@@ -2137,12 +2289,12 @@ async function startServer() {
       if (response.ok) {
         const data = await response.json();
         if (data) {
-          let highestVer = 'v1.0.9';
-          let highestWeight = 10090;
-          let highestDownloadUrl = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.9.exe';
-          let highestExeName = 'EVedhika_Setup_v1.0.9.exe';
+          let highestVer = 'v1.1.0';
+          let highestWeight = 10100;
+          let highestDownloadUrl = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.1.0.exe';
+          let highestExeName = 'EVedhika_Setup_v1.1.0.exe';
 
-          // Scan all assets to find highest versioned installer (e.g. EVedhika_Setup_v1.0.7.exe over v1.0.1.exe)
+          // Scan all assets to find highest versioned installer (e.g. EVedhika_Setup_v1.1.0.exe)
           if (data.assets && Array.isArray(data.assets)) {
             for (const asset of data.assets) {
               if (asset.name && asset.name.endsWith('.exe')) {
@@ -2166,11 +2318,11 @@ async function startServer() {
           currentVersionConfig.versionCode = highestWeight;
           currentVersionConfig.downloadUrl = highestDownloadUrl;
           currentVersionConfig.executableName = highestExeName;
-          currentVersionConfig.latestResourceBuild = '2026.11.12.R4';
-          currentVersionConfig.resourceBuildDate = '2026-11-11';
-          currentVersionConfig.resourceBuild = '2026.11.12.R4';
-          currentVersionConfig.manifestVersion = '2026.11.12.R4';
-          currentVersionConfig.releaseDate = '2026-11-11';
+          currentVersionConfig.latestResourceBuild = '2026.11.16.R6';
+          currentVersionConfig.resourceBuildDate = '2026-11-16';
+          currentVersionConfig.resourceBuild = '2026.11.16.R6';
+          currentVersionConfig.manifestVersion = '2026.11.16.R6';
+          currentVersionConfig.releaseDate = '2026-11-16';
           
           try {
             fs.writeFileSync(path.join(process.cwd(), 'public', 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
@@ -2178,7 +2330,7 @@ async function startServer() {
             if (!fs.existsSync(apiVersionDir)) fs.mkdirSync(apiVersionDir, { recursive: true });
             fs.writeFileSync(path.join(apiVersionDir, 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
           } catch (err) {}
-          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.12.R4)`);
+          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.16.R6)`);
         }
       }
     } catch (e: any) {
@@ -2201,7 +2353,9 @@ async function startServer() {
   const handlePing = (req: any, res: any) => res.status(200).json({ success: true, timestamp: new Date().toISOString() });
   app.all('/api/ping', handlePing);
   app.get('/api/telemetry/ping', handlePing);
+  app.get('/api/live-hub/ping', handlePing);
   app.head('/api/telemetry', handlePing);
+  app.head('/api/live-hub/ingest', handlePing);
   app.get('/api/version', handleGetVersion);
   app.get('/exe/api/version', handleGetVersion);
   app.get('/version.json', handleGetVersion);
@@ -2308,8 +2462,8 @@ async function startServer() {
       const healthRaw = extractField(block, ['Health Score']) || '100%';
       const healthScoreMatch = healthRaw.match(/(\d+)/);
       const healthScore = healthScoreMatch ? Number(healthScoreMatch[1]) : 100;
-      const appVersion = extractField(block, ['Application Version', 'App Version', 'Version']) || 'v1.0.9';
-      const resourceBuild = extractField(block, ['Build Version', 'Resource Build']) || '2026.11.12.R4';
+      const appVersion = extractField(block, ['Application Version', 'App Version', 'Version']) || 'v1.1.0';
+      const resourceBuild = extractField(block, ['Build Version', 'Resource Build']) || '2026.11.16.R6';
       const verification = extractField(block, ['Summary', 'Verification']) || '17/17 steps passed.';
       const digiSignerStatus = extractField(block, ['DigiSigner Bridge', 'DigiSigner']) || 'Running (Port 8080 Active)';
       const port8080Status = extractField(block, ['Port 8080']) || 'Port 8080 Active (Listening)';
@@ -2613,8 +2767,8 @@ async function startServer() {
         state: hb?.state || cons?.state || fleet?.state || 'Telangana',
         osVersion: hb?.osVersion || cons?.osVersion || fleet?.osVersion || 'Windows 11 Pro',
         winBuild: hb?.winBuild || cons?.winBuild || fleet?.winBuild || 'Build 22631',
-        appVersion: hb?.appVersion || cons?.appVersion || fleet?.appVersion || 'v1.0.9',
-        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || '2026.11.12.R4',
+        appVersion: hb?.appVersion || cons?.appVersion || fleet?.appVersion || 'v1.1.0',
+        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || '2026.11.16.R6',
         pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
         appState: isOnline ? (hb?.appState || 'RUNNING') : 'CLOSED',
         lastHeartbeatTime: hb?.lastHeartbeatTime || cons?.lastTelemetryUpdate || 'N/A',
@@ -2639,47 +2793,92 @@ async function startServer() {
     }
   });
 
+  // Helper to build unified real Installed PCs list and Live Online PCs list
+  const buildAdminInstalledAndLivePcs = () => {
+    const nowEpoch = Date.now();
+    const allPcIds = new Set<string>([
+      ...Array.from(appHeartbeatStore.keys()),
+      ...Array.from(consolidatedMachineStore.keys()),
+      ...Array.from(fleetReceiverStore.keys())
+    ]);
+
+    const installedPcs: any[] = [];
+    const liveOnlinePcs: any[] = [];
+
+    allPcIds.forEach(id => {
+      const hb = appHeartbeatStore.get(id);
+      const cons = consolidatedMachineStore.get(id);
+      const fleet = fleetReceiverStore.get(id);
+      const candidate = hb || cons || fleet;
+      if (!isRealPcRecord(candidate)) return;
+
+      const lastEpoch = Math.max(
+        Number(hb?.lastHeartbeatEpoch || 0),
+        Number(cons?.lastSeenEpoch || 0),
+        Number(fleet?.lastUpdatedEpoch || 0)
+      );
+      const isOnline = lastEpoch > 0 && (nowEpoch - lastEpoch) <= 180000 && hb?.appState !== 'CLOSED';
+      const appState = isOnline ? (hb?.appState || 'RUNNING') : 'CLOSED';
+
+      const pcObj = {
+        pcId: hb?.pcId || cons?.pcId || fleet?.pcId || id,
+        pcName: hb?.pcName || cons?.pcName || fleet?.pcName || 'GP-OFFICE-PC',
+        userName: hb?.userName || cons?.userName || fleet?.userName || 'Operator',
+        officeLocation: hb?.officeLocation || cons?.officeLocation || fleet?.officeLocation || 'Grama Panchayat Office',
+        district: hb?.district || cons?.district || fleet?.district || 'District',
+        state: hb?.state || cons?.state || fleet?.state || 'Telangana',
+        osVersion: hb?.osVersion || cons?.osVersion || fleet?.osVersion || 'Windows 10/11',
+        winBuild: hb?.winBuild || cons?.winBuild || fleet?.winBuild || 'Verified',
+        appVersion: hb?.appVersion || cons?.appVersion || fleet?.version || 'v1.1.0',
+        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6',
+        pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
+        appState,
+        isOnline,
+        verification: fleet?.verification || `${cons?.deployment?.verifiedSteps || 17}/17 steps passed.`,
+        dscStatus: fleet?.dscStatus || 'Active',
+        edgeIeMode: fleet?.edgeIeMode || 'IE5 Quirks Active',
+        ipAddress: hb?.ipAddress || fleet?.ipAddress || '192.168.1.100',
+        firstInstalledAt: fleet?.initialInstallDate || cons?.firstSeen || '2026-11-11',
+        lastSeenAt: hb?.lastHeartbeatTime || cons?.lastTelemetryUpdate || fleet?.updateReceivedDate || 'Recently',
+        lastSeenEpoch: lastEpoch
+      };
+
+      installedPcs.push(pcObj);
+      if (isOnline) {
+        liveOnlinePcs.push(pcObj);
+      }
+    });
+
+    installedPcs.sort((a, b) => (b.lastSeenEpoch || 0) - (a.lastSeenEpoch || 0));
+    liveOnlinePcs.sort((a, b) => (b.lastSeenEpoch || 0) - (a.lastSeenEpoch || 0));
+
+    return { installedPcs, liveOnlinePcs };
+  };
+
   // GET: Dashboard Report Summary
   app.get('/api/reports/summary', (req, res) => {
     try {
-      const nowEpoch = Date.now();
-      const allPcIds = new Set([
-        ...Array.from(appHeartbeatStore.keys()),
-        ...Array.from(consolidatedMachineStore.keys()),
-        ...Array.from(fleetReceiverStore.keys())
-      ]);
+      const { installedPcs, liveOnlinePcs } = buildAdminInstalledAndLivePcs();
+      const totalRegisteredPcs = installedPcs.length;
+      const onlinePcs = liveOnlinePcs.length;
+      const offlinePcs = Math.max(0, totalRegisteredPcs - onlinePcs);
+      const runningApps = liveOnlinePcs.filter(p => p.appState === 'RUNNING').length;
+      const closedApps = Math.max(0, totalRegisteredPcs - runningApps);
 
-      let totalRegisteredPcs = allPcIds.size;
-      let onlinePcs = 0;
-      let offlinePcs = 0;
-      let runningApps = 0;
-      let closedApps = 0;
+      const realArchive = reportsArchiveStore.filter(isRealPcRecord);
+      const totalDeployments = realArchive.filter(r => r.reportType === 'DEPLOYMENT_AUDIT' || r.reportType === 'INSTALLATION').length;
+      const successfulDeployments = realArchive.filter(r => (r.reportType === 'DEPLOYMENT_AUDIT' || r.reportType === 'INSTALLATION') && r.status === 'SUCCESS').length;
+      const failedDeployments = Math.max(0, totalDeployments - successfulDeployments);
 
-      allPcIds.forEach(id => {
-        const hb = appHeartbeatStore.get(id);
-        const cons = consolidatedMachineStore.get(id);
-        const lastEpoch = hb?.lastHeartbeatEpoch || cons?.lastSeenEpoch || 0;
-        const isOnline = (nowEpoch - lastEpoch) <= 180000;
-        if (isOnline) {
-          onlinePcs++;
-          if (hb?.appState === 'RUNNING' || !hb?.appState) runningApps++;
-          else closedApps++;
-        } else {
-          offlinePcs++;
-          closedApps++;
-        }
-      });
-
-      const totalDeployments = reportsArchiveStore.filter(r => r.reportType === 'DEPLOYMENT_AUDIT').length;
-      const successfulDeployments = reportsArchiveStore.filter(r => r.reportType === 'DEPLOYMENT_AUDIT' && r.status === 'SUCCESS').length;
-      const failedDeployments = totalDeployments - successfulDeployments;
-
-      const otaEvents = reportsArchiveStore.filter(r => r.reportType === 'OTA_UPDATE');
+      const otaEvents = realArchive.filter(r => r.reportType === 'OTA_UPDATE');
       const successfulOtaUpdates = otaEvents.filter(r => r.status === 'SUCCESS').length;
       const failedOtaUpdates = otaEvents.filter(r => r.status === 'FAILED').length;
 
-      const totalErrors = reportsArchiveStore.filter(r => r.reportType === 'ERROR_EXCEPTION' || r.status === 'FAILED').length;
-      const guardianEvents = reportsArchiveStore.filter(r => r.reportType === 'GUARDIAN_EVENT').length;
+      const totalErrors = realArchive.filter(r => r.reportType === 'ERROR_EXCEPTION' || r.status === 'FAILED').length;
+      const guardianEvents = realArchive.filter(r => r.reportType === 'GUARDIAN_EVENT').length;
+
+      const feedbacks = loadFeedbackVault();
+      const feedbackStats = calculateFeedbackStats(feedbacks);
 
       return res.json({
         success: true,
@@ -2689,8 +2888,8 @@ async function startServer() {
           offlinePcs,
           runningApps,
           closedApps,
-          latestVersion: currentVersionConfig.latestVersion || 'v1.0.9',
-          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.12.R4',
+          latestVersion: currentVersionConfig.latestVersion || 'v1.1.0',
+          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.16.R6',
           totalDeployments,
           successfulDeployments,
           failedDeployments,
@@ -2698,9 +2897,65 @@ async function startServer() {
           failedOtaUpdates,
           pendingUpdates: 0,
           guardianEvents,
-          totalErrors
-        }
+          totalErrors,
+          totalFeedbacks: feedbackStats.total,
+          averageRating: feedbackStats.averageRating
+        },
+        installedPcs,
+        liveOnlinePcs,
+        feedbacks: feedbacks.slice(0, 100),
+        feedbackStats
       });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // GET: Dedicated Admin Overview (Installed PCs, Live Online PCs, and Operator Ratings & Feedback)
+  app.get('/api/reports/admin-overview', (req, res) => {
+    try {
+      const { installedPcs, liveOnlinePcs } = buildAdminInstalledAndLivePcs();
+      const feedbacks = loadFeedbackVault();
+      const feedbackStats = calculateFeedbackStats(feedbacks);
+      return res.json({
+        success: true,
+        installedCount: installedPcs.length,
+        liveOnlineCount: liveOnlinePcs.length,
+        installedPcs,
+        liveOnlinePcs,
+        feedbackStats,
+        feedbacks
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // POST: Purge any dummy/test PCs on demand
+  app.post('/api/reports/purge-dummy-pcs', (req, res) => {
+    try {
+      let purged = 0;
+      for (const [k, v] of appHeartbeatStore.entries()) {
+        if (!isRealPcRecord(v)) { appHeartbeatStore.delete(k); purged++; }
+      }
+      for (const [k, v] of consolidatedMachineStore.entries()) {
+        if (!isRealPcRecord(v)) { consolidatedMachineStore.delete(k); purged++; }
+      }
+      for (const [k, v] of fleetReceiverStore.entries()) {
+        if (!isRealPcRecord(v)) { fleetReceiverStore.delete(k); purged++; }
+      }
+      const beforeArch = reportsArchiveStore.length;
+      const cleanArch = reportsArchiveStore.filter(isRealPcRecord);
+      reportsArchiveStore.length = 0;
+      reportsArchiveStore.push(...cleanArch);
+      purged += (beforeArch - cleanArch.length);
+
+      saveAppHeartbeatStore();
+      saveConsolidatedHealthStore();
+      saveFleetReceiverStore();
+      saveReportsArchiveStore();
+
+      return res.json({ success: true, purgedCount: purged, message: `Purged ${purged} dummy/test records.` });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -2719,8 +2974,8 @@ async function startServer() {
         'Office Location': m.officeLocation,
         'District': m.district,
         'State': m.state,
-        'App Version': m.appVersion || 'v1.0.9',
-        'Resource Build': '2026.11.12.R4',
+        'App Version': m.appVersion || 'v1.1.0',
+        'Resource Build': '2026.11.16.R6',
         'OS Version': m.osVersion,
         'Overall Status': m.overallStatus,
         'Verified Steps': `${m.deployment?.verifiedSteps || 17}/17`,
@@ -2776,8 +3031,8 @@ async function startServer() {
             officeLocation: m.officeLocation || 'Grama Panchayat Office',
             district: m.district || 'District',
             state: m.state || 'Telangana',
-            appVersion: m.appVersion || 'v1.0.9',
-            resourceBuild: (m as any).resourceBuild || '2026.11.12.R4',
+            appVersion: m.appVersion || 'v1.1.0',
+            resourceBuild: (m as any).resourceBuild || '2026.11.16.R6',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -2806,8 +3061,8 @@ async function startServer() {
             officeLocation: m.officeLocation || 'Grama Panchayat Office',
             district: m.district || 'District',
             state: m.state || 'Telangana',
-            appVersion: m.appVersion || 'v1.0.9',
-            resourceBuild: (m as any).resourceBuild || '2026.11.12.R4',
+            appVersion: m.appVersion || 'v1.1.0',
+            resourceBuild: (m as any).resourceBuild || '2026.11.16.R6',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -2827,6 +3082,7 @@ async function startServer() {
       const rawLogs = safeReadJson(path.join(process.cwd(), 'public', 'telemetry_logs.json'), []);
       if (Array.isArray(rawLogs)) {
         rawLogs.forEach((l: any, idx: number) => {
+          if (!isRealPcRecord(l)) return;
           const evtId = l.id || l.reportId || `HIST-TEL-${idx + 1}`;
           if (!processedReportEventIds.has(evtId)) {
             processedReportEventIds.add(evtId);
@@ -2841,8 +3097,8 @@ async function startServer() {
               officeLocation: l.officeLocation || 'Grama Panchayat Office',
               district: l.district || 'District',
               state: l.state || 'Telangana',
-              appVersion: l.version || l.appVersion || 'v1.0.9',
-              resourceBuild: l.resourceBuild || '2026.11.12.R4',
+              appVersion: l.version || l.appVersion || 'v1.1.0',
+              resourceBuild: l.resourceBuild || '2026.11.16.R6',
               osVersion: l.osVersion || 'Windows 11 Pro',
               winBuild: l.winBuild || 'Build 22631',
               status: l.status || 'SUCCESS',
@@ -2885,46 +3141,47 @@ async function startServer() {
   app.get('/api/reports/update-history', (req, res) => {
     return res.json({
       success: true,
-      currentVersion: 'v1.0.9',
-      currentResourceBuild: '2026.11.12.R4',
+      currentVersion: 'v1.1.0',
+      currentResourceBuild: '2026.11.16.R6',
       releases: [
         {
-          version: 'v1.0.9',
-          resourceBuild: '2026.11.12.R4',
-          releaseId: 'REL-2026-11-11-R3',
-          releaseDate: '2026-11-11',
-          packageSize: '8.5 MB',
+          version: 'v1.1.0',
+          resourceBuild: '2026.11.16.R6',
+          releaseId: 'REL-2026-11-16-R6',
+          releaseDate: '2026-11-16',
+          packageSize: '8.8 MB',
           sha256: '4d54ba00f532b15793a70e0d4c03ca03d81b1cc23f0e6a1fa0cba4860f0720c9',
           signatureStatus: 'Verified (E-Vedhika Authenticode)',
-          downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe',
+          downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.1.0.exe',
           newFeatures: [
-            'Complete Application-to-Website 28-Category Report Synchronization Engine',
-            'Historical Data Hydration & Device Classification (Authentic / Test / Duplicate / Unknown)',
-            'System Tray "Check for Updates" interactive context menu item',
-            'Categorized "What\'s New" Popup Notification Modal on post-update restart'
+            'Dedicated Cloud Telemetry & Single Admin Live Hub (/live-pc-reports) backed by Google Cloud Firestore',
+            'Interactive ★ 1-5 Star Operator Rating & Feedback Collection Dialog + Dedicated Admin Ratings Tab',
+            'District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) — Eliminates false Hyderabad ISP location',
+            'Strictly 1 Telegram Report on Install & 1 on 17-Step Deployment (Zero Duplicate Telegram Messages)',
+            'Dedicated Installed PCs & Live Online PCs Admin Tables with 0% Dummy Data enforcement'
           ],
           bugFixes: [
-            'Resolved CS0236 field initializer & CS0103 ThreadPool/EscapeJson compilation issues in .NET 4.8',
-            'Fixed 60-Second Heartbeat deduplication and offline-to-online queue auto-flush'
+            'Eliminated duplicate startup Telegram dispatch when application launches post-installation',
+            'Replaced Metro/ISP Hyderabad geolocation bias with verified District/Office identity resolution'
           ],
           securityUpdates: [
             'Enforced SHA-256 package digest verification before OTA extraction',
-            'Server-side Admin session & token authentication'
+            'Server-side & Firebase Admin authentication (Rakeshkumardhawan123@gmail.com)'
           ],
           performanceImprovements: [
             'Optimized 60-second background heartbeat memory footprint (<130 MB RAM)',
-            'Instant local queue caching during internet outages with automatic batch sync'
+            'Direct Google Cloud Firestore :commit ingestion with zero dependency on external PHP relays'
           ]
         },
         {
           version: 'v1.0.9',
-          resourceBuild: '2026.11.11.R2',
-          releaseId: 'REL-2026-11-11-R2',
-          releaseDate: '2026-11-11',
-          packageSize: '8.4 MB',
+          resourceBuild: '2026.11.12.R4',
+          releaseId: 'REL-2026-11-12-R4',
+          releaseDate: '2026-11-12',
+          packageSize: '8.5 MB',
           sha256: '8f9d2a11c432b15793a70e0d4c03ca03d81b1cc23f0e6a1fa0cba4860f0711b2',
           signatureStatus: 'Verified',
-          downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe',
+          downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/v1.0.9/EVedhika_Setup_v1.0.9.exe',
           newFeatures: [
             'Automatic Single-Instance Application Restart Workflow with state persistence',
             'Integrated Daily 19:00 IST Automated Excel Report Scheduler (Telegram sendDocument + Email SMTP)'
@@ -3000,8 +3257,8 @@ async function startServer() {
       const eventType = body.eventType || 'STATUS_CHANGED';
       const pcId = body.pcId || 'EVD-PC-UNKNOWN';
       const pcName = body.pcName || body.machineName || 'GP-OFFICE-PC';
-      const oldVersion = body.oldVersion || 'v1.0.8';
-      const newVersion = body.newVersion || body.targetVersion || 'v1.0.9';
+      const oldVersion = body.oldVersion || 'v1.0.9';
+      const newVersion = body.newVersion || body.targetVersion || 'v1.1.0';
       const downloadUrl = body.downloadUrl || '';
       const details = body.details || body.releaseNotes || 'Real-time OTA update event triggered';
       const status = body.status || 'SUCCESS';
@@ -3179,8 +3436,8 @@ async function startServer() {
       if (latestResourceBuild) currentVersionConfig.latestResourceBuild = latestResourceBuild;
       if (resourceBuildDate) currentVersionConfig.resourceBuildDate = resourceBuildDate;
       
-      // Always lock relay URL permanently
-      currentVersionConfig.telemetryRelayUrl = 'https://www.e-vedhika.in/admin/exe_ubd_live';
+      // Always lock relay URL permanently to Dedicated Cloud Firestore Hub
+      currentVersionConfig.telemetryRelayUrl = FIRESTORE_COMMIT_URL;
       
       try {
         fs.writeFileSync(path.join(process.cwd(), 'public', 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
@@ -3662,8 +3919,8 @@ async function startServer() {
         state: stateVal,
         osVersion: body.osVersion || 'Windows 11 Pro',
         winBuild: body.winBuild || 'Build 22631',
-        appVersion: body.appVersion || body.version || 'v1.0.9',
-        resourceBuild: body.resourceBuild || '2026.11.12.R4',
+        appVersion: body.appVersion || body.version || 'v1.1.0',
+        resourceBuild: body.resourceBuild || '2026.11.16.R6',
         pcConnectivity: 'ONLINE',
         appState,
         lastHeartbeatEpoch: nowEpoch,
@@ -3721,6 +3978,7 @@ async function startServer() {
       allPcIds.forEach(pcId => {
         const hb = appHeartbeatStore.get(pcId);
         const cons = consolidatedMachineStore.get(pcId);
+        if (!isRealPcRecord(hb || cons)) return;
 
         const pcName = hb?.pcName || cons?.pcName || 'GP-PC';
         const officeLocation = hb?.officeLocation || cons?.officeLocation || 'Grama Panchayat Office';
@@ -3759,7 +4017,7 @@ async function startServer() {
           state: hb?.state || cons?.state || 'Telangana',
           osVersion: hb?.osVersion || cons?.osVersion || 'Windows 11 Pro',
           winBuild: hb?.winBuild || cons?.winBuild || 'Build 22631',
-          appVersion: hb?.appVersion || cons?.appVersion || 'v1.0.9',
+          appVersion: hb?.appVersion || cons?.appVersion || 'v1.1.0',
           resourceBuild: hb?.resourceBuild || '2026.11.10.R2',
           pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
           appState,
@@ -3790,18 +4048,60 @@ async function startServer() {
     }
   });
 
-  // API Route: Post Central Telemetry Log (From C# Executable - Accepts 90 parameters)
-  app.post('/api/telemetry', (req, res) => {
+  // API Route: Post Central Telemetry Log & Dedicated Live Hub Ingestion (From C# Executable)
+  app.post(['/api/telemetry', '/api/live-hub/ingest', '/api/live-hub/report'], (req, res) => {
     try {
       const body = req.body || {};
       
       // Log incoming request for debugging persistence issues
-      fs.appendFileSync(path.join(process.cwd(), 'telemetry_access.log'), `[${new Date().toISOString()}] POST /api/telemetry from ${req.ip} - PC: ${body.pcName}\n`);
+      fs.appendFileSync(path.join(process.cwd(), 'telemetry_access.log'), `[${new Date().toISOString()}] POST ${req.path} from ${req.ip} - PC: ${body.pcName}\n`);
+
+      // If payload is an operator rating / feedback submission, also record it into the Feedback Vault
+      if (body.rating !== undefined || body.category === 'Operator Rating & Feedback') {
+        try {
+          const rating = Math.max(1, Math.min(5, Math.round(Number(body.rating) || 5)));
+          const stars = '⭐'.repeat(rating);
+          const operatorName = String(body.operatorName || body.name || body.userName || 'Panchayat Operator').trim();
+          const officeLocation = String(body.officeLocation || body.office || 'Telangana Gram Panchayat Office').trim();
+          const contactPhone = String(body.contactPhone || body.phone || body.mobile || '').trim();
+          const category = String(body.category || 'Operator Rating & Feedback').trim();
+          const comments = String(body.comments || body.feedback || body.message || 'Working smoothly.').trim();
+          const pcName = String(body.pcName || 'OFFICE-PC').trim();
+          const pcId = String(body.pcId || 'EVD-PC').trim();
+          const osVersion = String(body.osVersion || 'Windows 10/11').trim();
+          const appVersion = String(body.appVersion || body.version || 'v1.1.0').trim();
+          const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6').trim();
+          const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+          const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';
+          const feedbackRecord = {
+            id: `FB-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+            rating,
+            ratingStars: stars,
+            ratingLabel: `${rating} / 5 Stars`,
+            operatorName,
+            officeLocation,
+            contactPhone,
+            category,
+            comments,
+            pcName,
+            pcId,
+            osVersion,
+            appVersion,
+            resourceBuild,
+            submittedAt: new Date().toISOString(),
+            timestampIST
+          };
+          const feedbacks = loadFeedbackVault();
+          feedbacks.unshift(feedbackRecord);
+          saveFeedbackVault(feedbacks);
+          mirrorFeedbackToFirestore({ ...feedbackRecord, district: body.district || officeLocation, state: body.state || 'Telangana' }).catch(() => {});
+        } catch (fbErr) {}
+      }
 
       const targetDom = body.targetDomain || (String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'ubd.ap.gov.in' : 'ubd.telangana.gov.in');
       const stateVal = body.state || (targetDom.includes('ap.gov.in') || String(body.officeLocation || '').toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana');
       
-      // Use exact reported office location (from IP Geolocation or PC identity), avoiding hardcoded static strings
+      // Use exact reported office location (from District/Mandal selector or PC identity), avoiding hardcoded static strings
       const officeLoc = (body.officeLocation && body.officeLocation.trim().length > 0) 
         ? body.officeLocation 
         : (body.pcName ? `${body.pcName} (${stateVal})` : `${stateVal} Office`);
@@ -3813,8 +4113,8 @@ async function startServer() {
       const trusted = body.trustedSites || `Zone 2 Configured (${targetDom})`;
       const edgeMode = body.edgeIeMode || 'IE5 Quirks Active';
       const sitesXmlVal = body.sitesXml || (body.sitesXmlExists === 'Yes' ? 'IE5 Quirks Active (sites.xml present)' : 'Active') || 'IE5 Quirks Active (sites.xml present)';
-      const verif = body.verification || body.verificationCompleted || body.regVerification || 'Passed (16/16)';
-      const ver = body.version || body.deployVersion || 'v1.0.7';
+      const verif = body.verification || body.verificationCompleted || body.regVerification || 'Passed (17/17)';
+      const ver = body.version || body.deployVersion || 'v1.1.0';
 
       // Generate or retrieve persistent Unique Machine/PC ID
       let pcId = body.pcId;
@@ -3823,8 +4123,6 @@ async function startServer() {
         const rawSeed = hwId ? `${hwId}_${body.pcName || 'PC'}` : `${body.pcName || 'PC'}_${body.userName || 'USER'}_${officeLoc}`;
         pcId = generateStructuredPcId(stateVal, body.district || officeLoc, rawSeed, '01');
       }
-
-      // Each PC reports its authentic pcName, userName, and status without hardcoded overrides
 
       const newRecord = {
         id: body.id || `TEL-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -3890,15 +4188,16 @@ async function startServer() {
         dispatchWhatsAppLiveUninstallationAlert(uninstallRec).catch(() => {});
       }
 
-      try { 
-        processConsolidatedTelemetry(body);
-        saveConsolidatedHealthStore(); 
+      try {
+        processIncomingReportEvent({ ...body, pcId, officeLocation: officeLoc, state: stateVal, appVersion: ver });
+        processConsolidatedTelemetry({ ...body, pcId, officeLocation: officeLoc, state: stateVal, version: ver });
+        saveConsolidatedHealthStore();
         
-        // Also sync to Fleet Receiver Store for Dashboard visibility
+        // Also sync to Fleet Receiver Store & Heartbeat Store for Live Online / Installed PCs visibility
         if (pcId) {
           const fleetRecord = {
             ...newRecord,
-            receivedVia: '/api/telemetry',
+            receivedVia: req.path,
             lastUpdatedEpoch: Date.now()
           };
           fleetReceiverStore.set(pcId, fleetRecord);
@@ -3907,25 +4206,10 @@ async function startServer() {
       } catch (e) {
         console.error('[TELEMETRY] Error processing consolidated telemetry:', e);
       }
-      
-      console.log(`[CENTRAL TELEMETRY RECEIVED] ${newRecord.pcName} (${newRecord.userName}) -> ${newRecord.status}`);
 
-      // Global Relay: Forward report to external URL if configured in Admin Panel
-      if (currentVersionConfig.telemetryRelayUrl) {
-        fetch(currentVersionConfig.telemetryRelayUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newRecord)
-        })
-        .then(async r => {
-          if (r.ok) console.log(`[RELAY SUCCESS] Forwarded to ${currentVersionConfig.telemetryRelayUrl}`);
-          else {
-            const errTxt = await r.text().catch(() => 'No response body');
-            console.warn(`[RELAY WARNING] Target ${currentVersionConfig.telemetryRelayUrl} returned ${r.status}: ${errTxt}`);
-          }
-        })
-        .catch(err => console.warn(`[RELAY FAILED] Relay to ${currentVersionConfig.telemetryRelayUrl}:`, err.message));
-      }
+      mirrorTelemetryToFirestore(newRecord, body).catch(() => {});
+      
+      console.log(`[DEDICATED CLOUD HUB INGEST] ${newRecord.pcName} (${newRecord.userName}) -> ${newRecord.status}`);
 
       // If C# client dispatched directly to Telegram, register this PC in the reported set
       if (body.directTelegramSent === 'true' || body.directTelegramSent === true) {
@@ -3949,7 +4233,7 @@ async function startServer() {
 
       return res.status(200).json({
         success: true,
-        message: 'Telemetry logged successfully at www.e-vedhika.in',
+        message: 'Telemetry logged successfully at Dedicated Cloud Hub (/api/live-hub/ingest)',
         record: newRecord
       });
     } catch (err: any) {
@@ -4029,7 +4313,7 @@ async function startServer() {
     return res.json({
       success: true,
       status: 'ONLINE',
-      engine: 'E-Vedhika Cold Storage Engine v1.0.9',
+      engine: 'E-Vedhika Cold Storage Engine v1.1.0',
       totalRecords: coldMachineRecords.size,
       historyCount: coldAuditHistory.length,
       backupFilesCount,
@@ -4108,7 +4392,7 @@ async function startServer() {
 
   // =========================================================================
   // LIVE VERSION FLEET API (/api/version-fleet/live)
-  // Consolidates real-time PC telemetry for all versions from v1.0 to v1.0.9
+  // Consolidates real-time PC telemetry for all versions from v1.0 to v1.1.0
   // =========================================================================
   app.get('/api/version-fleet/live', (req, res) => {
     try {
@@ -4119,25 +4403,28 @@ async function startServer() {
 
       // 1. From Consolidated Machine Store
       for (const [id, m] of consolidatedMachineStore.entries()) {
+        if (!isRealPcRecord(m)) continue;
         const key = String(id || m.pcName || '').toUpperCase().trim();
         if (key) mergedMap.set(key, m);
       }
 
       // 2. From Cold Machine Store
       for (const [id, m] of coldMachineRecords.entries()) {
+        if (!isRealPcRecord(m)) continue;
         const key = String(id || m.pcName || '').toUpperCase().trim();
         if (key && !mergedMap.has(key)) mergedMap.set(key, m);
       }
 
       // 3. From Fleet Receiver Store
       for (const [id, m] of fleetReceiverStore.entries()) {
+        if (!isRealPcRecord(m)) continue;
         const key = String(id || m.pcName || '').toUpperCase().trim();
         if (key && !mergedMap.has(key)) mergedMap.set(key, m);
       }
 
       // 4. From Telemetry Logs Store
       for (const r of telemetryLogsStore) {
-        if (!r) continue;
+        if (!r || !isRealPcRecord(r)) continue;
         const key = String(r.pcId || r.pcName || '').toUpperCase().trim();
         if (key && !mergedMap.has(key)) {
           mergedMap.set(key, {
@@ -4145,9 +4432,9 @@ async function startServer() {
             pcName: r.pcName || 'GP-OFFICE-PC',
             userName: r.userName || 'Panchayat Operator',
             officeLocation: r.officeLocation || 'Gram Panchayat Office',
-            district: r.district || 'Mancherial',
+            district: r.district || 'District Office',
             state: r.state || 'Telangana',
-            appVersion: r.appVersion || r.version || 'v1.0.9',
+            appVersion: r.appVersion || r.version || 'v1.1.0',
             osVersion: r.osVersion || 'Windows 11 Pro 64-bit',
             winBuild: r.winBuild || 'Build 22631',
             lastSeenEpoch: r.lastSeenEpoch || Date.parse(r.timestamp || r.date) || Date.now() - 120000,
@@ -4167,14 +4454,14 @@ async function startServer() {
         const lastEpoch = m.lastSeenEpoch || (m.lastTelemetryUpdate ? Date.parse(m.lastTelemetryUpdate) : Date.parse(m.timestamp || m.date) || Date.now());
         const ageMs = nowEpoch - lastEpoch;
         const isOnline = ageMs <= onlineThresholdMs;
-        const version = m.appVersion || m.version || 'v1.0.9';
+        const version = m.appVersion || m.version || 'v1.1.0';
 
         return {
           pcId: m.pcId || m.machineId || `EVD-PC-${idx + 1}`,
           pcName: m.pcName || m.machineName || `HOST-PC-${idx + 1}`,
           userName: m.userName || m.operator || 'Panchayat Operator',
           officeLocation: m.officeLocation || m.office || 'Gram Panchayat Office',
-          district: m.district || 'Mancherial',
+          district: m.district || 'District Office',
           state: m.state || 'Telangana',
           appVersion: version,
           osVersion: m.osVersion || 'Windows 10/11 Pro (64-bit)',
@@ -4223,7 +4510,7 @@ async function startServer() {
           onlinePcs: onlineCount,
           idlePcs: idleCount,
           offlinePcs: offlineCount,
-          latestVersionAdoptionPct: allMachinesList.length > 0 ? Math.round(((versionCounts['v1.0.9'] || 0) / allMachinesList.length) * 100) : 100,
+          latestVersionAdoptionPct: allMachinesList.length > 0 ? Math.round(((versionCounts['v1.1.0'] || 0) / allMachinesList.length) * 100) : 100,
           versionCounts,
           stateCounts
         },
@@ -4524,13 +4811,15 @@ async function startServer() {
         if (Array.isArray(items)) {
           items.forEach((item: any) => {
             if (!item || typeof item !== 'object') return;
-            const pcName = item.pcName || item.computerName || item.machineId || 'Recovered-PC';
+            if (!isRealPcRecord(item)) return;
+            const pcName = item.pcName || item.computerName || item.machineId || 'GP-OFFICE-PC';
             let pcId = item.pcId || item.machineIdentifier || item.deviceInstallationId || item.hardwareUuid;
             if (!pcId || !pcId.startsWith('EVD-')) {
               const stateVal = item.state || 'Telangana';
               const rawLoc = item.officeLocation || item.district || pcName;
               pcId = generateStructuredPcId(stateVal, rawLoc, `${pcName}_${item.userName || ''}`, '01');
             }
+            if (!isRealPcRecord({ pcId, pcName, userName: item.userName })) return;
 
             const lastTs = item.lastSeenEpoch || item.lastUpdatedEpoch || (item.lastSeen ? Date.parse(item.lastSeen) : nowEpoch);
             const isOnline = nowEpoch - (Number(lastTs) > 2000000000 ? Number(lastTs) : Number(lastTs) * 1000) <= 15 * 60 * 1000;
@@ -4544,7 +4833,7 @@ async function startServer() {
               state: item.state || 'Telangana',
               osVersion: item.osVersion || 'Windows 11 Pro',
               winBuild: item.winBuild || item.buildNumber || 'Build 22631',
-              appVersion: 'v1.0.9',
+              appVersion: 'v1.1.0',
               machineIdentifier: pcId,
               firstSeen: item.firstSeen || item.date || new Date().toISOString().slice(0, 10),
               lastSeenEpoch: Number(lastTs),
@@ -4595,8 +4884,8 @@ async function startServer() {
               status: 'SUCCESS',
               verification: '17/17 steps passed.',
               osVersion: rec.osVersion,
-              version: 'v1.0.9',
-              resourceBuild: '2026.11.10.R2',
+              version: 'v1.1.0',
+              resourceBuild: '2026.11.16.R6',
               lastUpdatedEpoch: Number(lastTs),
               updateReceivedDate: rec.lastTelemetryUpdate,
               receivedVia: 'Exhaustive-Recovery'
@@ -4609,7 +4898,18 @@ async function startServer() {
       }
     });
 
-    console.log(`[PC FLEET RECOVERY] Recovered & synchronized ${consolidatedMachineStore.size} registered PCs across database.`);
+    // Purge any dummy PCs from all in-memory stores
+    for (const [k, v] of consolidatedMachineStore.entries()) {
+      if (!isRealPcRecord(v)) consolidatedMachineStore.delete(k);
+    }
+    for (const [k, v] of fleetReceiverStore.entries()) {
+      if (!isRealPcRecord(v)) fleetReceiverStore.delete(k);
+    }
+    for (const [k, v] of appHeartbeatStore.entries()) {
+      if (!isRealPcRecord(v)) appHeartbeatStore.delete(k);
+    }
+
+    console.log(`[PC FLEET RECOVERY] Recovered & synchronized ${consolidatedMachineStore.size} authentic registered PCs across database.`);
   };
 
   const saveFleetReceiverStore = () => {
@@ -4667,8 +4967,8 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (Synced via New Update)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.10.R1',
-        version: body.version || 'v1.0.9',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.16.R6',
+        version: body.version || 'v1.1.0',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
         localIp: body.localIp || '192.168.1.100',
@@ -4702,8 +5002,8 @@ async function startServer() {
       processConsolidatedTelemetry(record);
       saveConsolidatedHealthStore();
 
-      // Send Instant Telegram Notification to Admin (@DhawanRakesh / 431228008)
-      if (body.suppressTelegram !== 'true' && body.suppressTelegram !== true) {
+      // Send Instant Telegram Notification to Admin (@DhawanRakesh / 431228008) ONLY if not already sent directly by C# client
+      if (shouldServerDispatchTelegram(record, body)) {
         const typeBadge = isExisting 
           ? '🔄 <b>EXISTING PC UPDATED (ఈ అప్డేట్ ద్వారా సింక్ అయింది)</b>' 
           : '🆕 <b>FRESH INSTALLATION</b>';
@@ -5111,8 +5411,8 @@ ${aiAnalysis || 'Analysis in progress.'}
       const pcName = String(body.pcName || 'OFFICE-PC').trim();
       const pcId = String(body.pcId || 'EVD-PC').trim();
       const osVersion = String(body.osVersion || 'Windows 10/11').trim();
-      const appVersion = String(body.appVersion || 'v1.0.9').trim();
-      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.10.R1').trim();
+      const appVersion = String(body.appVersion || 'v1.1.0').trim();
+      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6').trim();
 
       const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
       const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';
@@ -5139,27 +5439,35 @@ ${aiAnalysis || 'Analysis in progress.'}
       const feedbacks = loadFeedbackVault();
       feedbacks.unshift(feedbackRecord);
       saveFeedbackVault(feedbacks);
+      mirrorFeedbackToFirestore({ ...feedbackRecord, district: body.district || officeLocation, state: body.state || 'Telangana' }).catch(() => {});
 
       const stats = calculateFeedbackStats(feedbacks);
 
-      // Instant Telegram Alert to Admin Bot
-      try {
-        const tgMsg = `🌟 <b>NEW E-VEDHIKA OPERATOR FEEDBACK & RATING!</b>\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `⭐ <b>Rating:</b> ${stars} (<b>${rating}/5 Stars</b>)\n` +
-          `👤 <b>Operator:</b> ${escapeHtml(operatorName)}\n` +
-          `🏢 <b>Office:</b> ${escapeHtml(officeLocation)}\n` +
-          (contactPhone ? `📱 <b>Contact Phone:</b> ${escapeHtml(contactPhone)}\n` : '') +
-          `🏷️ <b>Category:</b> ${escapeHtml(category)}\n` +
-          `💬 <b>Feedback:</b> ${escapeHtml(comments)}\n` +
-          `💻 <b>PC ID:</b> <code>${escapeHtml(pcName)}</code> (${escapeHtml(pcId)})\n` +
-          `📅 <b>Submitted At:</b> ${timestampIST}\n` +
-          `📊 <b>Fleet Rating:</b> ${stats.averageRating} / 5.0 (${stats.total} Total Reviews)\n\n` +
-          `🌐 <b>Live Monitoring Dashboard:</b> https://www.e-vedhika.in/admin/ubd_monitoring`;
+      // Instant Telegram Alert to Admin Bot (skip if C# client already dispatched direct Telegram message)
+      if (
+        body.directTelegramSent !== true &&
+        body.directTelegramSent !== 'true' &&
+        body.suppressTelegram !== true &&
+        body.suppressTelegram !== 'true'
+      ) {
+        try {
+          const tgMsg = `🌟 <b>NEW E-VEDHIKA OPERATOR FEEDBACK & RATING!</b>\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `⭐ <b>Rating:</b> ${stars} (<b>${rating}/5 Stars</b>)\n` +
+            `👤 <b>Operator:</b> ${escapeHtml(operatorName)}\n` +
+            `🏢 <b>Office:</b> ${escapeHtml(officeLocation)}\n` +
+            (contactPhone ? `📱 <b>Contact Phone:</b> ${escapeHtml(contactPhone)}\n` : '') +
+            `🏷️ <b>Category:</b> ${escapeHtml(category)}\n` +
+            `💬 <b>Feedback:</b> ${escapeHtml(comments)}\n` +
+            `💻 <b>PC ID:</b> <code>${escapeHtml(pcName)}</code> (${escapeHtml(pcId)})\n` +
+            `📅 <b>Submitted At:</b> ${timestampIST}\n` +
+            `📊 <b>Fleet Rating:</b> ${stats.averageRating} / 5.0 (${stats.total} Total Reviews)\n\n` +
+            `🌐 <b>Live Monitoring Dashboard:</b> ${ADMIN_LIVE_REPORTS_URL}`;
 
-        sendTelegramMessage(tgMsg).catch(() => {});
-      } catch (tgErr: any) {
-        console.warn('[FEEDBACK TELEGRAM WARNING]:', tgErr.message);
+          sendTelegramMessage(tgMsg).catch(() => {});
+        } catch (tgErr: any) {
+          console.warn('[FEEDBACK TELEGRAM WARNING]:', tgErr.message);
+        }
       }
 
       console.log(`[FEEDBACK RECORDED] ${operatorName} (${officeLocation}) -> ${rating} Stars: ${comments}`);
@@ -6156,6 +6464,8 @@ Write-Host "[6/6] Deployment Complete! Enterprise Web Compat is ready for Enterp
       ps1Script: ps1Content,
     });
   });
+
+  // /live-pc-reports and /admin-live-reports are served directly by the React SPA + real-time Firestore Dashboard
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {

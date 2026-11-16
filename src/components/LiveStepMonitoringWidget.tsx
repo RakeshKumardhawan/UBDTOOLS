@@ -403,7 +403,7 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            v1.0.9 (Latest Release)
+            v1.1.0 (Latest Release)
           </button>
           <button
             onClick={() => setVersionFilter('v1.0.7')}
@@ -414,7 +414,7 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-            v1.0.0 - v1.0.8 (Legacy OTA)
+            v1.0.0 - v1.0.9 (Legacy OTA)
           </button>
         </div>
 
@@ -439,23 +439,23 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
           <div className="text-right">
             <span className="text-[10px] font-mono text-slate-500 uppercase block">Active Version</span>
             <span className="text-xs font-mono font-bold text-cyan-300">
-              {versionFilter === 'v1.0.7' ? 'v1.0.0-v1.0.8 (14 Steps)' : 'v1.0.9 (17 Steps Master)'}
+              {versionFilter === 'v1.0.7' ? 'v1.0.0-v1.0.9 (14 Steps)' : 'v1.1.0 (17 Steps Master)'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Version Delta Banner when v1.0.9 is selected */}
+      {/* Version Delta Banner when v1.1.0 is selected */}
       {(versionFilter === 'v1.0.8' || versionFilter === 'ALL') && (
         <div className="mb-6 p-3.5 bg-cyan-950/40 border border-cyan-800/50 rounded-2xl flex items-center justify-between gap-3 text-xs text-cyan-200">
           <div className="flex items-center gap-2.5">
             <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>
-              <strong>v1.0.9 OTA Global Release:</strong> Full Over-The-Air auto-update support enabled for all legacy client builds (v1.0.0 through v1.0.8). Automatic background installation, SHA256 DSC patch, and 24x7 Silent Guardian deployment.
+              <strong>v1.1.0 OTA Global Release:</strong> Full Over-The-Air auto-update support enabled for all legacy client builds (v1.0.0 through v1.0.9). Automatic background installation, SHA256 DSC patch, and 24x7 Silent Guardian deployment.
             </span>
           </div>
           <span className="px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 font-mono text-[10px] shrink-0 font-semibold">
-            v1.0.9 OTA ACTIVE
+            v1.1.0 OTA ACTIVE
           </span>
         </div>
       )}
@@ -551,7 +551,7 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
           <div className="flex items-center gap-2">
             <Monitor className="w-4 h-4 text-cyan-400" />
             <span className="text-xs font-mono font-bold text-slate-200">
-              CENTRAL TELEMETRY LIVE WORKSTATION FEED ({machinePings.length > 0 ? machinePings.length : 13} INSTALLED PCs)
+              CENTRAL TELEMETRY LIVE WORKSTATION FEED ({machinePings.length} INSTALLED PCs)
             </span>
           </div>
 
@@ -562,26 +562,27 @@ export const LiveStepMonitoringWidget: React.FC<LiveStepMonitoringWidgetProps> =
         </div>
 
         {/* Workstation Chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          {(machinePings.length > 0 ? machinePings : [
-            { pcName: 'GP-BHADRADRI-PC-01', officeLocation: 'Bhadradri Kothagudem', status: 'SUCCESS' },
-            { pcName: 'MANDAL-WARANGAL-PC-04', officeLocation: 'Warangal Rural', status: 'SUCCESS' },
-            { pcName: 'GP-NIZAMABAD-PC-02', officeLocation: 'Nizamabad North', status: 'SUCCESS' },
-            { pcName: 'GP-KHAMMAM-PC-09', officeLocation: 'Khammam Urban', status: 'SUCCESS' },
-            { pcName: 'MANDAL-KARIMNAGAR-PC-03', officeLocation: 'Karimnagar Main', status: 'SUCCESS' },
-            { pcName: 'GP-NALGONDA-PC-05', officeLocation: 'Nalgonda District', status: 'SUCCESS' }
-          ]).slice(0, 8).map((pc, i) => (
-            <div 
-              key={i}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2 text-xs font-mono"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              <span className="text-slate-300 font-bold">{pc.pcName}</span>
-              <span className="text-[10px] text-slate-500">({pc.officeLocation || 'GP Office'})</span>
-              <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[9px]">17/17 OK</span>
-            </div>
-          ))}
-        </div>
+        {machinePings.length === 0 ? (
+          <div className="text-xs text-slate-400 font-mono py-2 px-3 rounded-xl bg-slate-900/70 border border-slate-800">
+            No live client PCs reported yet. Authentic workstations will appear here once operators run EVedhikaUBDDeploymentTool.exe.
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            {machinePings.slice(0, 8).map((pc, i) => (
+              <div 
+                key={i}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2 text-xs font-mono"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span className="text-slate-300 font-bold">{pc.pcName}</span>
+                <span className="text-[10px] text-slate-500">({pc.officeLocation || 'GP Office'})</span>
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[9px]">
+                  {pc.status || 'LIVE'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Interactive Step Detail Inspector Drawer / Modal */}

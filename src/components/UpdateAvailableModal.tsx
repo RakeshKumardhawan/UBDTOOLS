@@ -52,7 +52,7 @@ export const UpdateAvailableModal: React.FC<UpdateAvailableModalProps> = ({
 
       // Trigger installer download
       const link = document.createElement('a');
-      link.href = downloadUrl || 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe';
+      link.href = downloadUrl || 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.1.0.exe';
       link.target = '_blank';
       link.download = `EVedhika_Setup_${latestVersion}.exe`;
       document.body.appendChild(link);

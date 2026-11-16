@@ -41,8 +41,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.9";
-        public const string CurrentResourceBuild = "2026.11.12.R5";
+        public const string CurrentVersion = "v1.1.0";
+        public const string CurrentResourceBuild = "2026.11.16.R6";
 
         public static void ShowWhatsNewDialog(IWin32Window owner, string prevVer, string currVer, string prevBuild, string currBuild, string relDate, string installStatus, string integrityStatus, string restartStatus, string releaseNotes)
         {

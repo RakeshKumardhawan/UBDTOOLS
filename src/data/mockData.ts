@@ -137,7 +137,7 @@ export const defaultDeploymentSteps: DeploymentStep[] = [
     id: 16,
     module: 'Auto-Update',
     title: 'OTA Auto-Update Check Engine',
-    description: 'Query GitHub release API for version updates (v1.0.7 -> v1.0.8+).',
+    description: 'Query GitHub release API for latest v1.1.0 OTA resource updates.',
     status: 'pending',
   },
   {
@@ -336,16 +336,6 @@ export const departmentProfiles: DepartmentProfile[] = [
   }
 ];
 
-export const initialBackupSnapshots: BackupSnapshot[] = [
-  {
-    id: 'bak-20260729-01',
-    timestamp: '2026-07-29 09:15 AM',
-    title: 'Pre-Deployment Baseline Backup',
-    regKeyCount: 142,
-    policyCount: 18,
-    createdUser: 'System Administrator',
-    notes: 'Automatic snapshot captured prior to initial E-Vedhika UBD deployment run.',
-  }
-];
+export const initialBackupSnapshots: BackupSnapshot[] = [];
 
 export const initialLogs: LogEntry[] = [];

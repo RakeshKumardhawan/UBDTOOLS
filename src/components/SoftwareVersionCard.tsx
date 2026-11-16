@@ -26,9 +26,9 @@ export const SoftwareVersionCard: React.FC<SoftwareVersionCardProps> = ({
 }) => {
   const { showSuccess, showInfo, showError } = useToast();
   const [currentVersion, setCurrentVersion] = useState<string>(CURRENT_APP_VERSION);
-  const [latestVersion, setLatestVersion] = useState<string>('v1.0.9');
-  const [hasUpdate, setHasUpdate] = useState<boolean>(true);
-  const [downloadUrl, setDownloadUrl] = useState<string>('https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.0.9.exe');
+  const [latestVersion, setLatestVersion] = useState<string>(CURRENT_APP_VERSION);
+  const [hasUpdate, setHasUpdate] = useState<boolean>(false);
+  const [downloadUrl, setDownloadUrl] = useState<string>(`https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_${CURRENT_APP_VERSION}.exe`);
   const [releaseNotes, setReleaseNotes] = useState<string>('');
   
   const [isChecking, setIsChecking] = useState<boolean>(false);
@@ -50,7 +50,7 @@ export const SoftwareVersionCard: React.FC<SoftwareVersionCardProps> = ({
     try {
       const res: UpdateCheckResult = await checkForUpdates();
       setCurrentVersion(res.currentVersion || CURRENT_APP_VERSION);
-      const targetLatest = res.latestVersion || 'v1.0.9';
+      const targetLatest = res.latestVersion || CURRENT_APP_VERSION;
       setLatestVersion(targetLatest);
       const updateFlag = res.hasUpdate || (targetLatest !== currentVersion);
       setHasUpdate(updateFlag);
@@ -114,11 +114,11 @@ export const SoftwareVersionCard: React.FC<SoftwareVersionCardProps> = ({
     if (onLogUpdateAction) {
       onLogUpdateAction(
         'Update Engine',
-        `Operator opened Software Update Dialog for Version v1.0.9.`,
+        `Operator opened Software Update Dialog for Version ${CURRENT_APP_VERSION}.`,
         'info'
       );
     }
-    setLatestVersion('v1.0.9');
+    setLatestVersion(CURRENT_APP_VERSION);
     setHasUpdate(true);
     setShowModal(true);
   };
@@ -170,7 +170,7 @@ export const SoftwareVersionCard: React.FC<SoftwareVersionCardProps> = ({
             <div className="text-sm font-bold text-emerald-400 flex items-center justify-between">
               <span>{latestVersion}</span>
               <span className={`text-[10px] ${hasUpdate ? 'text-amber-400 font-bold animate-bounce' : 'text-slate-400'}`}>
-                {hasUpdate ? '🚀 Build v1.0.9 Ready' : 'Latest'}
+                {hasUpdate ? `🚀 Build ${latestVersion} Ready` : 'Latest'}
               </span>
             </div>
           </div>

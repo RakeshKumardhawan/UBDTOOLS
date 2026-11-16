@@ -1,0 +1,13 @@
+E-Vedhika UBD Deployment Tool (v1.1.0)
+LICENSE & ACCESS TERMS
+
+CURRENT STATUS: FREE ACCESS ACTIVE FOR ALL OPERATORS (NO KEY NEEDED NOW)
+PLANNED FUTURE SUBSCRIPTION: ₹10 / MONTH (30 DAYS) PER PC
+
+Copyright (c) 2026 Rakesh Kumar Dhawan (E-Vedhika Development Community)
+
+1. Right now all Grama Panchayat & Mandal Office computers can install and use
+   every feature of E-Vedhika UBD Deployment Tool 100% Free of charge.
+2. When Admin enables Monthly Subscription Mode (PAID_MONTHLY) in the future,
+   each PC requires a ₹10 / 30-day activation linked to its Machine ID.
+3. Support & Official Portal: https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports

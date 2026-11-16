@@ -10,7 +10,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }
 
 Write-Host "===========================================================================" -ForegroundColor Cyan
-Write-Host "  E-VEDHIKA UBD TOOL - SMART APP CONTROL & ERROR 4551 AUTO-FIXER (v1.0.9)" -ForegroundColor Green
+Write-Host "  E-VEDHIKA UBD TOOL - SMART APP CONTROL & ERROR 4551 AUTO-FIXER (v1.1.0)" -ForegroundColor Green
 Write-Host "===========================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -36,20 +36,20 @@ New-Item -ItemType Directory -Path $safeTemp -Force -ErrorAction SilentlyContinu
 New-Item -ItemType Directory -Path $safeUpdates -Force -ErrorAction SilentlyContinue | Out-Null
 
 # 4. Unblock Downloaded Files & Add Windows Defender Exclusions
-Write-Host "[4/5] Unblocking EVedhika_Setup_v1.0.9.exe and adding Defender Exclusions..." -ForegroundColor Yellow
+Write-Host "[4/5] Unblocking EVedhika_Setup_v1.1.0.exe and adding Defender Exclusions..." -ForegroundColor Yellow
 $downloadsDir = Join-Path $env:USERPROFILE "Downloads"
 Get-ChildItem -Path $downloadsDir -Filter "*EVedhika*" -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 Get-ChildItem -Path "." -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 Add-MpPreference -ExclusionPath $downloadsDir, "C:\ProgramData\EVedhika", $safeTemp, "C:\Program Files (x86)\E-Vedhika UBD Tool" -ErrorAction SilentlyContinue
-Add-MpPreference -ExclusionProcess "EVedhika_Setup_v1.0.9.exe", "EVedhikaUBDDeploymentTool.exe", "EVedhikaAutoRepair.exe" -ErrorAction SilentlyContinue
+Add-MpPreference -ExclusionProcess "EVedhika_Setup_v1.1.0.exe", "EVedhikaUBDDeploymentTool.exe", "EVedhikaAutoRepair.exe" -ErrorAction SilentlyContinue
 
 # 5. Launch Installer with Redirected TEMP/TMP to bypass Error 4551
-Write-Host "[5/5] Launching EVedhika_Setup_v1.0.9.exe from Trusted Directory..." -ForegroundColor Green
+Write-Host "[5/5] Launching EVedhika_Setup_v1.1.0.exe from Trusted Directory..." -ForegroundColor Green
 $env:TEMP = $safeTemp
 $env:TMP = $safeTemp
-$dlInstaller = Join-Path $downloadsDir "EVedhika_Setup_v1.0.9.exe"
+$dlInstaller = Join-Path $downloadsDir "EVedhika_Setup_v1.1.0.exe"
 if (Test-Path $dlInstaller) {
-    $trustedCopy = Join-Path $safeUpdates "EVedhika_Setup_v1.0.9.exe"
+    $trustedCopy = Join-Path $safeUpdates "EVedhika_Setup_v1.1.0.exe"
     Copy-Item -Path $dlInstaller -Destination $trustedCopy -Force
     Unblock-File -Path $trustedCopy -ErrorAction SilentlyContinue
     Start-Process -FilePath $trustedCopy

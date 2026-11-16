@@ -23,7 +23,7 @@ $consolidatedFile = $storageDir . '/pc_consolidated_health.json';
 $issuesFile = $storageDir . '/active_issues.json';
 
 // Application Version
-$version = 'v1.0.9';
+$version = 'v1.1.0';
 
 // Central Telegram Bot Credentials
 $botToken = "8822107822:AAG9TIOX1lnRXpUuKCbs7ppM3r1TPTnNYrE";

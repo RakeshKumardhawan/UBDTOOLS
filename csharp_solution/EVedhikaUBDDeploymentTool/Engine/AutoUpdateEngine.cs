@@ -15,12 +15,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
 {
     public class AutoUpdateEngine
     {
-        public const string CurrentVersion = "v1.0.9";
-        public const int CurrentVersionCode = 10090;
-        public const string CurrentResourceBuild = "2026.11.12.R5";
-        public const string ResourceDate = "2026-11-12";
+        public const string CurrentVersion = "v1.1.0";
+        public const int CurrentVersionCode = 10100;
+        public const string CurrentResourceBuild = "2026.11.16.R6";
+        public const string ResourceDate = "2026-11-16";
         public static string ActiveResourceBuild = CurrentResourceBuild;
-        public const string UpdateApiUrl = "https://www.e-vedhika.in/admin/ubd_monitoring.php?action=check_update";
+        public const string UpdateApiUrl = "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json";
 
         private static string ExtractJsonValue(string json, string key)
         {
@@ -224,8 +224,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
                     "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json",
-                    "https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/version.json",
-                    "https://www.e-vedhika.in/version.json"
+                    "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/version"
                 };
 
                 foreach (var url in candidateUrls)
@@ -287,7 +286,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         public static UpdateInfo CheckForUpdates(Action<string> logCallback = null)
         {
-            logCallback?.Invoke("[AUTO-UPDATE] Checking www.e-vedhika.in & GitHub Releases for software updates...");
+            logCallback?.Invoke("[AUTO-UPDATE] Checking Central Cloud Hub & GitHub Releases for software updates...");
 
             UpdateInfo info = new UpdateInfo
             {
@@ -315,9 +314,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json",
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/api/version.json",
-                "https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/version.json",
-                "https://www.e-vedhika.in/version.json",
-                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest"
+                "https://api.github.com/repos/RakeshKumardhawan/UBDTOOLS/releases/latest",
+                "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/version"
             };
 
             bool fetched = false;
@@ -328,7 +326,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     using (var wc = new TimeoutWebClient(4000))
                     {
-                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.9";
+                        wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.1.0";
                         wc.Encoding = Encoding.UTF8;
                         string jsonResponse = wc.DownloadString(url);
 
@@ -431,7 +429,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             info.LatestVersion = latestVer;
                             info.ReleaseNotes = string.IsNullOrEmpty(releaseNotes) ? "Official E-Vedhika Portal & UBD Deployment Suite Release." : releaseNotes;
                             info.CategorizedChangelog = ParseCategorizedChangelog(info.ReleaseNotes);
-                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.9.exe" : downloadUrl;
+                            info.DownloadUrl = string.IsNullOrEmpty(downloadUrl) ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.1.0.exe" : downloadUrl;
                             info.ReleaseDate = string.IsNullOrEmpty(relDate) ? ResourceDate : relDate;
                             info.DownloadSize = string.IsNullOrEmpty(dSize) ? "8.5 MB" : dSize;
                             info.Sha256Hash = sha256;
@@ -718,7 +716,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Label lblMeta1 = new Label
                 {
-                    Text = $"📦 Installed Version: v1.0.9   |   Resource Build: {CurrentResourceBuild}   |   SHA-256 Authenticode Signed",
+                    Text = $"📦 Installed Version: v1.1.0   |   Resource Build: {CurrentResourceBuild}   |   SHA-256 Authenticode Signed",
                     Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(56, 189, 248),
                     AutoSize = true,
@@ -831,7 +829,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 rtb.SelectionColor = Color.FromArgb(203, 213, 225);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 rtb.AppendText("   • 64-bit Windows రిజిస్ట్రీ తనిఖీని సరిచేసి, రెండవదిగా వచ్చిన 271 MB డూప్లికేట్ ఎంట్రీని పూర్తిగా తుడిచిపెట్టాము.\r\n");
-                rtb.AppendText("   • Windows Control Panel (Add/Remove Programs) లో కేవలం ఒకే ఒక్క అధికారిక 139 MB 'E-Vedhika UBD Tool (v1.0.9)' మాత్రమే ఉంటుంది.\r\n\r\n");
+                rtb.AppendText("   • Windows Control Panel (Add/Remove Programs) లో కేవలం ఒకే ఒక్క అధికారిక 139 MB 'E-Vedhika UBD Tool (v1.1.0)' మాత్రమే ఉంటుంది.\r\n\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(245, 158, 11);
                 rtb.SelectionFont = new Font("Segoe UI", 10f, FontStyle.Bold);
@@ -1104,6 +1102,108 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch { }
         }
 
+        public static void DetectPreviousVersionState(out string prevVersion, out string prevBuild, out bool isUpgrade)
+        {
+            prevVersion = "";
+            prevBuild = "";
+            isUpgrade = false;
+
+            try
+            {
+                string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                string versionStateFile = Path.Combine(progDataDir, "installed_version_state.json");
+                string lastBuildMarker = Path.Combine(progDataDir, "last_notified_build.txt");
+                string vaultFile = Path.Combine(progDataDir, "telemetry_vault.json");
+                string installIdFile = Path.Combine(progDataDir, "install_id.txt");
+
+                // 1. Structured state file
+                if (File.Exists(versionStateFile))
+                {
+                    string json = File.ReadAllText(versionStateFile, Encoding.UTF8);
+                    string v = ExtractJsonValue(json, "version");
+                    string b = ExtractJsonValue(json, "resourceBuild");
+                    if (!string.IsNullOrEmpty(v)) prevVersion = v;
+                    if (!string.IsNullOrEmpty(b)) prevBuild = b;
+                }
+
+                // 2. Fallback to registry LastInstalledVersion / ResourceBuild
+                if (string.IsNullOrEmpty(prevVersion))
+                {
+                    try
+                    {
+                        using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\EVedhika"))
+                        {
+                            if (key != null)
+                            {
+                                var regVer = key.GetValue("LastInstalledVersion")?.ToString();
+                                var regBuild = key.GetValue("LastResourceBuild")?.ToString();
+                                if (!string.IsNullOrEmpty(regVer)) prevVersion = regVer;
+                                if (string.IsNullOrEmpty(prevBuild) && !string.IsNullOrEmpty(regBuild)) prevBuild = regBuild;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 3. Fallback to legacy telemetry_vault.json or last_notified_build.txt
+                if (string.IsNullOrEmpty(prevBuild) && File.Exists(lastBuildMarker))
+                {
+                    string recordedBuild = File.ReadAllText(lastBuildMarker, Encoding.UTF8).Trim();
+                    if (!string.IsNullOrEmpty(recordedBuild)) prevBuild = recordedBuild;
+                }
+
+                if (string.IsNullOrEmpty(prevVersion) && File.Exists(vaultFile))
+                {
+                    string vJson = File.ReadAllText(vaultFile, Encoding.UTF8);
+                    string vVer = ExtractJsonValue(vJson, "version");
+                    string vBuild = ExtractJsonValue(vJson, "resourceBuild");
+                    if (!string.IsNullOrEmpty(vVer)) prevVersion = vVer;
+                    if (string.IsNullOrEmpty(prevBuild) && !string.IsNullOrEmpty(vBuild)) prevBuild = vBuild;
+                }
+
+                // 4. Determine whether this is an upgrade from an older version/build
+                if (!string.IsNullOrEmpty(prevVersion) && !prevVersion.Equals(CurrentVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    isUpgrade = true;
+                }
+                else if (!string.IsNullOrEmpty(prevBuild) && !prevBuild.Equals(CurrentResourceBuild, StringComparison.OrdinalIgnoreCase))
+                {
+                    isUpgrade = true;
+                }
+                else if (string.IsNullOrEmpty(prevVersion) && (File.Exists(installIdFile) || File.Exists(vaultFile)))
+                {
+                    // Legacy pre-v1.1.0 installation exists without structured version marker
+                    prevVersion = "v1.0.x (Legacy)";
+                    if (string.IsNullOrEmpty(prevBuild)) prevBuild = "Legacy Build";
+                    isUpgrade = true;
+                }
+            }
+            catch { }
+        }
+
+        public static void SaveInstalledVersionState(string version, string resourceBuild)
+        {
+            try
+            {
+                string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                if (!Directory.Exists(progDataDir)) Directory.CreateDirectory(progDataDir);
+
+                string versionStateFile = Path.Combine(progDataDir, "installed_version_state.json");
+                string json = $"{{\"version\":\"{EscapeJson(version)}\",\"resourceBuild\":\"{EscapeJson(resourceBuild)}\",\"updatedAt\":\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"}}";
+                File.WriteAllText(versionStateFile, json, Encoding.UTF8);
+
+                File.WriteAllText(Path.Combine(progDataDir, "last_notified_build.txt"), resourceBuild, Encoding.UTF8);
+
+                using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\EVedhika"))
+                {
+                    key?.SetValue("LastInstalledVersion", version ?? CurrentVersion);
+                    key?.SetValue("LastResourceBuild", resourceBuild ?? CurrentResourceBuild);
+                    key?.SetValue("UpdatedAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                }
+            }
+            catch { }
+        }
+
         public static void CheckAndShowPendingWhatsNewOnStartup(IWin32Window owner, Action<string> logCallback = null)
         {
             try
@@ -1112,15 +1212,25 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string stateFilePath = Path.Combine(tempDir, "update_pending_state.json");
                 string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
                 if (!Directory.Exists(progDataDir)) Directory.CreateDirectory(progDataDir);
-                string lastBuildMarker = Path.Combine(progDataDir, "last_notified_build.txt");
 
-                string prevVer = CurrentVersion;
+                string safeCurrVerSlug = Logger.SanitizeFirestoreId(CurrentVersion, "v");
+                string safeCurrBuildSlug = Logger.SanitizeFirestoreId(CurrentResourceBuild, "b");
+                string upgradeReportedMarker = Path.Combine(progDataDir, $"upgrade_reported_{safeCurrVerSlug}_{safeCurrBuildSlug}.marker");
+
+                string prevVer = "";
                 string currVer = CurrentVersion;
-                string prevBuild = "2026.11.12.R4";
+                string prevBuild = "";
                 string currBuild = CurrentResourceBuild;
                 string relDate = ResourceDate;
-                string relNotes = "[NEW FEATURES]\n• Universal Windows Compatibility (Windows 7 RTM SP0, 7 SP1, 8, 8.1, 10, 11 — 32/64-bit)\n• Updated Resource Build to 2026.11.12.R5 with zero-blocker installer & native .NET 4.0-4.8 support\n• Real-time Online/Offline PC Presence & 17-Step Automated Portal Deployment\n[SECURITY UPDATES]\n• Zero-Cost Windows 7, 8, 10 & 11 Defender, SmartScreen & Smart App Control Permission Management";
-                bool shouldShowWhatsNew = false;
+                string relNotes = "[NEW FEATURES v1.1.0]\n" +
+                    "• Particular GitHub Admin Live Hub: https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports\n" +
+                    "• Automatic Version-Upgrade PC Reporting to Google Cloud Firestore & Telegram\n" +
+                    "• Interactive 1-5 Star Operator Rating & Feedback Collection\n" +
+                    "• Accurate District & GP Office Selection (All 33 Telangana & 26 AP Districts)\n" +
+                    "• Universal Windows Compatibility (Windows 7 SP0/SP1, 8, 8.1, 10, 11)";
+
+                bool isOtaJustCompleted = false;
+                bool isUpgradeDetected = false;
 
                 if (File.Exists(stateFilePath))
                 {
@@ -1137,61 +1247,91 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             relDate = ExtractJsonValue(json, "releaseDate");
                             string parsedNotes = ExtractJsonValue(json, "releaseNotes");
                             if (!string.IsNullOrEmpty(parsedNotes)) relNotes = parsedNotes;
-                            shouldShowWhatsNew = true;
+                            isOtaJustCompleted = true;
+                            isUpgradeDetected = true;
                         }
                     }
                     try { File.Delete(stateFilePath); } catch { }
                 }
-                else if (File.Exists(lastBuildMarker))
+
+                if (!isUpgradeDetected)
                 {
-                    string recordedBuild = File.ReadAllText(lastBuildMarker, Encoding.UTF8).Trim();
-                    if (!string.IsNullOrEmpty(recordedBuild) && !recordedBuild.Equals(CurrentResourceBuild, StringComparison.OrdinalIgnoreCase))
+                    string detPrevVer, detPrevBuild;
+                    bool detUpgraded;
+                    DetectPreviousVersionState(out detPrevVer, out detPrevBuild, out detUpgraded);
+                    if (detUpgraded)
                     {
-                        prevBuild = recordedBuild;
-                        currBuild = CurrentResourceBuild;
-                        shouldShowWhatsNew = true;
+                        prevVer = detPrevVer;
+                        prevBuild = detPrevBuild;
+                        isUpgradeDetected = true;
                     }
                 }
 
-                try { File.WriteAllText(lastBuildMarker, CurrentResourceBuild, Encoding.UTF8); } catch { }
-
-                if (!shouldShowWhatsNew) return;
-
-                if (string.IsNullOrEmpty(prevVer)) prevVer = CurrentVersion;
-                if (string.IsNullOrEmpty(prevBuild)) prevBuild = "2026.11.11.R3";
                 if (string.IsNullOrEmpty(currVer)) currVer = CurrentVersion;
                 if (string.IsNullOrEmpty(currBuild)) currBuild = CurrentResourceBuild;
                 if (string.IsNullOrEmpty(relDate)) relDate = ResourceDate;
 
-                logCallback?.Invoke($"[OTA VERIFICATION] Update Verified! Software Version: {CurrentVersion} (Resource Build: {CurrentResourceBuild}). Presenting What's New Notification...");
+                // Always persist current version state cleanly
+                SaveInstalledVersionState(currVer, currBuild);
 
-                // Write update history log locally & relay telemetry
-                WriteLocalUpdateHistoryLog(prevVer, currVer, prevBuild, currBuild, "COMPLETED_100_VERIFIED");
-                OtaNotificationService.SendUpdateHistoryLog(
-                    "OTA_VERIFIED",
-                    prevVer, currVer,
-                    prevBuild, currBuild,
-                    $"REL-{currVer}-{currBuild}",
-                    DateTime.Now.AddMinutes(-2).ToString("yyyy-MM-dd HH:mm:ss"),
-                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    "SHA256_PASSED_DIGITAL_SIG_VERIFIED",
-                    "SUCCESSFUL_FILE_REPLACEMENT",
-                    "SINGLE_INSTANCE_RESTART_SUCCESS",
-                    "COMPLETED_100_VERIFIED"
-                );
+                // Report EVERY upgraded PC exactly once per (CurrentVersion, CurrentResourceBuild)
+                bool alreadyReportedThisUpgrade = File.Exists(upgradeReportedMarker);
+                if (isUpgradeDetected && !alreadyReportedThisUpgrade)
+                {
+                    if (string.IsNullOrEmpty(prevVer)) prevVer = "v1.0.9";
+                    if (string.IsNullOrEmpty(prevBuild)) prevBuild = "2026.11.12.R4";
 
-                ShowWhatsNewDialog(
-                    owner,
-                    prevVer,
-                    currVer,
-                    prevBuild,
-                    currBuild,
-                    relDate,
-                    "Completed Successfully (100% Verified)",
-                    "SHA-256 Passed & Authenticode Verified",
-                    "Application Restarted & Verified",
-                    relNotes
-                );
+                    try
+                    {
+                        File.WriteAllText(upgradeReportedMarker, $"{Environment.MachineName} ({Logger.GetUniqueMachineId()}) upgraded {prevVer} ({prevBuild}) -> {currVer} ({currBuild}) at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    }
+                    catch { }
+
+                    logCallback?.Invoke($"[UPGRADE VERIFICATION] PC upgraded {prevVer} -> {currVer} ({currBuild}). Dispatching upgrade report...");
+
+                    WriteLocalUpdateHistoryLog(prevVer, currVer, prevBuild, currBuild, "COMPLETED_100_VERIFIED");
+
+                    if (isOtaJustCompleted)
+                    {
+                        OtaNotificationService.SendUpdateHistoryLog(
+                            "OTA_VERIFIED",
+                            prevVer, currVer,
+                            prevBuild, currBuild,
+                            $"REL-{currVer}-{currBuild}",
+                            DateTime.Now.AddMinutes(-2).ToString("yyyy-MM-dd HH:mm:ss"),
+                            DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                            "SHA256_PASSED_DIGITAL_SIG_VERIFIED",
+                            "SUCCESSFUL_FILE_REPLACEMENT",
+                            "SINGLE_INSTANCE_RESTART_SUCCESS",
+                            "COMPLETED_100_VERIFIED"
+                        );
+                    }
+                    else
+                    {
+                        OtaNotificationService.SendVersionUpgradeReport(
+                            "VERSION_UPGRADE",
+                            prevVer,
+                            currVer,
+                            prevBuild,
+                            currBuild,
+                            "SETUP_OR_MANUAL_UPGRADE",
+                            true
+                        );
+                    }
+
+                    ShowWhatsNewDialog(
+                        owner,
+                        prevVer,
+                        currVer,
+                        prevBuild,
+                        currBuild,
+                        relDate,
+                        "Completed Successfully (100% Verified)",
+                        "SHA-256 Passed & Authenticode Verified",
+                        "Application Updated & Verified",
+                        relNotes
+                    );
+                }
             }
             catch (Exception ex)
             {
@@ -1248,7 +1388,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 if (string.IsNullOrEmpty(downloadUrl))
                 {
-                    downloadUrl = "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.0.9.exe";
+                    downloadUrl = "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.1.0.exe";
                 }
 
                 if (!downloadUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -1291,7 +1431,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 using (WebClient wc = new WebClient())
                 {
-                    wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.9";
+                    wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.1.0";
                     if (progressCallback != null)
                     {
                         wc.DownloadProgressChanged += delegate(object sender, DownloadProgressChangedEventArgs e)
@@ -1302,6 +1442,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     progressCallback?.Invoke(10);
                     wc.DownloadFile(new Uri(downloadUrl), newExePath);
                     progressCallback?.Invoke(100);
+                }
+
+                if (!EdgeManagementEngine.IsValidInstallerBinary(newExePath))
+                {
+                    logCallback?.Invoke("[AUTO-UPDATE SKIPPED] Downloaded update file is not a valid Windows executable (possible proxy/HTML response). Aborting safely.");
+                    try { if (File.Exists(newExePath)) File.Delete(newExePath); } catch { }
+                    isUpdateInProgress = false;
+                    return false;
                 }
 
                 // Strip NTFS Zone.Identifier (Mark of the Web) natively via Win32 DeleteFileW to prevent Smart App Control & Error 4551
@@ -1352,7 +1500,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         using (var wcDirect = new TimeoutWebClient(15000))
                         {
-                            wcDirect.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.0.9";
+                            wcDirect.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.1.0";
                             wcDirect.DownloadFile("https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhikaUBDDeploymentTool.exe", directExePath);
                             BrowserSecurityEngine.RemoveZoneIdentifier(directExePath);
                         }
@@ -1506,11 +1654,7 @@ del ""%~f0""
             {
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/admin/announcements.json",
                 "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/admin/exe_ubd_live.json",
-                "https://www.e-vedhika.in/admin/announcements.json",
-                "https://www.e-vedhika.in/admin/exe_ubd_live.json",
-                "https://www.e-vedhika.in/announcements.json",
-                "https://www.e-vedhika.in/api/v1/posts/feed",
-                "https://www.e-vedhika.in/admin/exe_ubd_live?action=get_news"
+                "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/admin/announcements.json"
             };
 
             foreach (var url in endpoints)

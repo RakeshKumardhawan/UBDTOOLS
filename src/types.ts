@@ -107,7 +107,8 @@ export type NavigationTab =
   | 'network-flow'
   | 'settings'
   | 'help'
-  | 'about';
+  | 'about'
+  | 'pay-checkout';
 
 export interface SystemResourceStats {
   ram: {

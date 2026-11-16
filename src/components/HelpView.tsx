@@ -39,7 +39,47 @@ export const HelpView: React.FC = () => {
         
         {/* Left Column: Documentation & Troubleshooting */}
         <div className="lg:col-span-2 space-y-6">
-          
+
+          {/* Subscription, Zero-Call Payment & UTR Instructions Card */}
+          <div className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-emerald-100">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  💳 Subscription, Zero-Call UPI Payment &amp; UTR Guide (పేమెంట్ సూచనలు)
+                </h3>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                Free Early Access Now • Future ₹10/Month
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-slate-700">
+                <strong className="text-slate-900 block font-bold">
+                  1. యూజర్లు పేమెంట్ ఎలా చేయాలి? (Operator Steps)
+                </strong>
+                <ul className="list-disc list-inside space-y-1.5 leading-relaxed">
+                  <li>ప్రస్తుతం యాప్ <strong>100% ఉచితం</strong>. భవిష్యత్తులో Admin <code>PAID_MONTHLY</code> (₹10 / 30 రోజులు) ఆన్ చేసినప్పుడు యాప్ లో <strong>"📱 Scan QR / Pay ₹10 Online"</strong> బటన్ కనిపిస్తుంది.</li>
+                  <li>ఆ బటన్ నొక్కగానే బ్రౌజర్‌లో <strong>Scannable UPI QR Code</strong> లేదా Secure Gateway పేజీ ఓపెన్ అవుతుంది (Admin ఫోన్ నంబర్ బయటకు కనిపించదు — కాల్స్ చేయాల్సిన అవసరం లేదు).</li>
+                  <li>మీ PhonePe / GPay / Paytm తో QR స్కాన్ చేసి ₹10 చెల్లించాక, మీ యాప్ హిస్టరీలో ఉన్న <strong>12-అంకెల UTR / UPI Ref Number</strong> ను యాప్‌లో ఎంటర్ చేసి <strong>"📩 Submit UTR"</strong> నొక్కండి.</li>
+                  <li>Admin వెరిఫై చేసిన తర్వాత <strong>"🔄 Re-Check License Now"</strong> క్లిక్ చేస్తే యాప్ వెంటనే ఓపెన్ అవుతుంది.</li>
+                </ul>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2 text-slate-700">
+                <strong className="text-amber-900 block font-bold">
+                  2. Duplicate UTR &amp; Double-Payment నియమాలు
+                </strong>
+                <ul className="list-disc list-inside space-y-1.5 leading-relaxed">
+                  <li><strong>Unique UTR Lock:</strong> ప్రతి 12-అంకెల UTR నంబర్ కేవలం <strong>ఒక PC కి ఒక్కసారి మాత్రమే</strong> పనిచేస్తుంది. ఒకే UTR మళ్ళీ వేసినా లేదా వేరే PC కి షేర్ చేసినా సిస్టమ్ ఆటోమేటిక్‌గా బ్లాక్ చేస్తుంది.</li>
+                  <li><strong>Double Payment రక్షణ:</strong> పొరపాటున ఒకే PC కోసం 2 సార్లు ₹10 చెల్లిస్తే (2 వేర్వేరు UTR లతో), Admin రెండు క్లెయిమ్‌లు అప్రూవ్ చేస్తే <strong>30 + 30 = 60 రోజుల వ్యాలిడిటీ</strong> లభిస్తుంది.</li>
+                  <li><strong>Admin గోప్యత (Zero Calls):</strong> Admin <strong>Tab 7</strong> లో మొబైల్ నంబర్ లేని Alias UPI (<code>name@okaxis</code>) లేదా Razorpay Link వాడటం వలన ఎవరికీ మీ ఫోన్ నంబర్ కనిపించదు.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Installation & First-Run Guide Card */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100 mb-4">

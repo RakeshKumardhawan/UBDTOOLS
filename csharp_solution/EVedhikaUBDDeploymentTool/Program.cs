@@ -18,10 +18,10 @@ namespace EVedhikaUBDDeploymentTool
         [STAThread]
         static void Main(string[] args)
         {
-            // Immediate startup log to verify process launch on Win 7/8
+            // Immediate startup log to verify process launch on Win 7/8/10/11 (Admin & Standard User safe)
             try {
-                string startupLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup.log");
-                string logMsg = string.Format("[{0}] Process started\nOS: {1}\nRuntime: {2}\nDir: {3}\n-------------------\n", 
+                string startupLog = OSCompatibilityEngine.GetSafeLogFilePath("startup.log");
+                string logMsg = string.Format("[{0}] Process started (MIT Free License | v1.1.0)\nOS: {1}\nRuntime: {2}\nDir: {3}\n-------------------\n", 
                     DateTime.Now, Environment.OSVersion, Environment.Version, AppDomain.CurrentDomain.BaseDirectory);
                 File.AppendAllText(startupLog, logMsg);
             } catch { }
@@ -86,12 +86,11 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 catch { }
                 
-                // Configure TLS 1.2 for modern web API telemetry calls (.NET 4.8 compatibility)
+                // Configure OS compatibility shims & resilient TLS 1.3/1.2/1.1/1.0 cascade across Win 7/8/10/11
                 try
                 {
-                    System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072 | (System.Net.SecurityProtocolType)768 | System.Net.SecurityProtocolType.Tls;
-                    // Removed global SSL validation bypass to prevent MITM attacks. 
-                    // Individual WebClient calls in Logger.cs handle their own validation if absolutely necessary for legacy servers.
+                    OSCompatibilityEngine.ApplyCompatibilityShims();
+                    OSCompatibilityEngine.ConfigureResilientTls();
                 }
                 catch { }
 
@@ -236,7 +235,7 @@ namespace EVedhikaUBDDeploymentTool
             
             try
             {
-                string crashLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "EVedhika_CrashLog.txt");
+                string crashLogFile = OSCompatibilityEngine.GetSafeLogFilePath("EVedhika_CrashLog.txt");
                 File.AppendAllText(crashLogFile, string.Format("[{0:yyyy-MM-dd HH:mm:ss}] [{1}] {2}\n-----------------------------------\n", DateTime.Now, source, errDetails));
             }
             catch { }
@@ -271,11 +270,16 @@ namespace EVedhikaUBDDeploymentTool
         {
             try
             {
-                string state = "Telangana";
+                string prevVer, prevBuild;
+                bool isUpgrade;
+                AutoUpdateEngine.DetectPreviousVersionState(out prevVer, out prevBuild, out isUpgrade);
+
+                string state = SystemInfoHelper.GetConfiguredState("Telangana");
+                string district = SystemInfoHelper.GetConfiguredDistrict(state);
                 string loc = SystemInfoHelper.GetLiveLocation(state);
                 string officeLoc = (string.IsNullOrEmpty(loc) || loc == "Unknown Location")
-                    ? "Gram Panchayat Office (Telangana)"
-                    : $"{loc} (Telangana)";
+                    ? $"{district} - GP/Mandal Office ({state})"
+                    : (loc.IndexOf(state, StringComparison.OrdinalIgnoreCase) >= 0 ? loc : $"{loc} ({state})");
 
                 int postHScore;
                 string postHStatus, postHDiag;
@@ -287,18 +291,31 @@ namespace EVedhikaUBDDeploymentTool
                     "Active (sites.xml verified)",
                     out postHScore, out postHStatus, out postHDiag);
 
+                string verifSummary = isUpgrade
+                    ? $"Upgraded {prevVer} -> v1.1.0 ({AutoUpdateEngine.CurrentResourceBuild})"
+                    : "v1.1.0 Setup Completed (17/17 Pre-configured)";
+                string remarksSummary = isUpgrade
+                    ? $"EVedhika_Setup_v1.1.0.exe upgraded PC from {prevVer} ({prevBuild}) -> v1.1.0 ({AutoUpdateEngine.CurrentResourceBuild})."
+                    : $"EVedhika_Setup_v1.1.0.exe (Build {AutoUpdateEngine.CurrentResourceBuild}) installed and registered successfully.";
+
                 var data = new System.Collections.Generic.Dictionary<string, string>
                 {
-                    { "reportId", "RPT-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper() },
+                    { "reportId", (isUpgrade ? "UPG-" : "RPT-") + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper() },
+                    { "eventType", isUpgrade ? "VERSION_UPGRADE" : "INSTALLATION" },
+                    { "oldVersion", isUpgrade ? prevVer : "" },
+                    { "newVersion", "v1.1.0" },
                     { "pcId", Logger.GetUniqueMachineId() },
                     { "pcName", Environment.MachineName ?? "GP-OFFICE-PC" },
-                    { "userName", Environment.UserName ?? "Operator" },
+                    { "userName", SystemInfoHelper.GetConfiguredOperatorName() },
+                    { "operatorName", SystemInfoHelper.GetConfiguredOperatorName() },
+                    { "state", state },
+                    { "district", district },
                     { "officeLocation", officeLoc },
                     { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                     { "winEdition", SystemInfoHelper.GetWindowsVersion() },
                     { "winBuild", SystemInfoHelper.GetWindowsBuildNumber() },
                     { "architecture", SystemInfoHelper.GetSystemArchitecture() },
-                    { "version", "v1.0.9" },
+                    { "version", "v1.1.0" },
                     { "buildVersion", Engine.AutoUpdateEngine.CurrentResourceBuild },
                     { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                     { "status", "SUCCESS" },
@@ -311,7 +328,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "romStorage", SystemInfoHelper.GetRomStorageInfo() },
                     { "diskFreeSpace", SystemInfoHelper.GetDiskSpace() },
                     { "cpuInfo", SystemInfoHelper.GetProcessorInfo() },
-                    { "verification", "v1.0.9 Setup Completed (17/17 Pre-configured)" },
+                    { "verification", verifSummary },
                     { "totalChecks", "17" },
                     { "passedCount", "17" },
                     { "failedCount", "0" },
@@ -326,13 +343,27 @@ namespace EVedhikaUBDDeploymentTool
                     { "registryVerification", "Verified (Zone 2, Flags, Emulation)" },
                     { "errorDetails", "None" },
                     { "lastReportUploadTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "remarks", $"EVedhika_Setup_v1.0.9.exe (Build {Engine.AutoUpdateEngine.CurrentResourceBuild}) installed and registered successfully." },
+                    { "remarks", remarksSummary },
                     { "isFinalReport", "true" },
                     { "sendTelegram", "true" },
                     { "forceTelegram", "true" },
-                    { "isInstallation", "true" },
+                    { "isInstallation", isUpgrade ? "false" : "true" },
                     { "isPostInstallHook", "true" }
                 };
+
+                // Save new version state and mark upgrade as reported if upgrade detected during setup
+                AutoUpdateEngine.SaveInstalledVersionState(AutoUpdateEngine.CurrentVersion, AutoUpdateEngine.CurrentResourceBuild);
+                if (isUpgrade)
+                {
+                    try
+                    {
+                        string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                        string safeV = Logger.SanitizeFirestoreId(AutoUpdateEngine.CurrentVersion, "v");
+                        string safeB = Logger.SanitizeFirestoreId(AutoUpdateEngine.CurrentResourceBuild, "b");
+                        File.WriteAllText(Path.Combine(progDataDir, $"upgrade_reported_{safeV}_{safeB}.marker"), remarksSummary);
+                    }
+                    catch { }
+                }
 
                 // Synchronous delivery ensures the process does not terminate before HTTP sockets complete
                 Logger.SendSynchronousInstallationReport(data);

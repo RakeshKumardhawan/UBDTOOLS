@@ -29,44 +29,13 @@ export interface OfficerCertRecord {
 export const DscExpiryMonitorCard: React.FC = () => {
   const { showSuccess, showInfo, showError } = useToast();
 
-  const [officerCerts, setOfficerCerts] = useState<OfficerCertRecord[]>([
-    {
-      id: 'CERT-001',
-      officerName: 'Rakesh Kumar Dhawan',
-      designation: 'Panchayat Secretary / MPDO',
-      officeLocation: 'Grama Panchayat, Mancherial (MNCL)',
-      certSerialNumber: '5A1B8C9D3E0F7182',
-      validToDate: '2026-11-25', // ~26 days from current date (Expiring Soon!)
-      tokenType: 'WD ProxKey v3.0 (WatchData)',
-      registeredPhone: '9985402310'
-    },
-    {
-      id: 'CERT-002',
-      officerName: 'G. Suresh Goud',
-      designation: 'Grama Panchayat Secretary',
-      officeLocation: 'Grama Panchayat, Suryapet (SRPT)',
-      certSerialNumber: '7F8E9D0C1B2A3456',
-      validToDate: '2027-08-15',
-      tokenType: 'HYP2003 Token Middleware',
-      registeredPhone: '9848022334'
-    },
-    {
-      id: 'CERT-003',
-      officerName: 'K. Venkateswarlu',
-      designation: 'District Panchayat Officer (DPO)',
-      officeLocation: 'District Office, Khammam (KMM)',
-      certSerialNumber: '1A2B3C4D5E6F7890',
-      validToDate: '2026-10-15', // Already Expired
-      tokenType: 'ePass2003 Auto Token',
-      registeredPhone: '9440123456'
-    }
-  ]);
+  const [officerCerts, setOfficerCerts] = useState<OfficerCertRecord[]>([]);
 
   // Form for adding custom certificate to monitor
   const [newName, setNewName] = useState('');
   const [newDesignation, setNewDesignation] = useState('Panchayat Secretary');
   const [newOffice, setNewOffice] = useState('Grama Panchayat Office');
-  const [newExpiryDate, setNewExpiryDate] = useState('2026-11-30');
+  const [newExpiryDate, setNewExpiryDate] = useState('');
   const [newTokenType, setNewTokenType] = useState('WD ProxKey v3.0');
   const [isAdding, setIsAdding] = useState(false);
 
@@ -93,7 +62,7 @@ export const DscExpiryMonitorCard: React.FC = () => {
       officerName: newName.trim(),
       designation: newDesignation,
       officeLocation: newOffice.trim() || 'Grama Panchayat',
-      certSerialNumber: Math.random().toString(16).substring(2, 10).toUpperCase(),
+      certSerialNumber: Date.now().toString(16).toUpperCase(),
       validToDate: newExpiryDate,
       tokenType: newTokenType
     };
@@ -245,7 +214,16 @@ export const DscExpiryMonitorCard: React.FC = () => {
           </div>
         </div>
 
-        {officerCerts.map((cert) => {
+        {officerCerts.length === 0 ? (
+          <div className="p-8 text-center text-slate-500 space-y-2 bg-slate-50/40">
+            <Key className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="font-bold text-slate-700">No Officer DSC Certificates Registered Yet</p>
+            <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+              అధికారుల USB DSC టోకెన్ గడువు వివరాలను ట్రాక్ చేయడానికి పైన ఉన్న <strong>"+ Add Officer Token"</strong> బటన్ ద్వారా సర్టిఫికేట్‌ను యాడ్ చేయండి.
+            </p>
+          </div>
+        ) : (
+          officerCerts.map((cert) => {
           const daysLeft = calculateDaysRemaining(cert.validToDate);
           const isExpired = daysLeft <= 0;
           const isExpiringSoon = daysLeft > 0 && daysLeft <= 30;
@@ -298,7 +276,8 @@ export const DscExpiryMonitorCard: React.FC = () => {
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
     </div>
   );

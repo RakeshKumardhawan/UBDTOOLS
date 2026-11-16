@@ -1,0 +1,389 @@
+{
+  "entities": {
+    "InstalledPc": {
+      "title": "InstalledPc",
+      "description": "Represents a real Panchayat / Mandal computer where E-Vedhika UBD Deployment Tool v1.1.0 is installed or reporting live heartbeats.",
+      "type": "object",
+      "properties": {
+        "pcId": {
+          "type": "string",
+          "description": "Unique persistent machine identifier",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pcName": {
+          "type": "string",
+          "description": "Windows computer host name",
+          "maxLength": 128
+        },
+        "userName": {
+          "type": "string",
+          "description": "Operator name",
+          "maxLength": 128
+        },
+        "district": {
+          "type": "string",
+          "description": "Selected District name",
+          "maxLength": 100
+        },
+        "state": {
+          "type": "string",
+          "description": "Selected State (Telangana or Andhra Pradesh)",
+          "maxLength": 64
+        },
+        "officeLocation": {
+          "type": "string",
+          "description": "Grama Panchayat or Mandal office location",
+          "maxLength": 200
+        },
+        "osVersion": {
+          "type": "string",
+          "description": "Windows OS edition",
+          "maxLength": 120
+        },
+        "appVersion": {
+          "type": "string",
+          "description": "Application version (e.g. v1.1.0)",
+          "maxLength": 32
+        },
+        "resourceBuild": {
+          "type": "string",
+          "description": "Resource manifest build version",
+          "maxLength": 48
+        },
+        "appState": {
+          "type": "string",
+          "description": "RUNNING or CLOSED",
+          "enum": ["RUNNING", "CLOSED", "NOT_RESPONDING"]
+        },
+        "pcConnectivity": {
+          "type": "string",
+          "description": "ONLINE or OFFLINE",
+          "enum": ["ONLINE", "OFFLINE"]
+        },
+        "verification": {
+          "type": "string",
+          "description": "17-step verification summary",
+          "maxLength": 160
+        },
+        "dscStatus": {
+          "type": "string",
+          "description": "USB DSC Token detection status",
+          "maxLength": 160
+        },
+        "edgeIeMode": {
+          "type": "string",
+          "description": "Edge IE Mode policy status",
+          "maxLength": 160
+        },
+        "healthScore": {
+          "type": "number",
+          "description": "Workstation health percentage (0-100)"
+        },
+        "lastSeenAt": {
+          "type": "string",
+          "description": "Formatted timestamp string",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Firestore server timestamp"
+        }
+      },
+      "required": ["pcId", "pcName", "district", "state", "officeLocation", "appVersion", "appState", "updatedAt"]
+    },
+    "PcReportEvent": {
+      "title": "PcReportEvent",
+      "description": "Immutable deployment audit, installation, or error report event emitted by a PC.",
+      "type": "object",
+      "properties": {
+        "reportId": {
+          "type": "string",
+          "description": "Unique report event ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pcId": {
+          "type": "string",
+          "description": "Machine ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pcName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "userName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "district": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "officeLocation": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "reportType": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 48
+        },
+        "appVersion": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["reportId", "pcId", "pcName", "reportType", "status", "appVersion", "createdAt"]
+    },
+    "UserFeedback": {
+      "title": "UserFeedback",
+      "description": "Operator 1-5 star rating and feedback submitted from the desktop app or web dashboard.",
+      "type": "object",
+      "properties": {
+        "feedbackId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pcId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pcName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "operatorName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "district": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "officeLocation": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "rating": {
+          "type": "number"
+        },
+        "comments": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "appVersion": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["feedbackId", "pcId", "pcName", "operatorName", "rating", "comments", "appVersion", "createdAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized administrator registry document.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"]
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "LicensePolicy": {
+      "title": "LicensePolicy",
+      "description": "Global application licensing configuration (FREE_FOR_ALL now, PAID_MONTHLY ₹10/30-days later).",
+      "type": "object",
+      "properties": {
+        "policyId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["FREE_FOR_ALL", "PAID_MONTHLY"]
+        },
+        "monthlyPriceInr": {
+          "type": "number"
+        },
+        "durationDays": {
+          "type": "number"
+        },
+        "upiId": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "paymentLinkUrl": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "paymentNote": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["policyId", "mode", "monthlyPriceInr", "durationDays", "updatedAt"]
+    },
+    "PcLicense": {
+      "title": "PcLicense",
+      "description": "Per-PC 30-day subscription license record managed exclusively by Admin.",
+      "type": "object",
+      "properties": {
+        "pcId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pcName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "planType": {
+          "type": "string",
+          "enum": ["FREE_ACCESS", "PAID_30_DAYS"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "EXPIRED", "REVOKED"]
+        },
+        "amountInr": {
+          "type": "number"
+        },
+        "validUntilIso": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "paymentRef": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["pcId", "planType", "status", "amountInr", "validUntilIso", "updatedAt"]
+    },
+    "PaymentClaim": {
+      "title": "PaymentClaim",
+      "description": "Unique UPI UTR payment verification claim keyed by canonical UTR-{utrNumber} ID to prevent duplicate or reused UTR submissions.",
+      "type": "object",
+      "properties": {
+        "claimId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^UTR-[A-Z0-9]{8,36}$"
+        },
+        "utrNumber": {
+          "type": "string",
+          "maxLength": 36,
+          "pattern": "^[A-Z0-9]{8,36}$"
+        },
+        "pcId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pcName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "operatorName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "district": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "amountInr": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "APPROVED", "REJECTED"]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["claimId", "utrNumber", "pcId", "pcName", "amountInr", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/installed_pcs/{pcId}": {
+      "schema": { "$ref": "#/entities/InstalledPc" },
+      "description": "Live status and registry of every authentic installed PC"
+    },
+    "/pc_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/PcReportEvent" },
+      "description": "Historical log of installations, 17-step audits, and error events"
+    },
+    "/user_feedbacks/{feedbackId}": {
+      "schema": { "$ref": "#/entities/UserFeedback" },
+      "description": "Operator 1-5 star ratings and comments"
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin role allowlist documents"
+    },
+    "/app_settings/{policyId}": {
+      "schema": { "$ref": "#/entities/LicensePolicy" },
+      "description": "Global license mode toggle (FREE_FOR_ALL vs PAID_MONTHLY)"
+    },
+    "/pc_licenses/{pcId}": {
+      "schema": { "$ref": "#/entities/PcLicense" },
+      "description": "Per-PC subscription validity for ₹10/month licensing"
+    },
+    "/payment_claims/{claimId}": {
+      "schema": { "$ref": "#/entities/PaymentClaim" },
+      "description": "Anti-duplicate UPI UTR payment claim queue (create-once per UTR)"
+    }
+  }
+}

@@ -17,7 +17,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static Thread commandThread = null;
         private static string[] serverUrls = new string[]
         {
-            "https://www.e-vedhika.in"
+            "https://ais-dev-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app"
         };
         private static string sessionPcName = Environment.MachineName;
         private static string activeServerUrl = null;
@@ -74,7 +74,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                             using (var wc = new TimeoutWebClient(2500)) {
                                 wc.Headers[HttpRequestHeader.ContentType] = "application/json";
                                 wc.Encoding = System.Text.Encoding.UTF8;
-                                wc.UploadString(string.Format("{0}/admin/ubd_monitoring.php?action=remote_queue", url), "POST", json);
+                                wc.UploadString(string.Format("{0}/api/remote-queue", url), "POST", json);
                                 break;
                             }
                         } catch { }
@@ -104,7 +104,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                                 using (var wc = new TimeoutWebClient(2500)) {
                                     wc.Headers[HttpRequestHeader.ContentType] = "application/json";
                                     wc.Encoding = System.Text.Encoding.UTF8;
-                                    wc.UploadString(string.Format("{0}/admin/ubd_monitoring.php?action=remote_stream", url), "POST", jsonPayload);
+                                    wc.UploadString(string.Format("{0}/api/remote-stream", url), "POST", jsonPayload);
                                     activeServerUrl = url;
                                     break;
                                 }
@@ -129,7 +129,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         try {
                             using (var wc = new TimeoutWebClient(2000)) {
                                 wc.Encoding = System.Text.Encoding.UTF8;
-                                string json = wc.DownloadString(string.Format("{0}/admin/ubd_monitoring.php?action=remote_commands&pcName={1}", url, sessionPcName));
+                                string json = wc.DownloadString(string.Format("{0}/api/remote-commands?pcName={1}", url, sessionPcName));
                                 if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
                                 {
                                     ProcessRemoteCommand(json);
