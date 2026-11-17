@@ -322,7 +322,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Action loadInAppQr = delegate {
                     if (string.IsNullOrEmpty(status.UpiId)) return;
-                    System.Threading.Tasks.Task.Run(delegate {
+                    System.Threading.ThreadPool.QueueUserWorkItem(delegate {
                         try
                         {
                             OSCompatibilityEngine.ConfigureResilientTls();
