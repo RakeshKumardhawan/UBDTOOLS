@@ -4,7 +4,7 @@
 1. All PC reports, live status records, and feedback documents MUST have strictly bounded field sets (`keys().hasAll` + `keys().hasOnly`), validated `isValidId()` document IDs (`^[a-zA-Z0-9_\-]+$`, max 128 chars), and bounded string lengths.
 2. Star ratings in `user_feedbacks` MUST be integers in `[1, 5]`.
 3. Server timestamps (`createdAt` / `updatedAt`) MUST equal `request.time`.
-4. Read, list, and delete access to `/installed_pcs`, `/pc_reports`, and `/user_feedbacks` is strictly restricted to verified Admin (`Rakeshkumardhawan123@gmail.com` with `email_verified == true` or `/admins/{uid}` document), preventing unauthorized scraping or PII exposure.
+4. Read, list, and delete access to `/installed_pcs`, `/pc_reports`, and `/user_feedbacks` is strictly restricted to verified Admin (`email.lower() == 'rakeshkumardhawan123@gmail.com'` with `email_verified == true` or `/admins/{uid}` document), preventing unauthorized scraping or PII exposure.
 5. Client-side role self-escalation on `/admins/{uid}` is forbidden (`allow write: if false`).
 
 ## 2. Adversarial "Dirty Dozen" Payloads (All Must Fail)
@@ -15,7 +15,7 @@
 5. Rating out of bounds (`rating: 99` or `rating: 0` or `rating: "5"`) -> Rejected by `is int && rating >= 1 && rating <= 5`.
 6. Unauthenticated read/list on `installed_pcs` -> Rejected by `isAdmin()`.
 7. Non-admin authenticated user with unverified admin email reading `user_feedbacks` -> Rejected by `isAdmin()`.
-8. Email spoofing (`email == 'Rakeshkumardhawan123@gmail.com'` with `email_verified == false`) -> Rejected by `email_verified == true`.
+8. Email spoofing (`email.lower() == 'rakeshkumardhawan123@gmail.com'` with `email_verified == false`) -> Rejected by `email_verified == true`.
 9. Deleting `pc_reports` without admin auth -> Rejected by `isAdmin()`.
 10. Creating a document in `/admins/{uid}` to escalate privilege -> Rejected by `allow write: if false`.
 11. Modifying `pcId` on `installed_pcs` update -> Rejected by `incoming().pcId == existing().pcId`.
