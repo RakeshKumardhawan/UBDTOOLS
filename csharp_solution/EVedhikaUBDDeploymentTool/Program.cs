@@ -351,18 +351,21 @@ namespace EVedhikaUBDDeploymentTool
                     { "isPostInstallHook", "true" }
                 };
 
-                // Save new version state and mark upgrade as reported if upgrade detected during setup
-                AutoUpdateEngine.SaveInstalledVersionState(AutoUpdateEngine.CurrentVersion, AutoUpdateEngine.CurrentResourceBuild);
+                // Save new version state and record persistent upgrade summary if upgrade detected during setup
                 if (isUpgrade)
                 {
+                    AutoUpdateEngine.RecordPersistentUpgradeSummary(prevVer, prevBuild, AutoUpdateEngine.CurrentVersion, AutoUpdateEngine.CurrentResourceBuild);
                     try
                     {
                         string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
-                        string safeV = Logger.SanitizeFirestoreId(AutoUpdateEngine.CurrentVersion, "v");
-                        string safeB = Logger.SanitizeFirestoreId(AutoUpdateEngine.CurrentResourceBuild, "b");
-                        File.WriteAllText(Path.Combine(progDataDir, $"upgrade_reported_{safeV}_{safeB}.marker"), remarksSummary);
+                        if (!Directory.Exists(progDataDir)) Directory.CreateDirectory(progDataDir);
+                        File.WriteAllText(Path.Combine(progDataDir, "pre_setup_previous_version.txt"), $"{prevVer}|{prevBuild}", Encoding.UTF8);
                     }
                     catch { }
+                }
+                else
+                {
+                    AutoUpdateEngine.SaveInstalledVersionState(AutoUpdateEngine.CurrentVersion, AutoUpdateEngine.CurrentResourceBuild);
                 }
 
                 // Synchronous delivery ensures the process does not terminate before HTTP sockets complete

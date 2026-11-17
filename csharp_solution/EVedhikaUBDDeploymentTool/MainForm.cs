@@ -690,7 +690,7 @@ namespace EVedhikaUBDDeploymentTool
                             btnTestCloud.Enabled = true;
                             btnTestCloud.Text = "🌐 Test Central Cloud Report Hub Connection";
                             if (reachable)
-                                MessageBox.Show("✅ Central Cloud Report Hub is REACHABLE (24/7 Live)!\n\nReports & Ratings sync automatically to Google Cloud Firestore.\nAdmin Live Dashboard:\n" + Helpers.Logger.AdminDashboardUrl, "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                MessageBox.Show("✅ Central Cloud Report Hub is REACHABLE (24/7 Live)!\n\nReports & Ratings sync automatically to Google Cloud Firestore.", "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             else
                                 MessageBox.Show("⚠️ Central Cloud Report Hub is NOT reachable.\n\nError: " + msg + "\n\nThis system might be blocked by a firewall or proxy.", "Network Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         });
@@ -824,7 +824,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 LogRemoteMessage("SYSTEM", "E-Vedhika C# .NET 4.8 Remote Assistance & Telemetry Engine initialized.");
                 LogRemoteMessage("REMOTE", $"Session PC: {Environment.MachineName} (User: {Environment.UserName})");
-                LogRemoteMessage("TELEMETRY", $"Targeting Dedicated Cloud Report Hub: {Helpers.Logger.AdminDashboardUrl}");
+                LogRemoteMessage("TELEMETRY", "Connected to Dedicated Central Cloud Report Hub (24/7 Live Sync Active).");
             }
             catch { }
 
@@ -961,7 +961,8 @@ namespace EVedhikaUBDDeploymentTool
                                             LogMessage("AUTO-UPDATE", $"[OTA] Automatically downloading update {updateInfo.LatestVersion}...");
                                             AutoUpdateEngine.PerformAutoUpdate(updateInfo.DownloadUrl,
                                                 delegate(string m) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", m); }); },
-                                                null);
+                                                null,
+                                                updateInfo);
                                         } else {
                                             LogMessage("AUTO-UPDATE", "User postponed the update.");
                                         }
@@ -2295,7 +2296,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnSendTelemetryManual_Click(object sender, EventArgs e)
         {
-            LogRemoteMessage("TELEMETRY", $"Posting live machine telemetry report to Dedicated Cloud Hub ({Helpers.Logger.AdminDashboardUrl}) ...");
+            LogRemoteMessage("TELEMETRY", "Posting live machine telemetry report to Dedicated Cloud Hub...");
             
             int manHScore;
             string manHStatus, manHDiag;

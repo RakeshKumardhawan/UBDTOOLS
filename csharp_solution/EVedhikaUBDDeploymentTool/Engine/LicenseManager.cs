@@ -83,9 +83,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     return res;
                 }
 
+                string pcPlanType = ExtractFirestoreString(pcJson, "planType");
                 string pcStatus = ExtractFirestoreString(pcJson, "status");
                 string validUntilIso = ExtractFirestoreString(pcJson, "validUntilIso");
                 res.ValidUntilIso = validUntilIso;
+
+                if (string.Equals(pcStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(pcPlanType, "FREE_ACCESS", StringComparison.OrdinalIgnoreCase))
+                {
+                    res.IsAllowed = true;
+                    res.SummaryText = "Admin Free Access Active (Payment Mode OFF for this PC)";
+                    return res;
+                }
 
                 DateTime expiryUtc;
                 bool validDate = DateTime.TryParse(
@@ -251,7 +260,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             using (Form dlg = new Form())
             {
                 dlg.Text = "E-Vedhika Subscription Plan (₹10 / Month)";
-                dlg.Size = new Size(550, 500);
+                dlg.Size = new Size(710, 500);
                 dlg.StartPosition = FormStartPosition.CenterParent;
                 dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
                 dlg.MaximizeBox = false;
@@ -264,19 +273,80 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 lblTitle.Font = new Font("Segoe UI", 12, FontStyle.Bold);
                 lblTitle.ForeColor = Color.FromArgb(56, 189, 248);
                 lblTitle.Location = new Point(20, 16);
-                lblTitle.Size = new Size(495, 28);
+                lblTitle.Size = new Size(650, 28);
 
                 Label lblInfo = new Label();
                 lblInfo.Text =
                     $"మీ PC కి నెలవారీ సబ్‌స్క్రిప్షన్ ({status.DurationDays} రోజులు - ₹{status.MonthlyPriceInr:0}) అవసరం ఉంది.\n" +
                     $"Status: {status.SummaryText}\n\n" +
-                    $"1. Admin UPI ID కి ₹{status.MonthlyPriceInr:0} చెల్లించండి (Transaction Note లో Machine ID రాయండి):\n" +
-                    (!string.IsNullOrEmpty(status.UpiId) ? $"   UPI ID: {status.UpiId}\n" : "   UPI ID: Admin వద్ద అడగండి\n") +
+                    $"1. కుడివైపు ఉన్న QR కోడ్‌ను PhonePe / GPay / Paytm తో స్కాన్ చేసి ₹{status.MonthlyPriceInr:0} చెల్లించండి:\n" +
+                    (!string.IsNullOrEmpty(status.UpiId) ? $"   UPI ID: {status.UpiId}\n" : "   UPI ID: Admin సెట్ చేసిన వెంటనే QR ఇక్కడ కనిపిస్తుంది\n") +
                     $"2. చెల్లించిన తర్వాత వచ్చిన 12-అంకెల UTR నంబర్‌ను క్రింద ఎంటర్ చేసి Submit చేయండి (Duplicate UTR అంగీకరించబడదు).\n" +
                     $"3. Admin అప్రూవ్ చేసిన వెంటనే '🔄 Re-Check License Now' క్లిక్ చేయండి.";
                 lblInfo.Font = new Font("Segoe UI", 9.0f, FontStyle.Regular);
                 lblInfo.Location = new Point(20, 50);
-                lblInfo.Size = new Size(495, 130);
+                lblInfo.Size = new Size(440, 130);
+
+                // In-App UPI QR Code Box (No Browser / No URL shown to user)
+                Panel pnlQr = new Panel();
+                pnlQr.BackColor = Color.FromArgb(30, 41, 59);
+                pnlQr.BorderStyle = BorderStyle.FixedSingle;
+                pnlQr.Location = new Point(475, 50);
+                pnlQr.Size = new Size(200, 235);
+
+                Label lblQrHeader = new Label();
+                lblQrHeader.Text = $"📱 Scan & Pay ₹{status.MonthlyPriceInr:0}";
+                lblQrHeader.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
+                lblQrHeader.ForeColor = Color.FromArgb(52, 211, 153);
+                lblQrHeader.TextAlign = ContentAlignment.MiddleCenter;
+                lblQrHeader.Location = new Point(4, 6);
+                lblQrHeader.Size = new Size(190, 20);
+
+                PictureBox picQr = new PictureBox();
+                picQr.BackColor = Color.White;
+                picQr.Location = new Point(20, 30);
+                picQr.Size = new Size(160, 160);
+                picQr.SizeMode = PictureBoxSizeMode.StretchImage;
+
+                Label lblQrSub = new Label();
+                lblQrSub.Text = !string.IsNullOrEmpty(status.UpiId) ? status.UpiId : "Alias UPI Not Set";
+                lblQrSub.Font = new Font("Consolas", 8.0f, FontStyle.Bold);
+                lblQrSub.ForeColor = Color.FromArgb(203, 213, 225);
+                lblQrSub.TextAlign = ContentAlignment.MiddleCenter;
+                lblQrSub.Location = new Point(4, 196);
+                lblQrSub.Size = new Size(190, 32);
+
+                pnlQr.Controls.Add(lblQrHeader);
+                pnlQr.Controls.Add(picQr);
+                pnlQr.Controls.Add(lblQrSub);
+
+                Action loadInAppQr = delegate {
+                    if (string.IsNullOrEmpty(status.UpiId)) return;
+                    System.Threading.Tasks.Task.Run(delegate {
+                        try
+                        {
+                            OSCompatibilityEngine.ConfigureResilientTls();
+                            string upiUri = $"upi://pay?pa={Uri.EscapeDataString(status.UpiId.Trim())}&pn=EVedhika&am={status.MonthlyPriceInr:0}&cu=INR&tn={Uri.EscapeDataString("EVD-" + pcId)}";
+                            string qrImgEndpoint = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=4&data=" + Uri.EscapeDataString(upiUri);
+                            using (WebClient wc = new WebClient())
+                            {
+                                byte[] imgBytes = wc.DownloadData(qrImgEndpoint);
+                                using (var ms = new MemoryStream(imgBytes))
+                                {
+                                    Image qrImg = Image.FromStream(ms);
+                                    if (!dlg.IsDisposed)
+                                    {
+                                        dlg.BeginInvoke((MethodInvoker)delegate {
+                                            picQr.Image = new Bitmap(qrImg);
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                };
+                loadInAppQr();
 
                 TextBox txtPcId = new TextBox();
                 txtPcId.Text = $"{pcId} ({Environment.MachineName})";
@@ -285,12 +355,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 txtPcId.ForeColor = Color.FromArgb(52, 211, 153);
                 txtPcId.Font = new Font("Consolas", 9.5f, FontStyle.Bold);
                 txtPcId.Location = new Point(20, 188);
-                txtPcId.Size = new Size(340, 26);
+                txtPcId.Size = new Size(295, 26);
 
                 Button btnCopy = new Button();
                 btnCopy.Text = "📋 Copy PC ID";
-                btnCopy.Location = new Point(370, 186);
-                btnCopy.Size = new Size(145, 28);
+                btnCopy.Location = new Point(325, 186);
+                btnCopy.Size = new Size(135, 28);
                 btnCopy.BackColor = Color.FromArgb(51, 65, 85);
                 btnCopy.ForeColor = Color.White;
                 btnCopy.FlatStyle = FlatStyle.Flat;
@@ -308,19 +378,19 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 lblUtrPrompt.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
                 lblUtrPrompt.ForeColor = Color.FromArgb(251, 191, 36);
                 lblUtrPrompt.Location = new Point(20, 228);
-                lblUtrPrompt.Size = new Size(495, 22);
+                lblUtrPrompt.Size = new Size(440, 22);
 
                 TextBox txtUtr = new TextBox();
                 txtUtr.Font = new Font("Consolas", 11, FontStyle.Bold);
                 txtUtr.BackColor = Color.FromArgb(30, 41, 59);
                 txtUtr.ForeColor = Color.White;
                 txtUtr.Location = new Point(20, 254);
-                txtUtr.Size = new Size(320, 30);
+                txtUtr.Size = new Size(285, 30);
 
                 Button btnSubmitUtr = new Button();
                 btnSubmitUtr.Text = "📩 Submit UTR";
-                btnSubmitUtr.Location = new Point(350, 253);
-                btnSubmitUtr.Size = new Size(165, 31);
+                btnSubmitUtr.Location = new Point(315, 253);
+                btnSubmitUtr.Size = new Size(145, 31);
                 btnSubmitUtr.BackColor = Color.FromArgb(2, 132, 199);
                 btnSubmitUtr.ForeColor = Color.White;
                 btnSubmitUtr.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
@@ -336,7 +406,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Button btnOpenUpi = new Button();
                 btnOpenUpi.Text = $"📱 Scan QR / Pay ₹{status.MonthlyPriceInr:0} Online";
                 btnOpenUpi.Location = new Point(20, 300);
-                btnOpenUpi.Size = new Size(275, 36);
+                btnOpenUpi.Size = new Size(320, 36);
                 btnOpenUpi.BackColor = Color.FromArgb(124, 58, 237);
                 btnOpenUpi.ForeColor = Color.White;
                 btnOpenUpi.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
@@ -345,11 +415,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 btnOpenUpi.Click += delegate {
                     try
                     {
+                        if (!string.IsNullOrEmpty(status.UpiId)) Clipboard.SetText(status.UpiId);
+                        loadInAppQr();
                         string targetUrl = (!string.IsNullOrEmpty(status.PaymentLinkUrl) &&
                             status.PaymentLinkUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                             ? status.PaymentLinkUrl.Trim()
-                            : $"https://rakeshkumardhawan.github.io/UBDTOOLS/?pay=1&pcId={Uri.EscapeDataString(pcId)}&pcName={Uri.EscapeDataString(Environment.MachineName ?? "GP-PC")}";
-                        if (!string.IsNullOrEmpty(status.UpiId)) Clipboard.SetText(status.UpiId);
+                            : $"https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports?pay=1&pcId={Uri.EscapeDataString(pcId)}&pcName={Uri.EscapeDataString(Environment.MachineName ?? "GP-PC")}";
                         Process.Start(new ProcessStartInfo { FileName = targetUrl, UseShellExecute = true });
                     }
                     catch { }
@@ -360,7 +431,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 lblNote.Font = new Font("Segoe UI", 8.5f, FontStyle.Italic);
                 lblNote.ForeColor = Color.FromArgb(148, 163, 184);
                 lblNote.Location = new Point(20, 345);
-                lblNote.Size = new Size(495, 42);
+                lblNote.Size = new Size(650, 42);
 
                 Button btnRecheck = new Button();
                 btnRecheck.Text = "🔄 Re-Check License Now";
@@ -386,7 +457,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Button btnClose = new Button();
                 btnClose.Text = "Close";
-                btnClose.Location = new Point(370, 400);
+                btnClose.Location = new Point(530, 400);
                 btnClose.Size = new Size(145, 42);
                 btnClose.BackColor = Color.FromArgb(71, 85, 105);
                 btnClose.ForeColor = Color.White;
@@ -395,6 +466,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 dlg.Controls.Add(lblTitle);
                 dlg.Controls.Add(lblInfo);
+                dlg.Controls.Add(pnlQr);
                 dlg.Controls.Add(txtPcId);
                 dlg.Controls.Add(btnCopy);
                 dlg.Controls.Add(lblUtrPrompt);

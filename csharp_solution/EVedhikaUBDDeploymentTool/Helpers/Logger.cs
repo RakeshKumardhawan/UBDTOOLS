@@ -145,6 +145,16 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             string pcConnectivity = (rawConn == "OFFLINE" || appState == "CLOSED") ? "OFFLINE" : "ONLINE";
 
             string verification = TruncateStr(ExtractJsonField(flatJson, "verification"), 160);
+            string persistentUpg = Engine.AutoUpdateEngine.GetPersistentUpgradeSummary();
+            if (!string.IsNullOrEmpty(persistentUpg))
+            {
+                if (string.IsNullOrEmpty(verification) ||
+                    verification.Equals("Passed (17/17)", StringComparison.OrdinalIgnoreCase) ||
+                    verification.StartsWith("17/17 Complete", StringComparison.OrdinalIgnoreCase))
+                {
+                    verification = TruncateStr($"{persistentUpg} | 17/17 Passed", 160);
+                }
+            }
             if (string.IsNullOrEmpty(verification)) verification = "Passed (17/17)";
 
             string dscStatus = TruncateStr(ExtractJsonField(flatJson, "dscStatus"), 160);
@@ -206,8 +216,13 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 if (string.IsNullOrEmpty(rawReportId)) rawReportId = "RPT-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
                 string reportId = SanitizeFirestoreId(rawReportId, "RPT");
 
-                string reportType = isInstallation ? "INSTALLATION" :
-                    (!string.IsNullOrEmpty(eventType) ? TruncateStr(eventType, 64) : "DEPLOYMENT_REPORT");
+                bool isUpgradeEvent = !string.IsNullOrEmpty(eventType) &&
+                    (eventType.Equals("VERSION_UPGRADE", StringComparison.OrdinalIgnoreCase) ||
+                     eventType.Equals("OTA_VERIFIED", StringComparison.OrdinalIgnoreCase));
+
+                string reportType = isUpgradeEvent ? TruncateStr(eventType, 64) :
+                    (isInstallation ? "INSTALLATION" :
+                    (!string.IsNullOrEmpty(eventType) ? TruncateStr(eventType, 64) : "DEPLOYMENT_REPORT"));
 
                 string details = !string.IsNullOrEmpty(remarks) ? remarks : verification;
                 details = TruncateStr(details, 1000);
@@ -1192,9 +1207,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         { "updateBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                         { "buildVersion", Engine.AutoUpdateEngine.CurrentResourceBuild },
                         { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
-                        { "status", "SUCCESS" },
+                        { "status", "ONLINE_READY" },
                         { "overallStatus", "HEALTHY" },
-                        { "verification", "Passed (17/17)" },
+                        { "verification", string.IsNullOrEmpty(Engine.AutoUpdateEngine.GetPersistentUpgradeSummary()) ? "Passed (17/17)" : Engine.AutoUpdateEngine.GetPersistentUpgradeSummary() + " | 17/17 Passed" },
                         { "healthScore", "100" },
                         { "osVersion", SystemInfoHelper.GetWindowsVersion() },
                         { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
@@ -1335,7 +1350,17 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 if (!data.ContainsKey("warningCount")) data["warningCount"] = "0";
                 if (!data.ContainsKey("lastReportUploadTime")) data["lastReportUploadTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-                data["isInstallation"] = "true";
+                bool isUpgradeEvt = data.ContainsKey("eventType") &&
+                    (string.Equals(data["eventType"], "VERSION_UPGRADE", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(data["eventType"], "OTA_VERIFIED", StringComparison.OrdinalIgnoreCase));
+                if (isUpgradeEvt)
+                {
+                    data["isInstallation"] = "false";
+                }
+                else if (!data.ContainsKey("isInstallation"))
+                {
+                    data["isInstallation"] = "true";
+                }
                 data["isFinalReport"] = "true";
 
                 // Configure TLS protocols

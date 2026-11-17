@@ -311,7 +311,7 @@ async function startServer() {
       district: districtVal,
       state: stateVal,
       appVersion: body.appVersion || body.version || 'v1.1.0',
-      resourceBuild: body.resourceBuild || '2026.11.16.R6',
+      resourceBuild: body.resourceBuild || '2026.11.16.R7',
       osVersion: body.osVersion || 'Windows 11 Pro',
       winBuild: body.winBuild || 'Build 22631',
       status: body.status || 'SUCCESS',
@@ -1090,7 +1090,7 @@ async function startServer() {
         officeLocation: { stringValue: String(rec.officeLocation || 'Gram Panchayat Office').slice(0, 200) },
         osVersion: { stringValue: String(rec.osVersion || rec.winEdition || 'Windows 10/11').slice(0, 120) },
         appVersion: { stringValue: String(rec.version || rec.appVersion || 'v1.1.0').slice(0, 32) },
-        resourceBuild: { stringValue: String(rec.resourceBuild || '2026.11.16.R6').slice(0, 48) },
+        resourceBuild: { stringValue: String(rec.resourceBuild || '2026.11.16.R7').slice(0, 48) },
         appState: { stringValue: appState },
         pcConnectivity: { stringValue: pcConnectivity },
         verification: { stringValue: String(rec.verification || 'Passed (17/17)').slice(0, 160) },
@@ -1216,7 +1216,7 @@ async function startServer() {
       `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
       `<b>Health Score:</b> <b>${healthScore}% (${healthStatus})</b>\n` +
       `<b>Health Diagnosis:</b> ${healthDiagnosis}\n` +
-      `<b>Software Version:</b> v1.1.0 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6'})\n` +
+      `<b>Software Version:</b> v1.1.0 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7'})\n` +
       `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
       `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
       `🔐 <b>Service & Security Verification</b>\n` +
@@ -2249,14 +2249,14 @@ async function startServer() {
     updateRequired: false,
     silent: false,
     downloadSize: '8.5 MB',
-    sha256: '4d54ba00f532b15793a70e0d4c03ca03d81b1cc23f0e6a1fa0cba4860f0720c9',
+    sha256: '',
     releaseNotes: '[NEW FEATURES v1.1.0]\n• Dedicated Cloud Telemetry & Admin Hub Link (/api/live-hub/ingest & /live-pc-reports) — Independent from e-vedhika.in\n• Interactive ★ 1-5 Star Rating & Feedback Dialog after 17-Step Deployment & Dedicated Feedback Tab\n• District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) — Eliminates false \'Hyderabad\' ISP location\n• Strictly 1 Telegram Report on Install & 1 on 17-Step Run (Zero Duplicate Telegram Messages)\n• Dedicated Admin Installed PCs, Live Online PCs & User Ratings Reports (0% Dummy Data)',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: FIRESTORE_COMMIT_URL,
-    latestResourceBuild: '2026.11.16.R6',
+    latestResourceBuild: '2026.11.16.R7',
     resourceBuildDate: '2026-11-16',
-    resourceBuild: '2026.11.16.R6',
-    manifestVersion: '2026.11.16.R6'
+    resourceBuild: '2026.11.16.R7',
+    manifestVersion: '2026.11.16.R7'
   };
 
 
@@ -2318,10 +2318,10 @@ async function startServer() {
           currentVersionConfig.versionCode = highestWeight;
           currentVersionConfig.downloadUrl = highestDownloadUrl;
           currentVersionConfig.executableName = highestExeName;
-          currentVersionConfig.latestResourceBuild = '2026.11.16.R6';
+          currentVersionConfig.latestResourceBuild = '2026.11.16.R7';
           currentVersionConfig.resourceBuildDate = '2026-11-16';
-          currentVersionConfig.resourceBuild = '2026.11.16.R6';
-          currentVersionConfig.manifestVersion = '2026.11.16.R6';
+          currentVersionConfig.resourceBuild = '2026.11.16.R7';
+          currentVersionConfig.manifestVersion = '2026.11.16.R7';
           currentVersionConfig.releaseDate = '2026-11-16';
           
           try {
@@ -2330,7 +2330,7 @@ async function startServer() {
             if (!fs.existsSync(apiVersionDir)) fs.mkdirSync(apiVersionDir, { recursive: true });
             fs.writeFileSync(path.join(apiVersionDir, 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
           } catch (err) {}
-          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.16.R6)`);
+          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.16.R7)`);
         }
       }
     } catch (e: any) {
@@ -2463,7 +2463,7 @@ async function startServer() {
       const healthScoreMatch = healthRaw.match(/(\d+)/);
       const healthScore = healthScoreMatch ? Number(healthScoreMatch[1]) : 100;
       const appVersion = extractField(block, ['Application Version', 'App Version', 'Version']) || 'v1.1.0';
-      const resourceBuild = extractField(block, ['Build Version', 'Resource Build']) || '2026.11.16.R6';
+      const resourceBuild = extractField(block, ['Build Version', 'Resource Build']) || '2026.11.16.R7';
       const verification = extractField(block, ['Summary', 'Verification']) || '17/17 steps passed.';
       const digiSignerStatus = extractField(block, ['DigiSigner Bridge', 'DigiSigner']) || 'Running (Port 8080 Active)';
       const port8080Status = extractField(block, ['Port 8080']) || 'Port 8080 Active (Listening)';
@@ -2768,7 +2768,7 @@ async function startServer() {
         osVersion: hb?.osVersion || cons?.osVersion || fleet?.osVersion || 'Windows 11 Pro',
         winBuild: hb?.winBuild || cons?.winBuild || fleet?.winBuild || 'Build 22631',
         appVersion: hb?.appVersion || cons?.appVersion || fleet?.appVersion || 'v1.1.0',
-        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || '2026.11.16.R6',
+        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || '2026.11.16.R7',
         pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
         appState: isOnline ? (hb?.appState || 'RUNNING') : 'CLOSED',
         lastHeartbeatTime: hb?.lastHeartbeatTime || cons?.lastTelemetryUpdate || 'N/A',
@@ -2830,7 +2830,7 @@ async function startServer() {
         osVersion: hb?.osVersion || cons?.osVersion || fleet?.osVersion || 'Windows 10/11',
         winBuild: hb?.winBuild || cons?.winBuild || fleet?.winBuild || 'Verified',
         appVersion: hb?.appVersion || cons?.appVersion || fleet?.version || 'v1.1.0',
-        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6',
+        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7',
         pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
         appState,
         isOnline,
@@ -2889,7 +2889,7 @@ async function startServer() {
           runningApps,
           closedApps,
           latestVersion: currentVersionConfig.latestVersion || 'v1.1.0',
-          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.16.R6',
+          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.16.R7',
           totalDeployments,
           successfulDeployments,
           failedDeployments,
@@ -2975,7 +2975,7 @@ async function startServer() {
         'District': m.district,
         'State': m.state,
         'App Version': m.appVersion || 'v1.1.0',
-        'Resource Build': '2026.11.16.R6',
+        'Resource Build': '2026.11.16.R7',
         'OS Version': m.osVersion,
         'Overall Status': m.overallStatus,
         'Verified Steps': `${m.deployment?.verifiedSteps || 17}/17`,
@@ -3032,7 +3032,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.1.0',
-            resourceBuild: (m as any).resourceBuild || '2026.11.16.R6',
+            resourceBuild: (m as any).resourceBuild || '2026.11.16.R7',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -3062,7 +3062,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.1.0',
-            resourceBuild: (m as any).resourceBuild || '2026.11.16.R6',
+            resourceBuild: (m as any).resourceBuild || '2026.11.16.R7',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -3098,7 +3098,7 @@ async function startServer() {
               district: l.district || 'District',
               state: l.state || 'Telangana',
               appVersion: l.version || l.appVersion || 'v1.1.0',
-              resourceBuild: l.resourceBuild || '2026.11.16.R6',
+              resourceBuild: l.resourceBuild || '2026.11.16.R7',
               osVersion: l.osVersion || 'Windows 11 Pro',
               winBuild: l.winBuild || 'Build 22631',
               status: l.status || 'SUCCESS',
@@ -3142,11 +3142,11 @@ async function startServer() {
     return res.json({
       success: true,
       currentVersion: 'v1.1.0',
-      currentResourceBuild: '2026.11.16.R6',
+      currentResourceBuild: '2026.11.16.R7',
       releases: [
         {
           version: 'v1.1.0',
-          resourceBuild: '2026.11.16.R6',
+          resourceBuild: '2026.11.16.R7',
           releaseId: 'REL-2026-11-16-R6',
           releaseDate: '2026-11-16',
           packageSize: '8.8 MB',
@@ -3920,7 +3920,7 @@ async function startServer() {
         osVersion: body.osVersion || 'Windows 11 Pro',
         winBuild: body.winBuild || 'Build 22631',
         appVersion: body.appVersion || body.version || 'v1.1.0',
-        resourceBuild: body.resourceBuild || '2026.11.16.R6',
+        resourceBuild: body.resourceBuild || '2026.11.16.R7',
         pcConnectivity: 'ONLINE',
         appState,
         lastHeartbeatEpoch: nowEpoch,
@@ -4070,7 +4070,7 @@ async function startServer() {
           const pcId = String(body.pcId || 'EVD-PC').trim();
           const osVersion = String(body.osVersion || 'Windows 10/11').trim();
           const appVersion = String(body.appVersion || body.version || 'v1.1.0').trim();
-          const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6').trim();
+          const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7').trim();
           const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
           const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';
           const feedbackRecord = {
@@ -4885,7 +4885,7 @@ async function startServer() {
               verification: '17/17 steps passed.',
               osVersion: rec.osVersion,
               version: 'v1.1.0',
-              resourceBuild: '2026.11.16.R6',
+              resourceBuild: '2026.11.16.R7',
               lastUpdatedEpoch: Number(lastTs),
               updateReceivedDate: rec.lastTelemetryUpdate,
               receivedVia: 'Exhaustive-Recovery'
@@ -4967,7 +4967,7 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (Synced via New Update)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.16.R6',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.16.R7',
         version: body.version || 'v1.1.0',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
@@ -5412,7 +5412,7 @@ ${aiAnalysis || 'Analysis in progress.'}
       const pcId = String(body.pcId || 'EVD-PC').trim();
       const osVersion = String(body.osVersion || 'Windows 10/11').trim();
       const appVersion = String(body.appVersion || 'v1.1.0').trim();
-      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R6').trim();
+      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7').trim();
 
       const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
       const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';

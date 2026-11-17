@@ -123,3 +123,26 @@ test('detectPhoneExposedInUpi flags mobile-number VPAs and allows business alias
   assert.match(uri, /pa=evedhika%40okaxis/);
   assert.match(uri, /am=10/);
 });
+
+test('Per-PC FREE_ACCESS bypasses payment even when global mode is PAID_MONTHLY', () => {
+  const now = Date.UTC(2026, 10, 16);
+  const paidPolicy = { ...DEFAULT_LICENSE_POLICY, mode: 'PAID_MONTHLY' as const };
+
+  const exemptRes = evaluateLicenseState(
+    paidPolicy,
+    {
+      pcId: 'EVD-VIP-PC-01',
+      pcName: 'MPDO-OFFICE-PC',
+      planType: 'FREE_ACCESS',
+      status: 'ACTIVE',
+      amountInr: 0,
+      validUntilIso: '2099-12-31T23:59:59.000Z',
+      paymentRef: 'ADMIN_FREE_BYPASS'
+    },
+    now
+  );
+  assert.equal(exemptRes.allowed, true);
+  assert.match(exemptRes.badgeText, /FREE BYPASS/i);
+  assert.equal(exemptRes.daysRemaining, 9999);
+});
+

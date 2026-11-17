@@ -160,11 +160,28 @@ export function buildUpiPaymentUri(
   return `upi://pay?${params.toString()}`;
 }
 
+export function isPcPaymentExempt(pcLicense?: PcLicenseRecord | null): boolean {
+  return Boolean(
+    pcLicense &&
+      pcLicense.status === 'ACTIVE' &&
+      pcLicense.planType === 'FREE_ACCESS'
+  );
+}
+
 export function evaluateLicenseState(
   policy: LicensePolicyConfig,
   pcLicense?: PcLicenseRecord | null,
   nowMs: number = Date.now()
 ): LicenseEvaluation {
+  if (isPcPaymentExempt(pcLicense)) {
+    return {
+      allowed: true,
+      badgeText: 'FREE BYPASS (Payment OFF for this PC)',
+      reason: 'Admin disabled payment requirement for this PC',
+      daysRemaining: 9999
+    };
+  }
+
   if (!policy || policy.mode === 'FREE_FOR_ALL') {
     return {
       allowed: true,
@@ -201,3 +218,4 @@ export function evaluateLicenseState(
     daysRemaining
   };
 }
+

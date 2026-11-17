@@ -7,14 +7,17 @@ import { useToast } from './Toast';
 import {
   DEFAULT_LICENSE_POLICY,
   LicensePolicyConfig,
+  PcLicenseRecord,
   buildClaimDocId,
   buildUpiPaymentUri,
+  isPcPaymentExempt,
   normalizeUtrNumber
 } from '../utils/licensePolicy';
 
 export const PublicPaymentCheckout: React.FC = () => {
   const { showSuccess, showError, showInfo } = useToast();
   const [policy, setPolicy] = useState<LicensePolicyConfig>(DEFAULT_LICENSE_POLICY);
+  const [pcLicense, setPcLicense] = useState<PcLicenseRecord | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [pcIdInput, setPcIdInput] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -58,7 +61,41 @@ export const PublicPaymentCheckout: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const cleanPcId = pcIdInput.trim().replace(/[^a-zA-Z0-9_-]/g, '-');
+    if (!cleanPcId) {
+      setPcLicense(null);
+      return;
+    }
+    (async () => {
+      try {
+        const snap = await getDocFromServer(doc(db, 'pc_licenses', cleanPcId));
+        if (active && snap.exists()) {
+          const d: any = snap.data();
+          setPcLicense({
+            pcId: d.pcId || cleanPcId,
+            pcName: d.pcName || '',
+            planType: d.planType === 'FREE_ACCESS' ? 'FREE_ACCESS' : 'PAID_30_DAYS',
+            status: d.status || 'ACTIVE',
+            amountInr: Number(d.amountInr ?? 0),
+            validUntilIso: String(d.validUntilIso || ''),
+            paymentRef: String(d.paymentRef || '')
+          });
+        } else if (active) {
+          setPcLicense(null);
+        }
+      } catch {
+        // Ignore read error
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pcIdInput]);
+
   const upiUri = policy.upiId ? buildUpiPaymentUri(policy.upiId, policy.monthlyPriceInr, pcIdInput) : '';
+  const isExemptPc = isPcPaymentExempt(pcLicense);
 
   const handleSubmitUtr = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,14 +177,36 @@ export const PublicPaymentCheckout: React.FC = () => {
           </div>
           <span
             className={`px-3 py-1.5 rounded-full text-xs font-bold self-start ${
-              policy.mode === 'FREE_FOR_ALL'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              isExemptPc
+                ? 'bg-violet-500/20 text-violet-200 border border-violet-400/40'
+                : policy.mode === 'FREE_FOR_ALL'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
             }`}
           >
-            {loading ? 'Checking Mode...' : policy.mode === 'FREE_FOR_ALL' ? '🟢 Currently Free for All' : `💳 Paid Plan (₹${policy.monthlyPriceInr}/Mo)`}
+            {loading
+              ? 'Checking Mode...'
+              : isExemptPc
+                ? '🔓 Payment Mode OFF for this PC'
+                : policy.mode === 'FREE_FOR_ALL'
+                  ? '🟢 Currently Free for All'
+                  : `💳 Paid Plan (₹${policy.monthlyPriceInr}/Mo)`}
           </span>
         </div>
+
+        {isExemptPc && (
+          <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-4 text-xs text-emerald-200 flex items-start gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-white block">
+                🎉 ఈ PC ({pcIdInput}) కి Admin గారు Payment Mode OFF చేశారు (100% Free Access)!
+              </strong>
+              <span>
+                మీరు ఎటువంటి పేమెంట్ చేయాల్సిన అవసరం లేదు. నేరుగా మీ C# డెస్క్‌టాప్ అప్లికేషన్‌లో <strong>"🔄 Re-Check License Now"</strong> క్లిక్ చేయండి.
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
           {/* Left: Scannable QR Code / Gateway Link */}

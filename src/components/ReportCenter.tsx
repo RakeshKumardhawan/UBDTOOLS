@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useToast } from './Toast';
 import { PCDetailsModal } from './PCDetailsModal';
+import { PublicPaymentCheckout } from './PublicPaymentCheckout';
 import {
   auth,
   db,
@@ -23,11 +24,8 @@ import {
   limit,
   handleFirestoreError,
   OperationType,
-  ADMIN_EMAIL,
-  FIRESTORE_PUBLIC_INGEST_URL,
-  FIREBASE_CONSOLE_DATA_URL
+  ADMIN_EMAIL
 } from '../firebase';
-import { GITHUB_ADMIN_LIVE_LINK } from '../utils/urlRouting';
 import {
   DEFAULT_LICENSE_POLICY,
   LicensePolicyConfig,
@@ -35,6 +33,7 @@ import {
   PaymentClaimRecord,
   computeRenewalExpiryIso,
   evaluateLicenseState,
+  isPcPaymentExempt,
   inspectPaymentClaimDuplicate,
   detectPhoneExposedInUpi,
   buildUpiPaymentUri
@@ -64,14 +63,22 @@ interface ReportEvent {
 export const ReportCenter: React.FC = () => {
   const { showInfo, showSuccess, showError } = useToast();
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [mainSection, setMainSection] = useState<'installed-pcs' | 'live-pcs' | 'feedback' | 'reports' | 'updates' | 'website-code' | 'license-plans'>('installed-pcs');
+  const [mainSection, setMainSection] = useState<'installed-pcs' | 'live-pcs' | 'feedback' | 'reports' | 'updates' | 'website-code' | 'license-plans'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('pay') === '1' || params.get('pcId') || params.get('section') === 'license') {
+      return 'license-plans';
+    }
+    return 'installed-pcs';
+  });
   const [licensePolicy, setLicensePolicy] = useState<LicensePolicyConfig>(DEFAULT_LICENSE_POLICY);
   const [pcLicensesMap, setPcLicensesMap] = useState<Record<string, PcLicenseRecord>>({});
   const [paymentClaims, setPaymentClaims] = useState<PaymentClaimRecord[]>([]);
   const [savingPolicy, setSavingPolicy] = useState<boolean>(false);
   const [activatingPcId, setActivatingPcId] = useState<string | null>(null);
   const [reviewingClaimId, setReviewingClaimId] = useState<string | null>(null);
-  const [pcVersionFilter, setPcVersionFilter] = useState<'ALL' | 'V110_UPGRADED'>('ALL');
+  const [bypassPcIdInput, setBypassPcIdInput] = useState<string>('');
+  const [bypassPcNameInput, setBypassPcNameInput] = useState<string>('');
+  const [pcVersionFilter, setPcVersionFilter] = useState<'ALL' | 'V110_UPGRADED' | 'FRESH_INSTALLED'>('ALL');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [startDate] = useState<string>('');
@@ -110,7 +117,7 @@ export const ReportCenter: React.FC = () => {
     runningApps: 0,
     closedApps: 0,
     latestVersion: 'v1.1.0',
-    latestResourceBuild: '2026.11.16.R6',
+    latestResourceBuild: '2026.11.16.R7',
     totalDeployments: 0,
     successfulDeployments: 0,
     failedDeployments: 0,
@@ -171,7 +178,7 @@ export const ReportCenter: React.FC = () => {
             officeLocation: data.officeLocation || 'Grama Panchayat Office',
             osVersion: data.osVersion || 'Windows 10/11',
             appVersion: data.appVersion || 'v1.1.0',
-            resourceBuild: data.resourceBuild || '2026.11.16.R6',
+            resourceBuild: data.resourceBuild || '2026.11.16.R7',
             appState: isOnline ? (data.appState || 'RUNNING') : 'CLOSED',
             pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
             isOnline,
@@ -211,7 +218,7 @@ export const ReportCenter: React.FC = () => {
               district: data.district || 'District',
               state: data.state || 'Telangana',
               appVersion: data.appVersion || 'v1.1.0',
-              resourceBuild: '2026.11.16.R6',
+              resourceBuild: '2026.11.16.R7',
               status: data.status || 'SUCCESS',
               appState: 'RUNNING',
               timestampIst: new Date(createdMs).toLocaleString(),
@@ -343,22 +350,106 @@ export const ReportCenter: React.FC = () => {
     return () => unsubPolicy();
   }, []);
 
-  // Merge Firestore live records + Server API records (0% dummy data)
+  const reports = useMemo(() => {
+    const map = new Map<string, ReportEvent>();
+    apiReports.forEach((r) => map.set(String(r.eventId || r.reportId), r));
+    fsReports.forEach((r) => map.set(String(r.eventId || r.reportId), r));
+    return Array.from(map.values());
+  }, [apiReports, fsReports]);
+
+  // Merge Firestore live records + Server API records + Report History (0% dummy data) and enrich with exact Upgrade vs Fresh Install status
   const installedPcs = useMemo(() => {
     const map = new Map<string, any>();
     apiInstalledPcs.forEach((p) => {
       const k = String(p.pcId || p.pcName || '').toUpperCase();
-      if (k) map.set(k, p);
+      if (k) map.set(k, { ...p });
     });
     fsInstalledPcs.forEach((p) => {
       const k = String(p.pcId || p.pcName || '').toUpperCase();
-      if (k) map.set(k, p);
+      if (k) map.set(k, { ...(map.get(k) || {}), ...p });
     });
-    return Array.from(map.values()).sort((a, b) => (b.lastSeenEpoch || 0) - (a.lastSeenEpoch || 0));
-  }, [apiInstalledPcs, fsInstalledPcs]);
+
+    // Cross-reference reports so every PC with a VERSION_UPGRADE / OTA_VERIFIED / INSTALLATION report is accurately tagged
+    const pcReportCounts = new Map<string, number>();
+    const pcUpgradeInfo = new Map<string, { transition: string; details: string; timestamp: string }>();
+
+    reports.forEach((r) => {
+      const k = String(r.pcId || r.pcName || '').toUpperCase();
+      if (!k) return;
+      pcReportCounts.set(k, (pcReportCounts.get(k) || 0) + 1);
+
+      const detailsStr = String(r.details || r.remarks || '');
+      const isUpgReport =
+        r.reportType === 'VERSION_UPGRADE' ||
+        r.reportType === 'OTA_VERIFIED' ||
+        detailsStr.toLowerCase().includes('upgraded') ||
+        detailsStr.includes('->') ||
+        detailsStr.includes('➔');
+
+      if (isUpgReport && !pcUpgradeInfo.has(k)) {
+        const transMatch = detailsStr.match(/(v?\d+\.\d+\.\d+[^\s->➔]*)\s*(?:->|➔)\s*(v?\d+\.\d+\.\d+)/i);
+        const transition = transMatch ? `${transMatch[1]} ➔ ${transMatch[2]}` : `Previous ➔ ${r.appVersion || 'v1.1.0'}`;
+        pcUpgradeInfo.set(k, {
+          transition,
+          details: detailsStr,
+          timestamp: r.timestampIst || ''
+        });
+      }
+
+      if (!map.has(k)) {
+        map.set(k, {
+          pcId: r.pcId || r.pcName,
+          pcName: r.pcName || 'GP-OFFICE-PC',
+          userName: r.userName || 'Operator',
+          district: r.district || 'Telangana',
+          state: r.state || 'Telangana',
+          officeLocation: r.officeLocation || 'Grama Panchayat Office',
+          osVersion: 'Windows 10/11',
+          appVersion: r.appVersion || 'v1.1.0',
+          resourceBuild: r.resourceBuild || '2026.11.16.R7',
+          appState: 'CLOSED',
+          pcConnectivity: 'OFFLINE',
+          isOnline: false,
+          verification: detailsStr || '17/17 steps passed.',
+          dscStatus: 'Active',
+          edgeIeMode: 'IE5 Quirks Active',
+          lastSeenAt: r.timestampIst || 'Recorded',
+          lastSeenEpoch: r.timestampUtc ? new Date(r.timestampUtc).getTime() : 0
+        });
+      }
+    });
+
+    return Array.from(map.entries())
+      .map(([k, pc]) => {
+        const verifStr = String(pc.verification || '');
+        const upgFromReport = pcUpgradeInfo.get(k);
+        const hasUpgInVerif =
+          verifStr.toLowerCase().includes('upgraded') ||
+          verifStr.includes('->') ||
+          verifStr.includes('➔');
+        const isUpgradedPc = Boolean(upgFromReport || hasUpgInVerif);
+
+        let upgradeTransition = upgFromReport?.transition || '';
+        if (!upgradeTransition && hasUpgInVerif) {
+          const m = verifStr.match(/(v?\d+\.\d+\.\d+[^\s->➔]*)\s*(?:->|➔)\s*(v?\d+\.\d+\.\d+)/i);
+          upgradeTransition = m ? `${m[1]} ➔ ${m[2]}` : `Upgraded ➔ ${pc.appVersion || 'v1.1.0'}`;
+        }
+
+        return {
+          ...pc,
+          isUpgradedPc,
+          upgradeTransition: isUpgradedPc ? upgradeTransition : '',
+          verification:
+            isUpgradedPc && !hasUpgInVerif && upgFromReport
+              ? `Upgraded (${upgFromReport.transition}) | ${verifStr}`
+              : verifStr
+        };
+      })
+      .sort((a, b) => (b.lastSeenEpoch || 0) - (a.lastSeenEpoch || 0));
+  }, [apiInstalledPcs, fsInstalledPcs, reports]);
 
   const liveOnlinePcs = useMemo(() => {
-    const fsOnline = fsInstalledPcs.filter((p) => p.isOnline);
+    const fsOnline = installedPcs.filter((p) => p.isOnline);
     const map = new Map<string, any>();
     apiLiveOnlinePcs.forEach((p) => {
       const k = String(p.pcId || p.pcName || '').toUpperCase();
@@ -369,7 +460,7 @@ export const ReportCenter: React.FC = () => {
       if (k) map.set(k, p);
     });
     return Array.from(map.values());
-  }, [apiLiveOnlinePcs, fsInstalledPcs]);
+  }, [apiLiveOnlinePcs, installedPcs]);
 
   const feedbacks = useMemo(() => {
     const map = new Map<string, any>();
@@ -378,13 +469,6 @@ export const ReportCenter: React.FC = () => {
     return Array.from(map.values());
   }, [apiFeedbacks, fsFeedbacks]);
 
-  const reports = useMemo(() => {
-    const map = new Map<string, ReportEvent>();
-    apiReports.forEach((r) => map.set(String(r.eventId || r.reportId), r));
-    fsReports.forEach((r) => map.set(String(r.eventId || r.reportId), r));
-    return Array.from(map.values());
-  }, [apiReports, fsReports]);
-
   const avgRatingComputed = useMemo(() => {
     if (feedbacks.length === 0) return summary.averageRating || 5.0;
     const sum = feedbacks.reduce((acc, f) => acc + (Number(f.rating) || 5), 0);
@@ -392,11 +476,11 @@ export const ReportCenter: React.FC = () => {
   }, [feedbacks, summary.averageRating]);
 
   const upgradedPcsCount = useMemo(() => {
-    return installedPcs.filter(
-      (p) =>
-        String(p.appVersion || '').toLowerCase().includes('1.1.0') ||
-        String(p.resourceBuild || '').includes('2026.11.16.R6')
-    ).length;
+    return installedPcs.filter((p) => p.isUpgradedPc).length;
+  }, [installedPcs]);
+
+  const freshInstalledPcsCount = useMemo(() => {
+    return installedPcs.filter((p) => !p.isUpgradedPc).length;
   }, [installedPcs]);
 
   const versionUpgradeEventsCount = useMemo(() => {
@@ -498,7 +582,7 @@ export const ReportCenter: React.FC = () => {
               {
                 releaseId: `REL-${vd.latestVersion || 'v1.1.0'}`,
                 version: vd.latestVersion || 'v1.1.0',
-                resourceBuild: vd.latestResourceBuild || '2026.11.16.R6',
+                resourceBuild: vd.latestResourceBuild || '2026.11.16.R7',
                 releaseDate: vd.releaseDate || '2026-11-16',
                 packageSize: vd.downloadSize || '25.0 MB',
                 signatureStatus: 'SHA-256 + Authenticode Signed',
@@ -506,7 +590,7 @@ export const ReportCenter: React.FC = () => {
                 newFeatures: String(vd.releaseNotes || '').split('\n').filter(Boolean),
                 bugFixes: [
                   'Every PC upgrading from older versions automatically sends full version-upgrade details',
-                  'Single Particular GitHub Pages Admin Live Link: ' + GITHUB_ADMIN_LIVE_LINK
+                  'Central Cloud Real-Time Admin & PC Monitoring Active'
                 ],
                 securityUpdates: [],
                 performanceImprovements: []
@@ -595,7 +679,7 @@ export const ReportCenter: React.FC = () => {
         pcName: 'WEB-PORTAL-USER',
         pcId: cleanPcId,
         appVersion: 'v1.1.0',
-        resourceBuild: '2026.11.16.R6'
+        resourceBuild: '2026.11.16.R7'
       };
       await fetchWithLiveGateway('/api/feedback', {
         method: 'POST',
@@ -622,23 +706,109 @@ export const ReportCenter: React.FC = () => {
     }
     setImportingTelegram(true);
     try {
-      const res = await fetchWithLiveGateway('/api/reports/import-telegram-text', {
+      // Parse blocks directly in the browser and persist to Google Cloud Firestore (works 24/7 on GitHub Pages & locally)
+      const rawBlocks = telegramPasteText
+        .split(/(?=📋|🚀|🔄|📜|Report ID:|Machine ID:)/g)
+        .map((b) => b.trim())
+        .filter((b) => b.length > 20);
+      const blocks = rawBlocks.length > 0 ? rawBlocks : [telegramPasteText.trim()];
+
+      const extractField = (text: string, labels: string[]): string => {
+        for (const label of labels) {
+          const rx = new RegExp(`${label}\\s*:\\s*([^\\n\\r]+)`, 'i');
+          const m = text.match(rx);
+          if (m && m[1]) return m[1].trim();
+        }
+        return '';
+      };
+
+      let importedCount = 0;
+      for (const block of blocks) {
+        const pcIdRaw = extractField(block, ['Machine ID', 'PC ID']) || extractField(block, ['PC Name']);
+        const pcNameRaw = extractField(block, ['PC Name']) || pcIdRaw || 'GP-OFFICE-PC';
+        if (!pcIdRaw && !pcNameRaw) continue;
+
+        const cleanPcId = String(pcIdRaw || pcNameRaw).replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+        const cleanPcName = String(pcNameRaw).slice(0, 128);
+        const userName = (extractField(block, ['User Name', 'Operator']) || 'Operator').slice(0, 128);
+        const officeLocation = (extractField(block, ['Office Location', 'District & Office']) || 'Grama Panchayat Office').slice(0, 200);
+        const districtRaw = extractField(block, ['District & State', 'District']) || officeLocation.split('-')[0] || 'Telangana';
+        const district = districtRaw.replace(/\(.*?\)/g, '').trim().slice(0, 100) || 'Telangana';
+        const state = officeLocation.toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana';
+        const osVersion = (extractField(block, ['Windows Edition', 'Windows OS']) || 'Windows 10/11').slice(0, 120);
+        const appVersion = (extractField(block, ['Application Version']) || 'v1.1.0').slice(0, 32);
+        const resourceBuild = (extractField(block, ['Build Version']) || '2026.11.16.R7').slice(0, 48);
+        const verTransition = extractField(block, ['Version Upgraded', 'Version Transition', 'Version Status']);
+        const isUpgradeBlock =
+          block.includes('VERSION UPGRADED') ||
+          block.includes('VERSION UPGRADE REPORT') ||
+          block.includes('OTA UPDATE HISTORY') ||
+          Boolean(verTransition);
+
+        const verification = (
+          isUpgradeBlock
+            ? `Upgraded ${verTransition || 'to ' + appVersion} (${resourceBuild})`
+            : extractField(block, ['Summary', 'Final Verification']) || 'Passed (17/17)'
+        ).slice(0, 160);
+
+        const reportIdRaw = extractField(block, ['Report ID']) || `${isUpgradeBlock ? 'UPG' : 'RPT'}-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+        const cleanReportId = reportIdRaw.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+
+        await setDoc(doc(db, 'installed_pcs', cleanPcId), {
+          pcId: cleanPcId,
+          pcName: cleanPcName,
+          userName,
+          district,
+          state,
+          officeLocation,
+          osVersion,
+          appVersion,
+          resourceBuild,
+          appState: 'RUNNING',
+          pcConnectivity: 'ONLINE',
+          verification,
+          dscStatus: (extractField(block, ['USB DSC Token', 'DSC / Edge IE Mode']) || 'Active').slice(0, 160),
+          edgeIeMode: (extractField(block, ['Edge IE Mode']) || 'IE5 Quirks Active').slice(0, 160),
+          healthScore: 100,
+          lastSeenAt: new Date().toLocaleString(),
+          updatedAt: serverTimestamp()
+        });
+
+        await setDoc(doc(db, 'pc_reports', cleanReportId), {
+          reportId: cleanReportId,
+          pcId: cleanPcId,
+          pcName: cleanPcName,
+          userName,
+          district,
+          state,
+          officeLocation,
+          reportType: isUpgradeBlock ? 'VERSION_UPGRADE' : 'INSTALLATION',
+          status: 'SUCCESS',
+          appVersion,
+          details: verification,
+          createdAt: serverTimestamp()
+        });
+
+        importedCount++;
+      }
+
+      // Also notify local backend if running locally
+      await fetchWithLiveGateway('/api/reports/import-telegram-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: telegramPasteText })
       });
-      if (!res) throw new Error('Could not reach live reporting server');
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showSuccess(data.message || `Imported ${data.importedCount} PC reports!`, 'Telegram Reports Imported');
+
+      if (importedCount > 0) {
+        showSuccess(`✅ ${importedCount} PC రిపోర్టులు Google Cloud Firebase లో విజయవంతంగా సేవ్ చేయబడ్డాయి!`, 'Telegram Reports Imported');
         setTelegramPasteText('');
         setShowTelegramImportModal(false);
         await fetchReportsData();
       } else {
-        showError(data.error || 'Import failed', 'Import Error');
+        showError('పేస్ట్ చేసిన టెక్స్ట్‌లో PC వివరాలు కనిపించలేదు. దయచేసి పూర్తి టెలిగ్రామ్ మెసేజ్ పేస్ట్ చేయండి.', 'Import Notice');
       }
     } catch (err: any) {
-      showError(err.message || 'Network error', 'Import Error');
+      showError(err.message || 'Import error', 'Import Error');
     } finally {
       setImportingTelegram(false);
     }
@@ -763,6 +933,59 @@ export const ReportCenter: React.FC = () => {
     }
   };
 
+  const handleSetPcFreeBypass = async (pcIdRaw: string, pcNameRaw: string, enableFree: boolean) => {
+    if (!isVerifiedAdmin) {
+      showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
+      return;
+    }
+    const rawId = String(pcIdRaw || '').trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    if (!rawId) {
+      showError('దయచేసి సరైన PC Machine ID (ఉదా: EVD-TS-MNCL-01) ఇవ్వండి.', 'PC ID Required');
+      return;
+    }
+    const safeName = String(pcNameRaw || rawId || 'GP-OFFICE-PC').trim().slice(0, 128);
+    setActivatingPcId(rawId);
+    try {
+      if (enableFree) {
+        await setDoc(doc(db, 'pc_licenses', rawId), {
+          pcId: rawId,
+          pcName: safeName,
+          planType: 'FREE_ACCESS',
+          status: 'ACTIVE',
+          amountInr: 0,
+          validUntilIso: '2099-12-31T23:59:59.000Z',
+          paymentRef: 'ADMIN_FREE_BYPASS',
+          updatedAt: serverTimestamp()
+        });
+        showSuccess(
+          `🔓 ${safeName} (${rawId}) కు Payment Mode OFF చేయబడింది! Paid Mode ఆన్‌లో ఉన్నా ఈ PC కి 100% ఉచితంగా పనిచేస్తుంది.`,
+          'PC Payment Mode OFF'
+        );
+      } else {
+        await setDoc(doc(db, 'pc_licenses', rawId), {
+          pcId: rawId,
+          pcName: safeName,
+          planType: 'PAID_30_DAYS',
+          status: 'EXPIRED',
+          amountInr: Number(licensePolicy.monthlyPriceInr || 10),
+          validUntilIso: new Date(Date.now() - 60000).toISOString(),
+          paymentRef: 'PAYMENT_REQUIRED_BY_ADMIN',
+          updatedAt: serverTimestamp()
+        });
+        showInfo(
+          `💳 ${safeName} (${rawId}) కు మళ్ళీ సాధారణ Payment Mode (₹${licensePolicy.monthlyPriceInr}/Month) ఆన్ చేయబడింది.`,
+          'PC Payment Mode ON'
+        );
+      }
+      setBypassPcIdInput('');
+      setBypassPcNameInput('');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+    } finally {
+      setActivatingPcId(null);
+    }
+  };
+
   const handleApprovePaymentClaim = async (claim: PaymentClaimRecord) => {
     if (!isVerifiedAdmin) {
       showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
@@ -827,12 +1050,11 @@ export const ReportCenter: React.FC = () => {
   };
 
   const filteredInstalledPcs = installedPcs.filter(pc => {
-    if (pcVersionFilter === 'V110_UPGRADED') {
-      const isV110 =
-        String(pc.appVersion || '').toLowerCase().includes('1.1.0') ||
-        String(pc.resourceBuild || '').includes('2026.11.16.R6') ||
-        String(pc.verification || '').toLowerCase().includes('upgraded');
-      if (!isV110) return false;
+    if (pcVersionFilter === 'V110_UPGRADED' && !pc.isUpgradedPc) {
+      return false;
+    }
+    if (pcVersionFilter === 'FRESH_INSTALLED' && pc.isUpgradedPc) {
+      return false;
     }
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
@@ -843,7 +1065,8 @@ export const ReportCenter: React.FC = () => {
       String(pc.officeLocation || '').toLowerCase().includes(q) ||
       String(pc.district || '').toLowerCase().includes(q) ||
       String(pc.state || '').toLowerCase().includes(q) ||
-      String(pc.appVersion || '').toLowerCase().includes(q)
+      String(pc.appVersion || '').toLowerCase().includes(q) ||
+      String(pc.verification || '').toLowerCase().includes(q)
     );
   });
 
@@ -878,61 +1101,20 @@ export const ReportCenter: React.FC = () => {
         <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-3xl rounded-full pointer-events-none"></div>
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap font-mono text-[10px] font-bold">
-            <span className="bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded border border-emerald-500/30">
-              ● 100% REAL AUTHENTIC PCs (0% DUMMY DATA)
-            </span>
             <span className="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded border border-cyan-500/30">
-              v1.1.0 (RESOURCE BUILD 2026.11.16.R6)
+              v1.1.0 • Build 2026.11.16.R7
             </span>
             <span className="bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded border border-amber-500/30">
-              ★ AVG RATING: {avgRatingComputed}/5.0 ({feedbacks.length} REVIEWS)
+              ★ Avg Rating: {avgRatingComputed}/5.0 ({feedbacks.length} Reviews)
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
             <FileSpreadsheet className="w-6 h-6 text-cyan-400" />
-            <span>Admin Central PC Monitoring, Live Reports &amp; User Ratings Center (v1.1.0)</span>
+            <span>Admin Central PC Monitoring &amp; Live Reports</span>
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm mt-1">
-            ఒక్కటే Real Google Cloud Firebase Database + Admin Live Hub: 1) ఇన్‌స్టాల్ చేసుకున్న PCలు, 2) లైవ్ ఆన్‌లైన్ PCలు, 3) యూజర్ ★ రేటింగ్స్.
+            Centralized Google Cloud Firebase Management Hub for Installed PCs, Live Online Status, and Operator Feedback.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-mono">
-            <a
-              href={GITHUB_ADMIN_LIVE_LINK}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-slate-950/90 hover:bg-slate-900 border border-emerald-500/50 text-emerald-300 px-3 py-1.5 rounded-lg flex items-center gap-2 transition"
-            >
-              🔗 Particular GitHub Admin Live Link: {GITHUB_ADMIN_LIVE_LINK} ↗
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(GITHUB_ADMIN_LIVE_LINK);
-                showSuccess('GitHub Admin Live Link కాపీ చేయబడింది!', 'Link Copied');
-              }}
-              className="bg-emerald-900/50 hover:bg-emerald-800/70 border border-emerald-500/50 text-emerald-200 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer"
-            >
-              📋 Copy GitHub Link
-            </button>
-            <a
-              href={FIREBASE_CONSOLE_DATA_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-amber-600/30 hover:bg-amber-600/50 border border-amber-400/50 text-amber-200 px-3 py-1.5 rounded-lg font-bold transition"
-            >
-              🔥 Open Real Firebase Cloud Database ↗
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(FIRESTORE_PUBLIC_INGEST_URL);
-                showSuccess('Google Cloud Firestore Public Ingest URL కాపీ చేయబడింది!', 'URL Copied');
-              }}
-              className="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-cyan-300 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer"
-            >
-              📋 Copy C# Cloud Ingest Link
-            </button>
-          </div>
           {fsPermissionNotice && (
             <div className="mt-2 text-xs text-amber-300 bg-amber-950/50 border border-amber-500/40 rounded-lg px-3 py-1.5">
               {fsPermissionNotice}
@@ -1043,16 +1225,16 @@ export const ReportCenter: React.FC = () => {
           onClick={() => setMainSection('installed-pcs')}
           className="bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-2xl p-4 shadow cursor-pointer transition"
         >
-          <span className="text-[10px] text-slate-400 block font-bold">INSTALLED PCs (ఇన్‌స్టాల్ PCలు)</span>
+          <span className="text-[10px] text-slate-400 block font-bold">INSTALLED PCs</span>
           <span className="text-2xl font-black text-cyan-400 mt-1 block">{installedPcs.length}</span>
-          <span className="text-[10px] text-emerald-400 mt-0.5 block">0% Dummy Data</span>
+          <span className="text-[10px] text-emerald-400 mt-0.5 block">Synced Database</span>
         </div>
 
         <div
           onClick={() => setMainSection('live-pcs')}
           className="bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 shadow cursor-pointer transition"
         >
-          <span className="text-[10px] text-emerald-400 block font-bold">🟢 LIVE ONLINE PCs</span>
+          <span className="text-[10px] text-emerald-400 block font-bold">LIVE ONLINE PCs</span>
           <span className="text-2xl font-black text-emerald-400 mt-1 block">{liveOnlinePcs.length}</span>
           <span className="text-[10px] text-slate-500 mt-0.5 block">Offline: {Math.max(0, installedPcs.length - liveOnlinePcs.length)}</span>
         </div>
@@ -1061,7 +1243,7 @@ export const ReportCenter: React.FC = () => {
           onClick={() => setMainSection('feedback')}
           className="bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 shadow cursor-pointer transition"
         >
-          <span className="text-[10px] text-amber-400 block font-bold">⭐ USER RATINGS &amp; FEEDBACK</span>
+          <span className="text-[10px] text-amber-400 block font-bold">USER RATINGS</span>
           <span className="text-2xl font-black text-amber-400 mt-1 block">{feedbacks.length}</span>
           <span className="text-[10px] text-amber-300 mt-0.5 block">Avg: {avgRatingComputed} ★</span>
         </div>
@@ -1073,14 +1255,14 @@ export const ReportCenter: React.FC = () => {
           }}
           className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 shadow cursor-pointer transition"
         >
-          <span className="text-[10px] text-indigo-300 block font-bold">🔄 v1.1.0 UPDATED PCs</span>
+          <span className="text-[10px] text-indigo-300 block font-bold">v1.1.0 UPDATED PCs</span>
           <span className="text-2xl font-black text-indigo-400 mt-1 block">{upgradedPcsCount}</span>
-          <span className="text-[10px] text-slate-400 mt-0.5 block">Upgrade Events: {versionUpgradeEventsCount}</span>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">Upgrades: {versionUpgradeEventsCount}</span>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow">
           <span className="text-[10px] text-slate-400 block font-bold">LATEST BUILD</span>
-          <span className="text-sm font-black text-emerald-300 mt-2 block">2026.11.16.R6</span>
+          <span className="text-sm font-black text-emerald-300 mt-2 block">2026.11.16.R7</span>
           <span className="text-[10px] text-slate-500 mt-0.5 block">v1.1.0 Active</span>
         </div>
 
@@ -1090,7 +1272,7 @@ export const ReportCenter: React.FC = () => {
         >
           <span className="text-[10px] text-slate-400 block font-bold">ALL EVENT LOGS</span>
           <span className="text-2xl font-black text-purple-400 mt-1 block">{reports.length}</span>
-          <span className="text-[10px] text-emerald-400 mt-0.5 block">Real Events</span>
+          <span className="text-[10px] text-emerald-400 mt-0.5 block">Audit Records</span>
         </div>
       </div>
 
@@ -1143,7 +1325,7 @@ export const ReportCenter: React.FC = () => {
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>5. Release History (2026.11.16.R6)</span>
+          <span>5. Release History (2026.11.16.R7)</span>
         </button>
 
         <button
@@ -1164,7 +1346,7 @@ export const ReportCenter: React.FC = () => {
         >
           <CreditCard className="w-4 h-4" />
           <span>
-            7. License &amp; ₹10/Mo Plan ({licensePolicy.mode === 'FREE_FOR_ALL' ? 'FREE NOW' : '₹10/MO ON'}
+            7. QR Payment &amp; License Hub ({licensePolicy.mode === 'FREE_FOR_ALL' ? 'FREE NOW' : '₹10/MO ON'}
             {paymentClaims.filter((c) => c.status === 'PENDING').length > 0
               ? ` • ${paymentClaims.filter((c) => c.status === 'PENDING').length} UTR`
               : ''}
@@ -1182,7 +1364,7 @@ export const ReportCenter: React.FC = () => {
               <p className="text-[11px] text-slate-400 mt-0.5">
                 డమ్మీ PCలు పూర్తిగా తొలగించబడ్డాయి. కొత్త వెర్షన్ (v1.1.0) అప్డేట్ చేసుకున్న ప్రతి PC వివరాలు వెంటనే ఇక్కడ నమోదు అవుతాయి.
               </p>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex flex-wrap items-center gap-2 mt-2">
                 <button
                   type="button"
                   onClick={() => setPcVersionFilter('ALL')}
@@ -1192,7 +1374,7 @@ export const ReportCenter: React.FC = () => {
                       : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
                   }`}
                 >
-                  All Installed PCs ({installedPcs.length})
+                  All PCs ({installedPcs.length})
                 </button>
                 <button
                   type="button"
@@ -1203,7 +1385,18 @@ export const ReportCenter: React.FC = () => {
                       : 'bg-slate-950 text-indigo-300 border border-slate-800 hover:text-white'
                   }`}
                 >
-                  🔄 v1.1.0 Updated PCs Only ({upgradedPcsCount})
+                  🔄 Upgraded PCs (పాత వెర్షన్ నుండి అప్డేట్ అయినవి: {upgradedPcsCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPcVersionFilter('FRESH_INSTALLED')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                    pcVersionFilter === 'FRESH_INSTALLED'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-950 text-emerald-300 border border-slate-800 hover:text-white'
+                  }`}
+                >
+                  🆕 Fresh Installed PCs (కొత్తగా ఇన్‌స్టాల్ అయినవి: {freshInstalledPcsCount})
                 </button>
               </div>
             </div>
@@ -1224,6 +1417,7 @@ export const ReportCenter: React.FC = () => {
               <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[11px]">
                 <tr>
                   <th className="p-3.5">PC NAME &amp; MACHINE ID</th>
+                  <th className="p-3.5">INSTALL / UPGRADE TYPE</th>
                   <th className="p-3.5">LIVE STATUS</th>
                   <th className="p-3.5">OPERATOR</th>
                   <th className="p-3.5">DISTRICT &amp; GP / MANDAL OFFICE</th>
@@ -1237,11 +1431,15 @@ export const ReportCenter: React.FC = () => {
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
                 {filteredInstalledPcs.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-12 text-center text-slate-400">
+                    <td colSpan={10} className="p-12 text-center text-slate-400">
                       <Laptop className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
-                      <div className="font-bold text-white text-sm mb-1">⏳ డమ్మీ PCలు తొలగించబడ్డాయి — మొదటి రియల్ PC రిపోర్ట్ కోసం వేచి ఉంది</div>
+                      <div className="font-bold text-white text-sm mb-1">
+                        {pcVersionFilter === 'V110_UPGRADED'
+                          ? '⏳ ఇంకా ఏ PC పాత వెర్షన్ నుండి అప్డేట్ రిపోర్ట్ పంపలేదు'
+                          : '⏳ డమ్మీ PCలు తొలగించబడ్డాయి — మొదటి రియల్ PC రిపోర్ట్ కోసం వేచి ఉంది'}
+                      </div>
                       <div className="text-xs text-slate-400">
-                        ఏదైనా కంప్యూటర్‌లో E-Vedhika అప్లికేషన్ ఇన్‌స్టాల్ చేసినా లేదా రన్ చేసినా వెంటనే ఆ PC యొక్క ఖచ్చితమైన జిల్లా, ఆఫీస్ పేరు మరియు లైవ్ స్టేటస్ ఇక్కడ కనిపిస్తాయి.
+                        పాత వెర్షన్ ఉన్న కంప్యూటర్‌లో కొత్త v1.1.0 ఇన్‌స్టాల్ లేదా ఆటో-అప్డేట్ అయిన వెంటనే ఇక్కడ "🔄 UPGRADED" బ్యాడ్జ్‌తో ఖచ్చితమైన వివరాలు కనిపిస్తాయి.
                       </div>
                     </td>
                   </tr>
@@ -1251,6 +1449,18 @@ export const ReportCenter: React.FC = () => {
                       <td className="p-3.5">
                         <div className="font-bold text-white">{pc.pcName}</div>
                         <div className="text-[10px] text-cyan-400">{pc.pcId}</div>
+                      </td>
+                      <td className="p-3.5">
+                        {pc.isUpgradedPc ? (
+                          <div className="inline-flex flex-col gap-0.5 px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[10px] font-bold">
+                            <span>🔄 UPGRADED PC</span>
+                            <span className="text-[9px] text-emerald-300">{pc.upgradeTransition || `➔ ${pc.appVersion}`}</span>
+                          </div>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
+                            🆕 FRESH INSTALL
+                          </span>
+                        )}
                       </td>
                       <td className="p-3.5">
                         {pc.isOnline ? (
@@ -1520,7 +1730,7 @@ export const ReportCenter: React.FC = () => {
                         <td className="p-3.5 text-emerald-300">{fb.officeLocation}</td>
                         <td className="p-3.5">
                           <div className="text-white">{fb.pcName}</div>
-                          <div className="text-[10px] text-cyan-400">{fb.resourceBuild || '2026.11.16.R6'}</div>
+                          <div className="text-[10px] text-cyan-400">{fb.resourceBuild || '2026.11.16.R7'}</div>
                         </td>
                         <td className="p-3.5 max-w-md text-slate-200">{fb.comments}</td>
                         <td className="p-3.5 text-slate-400 whitespace-nowrap">{fb.timestampIST || fb.submittedAt}</td>
@@ -1630,7 +1840,7 @@ export const ReportCenter: React.FC = () => {
                           <div className="text-[10px] text-slate-500">{r.pcId}</div>
                         </td>
                         <td className="p-3.5 text-slate-300 max-w-md">
-                          <div className="font-bold text-indigo-300">{r.appVersion || 'v1.1.0'} <span className="text-emerald-400 text-[10px]">({r.resourceBuild || '2026.11.16.R6'})</span></div>
+                          <div className="font-bold text-indigo-300">{r.appVersion || 'v1.1.0'} <span className="text-emerald-400 text-[10px]">({r.resourceBuild || '2026.11.16.R7'})</span></div>
                           {(r.details || r.remarks) && (
                             <div className="text-[10px] text-slate-400 mt-0.5 break-words">{r.details || r.remarks}</div>
                           )}
@@ -1715,10 +1925,10 @@ export const ReportCenter: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
             <div>
               <h3 className="text-base font-black text-white font-mono">
-                /admin/ubd_monitoring.php — Complete Website Source Code (v1.1.0 • 2026.11.16.R6)
+                /admin/ubd_monitoring.php — Complete Website Source Code (v1.1.0 • 2026.11.16.R7)
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Deploy or copy this file directly to your website https://www.e-vedhika.in/admin/ubd_monitoring to display all Installed PCs, Live Online PCs, User Ratings &amp; Feedback, and 17-step audits.
+                Deploy or copy this file directly to your central server to display all Installed PCs, Live Online PCs, User Ratings &amp; Feedback, and 17-step audits.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1744,9 +1954,14 @@ export const ReportCenter: React.FC = () => {
         </div>
       )}
 
-      {/* SECTION 7: ADMIN LICENSE & ₹10/MONTH SUBSCRIPTION CONTROL */}
+      {/* SECTION 7: ADMIN LICENSE & ₹10/MONTH SUBSCRIPTION CONTROL + OPERATOR QR CHECKOUT */}
       {mainSection === 'license-plans' && (
         <div className="space-y-6 font-mono text-xs">
+          {/* Embedded Operator QR Payment & 12-Digit UTR Checkout directly inside /live-pc-reports */}
+          <div className="rounded-3xl overflow-hidden border border-emerald-500/30 bg-slate-950/60">
+            <PublicPaymentCheckout />
+          </div>
+
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
               <div>
@@ -1841,11 +2056,11 @@ export const ReportCenter: React.FC = () => {
               <div className="lg:col-span-2 space-y-4">
                 <div>
                   <label className="block text-[10px] text-slate-400 font-bold mb-1">
-                    PAYMENT GATEWAY LINK URL (RAZORPAY / CASHFREE / INSTAMOJO — ZERO CALLS, OPTIONAL)
+                    PAYMENT GATEWAY OPTION (RAZORPAY / CASHFREE / INSTAMOJO — ZERO CALLS, OPTIONAL)
                   </label>
                   <input
-                    type="url"
-                    placeholder="https://pages.razorpay.com/your-evedhika-10rs"
+                    type="text"
+                    placeholder="Optional Payment Gateway Reference"
                     value={licensePolicy.paymentLinkUrl || ''}
                     onChange={(e) => setLicensePolicy((p) => ({ ...p, paymentLinkUrl: e.target.value }))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-violet-300"
@@ -1861,9 +2076,9 @@ export const ReportCenter: React.FC = () => {
                   />
                 </div>
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 font-sans text-[11px] text-slate-300 space-y-1.5">
-                  <div className="font-bold text-emerald-300">🔒 కాల్స్ రాకుండా పేమెంట్ తీసుకునే 2 సురక్షిత మార్గాలు:</div>
-                  <div>1. <strong>Business/Alias UPI ID + Auto QR:</strong> మొబైల్ నంబర్ లేని Alias VPA (<span className="font-mono text-cyan-300">evedhika@okaxis</span> లేదా PhonePe/GPay Business UPI) ఇస్తే, Desktop యాప్ ఆటోమేటిక్‌గా మీ ఫోన్ నంబర్ లేని <strong>Scannable QR Code పేజీ</strong> (`?pay=1`) ఓపెన్ చేస్తుంది.</div>
-                  <div>2. <strong>Razorpay / Cashfree Payment Link:</strong> పైన Payment Link ఇస్తే యూజర్ నేరుగా Gateway లో ₹10 కట్టగలరు (మీ నంబర్/బ్యాంక్ అస్సలు కనిపించదు).</div>
+                  <div className="font-bold text-emerald-300">🔒 కాల్స్ రాకుండా పేమెంట్ తీసుకునే సురక్షిత మార్గం:</div>
+                  <div>1. <strong>Business/Alias UPI ID + In-App QR:</strong> మొబైల్ నంబర్ లేని Alias VPA (<span className="font-mono text-cyan-300">evedhika@okaxis</span> లేదా PhonePe/GPay Business UPI) ఇస్తే, Desktop యాప్ లోనే ఎటువంటి URL కనిపించకుండా నేరుగా <strong>Scannable QR Code</strong> కనిపిస్తుంది.</div>
+                  <div>2. <strong>12-Digit UTR Lock:</strong> యూజర్ QR స్కాన్ చేసి ₹10 చెల్లించి, 12-అంకెల UTR నంబర్ యాప్ లోనే ఎంటర్ చేస్తారు.</div>
                 </div>
               </div>
 
@@ -1882,17 +2097,6 @@ export const ReportCenter: React.FC = () => {
                     Alias UPI ID సేవ్ చేస్తే QR ఇక్కడ ప్రివ్యూ అవుతుంది
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const checkoutUrl = 'https://rakeshkumardhawan.github.io/UBDTOOLS/?pay=1';
-                    navigator.clipboard.writeText(checkoutUrl);
-                    showSuccess('Operator QR Checkout URL కాపీ అయింది!', 'Checkout URL Copied');
-                  }}
-                  className="text-[10px] bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded-lg font-bold cursor-pointer"
-                >
-                  📋 Copy ?pay=1 Checkout Link
-                </button>
               </div>
             </div>
           </div>
@@ -2014,9 +2218,47 @@ export const ReportCenter: React.FC = () => {
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="text-sm font-black text-white uppercase">🖥️ PER-PC SUBSCRIPTION MANAGER (₹{licensePolicy.monthlyPriceInr} / {licensePolicy.durationDays} DAYS)</h3>
-              <span className="text-[11px] text-slate-400">Admin Sign-In Required for Activation</span>
+            <div className="p-4 border-b border-slate-800 space-y-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase">
+                    🖥️ PER-PC SUBSCRIPTION &amp; ADMIN FREE-BYPASS MANAGER (₹{licensePolicy.monthlyPriceInr} / {licensePolicy.durationDays} DAYS)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-sans mt-0.5">
+                    మీకు నచ్చిన ఏ PC కైనా <strong>"🔓 Payment OFF (Free PC)"</strong> నొక్కితే, అందరికీ Paid Mode ఆన్‌లో ఉన్నా ఆ ఒక్క PC కి మాత్రం పేమెంట్ అడగకుండా 100% ఉచితంగా ఓపెన్ అవుతుంది.
+                  </p>
+                </div>
+                <span className="text-[11px] text-emerald-400 font-bold">Per-PC Payment Override Ready</span>
+              </div>
+
+              {/* Quick Manual PC ID Free-Bypass Bar */}
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+                <div className="text-[11px] font-bold text-cyan-300 shrink-0">
+                  🔓 ఏదైనా PC కి Payment OFF చేయండి:
+                </div>
+                <input
+                  type="text"
+                  placeholder="PC Machine ID (ఉదా: EVD-TS-MNCL-01)"
+                  value={bypassPcIdInput}
+                  onChange={(e) => setBypassPcIdInput(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-300 font-mono"
+                />
+                <input
+                  type="text"
+                  placeholder="PC Name / ఆఫీస్ పేరు (Optional)"
+                  value={bypassPcNameInput}
+                  onChange={(e) => setBypassPcNameInput(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white"
+                />
+                <button
+                  type="button"
+                  disabled={!bypassPcIdInput.trim() || activatingPcId === bypassPcIdInput.trim()}
+                  onClick={() => handleSetPcFreeBypass(bypassPcIdInput, bypassPcNameInput, true)}
+                  className="bg-violet-600 hover:bg-violet-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  🔓 Turn Payment OFF for this PC (Free)
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -2026,20 +2268,44 @@ export const ReportCenter: React.FC = () => {
                     <th className="p-3.5">OPERATOR &amp; OFFICE</th>
                     <th className="p-3.5">CURRENT LICENSE STATUS</th>
                     <th className="p-3.5">VALID UNTIL</th>
-                    <th className="p-3.5">ADMIN ACTION</th>
+                    <th className="p-3.5">ADMIN ACTION (PER-PC CONTROL)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {installedPcs.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400 font-sans">
-                        రియల్ PCలు ఇన్‌స్టాల్ అయిన వెంటనే ఇక్కడ ప్రతి PC కి ₹{licensePolicy.monthlyPriceInr}/Month లైసెన్స్ యాక్టివేట్/రిన్యూ చేసుకోవచ్చు.
-                      </td>
-                    </tr>
-                  ) : (
-                    installedPcs.map((pc, i) => {
+                  {(() => {
+                    const combinedMap = new Map<string, any>();
+                    installedPcs.forEach((p) => {
+                      const k = String(p.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
+                      if (k) combinedMap.set(k, p);
+                    });
+                    (Object.values(pcLicensesMap) as PcLicenseRecord[]).forEach((lic) => {
+                      const k = String(lic.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
+                      if (k && !combinedMap.has(k)) {
+                        combinedMap.set(k, {
+                          pcId: lic.pcId,
+                          pcName: lic.pcName || lic.pcId,
+                          userName: 'Whitelisted PC',
+                          district: 'Admin Override',
+                          officeLocation: lic.planType === 'FREE_ACCESS' ? 'Payment Mode OFF (Free Bypass)' : 'Custom License'
+                        });
+                      }
+                    });
+                    const allManagedPcs = Array.from(combinedMap.values());
+
+                    if (allManagedPcs.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-400 font-sans">
+                            రియల్ PCలు ఇన్‌స్టాల్ అయిన వెంటనే లేదా పైన ఉన్న బాక్స్‌లో PC ID ఎంటర్ చేసిన వెంటనే ఇక్కడ కనిపిస్తాయి.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return allManagedPcs.map((pc, i) => {
                       const cleanId = String(pc.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-');
                       const rec = pcLicensesMap[cleanId.toUpperCase()] || null;
+                      const isFreeExempt = isPcPaymentExempt(rec);
                       const evalRes = evaluateLicenseState(licensePolicy, rec);
                       return (
                         <tr key={cleanId || i} className="hover:bg-slate-800/40 transition">
@@ -2053,22 +2319,51 @@ export const ReportCenter: React.FC = () => {
                           </td>
                           <td className="p-3.5">
                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                              evalRes.allowed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              isFreeExempt
+                                ? 'bg-violet-500/25 text-violet-200 border border-violet-400/40'
+                                : evalRes.allowed
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                             }`}>
                               {evalRes.badgeText}
                             </span>
                           </td>
                           <td className="p-3.5 text-slate-300 text-[11px]">
-                            {rec?.validUntilIso ? new Date(rec.validUntilIso).toLocaleDateString() : (licensePolicy.mode === 'FREE_FOR_ALL' ? 'Free Mode Active' : 'Not Activated')}
+                            {isFreeExempt
+                              ? '♾️ Unlimited (Payment OFF)'
+                              : rec?.validUntilIso
+                                ? new Date(rec.validUntilIso).toLocaleDateString()
+                                : licensePolicy.mode === 'FREE_FOR_ALL'
+                                  ? 'Free Mode Active'
+                                  : 'Not Activated'}
                           </td>
-                          <td className="p-3.5 flex items-center gap-2">
+                          <td className="p-3.5 flex flex-wrap items-center gap-2">
+                            {isFreeExempt ? (
+                              <button
+                                type="button"
+                                disabled={activatingPcId === cleanId}
+                                onClick={() => handleSetPcFreeBypass(cleanId, pc.pcName, false)}
+                                className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                              >
+                                💳 Turn Payment ON
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={activatingPcId === cleanId}
+                                onClick={() => handleSetPcFreeBypass(cleanId, pc.pcName, true)}
+                                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                              >
+                                🔓 Payment OFF (Free PC)
+                              </button>
+                            )}
                             <button
                               type="button"
                               disabled={activatingPcId === cleanId}
                               onClick={() => handleActivatePcSubscription(pc)}
                               className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
                             >
-                              ✅ Activate ₹{licensePolicy.monthlyPriceInr} / +{licensePolicy.durationDays}d
+                              ✅ +{licensePolicy.durationDays}d Paid
                             </button>
                             <button
                               type="button"
@@ -2081,8 +2376,8 @@ export const ReportCenter: React.FC = () => {
                           </td>
                         </tr>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>

@@ -243,11 +243,11 @@ export const HelpView: React.FC = () => {
               </p>
               
               <div className="p-4 bg-rose-50 rounded-xl border border-rose-100 text-rose-900 font-medium text-center">
-                 <p className="mb-2">For assistance, please contact us at:</p>
-                 <a href="https://www.e-vedhika.in/contact" target="_blank" rel="noreferrer" className="text-rose-700 font-bold underline flex items-center justify-center gap-1">
-                   <Globe className="w-3 h-3" />
-                   https://www.e-vedhika.in/contact
-                 </a>
+                 <p className="mb-1 font-bold flex items-center justify-center gap-1 text-rose-700">
+                   <Globe className="w-3.5 h-3.5" />
+                   <span>E-Vedhika Official Support Desk</span>
+                 </p>
+                 <p className="text-[11px] text-rose-800">Use the built-in Feedback &amp; Remote Support tab inside the application for instant assistance.</p>
               </div>
             </div>
           </div>

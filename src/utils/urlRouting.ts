@@ -66,7 +66,7 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
 
   const params = new URLSearchParams(search || '');
   if (params.get('pay') === '1' || lowerPath.endsWith('/pay') || lowerPath.includes('pay-checkout')) {
-    return { tab: 'pay-checkout' };
+    return { tab: 'report-center' };
   }
 
   const slugParam = params.get('slug') || params.get('postId');

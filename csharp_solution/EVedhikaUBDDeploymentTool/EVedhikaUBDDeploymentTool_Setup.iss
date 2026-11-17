@@ -1,7 +1,6 @@
 #define MyAppName "E-Vedhika UBD Tool"
 #define MyAppVersion "1.1.0"
 #define MyAppPublisher "E-Vedhika Development Community"
-#define MyAppURL "https://www.e-vedhika.in"
 #define MyAppExeName "EVedhikaUBDDeploymentTool.exe"
 
 [Setup]
@@ -9,9 +8,6 @@ AppId={{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}/help
-AppUpdatesURL={#MyAppURL}/downloads
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableDirPage=no
@@ -37,7 +33,7 @@ CloseApplicationsFilter=*.exe
 RestartApplications=no
 AlwaysRestart=no
 RestartIfNeededByRun=no
-VersionInfoCopyright=Copyright (c) 2026 Rakesh Kumar Dhawan (Free Early Access / ₹10-Mo Plan)
+VersionInfoCopyright=Copyright (c) 2026 Rakesh Kumar Dhawan (Free Early Access / Rs.10-Mo Plan)
 
 [Registry]
 ; Prevent Windows 11 Smart App Control & Error 4551 Temp Execution Block (safely ignored on non-admin or legacy OS)
@@ -110,8 +106,34 @@ begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM EVedhikaAutoRepair.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+procedure CaptureExistingVersionBeforeInstall;
+var
+  PrevVer, ProgDataDir: String;
+begin
+  PrevVer := '';
+  if not RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1', 'DisplayVersion', PrevVer) then
+  begin
+    if IsWin64 then
+      RegQueryStringValue(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1', 'DisplayVersion', PrevVer);
+  end;
+  if PrevVer = '' then
+    RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8A9C8F3E-4B2D-4C5A-9E7F-1D6B8A9C0D4F}_is1', 'DisplayVersion', PrevVer);
+  if PrevVer = '' then
+    RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EVedhikaUBDTool', 'DisplayVersion', PrevVer);
+  if (PrevVer = '') and FileExists(ExpandConstant('{app}\EVedhikaUBDDeploymentTool.exe')) then
+    GetVersionNumbersString(ExpandConstant('{app}\EVedhikaUBDDeploymentTool.exe'), PrevVer);
+
+  if PrevVer <> '' then
+  begin
+    ProgDataDir := ExpandConstant('{commonappdata}\EVedhika');
+    ForceDirectories(ProgDataDir);
+    SaveStringToFile(ProgDataDir + '\pre_setup_previous_version.txt', PrevVer, False);
+  end;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
+  CaptureExistingVersionBeforeInstall;
   KillRunningInstances;
   Result := '';
 end;

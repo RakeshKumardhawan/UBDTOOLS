@@ -17,7 +17,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         public const string CurrentVersion = "v1.1.0";
         public const int CurrentVersionCode = 10100;
-        public const string CurrentResourceBuild = "2026.11.16.R6";
+        public const string CurrentResourceBuild = "2026.11.16.R7";
         public const string ResourceDate = "2026-11-16";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json";
@@ -865,7 +865,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 rtb.AppendText("   ✓ Trusted Sites (Zone 2) Security     : ");
                 rtb.SelectionColor = Color.White;
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-                rtb.AppendText("ubd.telangana.gov.in & ubd.ap.gov.in (ActiveX & DSC Bypasses)\r\n");
+                rtb.AppendText("Telangana & AP Official UBD Portals (ActiveX & DSC Bypasses)\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(16, 185, 129);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Bold);
@@ -1111,10 +1111,30 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                string preSetupVerFile = Path.Combine(progDataDir, "pre_setup_previous_version.txt");
                 string versionStateFile = Path.Combine(progDataDir, "installed_version_state.json");
                 string lastBuildMarker = Path.Combine(progDataDir, "last_notified_build.txt");
                 string vaultFile = Path.Combine(progDataDir, "telemetry_vault.json");
                 string installIdFile = Path.Combine(progDataDir, "install_id.txt");
+
+                // 0. Pre-setup version captured by Inno Setup before overwriting files/registry
+                if (File.Exists(preSetupVerFile))
+                {
+                    string rawPre = File.ReadAllText(preSetupVerFile, Encoding.UTF8).Trim();
+                    if (!string.IsNullOrEmpty(rawPre))
+                    {
+                        if (rawPre.Contains("|"))
+                        {
+                            string[] parts = rawPre.Split('|');
+                            prevVersion = parts[0].Trim();
+                            if (parts.Length > 1) prevBuild = parts[1].Trim();
+                        }
+                        else
+                        {
+                            prevVersion = rawPre.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? rawPre : "v" + rawPre;
+                        }
+                    }
+                }
 
                 // 1. Structured state file
                 if (File.Exists(versionStateFile))
@@ -1122,8 +1142,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     string json = File.ReadAllText(versionStateFile, Encoding.UTF8);
                     string v = ExtractJsonValue(json, "version");
                     string b = ExtractJsonValue(json, "resourceBuild");
-                    if (!string.IsNullOrEmpty(v)) prevVersion = v;
-                    if (!string.IsNullOrEmpty(b)) prevBuild = b;
+                    if (string.IsNullOrEmpty(prevVersion) && !string.IsNullOrEmpty(v)) prevVersion = v;
+                    if (string.IsNullOrEmpty(prevBuild) && !string.IsNullOrEmpty(b)) prevBuild = b;
                 }
 
                 // 2. Fallback to registry LastInstalledVersion / ResourceBuild
@@ -1161,6 +1181,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     if (string.IsNullOrEmpty(prevBuild) && !string.IsNullOrEmpty(vBuild)) prevBuild = vBuild;
                 }
 
+                if (!string.IsNullOrEmpty(prevVersion) && !prevVersion.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+                {
+                    prevVersion = "v" + prevVersion;
+                }
+
                 // 4. Determine whether this is an upgrade from an older version/build
                 if (!string.IsNullOrEmpty(prevVersion) && !prevVersion.Equals(CurrentVersion, StringComparison.OrdinalIgnoreCase))
                 {
@@ -1170,15 +1195,55 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     isUpgrade = true;
                 }
+                else if (File.Exists(preSetupVerFile))
+                {
+                    // Setup ran over an existing installation of the same major version (e.g. R6 -> R7)
+                    if (string.IsNullOrEmpty(prevBuild) || prevBuild.Equals(CurrentResourceBuild, StringComparison.OrdinalIgnoreCase))
+                    {
+                        prevBuild = "2026.11.16.R6";
+                    }
+                    isUpgrade = true;
+                }
                 else if (string.IsNullOrEmpty(prevVersion) && (File.Exists(installIdFile) || File.Exists(vaultFile)))
                 {
                     // Legacy pre-v1.1.0 installation exists without structured version marker
-                    prevVersion = "v1.0.x (Legacy)";
-                    if (string.IsNullOrEmpty(prevBuild)) prevBuild = "Legacy Build";
+                    prevVersion = "v1.0.9";
+                    if (string.IsNullOrEmpty(prevBuild)) prevBuild = "2026.11.12.R4";
                     isUpgrade = true;
                 }
             }
             catch { }
+        }
+
+        public static void RecordPersistentUpgradeSummary(string prevVer, string prevBuild, string currVer, string currBuild)
+        {
+            try
+            {
+                string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                if (!Directory.Exists(progDataDir)) Directory.CreateDirectory(progDataDir);
+                string safePrev = string.IsNullOrEmpty(prevVer) ? "v1.0.9" : prevVer;
+                string safeCurr = string.IsNullOrEmpty(currVer) ? CurrentVersion : currVer;
+                string safeBuild = string.IsNullOrEmpty(currBuild) ? CurrentResourceBuild : currBuild;
+                string summary = $"Upgraded {safePrev} -> {safeCurr} ({safeBuild})";
+                File.WriteAllText(Path.Combine(progDataDir, "last_upgrade_summary.txt"), summary, Encoding.UTF8);
+            }
+            catch { }
+        }
+
+        public static string GetPersistentUpgradeSummary()
+        {
+            try
+            {
+                string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
+                string path = Path.Combine(progDataDir, "last_upgrade_summary.txt");
+                if (File.Exists(path))
+                {
+                    string txt = File.ReadAllText(path, Encoding.UTF8).Trim();
+                    if (!string.IsNullOrEmpty(txt)) return txt;
+                }
+            }
+            catch { }
+            return "";
         }
 
         public static void SaveInstalledVersionState(string version, string resourceBuild)
@@ -1212,6 +1277,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string stateFilePath = Path.Combine(tempDir, "update_pending_state.json");
                 string progDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika");
                 if (!Directory.Exists(progDataDir)) Directory.CreateDirectory(progDataDir);
+                string preSetupVerFile = Path.Combine(progDataDir, "pre_setup_previous_version.txt");
 
                 string safeCurrVerSlug = Logger.SanitizeFirestoreId(CurrentVersion, "v");
                 string safeCurrBuildSlug = Logger.SanitizeFirestoreId(CurrentResourceBuild, "b");
@@ -1223,7 +1289,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string currBuild = CurrentResourceBuild;
                 string relDate = ResourceDate;
                 string relNotes = "[NEW FEATURES v1.1.0]\n" +
-                    "• Particular GitHub Admin Live Hub: https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports\n" +
+                    "• Real-Time Central Cloud Telemetry & Live PC Sync\n" +
                     "• Automatic Version-Upgrade PC Reporting to Google Cloud Firestore & Telegram\n" +
                     "• Interactive 1-5 Star Operator Rating & Feedback Collection\n" +
                     "• Accurate District & GP Office Selection (All 33 Telangana & 26 AP Districts)\n" +
@@ -1271,15 +1337,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (string.IsNullOrEmpty(currBuild)) currBuild = CurrentResourceBuild;
                 if (string.IsNullOrEmpty(relDate)) relDate = ResourceDate;
 
+                // Clean up pre-setup marker now that we have read it
+                try { if (File.Exists(preSetupVerFile)) File.Delete(preSetupVerFile); } catch { }
+
                 // Always persist current version state cleanly
                 SaveInstalledVersionState(currVer, currBuild);
 
-                // Report EVERY upgraded PC exactly once per (CurrentVersion, CurrentResourceBuild)
+                // Report EVERY upgraded PC with the operator's selected District & GP Office on startup
                 bool alreadyReportedThisUpgrade = File.Exists(upgradeReportedMarker);
                 if (isUpgradeDetected && !alreadyReportedThisUpgrade)
                 {
                     if (string.IsNullOrEmpty(prevVer)) prevVer = "v1.0.9";
                     if (string.IsNullOrEmpty(prevBuild)) prevBuild = "2026.11.12.R4";
+
+                    RecordPersistentUpgradeSummary(prevVer, prevBuild, currVer, currBuild);
 
                     try
                     {
@@ -1704,7 +1775,7 @@ del ""%~f0""
                 news.Add(new NewsItem
                 {
                     Title = "E-Vedhika Live Deployment Engine Active",
-                    Content = "UBD Telangana (ubd.telangana.gov.in) Zone 2 Registry Automation, DSC Token Drivers & Central Live Telemetry active.",
+                    Content = "UBD Telangana & AP Zone 2 Registry Automation, DSC Token Drivers & Central Live Telemetry active.",
                     Date = DateTime.Now.ToString("yyyy-MM-dd"),
                     Importance = "High"
                 });

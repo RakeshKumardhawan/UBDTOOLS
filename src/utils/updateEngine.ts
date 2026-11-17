@@ -43,11 +43,11 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
-    version: 'v1.1.0 (Resource Build 2026.11.16.R6)',
+    version: 'v1.1.0 (Resource Build 2026.11.16.R7)',
     date: 'November 2026',
     changes: [
       'Upgraded main software version to v1.1.0 (EVedhika_Setup_v1.1.0.exe) with VersionCode 10100',
-      'Particular GitHub Admin Live Link: https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports backed by Google Cloud Firestore',
+      'Real-Time Central Cloud Admin & PC Monitoring Hub backed by Google Cloud Firestore',
       'Automatic Version-Upgrade Reporting: Every PC upgrading to v1.1.0 reports full machine, operator & District/GP Office details',
       'Interactive 1-5 Star Rating & Feedback Dialog after 17-Step Deployment & Dedicated Feedback Tab',
       'District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) eliminating false Hyderabad ISP location',
@@ -82,13 +82,13 @@ export const VERSION_HISTORY = [
     version: 'v1.0.7',
     date: 'October 2026',
     changes: [
-      'Target Website https://ubd.telangana.gov.in/ Full Zone 2 Registry Automation Engine',
+      'Official Government Portal Full Zone 2 Registry Automation Engine',
       'Resource Manifest Component Hash System integrated for zero-app-bump OTA rule updates',
       'All 48+ Security Zone Settings mapped with exact official Windows Registry DWORD values',
       'Automatic Registry Backup snapshot before applying any changes',
       'Automated Elevated PowerShell Script (.ps1) and BAT Launcher (.bat) with UAC auto-elevation',
       'Deep Registry Post-Execution Verification with full TXT Audit Report generation',
-      'Edge Enterprise IE Mode & IE5 Quirks configuration for ubd.telangana.gov.in',
+      'Edge Enterprise IE Mode & IE5 Quirks configuration for Official UBD Portals',
       'Strict Zone 2 isolation maintaining standard high-security for general web browsing',
     ]
   },
@@ -157,7 +157,7 @@ export const CURRENT_APP_VERSION = 'v1.1.0';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.16.R6',
+  manifestVersion: '2026.11.16.R7',
   appVersion: 'v1.1.0',
   lastSyncTimestamp: '2026-11-16T00:00:00.000Z',
   totalResources: 5,
@@ -498,7 +498,7 @@ export async function checkForUpdates(
   };
 }
 
-export const LOCAL_BUILD_VERSION = '2026.11.16.R6';
+export const LOCAL_BUILD_VERSION = '2026.11.16.R7';
 
 export interface OtaCheckResult {
   hasOtaUpdate: boolean;
@@ -513,7 +513,7 @@ export interface OtaCheckResult {
 }
 
 /**
- * Compares the local build version (e.g. '2026.11.16.R6') with a remote manifest hosted on GitHub,
+ * Compares the local build version (e.g. '2026.11.16.R7') with a remote manifest hosted on GitHub,
  * returning whether an Over-The-Air (OTA) update is available or if the user is on the latest build.
  */
 export async function checkForOtaUpdates(

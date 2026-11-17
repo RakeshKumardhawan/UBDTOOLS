@@ -127,7 +127,7 @@ namespace EVedhikaUBDDeploymentTool
             pnlState.Bounds = new Rectangle(25, 74, 435, 92);
 
             rbTelangana = new RadioButton();
-            rbTelangana.Text = "Telangana (తెలంగాణ - ubd.telangana.gov.in)";
+            rbTelangana.Text = "Telangana (తెలంగాణ - Official UBD Portal)";
             rbTelangana.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             rbTelangana.ForeColor = Color.White;
             rbTelangana.Bounds = new Rectangle(16, 12, 400, 30);
@@ -136,7 +136,7 @@ namespace EVedhikaUBDDeploymentTool
             pnlState.Controls.Add(rbTelangana);
 
             rbAndhra = new RadioButton();
-            rbAndhra.Text = "Andhra Pradesh (ఆంధ్రప్రదేశ్ - ubd.ap.gov.in)";
+            rbAndhra.Text = "Andhra Pradesh (ఆంధ్రప్రదేశ్ - Official UBD Portal)";
             rbAndhra.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             rbAndhra.ForeColor = Color.White;
             rbAndhra.Bounds = new Rectangle(16, 48, 400, 30);

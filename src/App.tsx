@@ -239,6 +239,19 @@ function MainAppContent() {
   // Sync tab from URL path, search parameters & hash on load / popstate / hashchange (supports /UBDTOOLS/live-pc-reports)
   React.useEffect(() => {
     const handleUrlTab = () => {
+      try {
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.get('pay') === '1' || currentUrl.searchParams.has('pcId')) {
+          currentUrl.searchParams.delete('tab');
+          const lowerP = currentUrl.pathname.toLowerCase();
+          if (!lowerP.endsWith('/live-pc-reports')) {
+            const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
+            currentUrl.pathname = `${basePrefix}/live-pc-reports`;
+          }
+          window.history.replaceState({}, '', currentUrl.toString());
+        }
+      } catch {}
+
       const resolved = resolveRouteFromLocation(
         window.location.pathname,
         window.location.search,
@@ -273,6 +286,9 @@ function MainAppContent() {
         url.pathname = `/home/post/${slug}`;
       }
       url.searchParams.delete('tab');
+      url.searchParams.delete('pay');
+      url.searchParams.delete('pcId');
+      url.searchParams.delete('pcName');
       window.history.pushState({}, '', url.toString());
     } catch { }
   };
@@ -282,7 +298,17 @@ function MainAppContent() {
     setIsMobileMenuOpen(false);
     try {
       const url = new URL(window.location.href);
-      if (tab === 'backups') {
+      if (tab !== 'report-center' && tab !== 'pay-checkout') {
+        url.searchParams.delete('pay');
+        url.searchParams.delete('pcId');
+        url.searchParams.delete('pcName');
+      }
+      if (tab === 'report-center') {
+        const lowerP = url.pathname.toLowerCase();
+        const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
+        url.pathname = `${basePrefix}/live-pc-reports`;
+        url.searchParams.delete('tab');
+      } else if (tab === 'backups') {
         url.searchParams.set('tab', 'admin/UBDLiveMonitoring');
       } else if (tab === 'posts') {
         url.searchParams.set('tab', 'admin/post');

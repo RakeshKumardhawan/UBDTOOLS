@@ -84,7 +84,7 @@ jobs:
             [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64.Trim()))
             $pfxPasswordPlain = $env:SIGNING_PFX_PASSWORD
         } else {
-            Write-Host "Notice: SIGNING_PFX_BASE64 secret not set — using build-time fallback certificate. Add a Trusted CA PFX secret for full Smart App Control reputation."
+            Write-Host "Notice: SIGNING_PFX_BASE64 secret not set - using build-time fallback certificate. Add a Trusted CA PFX secret for full Smart App Control reputation."
             $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=E-Vedhika Development Community, O=E-Vedhika Government Solutions, C=IN" -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(5)
             $pfxPass = ConvertTo-SecureString -String $pfxPasswordPlain -Force -AsPlainText
             Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $pfxPass | Out-Null
@@ -107,8 +107,9 @@ jobs:
         if ($signtool -and (Test-Path $pfxPath) -and (Test-Path $outputDir)) {
             Write-Host "Signing generated installer executables..."
             Get-ChildItem -Path "$outputDir\*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
-                Write-Host "Signing installer: $($_.FullName)"
-                & $signtool sign /f "$pfxPath" /p "$pfxPasswordPlain" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 $_.FullName
+                $targetExe = $_.FullName
+                Write-Host "Signing installer: $targetExe"
+                & $signtool sign /f "$pfxPath" /p "$pfxPasswordPlain" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "$targetExe"
             }
         }
 
@@ -121,8 +122,8 @@ jobs:
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
           public/downloads/Unblock_EVedhika_Antivirus_Exclusion.bat
-        name: Latest Stable Build v1.1.0 (Guardian Build - Resource Build 2026.11.16.R6)
-        body: "Automatic build from GitHub Actions. Enterprise v1.1.0 Guardian Build (Resource Build 2026.11.16.R6) - Single Particular GitHub Admin Live Hub (https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports), Automatic New-Version Upgrade Reporting from every upgraded PC, Interactive Operator ★ 1-5 Star Rating & Feedback Dialog, Single Telegram Report Deduplication (1 on Install + 1 on 17-Step Run), Accurate District & GP Office Selection (All 33 TS & 26 AP Districts), Dedicated Admin Installed/Live/Upgraded PCs & Feedback Reports (Zero Dummy Data), and Universal Windows 7/8/10/11 Compatibility."
+        name: Latest Stable Build v1.1.0 (Guardian Build - Resource Build 2026.11.16.R7)
+        body: "Automatic build from GitHub Actions. Enterprise v1.1.0 Guardian Build (Resource Build 2026.11.16.R7) - Single Particular GitHub Admin Live Hub (https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports), Automatic New-Version Upgrade Reporting from every upgraded PC, Interactive Operator 1-5 Star Rating & Feedback Dialog, Single Telegram Report Deduplication (1 on Install + 1 on 17-Step Run), Accurate District & GP Office Selection (All 33 TS & 26 AP Districts), Dedicated Admin Installed/Live/Upgraded PCs & Feedback Reports (Zero Dummy Data), and Universal Windows 7/8/10/11 Compatibility."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
