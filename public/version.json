@@ -12,7 +12,7 @@
   "silent": true,
   "downloadSize": "8.5 MB",
   "sha256": "",
-  "releaseNotes": "[NEW FEATURES v1.1.0]\n• Real-Time Central Cloud Telemetry & Live PC Sync (Backed by Google Cloud Firestore)\n• Automatic New-Version Upgrade Reporting: Every PC upgrading to v1.1.0 sends full Machine, District/GP Office & Version Transition details\n• Interactive ★ 1-5 Star Rating & Feedback Dialog after 17-Step Deployment & Dedicated Feedback Tab\n• District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) — Eliminates false 'Hyderabad' ISP location\n• Strictly 1 Telegram Report on Install & 1 on 17-Step Run (Zero Duplicate Telegram Messages)\n• Dedicated Admin Installed PCs, Live Online PCs, Updated PCs & User Ratings Reports (0% Dummy Data)\n• Updated Resource Build to 2026.11.16.R7 with Universal Windows 7/8/10/11 Compatibility",
+  "releaseNotes": "🚀 v1.1.0 Update Highlights:\n• New features added for enhanced PC monitoring & telemetry\n• Bug fixes and performance improvements applied\n• Universal Windows 7/8/10/11 compatibility verified",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://firestore.googleapis.com/v1/projects/e-vedhika-258f2/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/documents:commit?key=AIzaSyC_oLAFLdpErutmSmR9bQnm0ETq5hd9qnU",
   "latestResourceBuild": "2026.11.16.R7",
