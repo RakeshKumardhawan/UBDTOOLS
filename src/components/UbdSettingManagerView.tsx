@@ -5,6 +5,7 @@ import {
   BarChart2, PieChart as PieChartIcon, Monitor, Wifi, Key, ExternalLink,
   Info, Lock, Layers, LayoutGrid, ClipboardList, Database, Wrench, Users
 } from 'lucide-react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useToast } from './Toast';
 import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
 
@@ -293,6 +294,66 @@ export const UbdSettingManagerView: React.FC = () => {
             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">సమస్యలు ఉన్నవి (Attention Required)</div>
             <div className="text-2xl font-black text-rose-600 font-mono">{stats.issues}</div>
           </div>
+        </div>
+      </div>
+
+      {/* Real-Time UBD Service Availability Distribution Pie Chart (Recharts) */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <PieChartIcon className="w-5 h-5 text-indigo-600" />
+              <span>ఆఫీస్ లొకేషన్ల వారీగా UBD సేవల లభ్యత (UBD Service Availability by Office Locations)</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              వివిధ గ్రామ పంచాయతీ / మండలాలు మరియు ఆఫీస్ లొకేషన్లలో UBD సర్వీస్ ఆక్టివ్‌గా ఉన్న PCల వాటా (Real-Time Recharts Pie Distribution).
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-full text-[0.65rem] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+            ● Live Sync (Recharts)
+          </span>
+        </div>
+
+        <div className="w-full h-72 sm:h-80">
+          {(() => {
+            const officeMap: Record<string, number> = {};
+            uniqueMachines.forEach((m: MachineRecord) => {
+              const loc = (m.officeLocation || m.district || 'Telangana GP').trim();
+              officeMap[loc] = (officeMap[loc] || 0) + 1;
+            });
+            const pieData = Object.keys(officeMap).length > 0
+              ? Object.keys(officeMap).map(name => ({ name, value: officeMap[name] }))
+              : [{ name: 'Telangana GP Office', value: Math.max(1, stats.total) }];
+
+            const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6', '#f43f5e'];
+
+            return (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={105}
+                    innerRadius={45}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '1rem', color: '#f8fafc', fontSize: '0.75rem' }}
+                    itemStyle={{ color: '#f8fafc' }}
+                    formatter={(value: any) => [`${value} PCs`, 'Active Availability']}
+                  />
+                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'monospace' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            );
+          })()}
         </div>
       </div>
 

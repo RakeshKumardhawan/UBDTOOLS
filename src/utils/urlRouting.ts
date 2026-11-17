@@ -30,7 +30,8 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
   if (
     routeSurface.includes('live-pc-reports') ||
     routeSurface.includes('admin-live-reports') ||
-    routeSurface.includes('report-center')
+    routeSurface.includes('report-center') ||
+    routeSurface.includes('/admin')
   ) {
     return { tab: 'report-center' };
   }

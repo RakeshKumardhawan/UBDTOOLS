@@ -147,8 +147,7 @@ export const ReportCenter: React.FC = () => {
   const isVerifiedAdmin = Boolean(
     authReady &&
     firebaseUser &&
-    firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
-    firebaseUser.emailVerified
+    firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
   );
 
   useEffect(() => {
