@@ -508,7 +508,8 @@ export const ReportCenter: React.FC = () => {
         showError(`Add "${host}" to Firebase Authorized Domains in Firebase Console`, 'Domain Not Authorized');
         return;
       }
-      showError(e.message || 'Google Sign-In failed', 'Auth Error');
+      const errText = e?.message || e?.code || (typeof e === 'string' ? e : 'Google Sign-In failed');
+      showError(errText, 'Auth Error');
     }
   };
 

@@ -17,7 +17,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         public const string CurrentVersion = "v1.1.0";
         public const int CurrentVersionCode = 10100;
-        public const string CurrentResourceBuild = "2026.11.16.R8";
+        public const string CurrentResourceBuild = "2026.11.16.R9";
         public const string ResourceDate = "2026-11-16";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json";
@@ -345,6 +345,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         {
                             latestVer = ExtractJsonValue(jsonResponse, "latestVersion");
                             releaseNotes = ExtractJsonValue(jsonResponse, "releaseNotes");
+                            if (!string.IsNullOrEmpty(releaseNotes))
+                            {
+                                releaseNotes = releaseNotes.Replace("\\n", "\n").Replace("\\r", "\r").Replace("\\\"", "\"");
+                            }
                             downloadUrl = ExtractJsonValue(jsonResponse, "downloadUrl");
                             relDate = ExtractJsonValue(jsonResponse, "releaseDate");
                             dSize = ExtractJsonValue(jsonResponse, "downloadSize");
