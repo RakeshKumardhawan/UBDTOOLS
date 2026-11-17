@@ -108,7 +108,8 @@ export type NavigationTab =
   | 'settings'
   | 'help'
   | 'about'
-  | 'pay-checkout';
+  | 'pay-checkout'
+  | 'admin-portal';
 
 export interface SystemResourceStats {
   ram: {

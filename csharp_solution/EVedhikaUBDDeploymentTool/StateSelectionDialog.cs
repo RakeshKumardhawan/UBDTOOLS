@@ -11,11 +11,13 @@ namespace EVedhikaUBDDeploymentTool
     {
         public string SelectedState { get; private set; } = "Telangana";
         public string SelectedDistrict { get; private set; } = "";
+        public string SelectedMandalName { get; private set; } = "";
         public string SelectedOfficeName { get; private set; } = "";
 
         private RadioButton rbTelangana;
         private RadioButton rbAndhra;
         private ComboBox cboDistrict;
+        private TextBox txtMandalName;
         private TextBox txtOfficeName;
         private TextBox txtOperatorName;
         private Button btnContinue;
@@ -71,7 +73,7 @@ namespace EVedhikaUBDDeploymentTool
             "Prakasam (ప్రకాశం)",
             "Kakinada (కాకినాడ)",
             "East Godavari (తూర్పు గోదావరి)",
-            "West Godavari (পশ্চিম గోదావరి)",
+            "West Godavari (పశ్చిమ గోదావరి)",
             "Eluru (ఏలూరు)",
             "Krishna (కృష్ణా)",
             "Srikakulam (శ్రీకాకుళం)",
@@ -82,7 +84,7 @@ namespace EVedhikaUBDDeploymentTool
             "Sri Sathya Sai (శ్రీ సత్యసాయి)",
             "Annamayya (అన్నమయ్య)",
             "Konaseema (కోనసీమ)",
-            "Anakalli (అనకాపల్లి)",
+            "Anakapalli (అనకాపల్లి)",
             "Alluri Sitharama Raju (అల్లూరి సీతారామరాజు)",
             "Parvathipuram Manyam (పార్వతీపురం మన్యం)"
         };
@@ -95,42 +97,46 @@ namespace EVedhikaUBDDeploymentTool
 
         private void InitializeComponent()
         {
-            this.Text = "E-Vedhika UBD Tool - Select State, District & Office Location";
-            this.Size = new Size(500, 440);
+            this.Text = "E-Vedhika UBD Tool - Select State, District, Mandal & Office Location";
+            this.ClientSize = new Size(540, 520);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
+            this.AutoScaleMode = AutoScaleMode.Font;
             this.BackColor = Color.FromArgb(15, 23, 42);
             this.ForeColor = Color.White;
 
             Label lblHeader = new Label();
-            lblHeader.Text = "🏛️ E-Vedhika UBD Deployment Tool";
-            lblHeader.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
+            lblHeader.Text = "E-Vedhika UBD Deployment Tool";
+            lblHeader.Font = new Font("Segoe UI", 13.5F, FontStyle.Bold);
             lblHeader.ForeColor = Color.FromArgb(56, 189, 248);
             lblHeader.AutoSize = false;
+            lblHeader.UseMnemonic = false;
             lblHeader.TextAlign = ContentAlignment.MiddleCenter;
-            lblHeader.Bounds = new Rectangle(15, 14, 455, 28);
+            lblHeader.Bounds = new Rectangle(16, 12, 508, 28);
             this.Controls.Add(lblHeader);
 
             Label lblSub = new Label();
-            lblSub.Text = "మీ రాష్ట్రం, జిల్లా మరియు గ్రామ పంచాయతీ / మండల ఆఫీస్ వివరాలను ఎంచుకోండి:";
-            lblSub.Font = new Font("Segoe UI", 9.25F, FontStyle.Regular);
+            lblSub.Text = "మీ రాష్ట్రం, జిల్లా, మండలం, గ్రామ పంచాయతీ & ఆపరేటర్ వివరాలను స్పష్టంగా ఎంటర్ చేయండి:";
+            lblSub.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             lblSub.ForeColor = Color.FromArgb(203, 213, 225);
             lblSub.AutoSize = false;
+            lblSub.UseMnemonic = false;
             lblSub.TextAlign = ContentAlignment.MiddleCenter;
-            lblSub.Bounds = new Rectangle(15, 44, 455, 22);
+            lblSub.Bounds = new Rectangle(16, 42, 508, 34);
             this.Controls.Add(lblSub);
 
             Panel pnlState = new Panel();
             pnlState.BackColor = Color.FromArgb(30, 41, 59);
-            pnlState.Bounds = new Rectangle(25, 74, 435, 92);
+            pnlState.Bounds = new Rectangle(24, 82, 492, 78);
 
             rbTelangana = new RadioButton();
             rbTelangana.Text = "Telangana (తెలంగాణ - Official UBD Portal)";
             rbTelangana.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             rbTelangana.ForeColor = Color.White;
-            rbTelangana.Bounds = new Rectangle(16, 12, 400, 30);
+            rbTelangana.UseMnemonic = false;
+            rbTelangana.Bounds = new Rectangle(14, 10, 464, 28);
             rbTelangana.Checked = true;
             rbTelangana.CheckedChanged += RbState_CheckedChanged;
             pnlState.Controls.Add(rbTelangana);
@@ -139,17 +145,20 @@ namespace EVedhikaUBDDeploymentTool
             rbAndhra.Text = "Andhra Pradesh (ఆంధ్రప్రదేశ్ - Official UBD Portal)";
             rbAndhra.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             rbAndhra.ForeColor = Color.White;
-            rbAndhra.Bounds = new Rectangle(16, 48, 400, 30);
+            rbAndhra.UseMnemonic = false;
+            rbAndhra.Bounds = new Rectangle(14, 42, 464, 28);
             rbAndhra.CheckedChanged += RbState_CheckedChanged;
             pnlState.Controls.Add(rbAndhra);
 
             this.Controls.Add(pnlState);
 
+            // Row 1: District
             Label lblDistrict = new Label();
-            lblDistrict.Text = "📍 జిల్లా ఎంచుకోండి (Select Your District):";
+            lblDistrict.Text = "1. జిల్లా ఎంచుకోండి (Select District) *:";
             lblDistrict.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             lblDistrict.ForeColor = Color.FromArgb(251, 191, 36);
-            lblDistrict.Bounds = new Rectangle(25, 178, 435, 20);
+            lblDistrict.UseMnemonic = false;
+            lblDistrict.Bounds = new Rectangle(24, 170, 492, 22);
             this.Controls.Add(lblDistrict);
 
             cboDistrict = new ComboBox();
@@ -157,54 +166,78 @@ namespace EVedhikaUBDDeploymentTool
             cboDistrict.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             cboDistrict.BackColor = Color.FromArgb(30, 41, 59);
             cboDistrict.ForeColor = Color.White;
-            cboDistrict.Bounds = new Rectangle(25, 202, 435, 30);
+            cboDistrict.Bounds = new Rectangle(24, 194, 492, 30);
             this.Controls.Add(cboDistrict);
 
+            // Row 2: Mandal Name (Separate, Unambiguous Full-Width Row)
+            Label lblMandal = new Label();
+            lblMandal.Text = "2. మండలం పేరు (Mandal Name) *  [ఉదా: Yadagirigutta / Mancherial]:";
+            lblMandal.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            lblMandal.ForeColor = Color.FromArgb(56, 189, 248);
+            lblMandal.UseMnemonic = false;
+            lblMandal.Bounds = new Rectangle(24, 232, 492, 22);
+            this.Controls.Add(lblMandal);
+
+            txtMandalName = new TextBox();
+            txtMandalName.Font = new Font("Segoe UI", 10F, FontStyle.Regular);
+            txtMandalName.BackColor = Color.FromArgb(30, 41, 59);
+            txtMandalName.ForeColor = Color.White;
+            txtMandalName.Bounds = new Rectangle(24, 256, 492, 28);
+            txtMandalName.Text = "";
+            this.Controls.Add(txtMandalName);
+
+            // Row 3: Grama Panchayat / Office Name (Separate Full-Width Row)
             Label lblOffice = new Label();
-            lblOffice.Text = "🏢 గ్రామ పంచాయతీ / మండలం / ఆఫీస్ పేరు (GP / Mandal / Office Name):";
-            lblOffice.Font = new Font("Segoe UI", 9.25F, FontStyle.Bold);
+            lblOffice.Text = "3. గ్రామ పంచాయతీ / ఆఫీస్ పేరు (GP / Office Name) *  [ఉదా: Mailargudem GP]:";
+            lblOffice.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             lblOffice.ForeColor = Color.White;
-            lblOffice.Bounds = new Rectangle(25, 242, 435, 20);
+            lblOffice.UseMnemonic = false;
+            lblOffice.Bounds = new Rectangle(24, 292, 492, 22);
             this.Controls.Add(lblOffice);
 
             txtOfficeName = new TextBox();
             txtOfficeName.Font = new Font("Segoe UI", 10F, FontStyle.Regular);
             txtOfficeName.BackColor = Color.FromArgb(30, 41, 59);
             txtOfficeName.ForeColor = Color.White;
-            txtOfficeName.Bounds = new Rectangle(25, 266, 265, 28);
+            txtOfficeName.Bounds = new Rectangle(24, 316, 492, 28);
             txtOfficeName.Text = (Environment.MachineName ?? "GP-OFFICE") + " GP Office";
             this.Controls.Add(txtOfficeName);
 
+            // Row 4: Operator Name (Separate Full-Width Row)
             Label lblOp = new Label();
-            lblOp.Text = "👤 ఆపరేటర్ (Operator):";
-            lblOp.Font = new Font("Segoe UI", 9.25F, FontStyle.Bold);
-            lblOp.ForeColor = Color.White;
-            lblOp.Bounds = new Rectangle(300, 242, 160, 20);
+            lblOp.Text = "4. ఆపరేటర్ పేరు (Operator Name)  [మీ పూర్తి పేరు ఇక్కడ ఇవ్వండి]:";
+            lblOp.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            lblOp.ForeColor = Color.FromArgb(203, 213, 225);
+            lblOp.UseMnemonic = false;
+            lblOp.Bounds = new Rectangle(24, 352, 492, 22);
             this.Controls.Add(lblOp);
 
             txtOperatorName = new TextBox();
             txtOperatorName.Font = new Font("Segoe UI", 10F, FontStyle.Regular);
             txtOperatorName.BackColor = Color.FromArgb(30, 41, 59);
             txtOperatorName.ForeColor = Color.White;
-            txtOperatorName.Bounds = new Rectangle(300, 266, 160, 28);
+            txtOperatorName.Bounds = new Rectangle(24, 376, 492, 28);
             txtOperatorName.Text = Environment.UserName ?? "Operator";
             this.Controls.Add(txtOperatorName);
 
             Label lblNote = new Label();
-            lblNote.Text = "✅ మీరు ఎంచుకున్న జిల్లా & గ్రామ పంచాయతీ లొకేషన్ నేరుగా అడ్మిన్ రిపోర్ట్‌లో సేవ్ అవుతుంది.";
+            lblNote.Text = "[OK] మీరు ఎంచుకున్న జిల్లా, మండలం, GP & ఆపరేటర్ వివరాలు నేరుగా అడ్మిన్ రిపోర్ట్‌లో సేవ్ అవుతాయి.";
             lblNote.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
             lblNote.ForeColor = Color.FromArgb(52, 211, 153);
-            lblNote.Bounds = new Rectangle(25, 304, 435, 22);
+            lblNote.AutoSize = false;
+            lblNote.UseMnemonic = false;
+            lblNote.Bounds = new Rectangle(24, 412, 492, 34);
             this.Controls.Add(lblNote);
 
             btnContinue = new Button();
-            btnContinue.Text = "Continue to Deployment Tool ➔";
+            btnContinue.Text = "Continue to Deployment Tool  ->";
             btnContinue.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold);
             btnContinue.BackColor = Color.FromArgb(16, 185, 129);
             btnContinue.ForeColor = Color.White;
             btnContinue.FlatStyle = FlatStyle.Flat;
             btnContinue.FlatAppearance.BorderSize = 0;
-            btnContinue.Bounds = new Rectangle(90, 336, 305, 44);
+            btnContinue.UseMnemonic = false;
+            btnContinue.Bounds = new Rectangle(110, 454, 320, 44);
             btnContinue.Cursor = Cursors.Hand;
             btnContinue.Click += BtnContinue_Click;
             this.Controls.Add(btnContinue);
@@ -236,6 +269,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 string savedState = "";
                 string savedDistrict = "";
+                string savedMandal = "";
                 string savedOffice = "";
                 string savedOperator = "";
 
@@ -245,6 +279,7 @@ namespace EVedhikaUBDDeploymentTool
                     {
                         savedState = Convert.ToString(key.GetValue("SelectedState", ""));
                         savedDistrict = Convert.ToString(key.GetValue("SelectedDistrict", ""));
+                        savedMandal = Convert.ToString(key.GetValue("SelectedMandalName", ""));
                         savedOffice = Convert.ToString(key.GetValue("SelectedOfficeName", ""));
                         savedOperator = Convert.ToString(key.GetValue("SelectedOperatorName", ""));
                     }
@@ -291,10 +326,25 @@ namespace EVedhikaUBDDeploymentTool
                     }
                 }
 
+                if (!string.IsNullOrEmpty(savedMandal))
+                {
+                    txtMandalName.Text = savedMandal;
+                }
+
                 if (!string.IsNullOrEmpty(savedOffice))
                 {
-                    txtOfficeName.Text = savedOffice;
+                    string cleanOffice = savedOffice;
+                    if (!string.IsNullOrEmpty(savedMandal))
+                    {
+                        string suffix = " (" + savedMandal + " Mandal)";
+                        if (cleanOffice.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cleanOffice = cleanOffice.Substring(0, cleanOffice.Length - suffix.Length).Trim();
+                        }
+                    }
+                    txtOfficeName.Text = cleanOffice;
                 }
+
                 if (!string.IsNullOrEmpty(savedOperator))
                 {
                     txtOperatorName.Text = savedOperator;
@@ -330,14 +380,28 @@ namespace EVedhikaUBDDeploymentTool
             SelectedState = rbAndhra.Checked ? "Andhra Pradesh" : "Telangana";
             string rawDist = cboDistrict.SelectedItem.ToString();
             SelectedDistrict = ExtractEnglishDistrict(rawDist);
-            SelectedOfficeName = !string.IsNullOrEmpty(txtOfficeName.Text.Trim())
+
+            string mandal = txtMandalName.Text.Trim();
+            SelectedMandalName = mandal;
+
+            string officeBase = !string.IsNullOrEmpty(txtOfficeName.Text.Trim())
                 ? txtOfficeName.Text.Trim()
                 : ((Environment.MachineName ?? "GP-OFFICE") + " GP Office");
+
+            if (!string.IsNullOrEmpty(mandal) && officeBase.IndexOf(mandal, StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                SelectedOfficeName = $"{officeBase} ({mandal} Mandal)";
+            }
+            else
+            {
+                SelectedOfficeName = officeBase;
+            }
+
             string operatorName = !string.IsNullOrEmpty(txtOperatorName.Text.Trim())
                 ? txtOperatorName.Text.Trim()
                 : (Environment.UserName ?? "Operator");
 
-            SystemInfoHelper.SaveConfiguredOfficeProfile(SelectedState, SelectedDistrict, SelectedOfficeName, operatorName);
+            SystemInfoHelper.SaveConfiguredOfficeProfile(SelectedState, SelectedDistrict, SelectedOfficeName, operatorName, SelectedMandalName);
 
             this.DialogResult = DialogResult.OK;
             this.Close();

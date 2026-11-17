@@ -1,32 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  X, Laptop, Monitor, Activity, ShieldCheck, Cpu, HardDrive,
-  RefreshCw, Download, Calendar, Search, Filter, AlertTriangle,
-  CheckCircle2, Clock, Terminal, ChevronRight, FileText, Lock, Key
+  X, Laptop, ShieldCheck, RefreshCw, Download, Search
 } from 'lucide-react';
+import { resolvePcModalDisplay, filterPcModalReports } from '../utils/reportHelpers';
 
 interface PCDetailsModalProps {
   pcId: string;
+  initialPc?: any;
+  initialReports?: any[];
   onClose: () => void;
 }
 
-export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose }) => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [pcData, setPcData] = useState<any>(null);
-  const [reports, setReports] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'audit' | 'guardian' | 'ota' | 'errors' | 'raw'>('overview');
+export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({
+  pcId,
+  initialPc,
+  initialReports,
+  onClose
+}) => {
+  const [loading, setLoading] = useState<boolean>(!initialPc);
+  const [pcData, setPcData] = useState<any>(initialPc || null);
+  const [reports, setReports] = useState<any[]>(Array.isArray(initialReports) ? initialReports : []);
+  const [activeTab, setActiveTab] = useState<'overview' | 'audit' | 'guardian' | 'ota' | 'errors'>('overview');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
 
   const fetchPcDetails = async () => {
-    setLoading(true);
+    if (window.location.hostname.endsWith('github.io')) {
+      setLoading(false);
+      return;
+    }
+    if (!initialPc) setLoading(true);
     try {
       const res = await fetch(`/api/reports/pc/${encodeURIComponent(pcId)}?t=${Date.now()}`);
-      if (res.ok) {
+      if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
         const data = await res.json();
         if (data.success) {
-          setPcData(data.pc);
-          setReports(data.reports || []);
+          if (data.pc) setPcData((prev: any) => ({ ...(prev || {}), ...data.pc }));
+          if (Array.isArray(data.reports) && data.reports.length > 0) {
+            setReports((prev) => {
+              const map = new Map<string, any>();
+              prev.forEach((r) => map.set(String(r.eventId || r.reportId), r));
+              data.reports.forEach((r: any) => map.set(String(r.eventId || r.reportId), r));
+              return Array.from(map.values());
+            });
+          }
         }
       }
     } catch (e) {
@@ -40,18 +56,20 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
     fetchPcDetails();
   }, [pcId]);
 
-  const filteredReports = reports.filter(r => {
-    if (categoryFilter !== 'ALL' && String(r.reportType).toUpperCase() !== categoryFilter) return false;
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      const match = String(r.eventId).toLowerCase().includes(q) ||
-                    String(r.details).toLowerCase().includes(q) ||
-                    String(r.remarks).toLowerCase().includes(q) ||
-                    String(r.status).toLowerCase().includes(q);
-      if (!match) return false;
-    }
-    return true;
-  });
+  const pc = useMemo(
+    () => resolvePcModalDisplay(pcId, pcData || initialPc),
+    [pcId, pcData, initialPc]
+  );
+
+  const auditCount = useMemo(() => filterPcModalReports(reports, 'audit', '').length, [reports]);
+  const guardianCount = useMemo(() => filterPcModalReports(reports, 'guardian', '').length, [reports]);
+  const otaCount = useMemo(() => filterPcModalReports(reports, 'ota', '').length, [reports]);
+  const errorCount = useMemo(() => filterPcModalReports(reports, 'errors', '').length, [reports]);
+
+  const filteredReports = useMemo(
+    () => filterPcModalReports(reports, activeTab === 'overview' ? 'audit' : activeTab, searchTerm),
+    [reports, activeTab, searchTerm]
+  );
 
   const downloadPcReportExcel = () => {
     window.location.href = `/api/reports/export-excel?pcId=${encodeURIComponent(pcId)}`;
@@ -63,44 +81,24 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl">
           <RefreshCw className="w-10 h-10 text-cyan-400 animate-spin mx-auto" />
           <h3 className="text-lg font-bold text-white">Loading Detailed PC Report History...</h3>
-          <p className="text-xs text-slate-400 font-mono">Fetching full 17-step audits, heartbeats & OTA updates for {pcId}</p>
+          <p className="text-xs text-slate-400 font-mono">Fetching 17-step audits, health score &amp; OTA updates for {pcId}</p>
         </div>
       </div>
     );
   }
 
-  const pc = pcData || {
-    pcId,
-    pcName: 'GP-OFFICE-PC',
-    userName: 'Operator',
-    officeLocation: 'Grama Panchayat Office',
-    district: 'District Office',
-    state: 'Telangana',
-    osVersion: 'Windows 11 Pro',
-    winBuild: 'Build 22631',
-    appVersion: 'v1.1.0',
-    resourceBuild: '2026.11.16.R6',
-    pcConnectivity: 'ONLINE',
-    appState: 'RUNNING',
-    lastHeartbeatTime: 'Just Now',
-    memoryUsageMB: 128,
-    cpuUsagePct: 3.5,
-    uptimeSeconds: 7200,
-    ipAddress: '192.168.1.104'
-  };
-
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden relative font-sans text-slate-100">
-        
+
         {/* Header Bar */}
-        <div className="bg-slate-950 p-5 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="bg-slate-950 p-5 border-b border-slate-800 flex items-center justify-between shrink-0 gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center">
               <Laptop className="w-6 h-6 text-cyan-400" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-bold text-white">{pc.pcName}</h2>
                 <span className="bg-slate-800 text-cyan-300 font-mono text-[10px] px-2 py-0.5 rounded border border-slate-700">
                   {pc.pcId}
@@ -117,21 +115,26 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                {pc.officeLocation} • {pc.district}, {pc.state}
+                {pc.officeLocation} • {pc.district}, {pc.state} • Operator: {pc.userName}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {!window.location.hostname.endsWith('github.io') && (
+              <button
+                type="button"
+                onClick={downloadPcReportExcel}
+                className="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow cursor-pointer"
+              >
+                <Download className="w-4 h-4" /> Export PC Excel Report
+              </button>
+            )}
             <button
-              onClick={downloadPcReportExcel}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow"
-            >
-              <Download className="w-4 h-4" /> Export PC Excel Report
-            </button>
-            <button
+              type="button"
+              aria-label="Close PC details dialog"
               onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition"
+              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -141,44 +144,49 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
         {/* Tab Navigation */}
         <div className="bg-slate-950/60 border-b border-slate-800 px-5 pt-2 flex items-center gap-2 overflow-x-auto shrink-0 font-mono text-xs">
           <button
+            type="button"
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2.5 rounded-t-xl transition font-bold ${
+            className={`px-4 py-2.5 rounded-t-xl transition font-bold cursor-pointer ${
               activeTab === 'overview' ? 'bg-slate-900 text-cyan-400 border-t-2 border-cyan-400' : 'text-slate-400 hover:text-white'
             }`}
           >
-            System Overview & Metrics
+            System Overview &amp; Health
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('audit')}
-            className={`px-4 py-2.5 rounded-t-xl transition font-bold ${
+            className={`px-4 py-2.5 rounded-t-xl transition font-bold cursor-pointer ${
               activeTab === 'audit' ? 'bg-slate-900 text-cyan-400 border-t-2 border-cyan-400' : 'text-slate-400 hover:text-white'
             }`}
           >
-            17-Step Deployment Audits ({reports.filter(r => r.reportType === 'DEPLOYMENT_AUDIT').length})
+            17-Step Deployment Audits ({auditCount})
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('guardian')}
-            className={`px-4 py-2.5 rounded-t-xl transition font-bold ${
+            className={`px-4 py-2.5 rounded-t-xl transition font-bold cursor-pointer ${
               activeTab === 'guardian' ? 'bg-slate-900 text-cyan-400 border-t-2 border-cyan-400' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Guardian & Auto-Repair ({reports.filter(r => r.reportType === 'GUARDIAN_EVENT').length})
+            Guardian &amp; Auto-Repair ({guardianCount})
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('ota')}
-            className={`px-4 py-2.5 rounded-t-xl transition font-bold ${
+            className={`px-4 py-2.5 rounded-t-xl transition font-bold cursor-pointer ${
               activeTab === 'ota' ? 'bg-slate-900 text-cyan-400 border-t-2 border-cyan-400' : 'text-slate-400 hover:text-white'
             }`}
           >
-            OTA Update History ({reports.filter(r => r.reportType === 'OTA_UPDATE').length})
+            OTA Update History ({otaCount})
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('errors')}
-            className={`px-4 py-2.5 rounded-t-xl transition font-bold ${
+            className={`px-4 py-2.5 rounded-t-xl transition font-bold cursor-pointer ${
               activeTab === 'errors' ? 'bg-slate-900 text-cyan-400 border-t-2 border-cyan-400' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Error Logs ({reports.filter(r => r.status === 'FAILED' || r.reportType === 'ERROR_EXCEPTION').length})
+            Error Logs ({errorCount})
           </button>
         </div>
 
@@ -195,9 +203,9 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
                 </div>
 
                 <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                  <span className="text-slate-400 text-[10px] block">PROCESS RAM USAGE</span>
-                  <span className="text-lg font-bold text-emerald-400 mt-1 block">{pc.memoryUsageMB} MB</span>
-                  <span className="text-[10px] text-slate-500 mt-0.5 block">CPU: {pc.cpuUsagePct}%</span>
+                  <span className="text-slate-400 text-[10px] block">WORKSTATION HEALTH</span>
+                  <span className="text-lg font-bold text-emerald-400 mt-1 block">{pc.healthScore}/100</span>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block truncate">{pc.verification}</span>
                 </div>
 
                 <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
@@ -207,44 +215,46 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
                 </div>
 
                 <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                  <span className="text-slate-400 text-[10px] block">LAST HEARTBEAT</span>
+                  <span className="text-slate-400 text-[10px] block">LAST SEEN / HEARTBEAT</span>
                   <span className="text-xs font-bold text-amber-300 mt-1 block">{pc.lastHeartbeatTime}</span>
-                  <span className="text-[10px] text-emerald-400 mt-0.5 block">Ping: 60s Active</span>
+                  <span className="text-[10px] text-emerald-400 mt-0.5 block">
+                    {pc.pcConnectivity === 'ONLINE' ? 'Live 60s Ping Active' : 'Recorded in Cloud'}
+                  </span>
                 </div>
               </div>
 
               {/* Technical Health Matrix */}
               <div className="bg-slate-950 rounded-2xl p-5 border border-slate-800 space-y-3">
                 <h3 className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4" /> 17-Step Workstation Security & Token Health
+                  <ShieldCheck className="w-4 h-4" /> 17-Step Workstation Security &amp; Token Health
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
                     <span>Edge IE Mode Policy</span>
-                    <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      Enforced (IE5 Quirks)
+                    <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 truncate max-w-[60%]">
+                      {pc.edgeIeMode}
                     </span>
                   </div>
 
-                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <span>Enterprise sites.xml File</span>
-                    <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      Valid (sites.xml present)
+                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                    <span>Deployment Verification</span>
+                    <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 truncate max-w-[60%]">
+                      {pc.verification}
                     </span>
                   </div>
 
-                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
                     <span>USB DSC Token Status</span>
-                    <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      Active (Class 3 Signing)
+                    <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 truncate max-w-[60%]">
+                      {pc.dscStatus}
                     </span>
                   </div>
 
-                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <span>NIC DigiSigner Port 8080</span>
-                    <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      Listening (Port 8080 Active)
+                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                    <span>Workstation Process / CPU</span>
+                    <span className="text-cyan-300 font-bold bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/60 truncate max-w-[60%]">
+                      {pc.memoryDisplay} • {pc.cpuDisplay}
                     </span>
                   </div>
                 </div>
@@ -252,19 +262,19 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
 
               {/* Network Identity Specs */}
               <div className="bg-slate-950 rounded-2xl p-5 border border-slate-800 space-y-2 text-xs font-mono">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Hardware & Network Identifiers</h3>
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Hardware &amp; Network Identifiers</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
                     <span className="text-[10px] text-slate-500 block">LOCAL IP ADDRESS</span>
-                    <span className="text-slate-200 font-bold">{pc.ipAddress || '192.168.1.104'}</span>
+                    <span className="text-slate-200 font-bold">{pc.ipAddress}</span>
                   </div>
                   <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
                     <span className="text-[10px] text-slate-500 block">MAC ADDRESS</span>
-                    <span className="text-slate-200 font-bold">{pc.macAddress || '48:2A:E3:10:BF:C9'}</span>
+                    <span className="text-slate-200 font-bold">{pc.macAddress}</span>
                   </div>
                   <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-[10px] text-slate-500 block">HARDWARE UUID</span>
-                    <span className="text-cyan-400 font-bold truncate block">{pc.hardwareUuid || pc.pcId}</span>
+                    <span className="text-[10px] text-slate-500 block">MACHINE / HARDWARE ID</span>
+                    <span className="text-cyan-400 font-bold truncate block">{pc.hardwareUuid}</span>
                   </div>
                 </div>
               </div>
@@ -297,7 +307,7 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
                         <th className="p-3">CATEGORY</th>
                         <th className="p-3">STATUS</th>
                         <th className="p-3">TIMESTAMP (IST)</th>
-                        <th className="p-3">DETAILS & REMARKS</th>
+                        <th className="p-3">DETAILS &amp; REMARKS</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60 text-slate-300">
@@ -340,10 +350,11 @@ export const PCDetailsModal: React.FC<PCDetailsModalProps> = ({ pcId, onClose })
 
         {/* Footer */}
         <div className="bg-slate-950 p-4 border-t border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400 shrink-0">
-          <span>Central Cloud Telemetry Gateway: https://www.e-vedhika.in</span>
+          <span>Central Cloud Telemetry Gateway: E-Vedhika Live Hub</span>
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition cursor-pointer"
           >
             Close Dialog
           </button>

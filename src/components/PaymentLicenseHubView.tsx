@@ -1,0 +1,957 @@
+import React, { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal } from 'lucide-react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { useToast } from './Toast';
+import { PublicPaymentCheckout } from './PublicPaymentCheckout';
+import {
+  auth,
+  db,
+  googleProvider,
+  signInWithPopup,
+  signOut,
+  collection,
+  doc,
+  onSnapshot,
+  setDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  limit,
+  handleFirestoreError,
+  OperationType,
+  ADMIN_EMAIL
+} from '../firebase';
+import {
+  DEFAULT_LICENSE_POLICY,
+  LicensePolicyConfig,
+  PcLicenseRecord,
+  PaymentClaimRecord,
+  computeRenewalExpiryIso,
+  evaluateLicenseState,
+  isPcPaymentExempt,
+  inspectPaymentClaimDuplicate,
+  detectPhoneExposedInUpi,
+  buildUpiPaymentUri
+} from '../utils/licensePolicy';
+
+export const PaymentLicenseHubView: React.FC = () => {
+  const { showInfo, showSuccess, showError } = useToast();
+
+  const [subTab, setSubTab] = useState<'qr-checkout' | 'admin-controls'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('section') === 'admin-license') return 'admin-controls';
+    return 'qr-checkout';
+  });
+
+  const [authReady, setAuthReady] = useState<boolean>(false);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [authNotice, setAuthNotice] = useState<string>('');
+
+  const [licensePolicy, setLicensePolicy] = useState<LicensePolicyConfig>(DEFAULT_LICENSE_POLICY);
+  const [pcLicensesMap, setPcLicensesMap] = useState<Record<string, PcLicenseRecord>>({});
+  const [paymentClaims, setPaymentClaims] = useState<PaymentClaimRecord[]>([]);
+  const [installedPcs, setInstalledPcs] = useState<any[]>([]);
+
+  const [savingPolicy, setSavingPolicy] = useState<boolean>(false);
+  const [activatingPcId, setActivatingPcId] = useState<string | null>(null);
+  const [reviewingClaimId, setReviewingClaimId] = useState<string | null>(null);
+  const [bypassPcIdInput, setBypassPcIdInput] = useState<string>('');
+  const [bypassPcNameInput, setBypassPcNameInput] = useState<string>('');
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setFirebaseUser(u);
+      setAuthReady(true);
+      if (u && u.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        setAuthNotice(`Signed in as ${u.email}. Admin controls require ${ADMIN_EMAIL}.`);
+      } else {
+        setAuthNotice('');
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const isVerifiedAdmin = Boolean(
+    authReady &&
+    firebaseUser &&
+    firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
+  );
+
+  // Public read listener for global licensing config
+  useEffect(() => {
+    const policyRef = doc(db, 'app_settings', 'licensing');
+    const unsubPolicy = onSnapshot(
+      policyRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data: any = snap.data();
+          setLicensePolicy({
+            policyId: 'licensing',
+            mode: data.mode === 'PAID_MONTHLY' ? 'PAID_MONTHLY' : 'FREE_FOR_ALL',
+            monthlyPriceInr: Number(data.monthlyPriceInr ?? 10),
+            durationDays: Number(data.durationDays ?? 30),
+            upiId: String(data.upiId || ''),
+            paymentLinkUrl: String(data.paymentLinkUrl || ''),
+            paymentNote: String(data.paymentNote || DEFAULT_LICENSE_POLICY.paymentNote)
+          });
+        }
+      },
+      (error) => {
+        console.warn('Licensing policy listener notice:', error.message);
+      }
+    );
+    return () => unsubPolicy();
+  }, []);
+
+  // Admin-only listeners for UTR claims, per-PC licenses, and registered PCs
+  useEffect(() => {
+    if (!isVerifiedAdmin) {
+      setPaymentClaims([]);
+      setPcLicensesMap({});
+      setInstalledPcs([]);
+      return;
+    }
+
+    const qPcs = query(collection(db, 'installed_pcs'), orderBy('updatedAt', 'desc'), limit(200));
+    const unsubPcs = onSnapshot(
+      qPcs,
+      (snap) => {
+        const rows = snap.docs.map((d) => {
+          const data: any = d.data();
+          return {
+            pcId: data.pcId || d.id,
+            pcName: data.pcName || 'GP-OFFICE-PC',
+            userName: data.userName || 'Operator',
+            district: data.district || 'District',
+            state: data.state || 'Telangana',
+            officeLocation: data.officeLocation || 'Grama Panchayat Office'
+          };
+        });
+        setInstalledPcs(rows);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'installed_pcs');
+      }
+    );
+
+    const qLicList = query(collection(db, 'pc_licenses'), limit(200));
+    const unsubLicenses = onSnapshot(
+      qLicList,
+      (snap) => {
+        const nextMap: Record<string, PcLicenseRecord> = {};
+        snap.docs.forEach((d) => {
+          const data: any = d.data();
+          const key = String(data.pcId || d.id).toUpperCase();
+          nextMap[key] = {
+            pcId: data.pcId || d.id,
+            pcName: data.pcName || '',
+            planType: data.planType || 'PAID_30_DAYS',
+            status: data.status || 'ACTIVE',
+            amountInr: Number(data.amountInr ?? 10),
+            validUntilIso: String(data.validUntilIso || ''),
+            paymentRef: data.paymentRef || ''
+          };
+        });
+        setPcLicensesMap(nextMap);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'pc_licenses');
+      }
+    );
+
+    const qClaimsList = query(collection(db, 'payment_claims'), orderBy('createdAt', 'desc'), limit(200));
+    const unsubClaims = onSnapshot(
+      qClaimsList,
+      (snap) => {
+        const list: PaymentClaimRecord[] = snap.docs.map((d) => {
+          const data: any = d.data();
+          const createdMs = data.createdAt?.toMillis ? data.createdAt.toMillis() : 0;
+          return {
+            claimId: data.claimId || d.id,
+            utrNumber: String(data.utrNumber || ''),
+            pcId: String(data.pcId || ''),
+            pcName: String(data.pcName || 'GP-OFFICE-PC'),
+            operatorName: String(data.operatorName || ''),
+            district: String(data.district || ''),
+            state: String(data.state || ''),
+            amountInr: Number(data.amountInr ?? 10),
+            status: (data.status === 'APPROVED' || data.status === 'REJECTED') ? data.status : 'PENDING',
+            note: String(data.note || ''),
+            createdAtIso: createdMs ? new Date(createdMs).toISOString() : ''
+          };
+        });
+        setPaymentClaims(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'payment_claims');
+      }
+    );
+
+    return () => {
+      unsubPcs();
+      unsubLicenses();
+      unsubClaims();
+    };
+  }, [isVerifiedAdmin]);
+
+  const handleAdminGoogleSignIn = async () => {
+    try {
+      const res = await signInWithPopup(auth, googleProvider);
+      if (res.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        showSuccess('Firebase Cloud Admin లాగిన్ విజయవంతమైంది!', 'Admin Authenticated');
+      } else {
+        showInfo(`Signed in as ${res.user?.email}. Admin controls require ${ADMIN_EMAIL}.`, 'Access Notice');
+      }
+    } catch (e: any) {
+      if (String(e?.code || e?.message || '').includes('unauthorized-domain')) {
+        const host = window.location.hostname;
+        setAuthNotice(`Firebase Auth Notice: "${host}" ను Authorized domains లో యాడ్ చేయండి.`);
+        showError(`Add "${host}" to Firebase Authorized Domains in Firebase Console`, 'Domain Not Authorized');
+        return;
+      }
+      showError(e?.message || 'Google Sign-In failed', 'Auth Error');
+    }
+  };
+
+  const handleAdminSignOut = async () => {
+    await signOut(auth);
+    showInfo('Admin Cloud Session లాగౌట్ చేయబడింది.', 'Signed Out');
+  };
+
+  const handleSaveLicensePolicy = async (overrideMode?: 'FREE_FOR_ALL' | 'PAID_MONTHLY') => {
+    if (!isVerifiedAdmin) {
+      showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
+      return;
+    }
+    const nextMode = overrideMode || licensePolicy.mode;
+    setSavingPolicy(true);
+    try {
+      await setDoc(doc(db, 'app_settings', 'licensing'), {
+        policyId: 'licensing',
+        mode: nextMode,
+        monthlyPriceInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr) || 10)),
+        durationDays: Math.max(1, Math.min(3650, Math.floor(Number(licensePolicy.durationDays) || 30))),
+        upiId: String(licensePolicy.upiId || '').slice(0, 120),
+        paymentLinkUrl: String(licensePolicy.paymentLinkUrl || '').slice(0, 300),
+        paymentNote: String(licensePolicy.paymentNote || DEFAULT_LICENSE_POLICY.paymentNote).slice(0, 400),
+        updatedAt: serverTimestamp()
+      });
+      setLicensePolicy((prev) => ({ ...prev, mode: nextMode }));
+      showSuccess(
+        nextMode === 'FREE_FOR_ALL'
+          ? '🟢 FREE_FOR_ALL ఆన్ అయింది — అందరికీ పూర్తిగా ఉచితం!'
+          : `💳 PAID_MONTHLY (₹${licensePolicy.monthlyPriceInr} / ${licensePolicy.durationDays} రోజులు) ఆన్ చేయబడింది!`,
+        'License Mode Saved'
+      );
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, 'app_settings/licensing');
+    } finally {
+      setSavingPolicy(false);
+    }
+  };
+
+  const handleActivatePcSubscription = async (pc: any) => {
+    if (!isVerifiedAdmin) {
+      showError('Please sign in as Admin first.', 'Admin Auth Required');
+      return;
+    }
+    const rawId = String(pc.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    if (!rawId) return;
+    setActivatingPcId(rawId);
+    try {
+      const existingRec = pcLicensesMap[rawId.toUpperCase()];
+      const validUntilIso = computeRenewalExpiryIso(existingRec?.validUntilIso, licensePolicy.durationDays || 30);
+      await setDoc(doc(db, 'pc_licenses', rawId), {
+        pcId: rawId,
+        pcName: String(pc.pcName || 'GP-OFFICE-PC').slice(0, 128),
+        planType: 'PAID_30_DAYS',
+        status: 'ACTIVE',
+        amountInr: Number(licensePolicy.monthlyPriceInr || 10),
+        validUntilIso,
+        paymentRef: `INR${licensePolicy.monthlyPriceInr || 10}-${new Date().toISOString().slice(0, 10)}`,
+        updatedAt: serverTimestamp()
+      });
+      showSuccess(`${pc.pcName} (${rawId}) కు ₹${licensePolicy.monthlyPriceInr || 10} / ${licensePolicy.durationDays || 30} రోజుల లైసెన్స్ యాక్టివేట్ అయింది!`, '30-Day License Activated');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+    } finally {
+      setActivatingPcId(null);
+    }
+  };
+
+  const handleRevokePcSubscription = async (pc: any) => {
+    if (!isVerifiedAdmin) return;
+    const rawId = String(pc.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    if (!rawId) return;
+    setActivatingPcId(rawId);
+    try {
+      await setDoc(doc(db, 'pc_licenses', rawId), {
+        pcId: rawId,
+        pcName: String(pc.pcName || 'GP-OFFICE-PC').slice(0, 128),
+        planType: 'PAID_30_DAYS',
+        status: 'REVOKED',
+        amountInr: 0,
+        validUntilIso: new Date(Date.now() - 60000).toISOString(),
+        paymentRef: 'REVOKED_BY_ADMIN',
+        updatedAt: serverTimestamp()
+      });
+      showInfo(`${pc.pcName} (${rawId}) సబ్‌స్క్రిప్షన్ నిలిపివేయబడింది.`, 'License Revoked');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+    } finally {
+      setActivatingPcId(null);
+    }
+  };
+
+  const handleSetPcFreeBypass = async (pcIdRaw: string, pcNameRaw: string, enableFree: boolean) => {
+    if (!isVerifiedAdmin) {
+      showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
+      return;
+    }
+    const rawId = String(pcIdRaw || '').trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    if (!rawId) {
+      showError('దయచేసి సరైన PC Machine ID (ఉదా: EVD-TS-MNCL-01) ఇవ్వండి.', 'PC ID Required');
+      return;
+    }
+    const safeName = String(pcNameRaw || rawId || 'GP-OFFICE-PC').trim().slice(0, 128);
+    setActivatingPcId(rawId);
+    try {
+      if (enableFree) {
+        await setDoc(doc(db, 'pc_licenses', rawId), {
+          pcId: rawId,
+          pcName: safeName,
+          planType: 'FREE_ACCESS',
+          status: 'ACTIVE',
+          amountInr: 0,
+          validUntilIso: '2099-12-31T23:59:59.000Z',
+          paymentRef: 'ADMIN_FREE_BYPASS',
+          updatedAt: serverTimestamp()
+        });
+        showSuccess(
+          `🔓 ${safeName} (${rawId}) కు Payment Mode OFF చేయబడింది!`,
+          'PC Payment Mode OFF'
+        );
+      } else {
+        await setDoc(doc(db, 'pc_licenses', rawId), {
+          pcId: rawId,
+          pcName: safeName,
+          planType: 'PAID_30_DAYS',
+          status: 'EXPIRED',
+          amountInr: Number(licensePolicy.monthlyPriceInr || 10),
+          validUntilIso: new Date(Date.now() - 60000).toISOString(),
+          paymentRef: 'PAYMENT_REQUIRED_BY_ADMIN',
+          updatedAt: serverTimestamp()
+        });
+        showInfo(
+          `💳 ${safeName} (${rawId}) కు మళ్ళీ సాధారణ Payment Mode (₹${licensePolicy.monthlyPriceInr}/Month) ఆన్ చేయబడింది.`,
+          'PC Payment Mode ON'
+        );
+      }
+      setBypassPcIdInput('');
+      setBypassPcNameInput('');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+    } finally {
+      setActivatingPcId(null);
+    }
+  };
+
+  const handleApprovePaymentClaim = async (claim: PaymentClaimRecord) => {
+    if (!isVerifiedAdmin) {
+      showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
+      return;
+    }
+    const cleanPcId = String(claim.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    if (!cleanPcId || !claim.claimId) return;
+    setReviewingClaimId(claim.claimId);
+    try {
+      const existingRec = pcLicensesMap[cleanPcId.toUpperCase()];
+      const validUntilIso = computeRenewalExpiryIso(existingRec?.validUntilIso, licensePolicy.durationDays || 30);
+
+      await setDoc(
+        doc(db, 'payment_claims', claim.claimId),
+        {
+          status: 'APPROVED',
+          note: `Verified UTR ${claim.utrNumber} by Admin on ${new Date().toLocaleDateString()}`
+        },
+        { merge: true }
+      );
+
+      await setDoc(doc(db, 'pc_licenses', cleanPcId), {
+        pcId: cleanPcId,
+        pcName: String(claim.pcName || 'GP-OFFICE-PC').slice(0, 128),
+        planType: 'PAID_30_DAYS',
+        status: 'ACTIVE',
+        amountInr: Number(claim.amountInr || licensePolicy.monthlyPriceInr || 10),
+        validUntilIso,
+        paymentRef: `UTR-${claim.utrNumber}`,
+        updatedAt: serverTimestamp()
+      });
+
+      showSuccess(
+        `UTR ${claim.utrNumber} వెరిఫై అయింది! ${claim.pcName} కు +${licensePolicy.durationDays || 30} రోజులు యాక్టివేట్ చేయబడింది.`,
+        'Payment Claim Approved'
+      );
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
+    } finally {
+      setReviewingClaimId(null);
+    }
+  };
+
+  const handleRejectPaymentClaim = async (claim: PaymentClaimRecord) => {
+    if (!isVerifiedAdmin || !claim.claimId) return;
+    setReviewingClaimId(claim.claimId);
+    try {
+      await setDoc(
+        doc(db, 'payment_claims', claim.claimId),
+        {
+          status: 'REJECTED',
+          note: `Rejected (Duplicate / Unmatched UTR ${claim.utrNumber}) on ${new Date().toLocaleDateString()}`
+        },
+        { merge: true }
+      );
+      showInfo(`UTR ${claim.utrNumber} తిరస్కరించబడింది.`, 'UTR Claim Rejected');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
+    } finally {
+      setReviewingClaimId(null);
+    }
+  };
+
+  const pendingClaimsCount = paymentClaims.filter((c) => c.status === 'PENDING').length;
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans text-slate-100">
+      {/* Dedicated Payment & Licensing Hub Header */}
+      <div className="bg-gradient-to-r from-slate-900 via-emerald-950/50 to-slate-900 border border-emerald-500/30 rounded-3xl p-6 text-white shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-2 flex-wrap font-mono text-[10px] font-bold">
+            <span className={`px-2.5 py-1 rounded border ${
+              licensePolicy.mode === 'FREE_FOR_ALL'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+            }`}>
+              {licensePolicy.mode === 'FREE_FOR_ALL'
+                ? '🟢 CURRENT MODE: FREE FOR ALL'
+                : `💳 CURRENT MODE: PAID (₹${licensePolicy.monthlyPriceInr}/${licensePolicy.durationDays}d)`}
+            </span>
+            {pendingClaimsCount > 0 && (
+              <span className="bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded border border-amber-500/30">
+                ⏳ {pendingClaimsCount} Pending UTR Claims
+              </span>
+            )}
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+            <CreditCard className="w-6 h-6 text-emerald-400" />
+            <span>Payment &amp; License Hub (ప్రత్యేక పేమెంట్ విభాగం)</span>
+          </h1>
+          <p className="text-slate-400 text-xs sm:text-sm mt-1">
+            Operator QR UPI Checkout, 12-Digit UTR Anti-Duplicate Queue, &amp; Per-PC Subscription Control — పూర్తిగా ప్రత్యేకమైన పేమెంట్ టాబ్.
+          </p>
+          {authNotice && (
+            <div className="mt-2 text-xs text-amber-300 bg-amber-950/50 border border-amber-500/40 rounded-lg px-3 py-1.5">
+              {authNotice}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {isVerifiedAdmin ? (
+            <button
+              type="button"
+              onClick={handleAdminSignOut}
+              className="bg-emerald-700/80 hover:bg-emerald-600 text-white px-3.5 py-2.5 rounded-xl font-mono text-xs font-bold transition flex items-center gap-2 shadow cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-300" />
+              <span>Admin Authenticated ({firebaseUser?.email?.split('@')[0]})</span>
+              <LogOut className="w-3.5 h-3.5 opacity-80" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAdminGoogleSignIn}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2.5 rounded-xl font-mono text-xs font-bold transition flex items-center gap-2 shadow-lg cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>🔐 Admin Google Sign-In (Manage Plans)</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Dedicated 2-Tab Bar inside Payment Hub */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3 font-mono text-xs">
+        <button
+          type="button"
+          onClick={() => setSubTab('qr-checkout')}
+          className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
+            subTab === 'qr-checkout'
+              ? 'bg-emerald-600 text-white shadow-lg'
+              : 'bg-slate-900 text-slate-300 hover:text-white border border-slate-800'
+          }`}
+        >
+          <QrCode className="w-4 h-4" />
+          <span>1. Operator QR Payment &amp; UTR Checkout</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubTab('admin-controls')}
+          className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
+            subTab === 'admin-controls'
+              ? 'bg-cyan-600 text-white shadow-lg'
+              : 'bg-slate-900 text-cyan-300 hover:text-white border border-slate-800'
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          <span>
+            2. Admin License Plans, UTR Queue &amp; Per-PC Control
+            {pendingClaimsCount > 0 ? ` (${pendingClaimsCount})` : ''}
+          </span>
+        </button>
+      </div>
+
+      {/* Sub-Tab 1: Operator QR Payment Checkout */}
+      {subTab === 'qr-checkout' && <PublicPaymentCheckout />}
+
+      {/* Sub-Tab 2: Admin Licensing Plan, UTR Claims & Per-PC Overrides */}
+      {subTab === 'admin-controls' && (
+        <div className="space-y-6 font-mono text-xs">
+          {!isVerifiedAdmin && (
+            <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-sans">
+              <div className="text-xs text-amber-200">
+                <strong className="text-white block">🔐 Admin Authentication Required</strong>
+                <span>పేమెంట్ ప్లాన్ మార్చడానికి, UTR క్లెయిమ్‌లు అప్రూవ్ చేయడానికి లేదా PC కి Free Bypass ఇవ్వడానికి Admin Google Sign-In చేయండి.</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAdminGoogleSignIn}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-mono text-xs font-bold shrink-0 cursor-pointer"
+              >
+                🔐 Sign In with Admin Google
+              </button>
+            </div>
+          )}
+
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-base font-black text-white flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-emerald-400" />
+                  <span>APP LICENSING CONTROL — FREE NOW &amp; ₹{licensePolicy.monthlyPriceInr}/MONTH SUBSCRIPTION</span>
+                </h2>
+                <p className="text-slate-400 text-[11px] mt-1 font-sans">
+                  ప్రస్తుతం <strong>FREE_FOR_ALL</strong> మోడ్‌లో అందరికీ 100% ఉచితంగా రన్ అవుతుంది. మీరు <strong>PAID_MONTHLY</strong> ఆన్ చేసిన వెంటనే ప్రతి PC కి సబ్‌స్క్రిప్షన్ చెక్ వర్తిస్తుంది.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={savingPolicy}
+                  onClick={() => handleSaveLicensePolicy('FREE_FOR_ALL')}
+                  className={`px-4 py-2 rounded-xl font-bold transition cursor-pointer ${
+                    licensePolicy.mode === 'FREE_FOR_ALL'
+                      ? 'bg-emerald-600 text-white shadow-lg ring-2 ring-emerald-400/50'
+                      : 'bg-slate-800 text-slate-300 hover:bg-emerald-700 hover:text-white'
+                  }`}
+                >
+                  🟢 FREE FOR ALL (Active Now)
+                </button>
+                <button
+                  type="button"
+                  disabled={savingPolicy}
+                  onClick={() => handleSaveLicensePolicy('PAID_MONTHLY')}
+                  className={`px-4 py-2 rounded-xl font-bold transition cursor-pointer ${
+                    licensePolicy.mode === 'PAID_MONTHLY'
+                      ? 'bg-amber-600 text-white shadow-lg ring-2 ring-amber-400/50'
+                      : 'bg-slate-800 text-slate-300 hover:bg-amber-600 hover:text-white'
+                  }`}
+                >
+                  💳 ENABLE ₹{licensePolicy.monthlyPriceInr}/{licensePolicy.durationDays}d PAID MODE
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-[10px] text-slate-400 font-bold mb-1">MONTHLY FEE (₹ INR)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={licensePolicy.monthlyPriceInr}
+                  onChange={(e) => setLicensePolicy((p) => ({ ...p, monthlyPriceInr: Number(e.target.value) }))}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-400 font-bold mb-1">VALIDITY (DAYS)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={3650}
+                  value={licensePolicy.durationDays}
+                  onChange={(e) => setLicensePolicy((p) => ({ ...p, durationDays: Number(e.target.value) }))}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-400 font-bold mb-1">ALIAS / MERCHANT UPI ID (NO PHONE #)</label>
+                <input
+                  type="text"
+                  placeholder="evedhika.ubd@okaxis (NOT mobile#)"
+                  value={licensePolicy.upiId}
+                  onChange={(e) => setLicensePolicy((p) => ({ ...p, upiId: e.target.value }))}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-cyan-300"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  disabled={savingPolicy}
+                  onClick={() => handleSaveLicensePolicy()}
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded-xl cursor-pointer transition disabled:opacity-50"
+                >
+                  {savingPolicy ? 'Saving...' : '💾 Save Plan Settings'}
+                </button>
+              </div>
+            </div>
+
+            {detectPhoneExposedInUpi(licensePolicy.upiId) && (
+              <div className="bg-rose-500/15 border border-rose-500/40 rounded-2xl p-3.5 text-rose-200 font-sans text-xs">
+                <strong>⚠️ హెచ్చరిక (Phone Number Visible Warning):</strong> మీరు ఇచ్చిన UPI ID లో 10-అంకెల మొబైల్ నంబర్ ఉంది! యూజర్లకు మీ నంబర్ కనిపిస్తే కాల్స్ వస్తాయి. బదులుగా Custom Alias UPI లేదా Merchant QR వాడండి.
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+              <div className="lg:col-span-2 space-y-4">
+                <div>
+                  <label className="block text-[10px] text-slate-400 font-bold mb-1">
+                    PAYMENT GATEWAY OPTION (RAZORPAY / CASHFREE / INSTAMOJO — ZERO CALLS, OPTIONAL)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Optional Payment Gateway Reference"
+                    value={licensePolicy.paymentLinkUrl || ''}
+                    onChange={(e) => setLicensePolicy((p) => ({ ...p, paymentLinkUrl: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-violet-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 font-bold mb-1">OPERATOR PAYMENT NOTE (SHOWN WHEN PAID MODE IS ON)</label>
+                  <input
+                    type="text"
+                    value={licensePolicy.paymentNote}
+                    onChange={(e) => setLicensePolicy((p) => ({ ...p, paymentNote: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 font-sans"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center text-center space-y-2.5">
+                <div className="text-[10px] font-bold text-cyan-300 uppercase">Live UPI QR Preview (No Phone # Shown)</div>
+                {licensePolicy.upiId ? (
+                  <div className="bg-white p-2.5 rounded-xl">
+                    <QRCodeSVG
+                      value={buildUpiPaymentUri(licensePolicy.upiId, licensePolicy.monthlyPriceInr)}
+                      size={128}
+                      level="M"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 rounded-xl border border-dashed border-slate-700 flex items-center justify-center p-2 text-[10px] text-slate-500 font-sans">
+                    Alias UPI ID సేవ్ చేస్తే QR ఇక్కడ ప్రివ్యూ అవుతుంది
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div>
+                <h3 className="text-sm font-black text-white uppercase">
+                  🧾 UPI PAYMENT CLAIMS &amp; ANTI-DUPLICATE QUEUE ({pendingClaimsCount} PENDING)
+                </h3>
+                <p className="text-[11px] text-slate-400 font-sans mt-0.5">
+                  ప్రతి UTR నంబర్ Firestore లో ఒకేసారి సేవ్ అవుతుంది (Duplicate UTR ను సిస్టమ్ బ్లాక్ చేస్తుంది). మీ PhonePe/GPay లో UTR మ్యాచ్ అయిన తర్వాత Approve నొక్కండి.
+                </p>
+              </div>
+              <span className="text-[11px] text-amber-300 font-bold">Unique UTR Lock Enabled</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5">UTR / REF NUMBER</th>
+                    <th className="p-3.5">PC NAME &amp; MACHINE ID</th>
+                    <th className="p-3.5">OPERATOR &amp; DISTRICT</th>
+                    <th className="p-3.5">AMOUNT &amp; DUPLICATE CHECK</th>
+                    <th className="p-3.5">STATUS</th>
+                    <th className="p-3.5">ADMIN ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {paymentClaims.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-slate-400 font-sans">
+                        ఇంకా ఏ పేమెంట్ UTR క్లెయిమ్ రాలేదు. Paid Mode ఆన్ అయిన తర్వాత యూజర్లు పంపే 12-అంకెల UTR ఇక్కడ కనిపిస్తుంది.
+                      </td>
+                    </tr>
+                  ) : (
+                    paymentClaims.map((claim) => {
+                      const samePcOthers = paymentClaims.filter(
+                        (other) =>
+                          other.claimId !== claim.claimId &&
+                          String(other.pcId || '').toUpperCase() === String(claim.pcId || '').toUpperCase() &&
+                          other.status !== 'REJECTED'
+                      );
+                      const dupInfo = inspectPaymentClaimDuplicate(
+                        paymentClaims.filter((o) => o.claimId !== claim.claimId),
+                        claim.utrNumber,
+                        claim.pcId
+                      );
+                      return (
+                        <tr key={claim.claimId} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3.5">
+                            <div className="font-bold text-amber-300">{claim.utrNumber}</div>
+                            <div className="text-[10px] text-slate-400">
+                              {claim.createdAtIso ? new Date(claim.createdAtIso).toLocaleString() : 'Live'}
+                            </div>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="font-bold text-white">{claim.pcName}</div>
+                            <div className="text-[10px] text-cyan-400">{claim.pcId}</div>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="text-slate-200">{claim.operatorName || 'Operator'}</div>
+                            <div className="text-[10px] text-slate-400">
+                              {claim.district || ''} {claim.state ? `(${claim.state})` : ''}
+                            </div>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="font-bold text-emerald-300">₹{claim.amountInr}</div>
+                            {(samePcOthers.length > 0 || dupInfo.isExactUtrDuplicate) && (
+                              <div className="text-[10px] text-amber-400 font-sans mt-0.5">
+                                ⚠️ Double-Pay Check: ఈ PC లో ఇప్పటికే {samePcOthers.length} ఇతర క్లెయిమ్(లు) ఉన్నాయి
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3.5">
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                claim.status === 'APPROVED'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : claim.status === 'REJECTED'
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              }`}
+                            >
+                              {claim.status}
+                            </span>
+                          </td>
+                          <td className="p-3.5 flex items-center gap-2">
+                            {claim.status === 'PENDING' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={reviewingClaimId === claim.claimId}
+                                  onClick={() => handleApprovePaymentClaim(claim)}
+                                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                                >
+                                  ✅ Approve UTR &amp; +{licensePolicy.durationDays}d
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={reviewingClaimId === claim.claimId}
+                                  onClick={() => handleRejectPaymentClaim(claim)}
+                                  className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                                >
+                                  🚫 Reject
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-sans">{claim.note || claim.status}</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-4 border-b border-slate-800 space-y-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase">
+                    🖥️ PER-PC SUBSCRIPTION &amp; ADMIN FREE-BYPASS MANAGER (₹{licensePolicy.monthlyPriceInr} / {licensePolicy.durationDays} DAYS)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-sans mt-0.5">
+                    మీకు నచ్చిన ఏ PC కైనా <strong>"🔓 Payment OFF (Free PC)"</strong> నొక్కితే, అందరికీ Paid Mode ఆన్‌లో ఉన్నా ఆ ఒక్క PC కి మాత్రం 100% ఉచితంగా ఓపెన్ అవుతుంది.
+                  </p>
+                </div>
+                <span className="text-[11px] text-emerald-400 font-bold">Per-PC Payment Override Ready</span>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+                <div className="text-[11px] font-bold text-cyan-300 shrink-0">
+                  🔓 ఏదైనా PC కి Payment OFF చేయండి:
+                </div>
+                <input
+                  type="text"
+                  placeholder="PC Machine ID (ఉదా: EVD-TS-MNCL-01)"
+                  value={bypassPcIdInput}
+                  onChange={(e) => setBypassPcIdInput(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-300 font-mono"
+                />
+                <input
+                  type="text"
+                  placeholder="PC Name / ఆఫీస్ పేరు (Optional)"
+                  value={bypassPcNameInput}
+                  onChange={(e) => setBypassPcNameInput(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white"
+                />
+                <button
+                  type="button"
+                  disabled={!bypassPcIdInput.trim() || activatingPcId === bypassPcIdInput.trim()}
+                  onClick={() => handleSetPcFreeBypass(bypassPcIdInput, bypassPcNameInput, true)}
+                  className="bg-violet-600 hover:bg-violet-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  🔓 Turn Payment OFF for this PC (Free)
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5">PC NAME &amp; MACHINE ID</th>
+                    <th className="p-3.5">OPERATOR &amp; OFFICE</th>
+                    <th className="p-3.5">CURRENT LICENSE STATUS</th>
+                    <th className="p-3.5">VALID UNTIL</th>
+                    <th className="p-3.5">ADMIN ACTION (PER-PC CONTROL)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {(() => {
+                    const combinedMap = new Map<string, any>();
+                    installedPcs.forEach((p) => {
+                      const k = String(p.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
+                      if (k) combinedMap.set(k, p);
+                    });
+                    (Object.values(pcLicensesMap) as PcLicenseRecord[]).forEach((lic) => {
+                      const k = String(lic.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
+                      if (k && !combinedMap.has(k)) {
+                        combinedMap.set(k, {
+                          pcId: lic.pcId,
+                          pcName: lic.pcName || lic.pcId,
+                          userName: 'Whitelisted PC',
+                          district: 'Admin Override',
+                          officeLocation: lic.planType === 'FREE_ACCESS' ? 'Payment Mode OFF (Free Bypass)' : 'Custom License'
+                        });
+                      }
+                    });
+                    const allManagedPcs = Array.from(combinedMap.values());
+
+                    if (allManagedPcs.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-400 font-sans">
+                            రియల్ PCలు ఇన్‌స్టాల్ అయిన వెంటనే లేదా పైన ఉన్న బాక్స్‌లో PC ID ఎంటర్ చేసిన వెంటనే ఇక్కడ కనిపిస్తాయి.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return allManagedPcs.map((pc, i) => {
+                      const cleanId = String(pc.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-');
+                      const rec = pcLicensesMap[cleanId.toUpperCase()] || null;
+                      const isFreeExempt = isPcPaymentExempt(rec);
+                      const evalRes = evaluateLicenseState(licensePolicy, rec);
+                      return (
+                        <tr key={cleanId || i} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3.5">
+                            <div className="font-bold text-white">{pc.pcName}</div>
+                            <div className="text-[10px] text-cyan-400">{cleanId}</div>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="text-slate-200">{pc.userName || 'Operator'}</div>
+                            <div className="text-[10px] text-slate-400">{pc.district} — {pc.officeLocation}</div>
+                          </td>
+                          <td className="p-3.5">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                              isFreeExempt
+                                ? 'bg-violet-500/25 text-violet-200 border border-violet-400/40'
+                                : evalRes.allowed
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            }`}>
+                              {evalRes.badgeText}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-slate-300 text-[11px]">
+                            {isFreeExempt
+                              ? '♾️ Unlimited (Payment OFF)'
+                              : rec?.validUntilIso
+                                ? new Date(rec.validUntilIso).toLocaleDateString()
+                                : licensePolicy.mode === 'FREE_FOR_ALL'
+                                  ? 'Free Mode Active'
+                                  : 'Not Activated'}
+                          </td>
+                          <td className="p-3.5 flex flex-wrap items-center gap-2">
+                            {isFreeExempt ? (
+                              <button
+                                type="button"
+                                disabled={activatingPcId === cleanId}
+                                onClick={() => handleSetPcFreeBypass(cleanId, pc.pcName, false)}
+                                className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                              >
+                                💳 Turn Payment ON
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={activatingPcId === cleanId}
+                                onClick={() => handleSetPcFreeBypass(cleanId, pc.pcName, true)}
+                                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                              >
+                                🔓 Payment OFF (Free PC)
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={activatingPcId === cleanId}
+                              onClick={() => handleActivatePcSubscription(pc)}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                            >
+                              ✅ +{licensePolicy.durationDays}d Paid
+                            </button>
+                            <button
+                              type="button"
+                              disabled={activatingPcId === cleanId}
+                              onClick={() => handleRevokePcSubscription(pc)}
+                              className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                            >
+                              🚫 Revoke
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

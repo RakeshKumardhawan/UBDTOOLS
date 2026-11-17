@@ -30,7 +30,8 @@ import { VersionFleetLiveDashboardView } from './components/VersionFleetLiveDash
 import { NetworkFlowView } from './components/NetworkFlowView';
 import { UbdSettingManagerView } from './components/UbdSettingManagerView';
 import { ReportCenter } from './components/ReportCenter';
-import { PublicPaymentCheckout } from './components/PublicPaymentCheckout';
+import { PaymentLicenseHubView } from './components/PaymentLicenseHubView';
+import { AdminPortalView } from './components/AdminPortalView';
 import { ToastProvider, useToast } from './components/Toast';
 import { checkForUpdates, CURRENT_APP_VERSION } from './utils/updateEngine';
 import { SendDeploymentSummaryToTelegram } from './utils/telegram';
@@ -59,7 +60,13 @@ import {
 
 function MainAppContent() {
   const { showInfo, showSuccess, showError } = useToast();
-  const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<NavigationTab>(() => {
+    if (typeof window !== 'undefined') {
+      const resolved = resolveRouteFromLocation(window.location.pathname, window.location.search, window.location.hash);
+      if (resolved.tab) return resolved.tab as NavigationTab;
+    }
+    return 'dashboard';
+  });
   const [selectedPostSlug, setSelectedPostSlug] = useState<string>('ubd-setting-issues-one-click-all-in-one-setup');
   const [selectedProfile, setSelectedProfile] = useState<DepartmentProfile>(() => {
     const savedProfileId = localStorage.getItem('evedhika_selected_profile_id');
@@ -241,12 +248,13 @@ function MainAppContent() {
     const handleUrlTab = () => {
       try {
         const currentUrl = new URL(window.location.href);
-        if (currentUrl.searchParams.get('pay') === '1' || currentUrl.searchParams.has('pcId')) {
+        const lowerNoSlash = currentUrl.pathname.toLowerCase().replace(/\/+$/, '');
+        if (!lowerNoSlash.endsWith('/admin') && (currentUrl.searchParams.get('pay') === '1' || currentUrl.searchParams.has('pcId'))) {
           currentUrl.searchParams.delete('tab');
           const lowerP = currentUrl.pathname.toLowerCase();
-          if (!lowerP.endsWith('/live-pc-reports')) {
+          if (!lowerP.endsWith('/pay-checkout')) {
             const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
-            currentUrl.pathname = `${basePrefix}/live-pc-reports`;
+            currentUrl.pathname = `${basePrefix}/pay-checkout`;
           }
           window.history.replaceState({}, '', currentUrl.toString());
         }
@@ -303,11 +311,28 @@ function MainAppContent() {
         url.searchParams.delete('pcId');
         url.searchParams.delete('pcName');
       }
-      if (tab === 'report-center') {
+      if (tab === 'admin-portal') {
+        const lowerP = url.pathname.toLowerCase();
+        const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
+        url.pathname = `${basePrefix}/admin/`;
+        url.searchParams.delete('tab');
+      } else if (tab === 'report-center') {
         const lowerP = url.pathname.toLowerCase();
         const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
         url.pathname = `${basePrefix}/live-pc-reports`;
         url.searchParams.delete('tab');
+      } else if (tab === 'pay-checkout') {
+        const lowerP = url.pathname.toLowerCase();
+        const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
+        url.pathname = `${basePrefix}/pay-checkout`;
+        url.searchParams.delete('tab');
+      } else if (tab === 'dashboard') {
+        const lowerP = url.pathname.toLowerCase();
+        const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
+        url.pathname = `${basePrefix}/`;
+        url.searchParams.delete('tab');
+        url.searchParams.delete('section');
+        url.searchParams.delete('pay');
       } else if (tab === 'backups') {
         url.searchParams.set('tab', 'admin/UBDLiveMonitoring');
       } else if (tab === 'posts') {
@@ -704,6 +729,10 @@ Report Timestamp: ${reportDate}
     }
   };
 
+  if (activeTab === 'admin-portal') {
+    return <AdminPortalView onExitAdmin={() => changeTab('dashboard')} />;
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden text-ink bg-bg relative z-10 font-syne">
       
@@ -897,7 +926,7 @@ Report Timestamp: ${reportDate}
           )}
           {activeTab === 'help' && <HelpView />}
           {activeTab === 'about' && <AboutView />}
-          {activeTab === 'pay-checkout' && <PublicPaymentCheckout />}
+          {activeTab === 'pay-checkout' && <PaymentLicenseHubView />}
         </main>
 
         {/* Desktop System Panel (visible on xl screens and up) */}

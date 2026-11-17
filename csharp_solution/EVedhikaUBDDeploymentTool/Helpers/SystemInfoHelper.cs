@@ -29,15 +29,17 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         private static string _cachedLocation = null;
         private static string _configuredState = null;
         private static string _configuredDistrict = null;
+        private static string _configuredMandal = null;
         private static string _configuredOfficeName = null;
         private static string _configuredOperatorName = null;
 
-        public static void SaveConfiguredOfficeProfile(string state, string district, string officeName, string operatorName)
+        public static void SaveConfiguredOfficeProfile(string state, string district, string officeName, string operatorName, string mandalName = "")
         {
             try
             {
                 _configuredState = string.IsNullOrEmpty(state) ? "Telangana" : state.Trim();
                 _configuredDistrict = string.IsNullOrEmpty(district) ? "" : district.Trim();
+                _configuredMandal = string.IsNullOrEmpty(mandalName) ? "" : mandalName.Trim();
                 _configuredOfficeName = string.IsNullOrEmpty(officeName) ? "" : officeName.Trim();
                 _configuredOperatorName = string.IsNullOrEmpty(operatorName) ? (Environment.UserName ?? "Operator") : operatorName.Trim();
 
@@ -52,6 +54,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         {
                             key.SetValue("SelectedState", _configuredState);
                             key.SetValue("SelectedDistrict", _configuredDistrict);
+                            key.SetValue("SelectedMandalName", _configuredMandal);
                             key.SetValue("SelectedOfficeName", _configuredOfficeName);
                             key.SetValue("SelectedOperatorName", _configuredOperatorName);
                             key.SetValue("FormattedOfficeLocation", formattedLoc);
@@ -68,6 +71,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     File.WriteAllLines(profileFile, new string[] {
                         "State=" + _configuredState,
                         "District=" + _configuredDistrict,
+                        "MandalName=" + _configuredMandal,
                         "OfficeName=" + _configuredOfficeName,
                         "OperatorName=" + _configuredOperatorName,
                         "FormattedLocation=" + formattedLoc
@@ -91,6 +95,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                     {
                         _configuredState = Convert.ToString(key.GetValue("SelectedState", ""));
                         _configuredDistrict = Convert.ToString(key.GetValue("SelectedDistrict", ""));
+                        _configuredMandal = Convert.ToString(key.GetValue("SelectedMandalName", ""));
                         _configuredOfficeName = Convert.ToString(key.GetValue("SelectedOfficeName", ""));
                         _configuredOperatorName = Convert.ToString(key.GetValue("SelectedOperatorName", ""));
                     }
@@ -110,6 +115,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         {
                             if (line.StartsWith("State=")) _configuredState = line.Substring("State=".Length).Trim();
                             else if (line.StartsWith("District=")) _configuredDistrict = line.Substring("District=".Length).Trim();
+                            else if (line.StartsWith("MandalName=")) _configuredMandal = line.Substring("MandalName=".Length).Trim();
                             else if (line.StartsWith("OfficeName=")) _configuredOfficeName = line.Substring("OfficeName=".Length).Trim();
                             else if (line.StartsWith("OperatorName=")) _configuredOperatorName = line.Substring("OperatorName=".Length).Trim();
                         }
@@ -363,7 +369,26 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         {
                             if (cpu == null) continue;
                             string name = cpu["Name"]?.ToString();
-                            if (!string.IsNullOrEmpty(name)) return name;
+                            if (!string.IsNullOrWhiteSpace(name))
+                            {
+                                return System.Text.RegularExpressions.Regex.Replace(name.Trim(), @"\s+", " ");
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                using (RegistryKey cpuKey = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\CentralProcessor\0"))
+                {
+                    if (cpuKey != null)
+                    {
+                        object regName = cpuKey.GetValue("ProcessorNameString");
+                        if (regName != null && !string.IsNullOrWhiteSpace(regName.ToString()))
+                        {
+                            return System.Text.RegularExpressions.Regex.Replace(regName.ToString().Trim(), @"\s+", " ");
                         }
                     }
                 }
@@ -373,11 +398,11 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             try
             {
                 string envCpu = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER");
-                if (!string.IsNullOrEmpty(envCpu)) return envCpu.Trim();
+                if (!string.IsNullOrWhiteSpace(envCpu)) return envCpu.Trim();
             }
             catch { }
 
-            return "Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz";
+            return "Processor Info Unavailable";
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
@@ -403,6 +428,34 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
 
+        public static double GetInstalledPhysicalRamGb()
+        {
+            try
+            {
+                ulong totalBytes = 0;
+                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT Capacity FROM Win32_PhysicalMemory"))
+                {
+                    foreach (ManagementObject stick in searcher.Get())
+                    {
+                        if (stick != null && stick["Capacity"] != null)
+                        {
+                            ulong cap;
+                            if (ulong.TryParse(stick["Capacity"].ToString(), out cap))
+                            {
+                                totalBytes += cap;
+                            }
+                        }
+                    }
+                }
+                if (totalBytes > 0)
+                {
+                    return Math.Round((double)totalBytes / (1024.0 * 1024.0 * 1024.0), 2);
+                }
+            }
+            catch { }
+            return 0;
+        }
+
         public static void GetAccurateRamDetails(out double totalGb, out double freeGb, out double usedGb, out double usagePct)
         {
             totalGb = 0;
@@ -410,60 +463,70 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             usedGb = 0;
             usagePct = 0;
 
-            // 1. Win32 Native Kernel Call (Microsecond Speed, 100% Accurate, Zero Failures)
+            // 1. Win32 Native Kernel Call (Exact OS-Visible Total, Free, Used & Memory Load)
             try
             {
                 MEMORYSTATUSEX memStatus = new MEMORYSTATUSEX();
-                if (GlobalMemoryStatusEx(memStatus))
+                if (GlobalMemoryStatusEx(memStatus) && memStatus.ullTotalPhys > 0)
                 {
                     totalGb = Math.Round((double)memStatus.ullTotalPhys / (1024.0 * 1024.0 * 1024.0), 2);
                     freeGb = Math.Round((double)memStatus.ullAvailPhys / (1024.0 * 1024.0 * 1024.0), 2);
-                    usedGb = Math.Round(totalGb - freeGb, 2);
-                    usagePct = (double)memStatus.dwMemoryLoad;
-                    if (totalGb > 0) return;
+                    usedGb = Math.Max(0, Math.Round(totalGb - freeGb, 2));
+                    usagePct = totalGb > 0 ? Math.Round((usedGb / totalGb) * 100.0, 1) : (double)memStatus.dwMemoryLoad;
+                    return;
                 }
             }
             catch { }
 
-            // 2. Secondary: WMI Win32_OperatingSystem Fallback
+            // 2. Secondary: WMI Win32_OperatingSystem
             try
             {
                 using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem"))
                 {
                     foreach (ManagementObject obj in searcher.Get())
                     {
-                        if (obj["TotalVisibleMemorySize"] != null && obj["FreePhysicalMemory"] != null)
+                        if (obj != null && obj["TotalVisibleMemorySize"] != null && obj["FreePhysicalMemory"] != null)
                         {
                             totalGb = Math.Round(Convert.ToDouble(obj["TotalVisibleMemorySize"]) / (1024.0 * 1024.0), 2);
                             freeGb = Math.Round(Convert.ToDouble(obj["FreePhysicalMemory"]) / (1024.0 * 1024.0), 2);
-                            usedGb = Math.Round(totalGb - freeGb, 2);
-                            usagePct = totalGb > 0 ? Math.Round((usedGb / totalGb) * 100.0, 1) : 40.0;
-                            return;
+                            usedGb = Math.Max(0, Math.Round(totalGb - freeGb, 2));
+                            usagePct = totalGb > 0 ? Math.Round((usedGb / totalGb) * 100.0, 1) : 0;
+                            if (totalGb > 0) return;
                         }
                     }
                 }
             }
             catch { }
-
-            // 3. Fallback
-            totalGb = 8.00;
-            freeGb = 4.20;
-            usedGb = 3.80;
-            usagePct = 47.5;
         }
 
         public static string GetRamUsageFormatted()
         {
-            double total, free, used, pct;
-            GetAccurateRamDetails(out total, out free, out used, out pct);
-            return string.Format("{0:0.00} GB ({1:0.00} GB Free)", total, free);
+            double usable, free, used, pct;
+            GetAccurateRamDetails(out usable, out free, out used, out pct);
+            if (usable <= 0) return "Unavailable";
+            double installed = GetInstalledPhysicalRamGb();
+            double displayTotal = installed > 0 ? installed : usable;
+            return string.Format("{0:0.##} GB ({1:0.0} GB Free)", displayTotal, free);
         }
 
         public static string GetRamInfo()
         {
-            double total, free, used, pct;
-            GetAccurateRamDetails(out total, out free, out used, out pct);
-            return string.Format("{0:0.00} GB Total ({1:0.00} GB Used, {2:0.00} GB Free - {3:0.0}% Load)", total, used, free, pct);
+            double usable, free, used, pct;
+            GetAccurateRamDetails(out usable, out free, out used, out pct);
+            double installed = GetInstalledPhysicalRamGb();
+
+            if (usable <= 0 && installed <= 0)
+            {
+                return "RAM Detection Unavailable";
+            }
+
+            if (installed > 0 && Math.Abs(installed - usable) >= 0.05)
+            {
+                return string.Format("{0:0.##} GB Installed ({1:0.0} GB Usable | {2:0.0} GB Used, {3:0.0} GB Free - {4:0}% Load)", installed, usable, used, free, pct);
+            }
+
+            double finalTotal = installed > 0 ? installed : usable;
+            return string.Format("{0:0.##} GB Total ({1:0.0} GB Used, {2:0.0} GB Free - {3:0}% Load)", finalTotal, used, free, pct);
         }
 
         public static void GetAccurateDiskDetails(out double totalGb, out double freeGb, out double usedGb, out double freePct, out string driveLetter)
@@ -472,47 +535,76 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             freeGb = 0;
             usedGb = 0;
             freePct = 0;
-            driveLetter = "C:";
+            driveLetter = "All Drives";
 
-            try
-            {
-                string sysRoot = Path.GetPathRoot(Environment.SystemDirectory);
-                if (string.IsNullOrEmpty(sysRoot)) sysRoot = "C:\\";
-                driveLetter = sysRoot.TrimEnd('\\');
-
-                DriveInfo sysDrive = new DriveInfo(sysRoot);
-                if (sysDrive.IsReady)
-                {
-                    totalGb = Math.Round((double)sysDrive.TotalSize / (1024.0 * 1024.0 * 1024.0), 2);
-                    freeGb = Math.Round((double)sysDrive.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0), 2);
-                    usedGb = Math.Round(totalGb - freeGb, 2);
-                    freePct = totalGb > 0 ? Math.Round((freeGb / totalGb) * 100.0, 1) : 0;
-                    return;
-                }
-            }
-            catch { }
+            long totalBytes = 0;
+            long freeBytes = 0;
+            int driveCount = 0;
+            string firstDrive = "";
 
             try
             {
                 foreach (DriveInfo d in DriveInfo.GetDrives())
                 {
-                    if (d.IsReady && d.DriveType == DriveType.Fixed)
+                    if (d.IsReady && d.DriveType == DriveType.Fixed && d.TotalSize > 0)
                     {
-                        totalGb = Math.Round((double)d.TotalSize / (1024.0 * 1024.0 * 1024.0), 2);
-                        freeGb = Math.Round((double)d.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0), 2);
-                        usedGb = Math.Round(totalGb - freeGb, 2);
-                        freePct = totalGb > 0 ? Math.Round((freeGb / totalGb) * 100.0, 1) : 0;
-                        driveLetter = d.Name.TrimEnd('\\');
-                        return;
+                        totalBytes += d.TotalSize;
+                        freeBytes += d.AvailableFreeSpace;
+                        if (driveCount == 0) firstDrive = d.Name.TrimEnd('\\');
+                        driveCount++;
                     }
+                }
+
+                if (totalBytes > 0)
+                {
+                    totalGb = Math.Round((double)totalBytes / (1024.0 * 1024.0 * 1024.0), 2);
+                    freeGb = Math.Round((double)freeBytes / (1024.0 * 1024.0 * 1024.0), 2);
+                    usedGb = Math.Max(0, Math.Round(totalGb - freeGb, 2));
+                    freePct = totalGb > 0 ? Math.Round((freeGb / totalGb) * 100.0, 1) : 0;
+                    driveLetter = driveCount == 1 ? firstDrive : string.Format("All {0} Drives", driveCount);
+                    return;
                 }
             }
             catch { }
 
-            totalGb = 512.00;
-            freeGb = 280.00;
-            usedGb = 232.00;
-            freePct = 54.7;
+            // Secondary single system drive check if DriveInfo enumeration failed
+            try
+            {
+                string sysRoot = Path.GetPathRoot(Environment.SystemDirectory);
+                if (string.IsNullOrEmpty(sysRoot)) sysRoot = "C:\\";
+                DriveInfo sysDrive = new DriveInfo(sysRoot);
+                if (sysDrive.IsReady && sysDrive.TotalSize > 0)
+                {
+                    driveLetter = sysRoot.TrimEnd('\\');
+                    totalGb = Math.Round((double)sysDrive.TotalSize / (1024.0 * 1024.0 * 1024.0), 2);
+                    freeGb = Math.Round((double)sysDrive.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0), 2);
+                    usedGb = Math.Max(0, Math.Round(totalGb - freeGb, 2));
+                    freePct = totalGb > 0 ? Math.Round((freeGb / totalGb) * 100.0, 1) : 0;
+                    return;
+                }
+            }
+            catch { }
+        }
+
+        public static string GetDrivePartitionsBreakdown()
+        {
+            try
+            {
+                var parts = new System.Collections.Generic.List<string>();
+                foreach (DriveInfo d in DriveInfo.GetDrives())
+                {
+                    if (d.IsReady && d.DriveType == DriveType.Fixed && d.TotalSize > 0)
+                    {
+                        double dTot = Math.Round((double)d.TotalSize / (1024.0 * 1024.0 * 1024.0), 1);
+                        double dFree = Math.Round((double)d.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0), 1);
+                        string lbl = d.Name.TrimEnd('\\');
+                        parts.Add(string.Format("{0} {1:0.0}/{2:0.0} GB Free", lbl, dFree, dTot));
+                    }
+                }
+                if (parts.Count > 0) return string.Join(" | ", parts.ToArray());
+            }
+            catch { }
+            return "No Local Drives Detected";
         }
 
         public static string GetDiskSpace()
@@ -520,7 +612,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             double total, free, used, pct;
             string drive;
             GetAccurateDiskDetails(out total, out free, out used, out pct, out drive);
-            return string.Format("{0:0.00} GB Free of {1:0.00} GB Storage ({2:0.0}% Available)", free, total, pct);
+            if (total <= 0) return "Storage Detection Unavailable";
+            string breakdown = GetDrivePartitionsBreakdown();
+            return string.Format("{0:0.0} GB Free of {1:0.0} GB Total ({2:0}% Available) | {3}", free, total, pct, breakdown);
         }
 
         public static string GetRomStorageInfo()
@@ -528,7 +622,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             double total, free, used, pct;
             string drive;
             GetAccurateDiskDetails(out total, out free, out used, out pct, out drive);
-            return string.Format("{0} Drive: {1:0.00} GB ROM Storage ({2:0.00} GB Free, {3:0.00} GB Used - {4:0.0}% Free)", drive, total, free, used, pct);
+            if (total <= 0) return "Storage Detection Unavailable";
+            return string.Format("{0:0.0} GB Total ({1:0.0} GB Used, {2:0.0} GB Free - {3:0}% Free)", total, used, free, pct);
         }
 
         public static void CalculateWorkstationHealth(
@@ -589,8 +684,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             double diskTotal, diskFree, diskUsed, diskPct;
             string drv;
             GetAccurateDiskDetails(out diskTotal, out diskFree, out diskUsed, out diskPct, out drv);
-            if (diskFree < 5.0) diskScore = 1.0;
-            else if (diskFree < 15.0) diskScore = 4.0;
+            if (diskTotal > 0 && diskFree < 5.0) diskScore = 1.0;
+            else if (diskTotal > 0 && diskFree < 15.0) diskScore = 4.0;
             else diskScore = 7.0;
 
             double rawScore = stepScore + edgeScore + dscScore + portScore + ramScore + diskScore;
@@ -598,23 +693,23 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             if (healthScore >= 95)
             {
-                healthStatus = "EXCELLENT (100% HEALTHY)";
-                healthDiagnosis = string.Format("All {0}/{1} Steps Verified | RAM: {2:0.0} GB Total ({3:0}% Load) | ROM: {4:0.0} GB Free of {5:0.0} GB | Edge IE Mode & DSC Ready", effectivePassed, effectiveTotal, ramTotal, ramPct, diskFree, diskTotal);
+                healthStatus = "Excellent - Ready for UBD & DSC Signing";
+                healthDiagnosis = string.Format("All {0}/{1} deployment steps passed; Edge IE Mode, DigiSigner (Port 8080) & DSC services are active.", effectivePassed, effectiveTotal);
             }
             else if (healthScore >= 80)
             {
-                healthStatus = "OPTIMAL (HEALTHY)";
-                healthDiagnosis = string.Format("{0}/{1} Steps Verified | RAM: {2:0}% Load | ROM: {3:0.0} GB Free | System Operational", effectivePassed, effectiveTotal, ramPct, diskFree);
+                healthStatus = "Good - System Operational";
+                healthDiagnosis = string.Format("{0}/{1} deployment steps passed; core UBD portal settings are active.", effectivePassed, effectiveTotal);
             }
             else if (healthScore >= 65)
             {
-                healthStatus = "ATTENTION (DEGRADED)";
-                healthDiagnosis = string.Format("{0}/{1} Steps Verified | DSC Token or Port 8080 requires checking", effectivePassed, effectiveTotal);
+                healthStatus = "Needs Attention - Check DSC Token or Port 8080";
+                healthDiagnosis = string.Format("{0}/{1} deployment steps passed; please verify USB DSC token or Port 8080 DigiSigner bridge.", effectivePassed, effectiveTotal);
             }
             else
             {
-                healthStatus = "CRITICAL (ACTION REQUIRED)";
-                healthDiagnosis = "Core UBD deployment parameters or Edge IE Mode policy failed verification.";
+                healthStatus = "Action Required - UBD Policy Incomplete";
+                healthDiagnosis = "One or more Edge IE Mode or Trusted Site policies failed verification; please re-run One-Click Deploy.";
             }
         }
 

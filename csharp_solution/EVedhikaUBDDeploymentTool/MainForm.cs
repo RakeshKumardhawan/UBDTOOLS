@@ -950,30 +950,28 @@ namespace EVedhikaUBDDeploymentTool
 
                             if (updateInfo != null && updateInfo.IsUpdateAvailable)
                             {
-                                if (updateInfo.IsSilent)
+                                SafeInvoke(delegate()
                                 {
-                                    SafeInvoke(delegate() {
-                                        var dr = MessageBox.Show(this, 
-                                            $"E-Vedhika Update {updateInfo.LatestVersion} is ready to install.\n\nThe application will restart to apply the update.\n\nDo you want to update now?", 
-                                            "Software Update Ready", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
-                                        
-                                        if (dr == DialogResult.Yes) {
-                                            LogMessage("AUTO-UPDATE", $"[OTA] Automatically downloading update {updateInfo.LatestVersion}...");
-                                            AutoUpdateEngine.PerformAutoUpdate(updateInfo.DownloadUrl,
-                                                delegate(string m) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", m); }); },
-                                                null,
-                                                updateInfo);
-                                        } else {
-                                            LogMessage("AUTO-UPDATE", "User postponed the update.");
-                                        }
-                                    });
-                                }
-                                else
+                                    lblUpdateStatus.Visible = true;
+                                    lblUpdateStatus.Text = $"Update Available: {updateInfo.LatestVersion}";
+                                });
+
+                                if (updateInfo.IsSilent)
                                 {
                                     SafeInvoke(delegate()
                                     {
-                                        lblUpdateStatus.Visible = true;
-                                        lblUpdateStatus.Text = $"✨ Update Available: {updateInfo.LatestVersion}";
+                                        AutoUpdateEngine.ShowInteractiveUpdateDialog(
+                                            this,
+                                            updateInfo,
+                                            delegate(string m) { SafeInvoke(delegate() { LogMessage("AUTO-UPDATE", m); }); },
+                                            delegate(int progress)
+                                            {
+                                                SafeInvoke(delegate()
+                                                {
+                                                    if (pbUpdateProgress != null) { pbUpdateProgress.Visible = true; pbUpdateProgress.Value = progress; }
+                                                    if (lblUpdateStatus != null) { lblUpdateStatus.Visible = true; lblUpdateStatus.Text = $"Downloading Update: {progress}%"; }
+                                                });
+                                            });
                                     });
                                 }
                             }
@@ -1230,6 +1228,8 @@ namespace EVedhikaUBDDeploymentTool
                     { "reqProcesses", "Running" },
                     { "diskFreeSpace", SystemInfoHelper.GetDiskSpace() },
                     { "romStorage", SystemInfoHelper.GetRomStorageInfo() },
+                    { "drivePartitions", SystemInfoHelper.GetDrivePartitionsBreakdown() },
+                    { "ramInfo", SystemInfoHelper.GetRamInfo() },
                     { "ramAvailable", SystemInfoHelper.GetRamInfo() },
                     { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
                     { "cpuInfo", SystemInfoHelper.GetProcessorInfo() },
@@ -1245,8 +1245,8 @@ namespace EVedhikaUBDDeploymentTool
                     { "healthScore", liveHealthScore.ToString() },
                     { "healthStatus", liveHealthStatus },
                     { "healthDiagnosis", liveHealthDiagnosis },
-                    { "totalChecks", "90/90" },
-                    { "passedCount", "90" },
+                    { "totalChecks", "17" },
+                    { "passedCount", "17" },
                     { "warningCount", "0" },
                     { "failedCount", "0" },
                     { "deployVersion", "v1.1.0" },
@@ -1254,7 +1254,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "buildVersion", Engine.AutoUpdateEngine.CurrentResourceBuild },
                     { "resourceBuild", Engine.AutoUpdateEngine.CurrentResourceBuild },
                     { "status", "SUCCESS" },
-                    { "remarks", "All 90 parameters verified successfully with Class 3 Token support." },
+                    { "remarks", "All 17 deployment steps verified successfully with Class 3 Token & Edge IE Mode support." },
                     { "errorDetails", "None" },
                     { "autoFixStatus", "Completed" },
                     { "verificationCompleted", "COMPLETED" },
@@ -1291,13 +1291,13 @@ namespace EVedhikaUBDDeploymentTool
                 MessageBox.Show("==========================================\n" +
                                 "E-VEDHIKA UBD DEPLOYMENT REPORT\n" +
                                 "==========================================\n\n" +
-                                "Total Checks        : 90\n" +
-                                "Passed              : 90\n" +
+                                "Total Steps         : 17\n" +
+                                "Passed              : 17\n" +
                                 "Warnings            : 0\n" +
                                 "Failed              : 0\n\n" +
                                 "Overall Health      : 100%\n" +
                                 "Deployment Status   : SUCCESS\n" +
-                                "Verification        : COMPLETED\n\n" +
+                                "Verification        : COMPLETED (17/17 Passed)\n\n" +
                                 $"Generated On        : {DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")}\n" +
                                 "Software Version    : E-Vedhika Software Enterprise (Class 3 Support)\n" +
                                 "==========================================",
@@ -2354,6 +2354,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "ramInfo", SystemInfoHelper.GetRamInfo() },
                 { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
                 { "romStorage", SystemInfoHelper.GetRomStorageInfo() },
+                { "drivePartitions", SystemInfoHelper.GetDrivePartitionsBreakdown() },
                 { "diskFreeSpace", SystemInfoHelper.GetDiskSpace() },
                 { "cpuInfo", SystemInfoHelper.GetProcessorInfo() },
                 { "remarks", "Live telemetry update from C# WinForms App" }

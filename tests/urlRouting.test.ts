@@ -27,9 +27,18 @@ test('resolves root /live-pc-reports and unrelated tabs properly', () => {
   assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '', '').tab, null);
 });
 
-test('resolves ?pay=1 and /live-pc-reports?pay=1 to report-center (unified live-pc-reports hub)', () => {
-  assert.equal(resolveRouteFromLocation('/UBDTOOLS/live-pc-reports', '?pay=1&pcId=EVD-PC-01', '').tab, 'report-center');
-  assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '?pay=1&pcId=EVD-PC-01&tab=version-fleet', '').tab, 'report-center');
-  assert.equal(resolveRouteFromLocation('/pay-checkout', '', '').tab, 'report-center');
+test('resolves ?pay=1 and /pay-checkout to dedicated pay-checkout tab', () => {
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/live-pc-reports', '?pay=1&pcId=EVD-PC-01', '').tab, 'pay-checkout');
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '?pay=1&pcId=EVD-PC-01&tab=version-fleet', '').tab, 'pay-checkout');
+  assert.equal(resolveRouteFromLocation('/pay-checkout', '', '').tab, 'pay-checkout');
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '?tab=payment', '').tab, 'pay-checkout');
+});
+
+test('resolves /admin and /UBDTOOLS/admin/ strictly to dedicated admin-portal (Reports & Payments only)', () => {
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/admin/', '', '').tab, 'admin-portal');
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/admin', '', '').tab, 'admin-portal');
+  assert.equal(resolveRouteFromLocation('/admin/', '', '').tab, 'admin-portal');
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '?/admin/', '').tab, 'admin-portal');
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/admin/', '?pay=1', '').tab, 'admin-portal');
 });
 

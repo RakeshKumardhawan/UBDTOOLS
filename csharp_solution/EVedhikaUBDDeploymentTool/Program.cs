@@ -327,6 +327,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "ramInfo", SystemInfoHelper.GetRamInfo() },
                     { "ramUsage", SystemInfoHelper.GetRamUsageFormatted() },
                     { "romStorage", SystemInfoHelper.GetRomStorageInfo() },
+                    { "drivePartitions", SystemInfoHelper.GetDrivePartitionsBreakdown() },
                     { "diskFreeSpace", SystemInfoHelper.GetDiskSpace() },
                     { "cpuInfo", SystemInfoHelper.GetProcessorInfo() },
                     { "verification", verifSummary },

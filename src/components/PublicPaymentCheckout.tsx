@@ -221,7 +221,7 @@ export const PublicPaymentCheckout: React.FC = () => {
               </div>
             ) : (
               <div className="w-48 h-48 rounded-2xl border border-dashed border-slate-700 flex items-center justify-center p-4 text-xs text-slate-400">
-                Admin గారు Tab 7 లో Merchant / Alias UPI ID లేదా Payment Link సెట్ చేసిన వెంటనే QR ఇక్కడ వస్తుంది.
+                Admin గారు License Control లో Merchant / Alias UPI ID లేదా Payment Link సెట్ చేసిన వెంటనే QR ఇక్కడ వస్తుంది.
               </div>
             )}
 

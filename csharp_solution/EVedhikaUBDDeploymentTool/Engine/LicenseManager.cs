@@ -420,7 +420,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         string targetUrl = (!string.IsNullOrEmpty(status.PaymentLinkUrl) &&
                             status.PaymentLinkUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                             ? status.PaymentLinkUrl.Trim()
-                            : $"https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports?pay=1&pcId={Uri.EscapeDataString(pcId)}&pcName={Uri.EscapeDataString(Environment.MachineName ?? "GP-PC")}";
+                            : $"https://rakeshkumardhawan.github.io/UBDTOOLS/pay-checkout?pay=1&pcId={Uri.EscapeDataString(pcId)}&pcName={Uri.EscapeDataString(Environment.MachineName ?? "GP-PC")}";
                         Process.Start(new ProcessStartInfo { FileName = targetUrl, UseShellExecute = true });
                     }
                     catch { }

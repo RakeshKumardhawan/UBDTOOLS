@@ -3,7 +3,7 @@ export const GITHUB_ADMIN_LIVE_LINK = 'https://rakeshkumardhawan.github.io/UBDTO
 const DIRECT_TABS = [
   'dashboard', 'posts', 'post-detail', 'deploy', 'csharp', 'repair', 'diagnostics', 'remote',
   'drivers', 'browser', 'registry', 'auditor', 'dsc', 'ai',
-  'downloads', 'backups', 'pcboost', 'settings', 'help', 'about', 'telemetry-dashboard', 'report-center', 'pay-checkout'
+  'downloads', 'backups', 'pcboost', 'settings', 'help', 'about', 'telemetry-dashboard', 'report-center', 'pay-checkout', 'admin-portal'
 ] as const;
 
 export interface ResolvedUrlRoute {
@@ -20,12 +20,35 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
   const lowerHash = (hash || '').toLowerCase();
   const combinedPath = `${lowerPath} ${lowerHash}`;
 
-  // Handle GitHub Pages query-encoded path (?/live-pc-reports) if not yet history-replaced
+  // Handle GitHub Pages query-encoded path (?/live-pc-reports or ?/admin/) if not yet history-replaced
   let decodedSearchPath = '';
   if (search && search.startsWith('?/')) {
     decodedSearchPath = search.slice(1).split('&')[0].toLowerCase();
   }
   const routeSurface = `${combinedPath} ${decodedSearchPath}`;
+
+  const cleanNoTrailingSlash = lowerPath.replace(/\/+$/, '');
+  const cleanSearchPath = decodedSearchPath.replace(/\/+$/, '');
+  const isDedicatedAdminRoot =
+    cleanNoTrailingSlash === '/admin' ||
+    cleanNoTrailingSlash === '/ubdtools/admin' ||
+    cleanSearchPath === '/admin' ||
+    lowerHash.replace(/\/+$/, '') === '#/admin';
+
+  if (isDedicatedAdminRoot) {
+    return { tab: 'admin-portal' };
+  }
+
+  const params = new URLSearchParams(search || '');
+  if (
+    params.get('pay') === '1' ||
+    Boolean(params.get('pcId')) ||
+    lowerPath.endsWith('/pay') ||
+    routeSurface.includes('pay-checkout') ||
+    routeSurface.includes('payment-hub')
+  ) {
+    return { tab: 'pay-checkout' };
+  }
 
   if (
     routeSurface.includes('live-pc-reports') ||
@@ -65,11 +88,6 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
     }
   }
 
-  const params = new URLSearchParams(search || '');
-  if (params.get('pay') === '1' || lowerPath.endsWith('/pay') || lowerPath.includes('pay-checkout')) {
-    return { tab: 'report-center' };
-  }
-
   const slugParam = params.get('slug') || params.get('postId');
   if (slugParam && !lowerPath.includes('monitoring') && !lowerPath.includes('telemetry')) {
     return { tab: 'post-detail', slug: slugParam };
@@ -78,6 +96,15 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
   const tabParam = params.get('tab') || params.get('view');
   if (tabParam) {
     const normalized = tabParam.toLowerCase();
+    if (
+      normalized === 'pay-checkout' ||
+      normalized === 'payment' ||
+      normalized === 'payment-hub' ||
+      normalized === 'license' ||
+      normalized === 'licensing'
+    ) {
+      return { tab: 'pay-checkout' };
+    }
     if (
       normalized === 'report-center' ||
       normalized === 'live-pc-reports' ||

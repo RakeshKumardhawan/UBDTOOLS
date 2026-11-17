@@ -47,6 +47,42 @@ namespace EVedhikaUBDDeploymentTool.Engine
                        .Replace("\t", "\\t");
         }
 
+        private static string NormalizeReleaseNotes(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            string s = raw.Replace("\\\\r\\\\n", "\n")
+                          .Replace("\\\\n", "\n")
+                          .Replace("\\r\\n", "\n")
+                          .Replace("\\n", "\n")
+                          .Replace("\\r", "")
+                          .Replace("\\t", "  ")
+                          .Replace("\\\"", "\"");
+            return s.Trim();
+        }
+
+        private static string SanitizeForGdiRichText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            string normalized = NormalizeReleaseNotes(text);
+            var sb = new StringBuilder(normalized.Length);
+            for (int i = 0; i < normalized.Length; i++)
+            {
+                char ch = normalized[i];
+                if (char.IsHighSurrogate(ch))
+                {
+                    // Skip supplementary plane emoji surrogate pair that renders as □ box in WinForms GDI RichTextBox
+                    if (i + 1 < normalized.Length && char.IsLowSurrogate(normalized[i + 1]))
+                    {
+                        i++;
+                    }
+                    continue;
+                }
+                if (char.IsLowSurrogate(ch)) continue;
+                sb.Append(ch);
+            }
+            return sb.ToString().Replace("  ", " ").Trim();
+        }
+
         public class ChangelogInfo
         {
             public List<string> NewFeatures { get; set; } = new List<string>();
@@ -123,12 +159,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             try
             {
-                string[] lines = releaseNotes.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                string cleanNotes = NormalizeReleaseNotes(releaseNotes);
+                string[] lines = cleanNotes.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
                 string currentCategory = "OTHER";
 
                 foreach (var rawLine in lines)
                 {
-                    string line = rawLine.Trim();
+                    string line = SanitizeForGdiRichText(rawLine);
                     if (string.IsNullOrEmpty(line)) continue;
 
                     string upper = line.ToUpperInvariant();
@@ -344,11 +381,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         if (jsonResponse.Contains("\"latestVersion\":"))
                         {
                             latestVer = ExtractJsonValue(jsonResponse, "latestVersion");
-                            releaseNotes = ExtractJsonValue(jsonResponse, "releaseNotes");
-                            if (!string.IsNullOrEmpty(releaseNotes))
-                            {
-                                releaseNotes = releaseNotes.Replace("\\n", "\n").Replace("\\r", "\r").Replace("\\\"", "\"");
-                            }
+                            releaseNotes = NormalizeReleaseNotes(ExtractJsonValue(jsonResponse, "releaseNotes"));
                             downloadUrl = ExtractJsonValue(jsonResponse, "downloadUrl");
                             relDate = ExtractJsonValue(jsonResponse, "releaseDate");
                             dSize = ExtractJsonValue(jsonResponse, "downloadSize");
@@ -630,23 +663,23 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             rtbChangelog.SelectionColor = Color.FromArgb(226, 232, 240);
                             foreach (var item in items)
                             {
-                                rtbChangelog.AppendText($"   • {item}\n");
+                                rtbChangelog.AppendText($"   • {SanitizeForGdiRichText(item)}\n");
                             }
                         }
                     };
 
-                    addCategory("🚀 NEW FEATURES", changelog.NewFeatures, Color.FromArgb(56, 189, 248));
-                    addCategory("🐛 BUG FIXES", changelog.BugFixes, Color.FromArgb(248, 113, 113));
-                    addCategory("⚡ PERFORMANCE IMPROVEMENTS", changelog.PerformanceImprovements, Color.FromArgb(250, 204, 21));
-                    addCategory("🛡️ SECURITY UPDATES", changelog.SecurityUpdates, Color.FromArgb(16, 185, 129));
-                    addCategory("🌐 COMPATIBILITY IMPROVEMENTS", changelog.CompatibilityImprovements, Color.FromArgb(168, 85, 247));
-                    addCategory("📝 OTHER CHANGES", changelog.OtherChanges, Color.FromArgb(148, 163, 184));
+                    addCategory("[+] NEW FEATURES", changelog.NewFeatures, Color.FromArgb(56, 189, 248));
+                    addCategory("[!] BUG FIXES", changelog.BugFixes, Color.FromArgb(248, 113, 113));
+                    addCategory("[*] PERFORMANCE IMPROVEMENTS", changelog.PerformanceImprovements, Color.FromArgb(250, 204, 21));
+                    addCategory("[#] SECURITY UPDATES", changelog.SecurityUpdates, Color.FromArgb(16, 185, 129));
+                    addCategory("[~] COMPATIBILITY IMPROVEMENTS", changelog.CompatibilityImprovements, Color.FromArgb(168, 85, 247));
+                    addCategory("[=] OTHER CHANGES", changelog.OtherChanges, Color.FromArgb(148, 163, 184));
 
                     if (!changelog.HasAnyEntries && !string.IsNullOrEmpty(rawReleaseNotes))
                     {
                         rtbChangelog.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                         rtbChangelog.SelectionColor = Color.FromArgb(226, 232, 240);
-                        rtbChangelog.AppendText("\n  " + rawReleaseNotes + "\n");
+                        rtbChangelog.AppendText("\n  " + SanitizeForGdiRichText(rawReleaseNotes) + "\n");
                     }
                 }
 
@@ -908,19 +941,24 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        private static bool _isUpdateDialogOpen = false;
+
         public static void ShowInteractiveUpdateDialog(IWin32Window owner, UpdateInfo info, Action<string> logCallback, Action<int> progressCallback)
         {
+            if (_isUpdateDialogOpen || isUpdateInProgress) return;
+            _isUpdateDialogOpen = true;
             try
             {
                 if (info == null || !info.IsUpdateAvailable)
                 {
+                    _isUpdateDialogOpen = false;
                     ShowSoftwareStatusDialog(owner, info);
                     return;
                 }
 
                 Form dlg = new Form
                 {
-                    Text = "🔄 E-Vedhika Software Update Available",
+                    Text = "E-Vedhika Software Update Available",
                     Size = new Size(680, 540),
                     StartPosition = FormStartPosition.CenterScreen,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
@@ -940,10 +978,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Label lblTitle = new Label
                 {
-                    Text = "✨ New Software Update Available!",
+                    Text = "New Software Update Available!",
                     Font = new Font("Segoe UI", 12.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(56, 189, 248),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(15, 10)
                 };
 
@@ -953,6 +992,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Font = new Font("Segoe UI", 9, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(16, 36)
                 };
 
@@ -969,19 +1009,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Label lblMeta1 = new Label
                 {
-                    Text = $"Current Version: {info.PreviousVersion} ({info.PreviousResourceBuild})   ➔   New Version: {info.LatestVersion} ({info.LatestResourceBuild})",
+                    Text = $"Current Version: {info.PreviousVersion} ({info.PreviousResourceBuild})   ->   New Version: {info.LatestVersion} ({info.LatestResourceBuild})",
                     Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(16, 185, 129),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(15, 12)
                 };
 
                 Label lblMeta2 = new Label
                 {
-                    Text = $"Click 'Download & Install' to proceed. The application will restart automatically after verification.",
+                    Text = "Click 'Download & Install' to proceed. Progress will appear live without freezing.",
                     Font = new Font("Segoe UI", 8.5f, FontStyle.Italic),
                     ForeColor = Color.FromArgb(226, 232, 240),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(15, 38)
                 };
 
@@ -997,10 +1039,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Button btnInstall = new Button
                 {
-                    Text = "📥 Download and Install",
+                    Text = "Download & Install",
                     DialogResult = DialogResult.Yes,
-                    Size = new Size(180, 36),
-                    Location = new Point(340, 12),
+                    UseMnemonic = false,
+                    Size = new Size(185, 36),
+                    Location = new Point(335, 12),
                     BackColor = Color.FromArgb(16, 185, 129),
                     ForeColor = Color.White,
                     FlatStyle = FlatStyle.Flat,
@@ -1013,6 +1056,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     Text = "Cancel (రద్దు చేయి)",
                     DialogResult = DialogResult.Cancel,
+                    UseMnemonic = false,
                     Size = new Size(130, 36),
                     Location = new Point(530, 12),
                     BackColor = Color.FromArgb(71, 85, 105),
@@ -1037,9 +1081,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Padding = new Padding(15)
                 };
 
-                ChangelogInfo changelog = info.CategorizedChangelog ?? ParseCategorizedChangelog(info.ReleaseNotes);
+                string normalizedNotes = NormalizeReleaseNotes(info.ReleaseNotes);
+                ChangelogInfo changelog = ParseCategorizedChangelog(normalizedNotes);
 
-                if (!changelog.HasAnyEntries && string.IsNullOrWhiteSpace(info.ReleaseNotes))
+                if (!changelog.HasAnyEntries && string.IsNullOrWhiteSpace(normalizedNotes))
                 {
                     rtbChangelog.AppendText("\n  Release notes are not available for this update.\n");
                 }
@@ -1057,17 +1102,24 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             rtbChangelog.SelectionColor = Color.FromArgb(226, 232, 240);
                             foreach (var item in items)
                             {
-                                rtbChangelog.AppendText($"   • {item}\n");
+                                rtbChangelog.AppendText($"   • {SanitizeForGdiRichText(item)}\n");
                             }
                         }
                     };
 
-                    addCategory("🚀 NEW FEATURES", changelog.NewFeatures, Color.FromArgb(56, 189, 248));
-                    addCategory("🐛 BUG FIXES", changelog.BugFixes, Color.FromArgb(248, 113, 113));
-                    addCategory("⚡ PERFORMANCE IMPROVEMENTS", changelog.PerformanceImprovements, Color.FromArgb(250, 204, 21));
-                    addCategory("🛡️ SECURITY UPDATES", changelog.SecurityUpdates, Color.FromArgb(16, 185, 129));
-                    addCategory("🌐 COMPATIBILITY IMPROVEMENTS", changelog.CompatibilityImprovements, Color.FromArgb(168, 85, 247));
-                    addCategory("📝 OTHER CHANGES", changelog.OtherChanges, Color.FromArgb(148, 163, 184));
+                    addCategory("[+] NEW FEATURES", changelog.NewFeatures, Color.FromArgb(56, 189, 248));
+                    addCategory("[!] BUG FIXES", changelog.BugFixes, Color.FromArgb(248, 113, 113));
+                    addCategory("[*] PERFORMANCE IMPROVEMENTS", changelog.PerformanceImprovements, Color.FromArgb(250, 204, 21));
+                    addCategory("[#] SECURITY UPDATES", changelog.SecurityUpdates, Color.FromArgb(16, 185, 129));
+                    addCategory("[~] COMPATIBILITY IMPROVEMENTS", changelog.CompatibilityImprovements, Color.FromArgb(168, 85, 247));
+                    addCategory("[=] OTHER CHANGES", changelog.OtherChanges, Color.FromArgb(148, 163, 184));
+
+                    if (!changelog.HasAnyEntries && !string.IsNullOrEmpty(normalizedNotes))
+                    {
+                        rtbChangelog.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
+                        rtbChangelog.SelectionColor = Color.FromArgb(226, 232, 240);
+                        rtbChangelog.AppendText("\n  " + SanitizeForGdiRichText(normalizedNotes) + "\n");
+                    }
                 }
 
                 dlg.Controls.Add(rtbChangelog);
@@ -1079,16 +1131,236 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (res == DialogResult.Yes)
                 {
                     logCallback?.Invoke("[AUTO-UPDATE] User initiated OTA Download & Installation workflow...");
-                    ThreadPool.QueueUserWorkItem(delegate
-                    {
-                        PerformAutoUpdate(info.DownloadUrl, logCallback, progressCallback, info);
-                    });
+                    ShowNonBlockingUpdateProgressDialog(owner, info, logCallback, progressCallback);
                 }
             }
             catch (Exception ex)
             {
                 logCallback?.Invoke($"[AUTO-UPDATE UI ERROR] {ex.Message}");
             }
+            finally
+            {
+                _isUpdateDialogOpen = false;
+            }
+        }
+
+        private static void ShowNonBlockingUpdateProgressDialog(IWin32Window owner, UpdateInfo info, Action<string> logCallback, Action<int> progressCallback)
+        {
+            if (isUpdateInProgress) return;
+            isUpdateInProgress = true;
+
+            Form progForm = new Form
+            {
+                Text = "Downloading & Installing Update...",
+                Size = new Size(520, 230),
+                StartPosition = FormStartPosition.CenterScreen,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                ControlBox = false,
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.White
+            };
+
+            Label lblHead = new Label
+            {
+                Text = $"Downloading E-Vedhika {info.LatestVersion} ({info.LatestResourceBuild})...",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(56, 189, 248),
+                UseMnemonic = false,
+                Bounds = new Rectangle(20, 18, 470, 26)
+            };
+
+            Label lblStatus = new Label
+            {
+                Text = "Connecting securely to release server... (దయచేసి వేచి ఉండండి)",
+                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                UseMnemonic = false,
+                Bounds = new Rectangle(20, 50, 470, 24)
+            };
+
+            ProgressBar pb = new ProgressBar
+            {
+                Minimum = 0,
+                Maximum = 100,
+                Value = 5,
+                Style = ProgressBarStyle.Continuous,
+                Bounds = new Rectangle(20, 86, 470, 26)
+            };
+
+            Label lblSpeed = new Label
+            {
+                Text = "Preparing download...",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Italic),
+                ForeColor = Color.FromArgb(52, 211, 153),
+                UseMnemonic = false,
+                Bounds = new Rectangle(20, 120, 320, 22)
+            };
+
+            Button btnAbort = new Button
+            {
+                Text = "Cancel (రద్దు)",
+                UseMnemonic = false,
+                Bounds = new Rectangle(370, 146, 120, 34),
+                BackColor = Color.FromArgb(71, 85, 105),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnAbort.FlatAppearance.BorderSize = 0;
+
+            progForm.Controls.Add(lblHead);
+            progForm.Controls.Add(lblStatus);
+            progForm.Controls.Add(pb);
+            progForm.Controls.Add(lblSpeed);
+            progForm.Controls.Add(btnAbort);
+
+            bool cancelled = false;
+            WebClient activeClient = null;
+            string startTimeStr = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            btnAbort.Click += (s, e) =>
+            {
+                cancelled = true;
+                btnAbort.Enabled = false;
+                lblStatus.Text = "Cancelling update download...";
+                try { activeClient?.CancelAsync(); } catch { }
+            };
+
+            progForm.Shown += (s, e) =>
+            {
+                try
+                {
+                    ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768 | SecurityProtocolType.Tls;
+                    ServicePointManager.DefaultConnectionLimit = 10;
+
+                    string downloadUrl = string.IsNullOrEmpty(info.DownloadUrl)
+                        ? "https://github.com/RakeshKumardhawan/UBDTOOLS/releases/download/latest/EVedhika_Setup_v1.1.0.exe"
+                        : info.DownloadUrl;
+
+                    string tempDir = @"C:\ProgramData\EVedhika\Updates";
+                    try { if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir); }
+                    catch
+                    {
+                        tempDir = Path.Combine(Path.GetTempPath(), "EVedhika_Update");
+                        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+                    }
+
+                    string fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
+                    if (string.IsNullOrEmpty(fileName) || !fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fileName = "EVedhika_Update_Latest.exe";
+                    }
+
+                    string newExePath = Path.Combine(tempDir, fileName);
+                    try { if (File.Exists(newExePath)) File.Delete(newExePath); } catch { }
+
+                    activeClient = new WebClient();
+                    activeClient.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.1.0";
+
+                    activeClient.DownloadProgressChanged += (ws, we) =>
+                    {
+                        if (progForm.IsDisposed || cancelled) return;
+                        try
+                        {
+                            progForm.BeginInvoke((Action)(() =>
+                            {
+                                if (progForm.IsDisposed || cancelled) return;
+                                int pct = Math.Max(0, Math.Min(100, we.ProgressPercentage));
+                                pb.Value = pct;
+                                double dlMb = we.BytesReceived / (1024.0 * 1024.0);
+                                double totMb = we.TotalBytesToReceive > 0 ? we.TotalBytesToReceive / (1024.0 * 1024.0) : 0;
+                                lblStatus.Text = totMb > 0
+                                    ? $"Downloading update: {pct}% ({dlMb:F2} MB / {totMb:F2} MB)"
+                                    : $"Downloading update: {dlMb:F2} MB received...";
+                                lblSpeed.Text = "Non-blocking background stream active";
+                                progressCallback?.Invoke(pct);
+                            }));
+                        }
+                        catch { }
+                    };
+
+                    activeClient.DownloadFileCompleted += (ws, we) =>
+                    {
+                        try { activeClient?.Dispose(); } catch { }
+                        if (cancelled || we.Cancelled)
+                        {
+                            isUpdateInProgress = false;
+                            logCallback?.Invoke("[AUTO-UPDATE] Download cancelled by user.");
+                            try { if (File.Exists(newExePath)) File.Delete(newExePath); } catch { }
+                            try { progForm.BeginInvoke((Action)(() => progForm.Close())); } catch { }
+                            return;
+                        }
+
+                        if (we.Error != null)
+                        {
+                            isUpdateInProgress = false;
+                            string errMsg = we.Error.Message;
+                            logCallback?.Invoke($"[AUTO-UPDATE ERROR] Download failed: {errMsg}");
+                            try
+                            {
+                                progForm.BeginInvoke((Action)(() =>
+                                {
+                                    progForm.Close();
+                                    MessageBox.Show(owner,
+                                        $"అప్డేట్ డౌన్‌లోడ్ విఫలమైంది (దయచేసి ఇంటర్నెట్ తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి):\n\n{errMsg}",
+                                        "Update Download Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                }));
+                            }
+                            catch { }
+                            return;
+                        }
+
+                        ThreadPool.QueueUserWorkItem(_ =>
+                        {
+                            FinalizeDownloadedUpdateAndRestart(newExePath, fileName, info, startTimeStr, logCallback, statusText =>
+                            {
+                                try
+                                {
+                                    if (!progForm.IsDisposed)
+                                    {
+                                        progForm.BeginInvoke((Action)(() =>
+                                        {
+                                            if (!progForm.IsDisposed)
+                                            {
+                                                lblStatus.Text = statusText;
+                                                pb.Value = 100;
+                                            }
+                                        }));
+                                    }
+                                }
+                                catch { }
+                            }, errMsg =>
+                            {
+                                try
+                                {
+                                    if (!progForm.IsDisposed)
+                                    {
+                                        progForm.BeginInvoke((Action)(() =>
+                                        {
+                                            progForm.Close();
+                                            MessageBox.Show(owner, errMsg, "Update Verification Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                        }));
+                                    }
+                                }
+                                catch { }
+                            });
+                        });
+                    };
+
+                    activeClient.DownloadFileAsync(new Uri(downloadUrl), newExePath);
+                }
+                catch (Exception ex)
+                {
+                    isUpdateInProgress = false;
+                    logCallback?.Invoke($"[AUTO-UPDATE ERROR] {ex.Message}");
+                    progForm.Close();
+                }
+            };
+
+            progForm.ShowDialog(owner);
         }
 
         public static void SavePendingUpdateState(string prevVer, string currVer, string prevBuild, string currBuild, string relDate, string relNotes)
@@ -1448,6 +1720,132 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         private static bool isUpdateInProgress = false;
 
+        private static bool FinalizeDownloadedUpdateAndRestart(
+            string newExePath,
+            string fileName,
+            UpdateInfo updateInfo,
+            string startTimeStr,
+            Action<string> logCallback,
+            Action<string> statusCallback,
+            Action<string> errorCallback)
+        {
+            try
+            {
+                statusCallback?.Invoke("Verifying installer binary integrity...");
+                if (!EdgeManagementEngine.IsValidInstallerBinary(newExePath))
+                {
+                    logCallback?.Invoke("[AUTO-UPDATE SKIPPED] Downloaded update file is not a valid Windows executable. Aborting safely.");
+                    try { if (File.Exists(newExePath)) File.Delete(newExePath); } catch { }
+                    isUpdateInProgress = false;
+                    errorCallback?.Invoke("డౌన్‌లోడ్ అయిన అప్డేట్ ఫైల్ చెల్లుబాటు అయ్యే Windows EXE కాదు. దయచేసి మళ్ళీ ప్రయత్నించండి.");
+                    return false;
+                }
+
+                try
+                {
+                    BrowserSecurityEngine.RemoveZoneIdentifier(newExePath);
+                }
+                catch { }
+
+                string downloadedSha256 = CalculateFileSha256(newExePath);
+                logCallback?.Invoke($"[AUTO-UPDATE INTEGRITY] SHA-256 Digest calculated: {downloadedSha256}");
+
+                if (updateInfo != null && !string.IsNullOrEmpty(updateInfo.Sha256Hash))
+                {
+                    if (!downloadedSha256.Equals(updateInfo.Sha256Hash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logCallback?.Invoke("[SECURITY FAILURE] SHA-256 Digest mismatch! Aborting installation.");
+                        OtaNotificationService.SendUpdateHistoryLog("OTA_INTEGRITY_FAILED", CurrentVersion, updateInfo.LatestVersion, CurrentResourceBuild, updateInfo.LatestResourceBuild, "REL-FAIL", startTimeStr, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), "FAILED_SHA256_MISMATCH", "ABORTED", "NOT_RESTARTED", "FAILED", "SHA-256 Hash Mismatch");
+                        isUpdateInProgress = false;
+                        errorCallback?.Invoke("SHA-256 భద్రతా తనిఖీ విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.");
+                        return false;
+                    }
+                }
+
+                statusCallback?.Invoke("Preparing fast silent installer & restart...");
+                logCallback?.Invoke("[AUTO-UPDATE SUCCESS] Download & integrity verified! Launching fast installer...");
+
+                string targetVer = updateInfo != null ? updateInfo.LatestVersion : CurrentVersion;
+                string targetBuild = updateInfo != null ? updateInfo.LatestResourceBuild : CurrentResourceBuild;
+                string relDate = updateInfo != null ? updateInfo.ReleaseDate : ResourceDate;
+                string relNotes = updateInfo != null ? updateInfo.ReleaseNotes : "Official UBD Suite Update.";
+
+                SavePendingUpdateState(CurrentVersion, targetVer, CurrentResourceBuild, targetBuild, relDate, relNotes);
+                OtaNotificationService.SendStatusChangedNotification("OTA_PAYLOAD_DOWNLOADED", CurrentVersion, targetVer, "DOWNLOAD_SUCCESS", $"Downloaded {fileName}. Starting fast installer...");
+
+                string tempDir = Path.GetDirectoryName(newExePath);
+                string safeSetupTemp = @"C:\ProgramData\EVedhika\SetupTemp";
+                try { if (!Directory.Exists(safeSetupTemp)) Directory.CreateDirectory(safeSetupTemp); }
+                catch { safeSetupTemp = tempDir; }
+
+                string currentExePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string exeName = Path.GetFileName(currentExePath);
+                string updaterBatPath = Path.Combine(tempDir, "updater.bat");
+
+                bool isSetupInstaller = fileName.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                       fileName.IndexOf("Install", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                string batContent;
+                if (isSetupInstaller)
+                {
+                    batContent = $@"@echo off
+if not exist ""{safeSetupTemp}"" mkdir ""{safeSetupTemp}""
+set TEMP={safeSetupTemp}
+set TMP={safeSetupTemp}
+timeout /t 2 /nobreak >nul 2>&1 || ping 127.0.0.1 -n 3 >nul
+taskkill /F /IM ""{exeName}"" >nul 2>&1
+timeout /t 1 /nobreak >nul 2>&1 || ping 127.0.0.1 -n 2 >nul
+start /wait """" ""{newExePath}"" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /SP-
+if exist ""{currentExePath}"" (
+    tasklist /FI ""IMAGENAME eq {exeName}"" 2>nul | find /I ""{exeName}"" >nul
+    if errorlevel 1 start """" ""{currentExePath}""
+)
+del /f /q ""{newExePath}"" >nul 2>&1
+del ""%~f0"" >nul 2>&1
+";
+                }
+                else
+                {
+                    batContent = $@"@echo off
+timeout /t 2 /nobreak >nul 2>&1 || ping 127.0.0.1 -n 3 >nul
+taskkill /F /IM ""{exeName}"" >nul 2>&1
+for /L %%i in (1,1,6) do (
+    copy /y ""{newExePath}"" ""{currentExePath}"" >nul 2>&1
+    if not errorlevel 1 goto launched
+    ping 127.0.0.1 -n 2 >nul
+)
+:launched
+start """" ""{currentExePath}""
+del /f /q ""{newExePath}"" >nul 2>&1
+del ""%~f0"" >nul 2>&1
+";
+                }
+
+                File.WriteAllText(updaterBatPath, batContent, Encoding.Default);
+
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = updaterBatPath,
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    CreateNoWindow = true
+                };
+                Process.Start(psi);
+
+                isUpdateInProgress = false;
+                Environment.Exit(0);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                isUpdateInProgress = false;
+                logCallback?.Invoke($"[AUTO-UPDATE ERROR] Failed to install update: {ex.Message}");
+                WriteLocalUpdateHistoryLog(CurrentVersion, "UNKNOWN", CurrentResourceBuild, "UNKNOWN", "FAILED", ex.Message);
+                errorCallback?.Invoke("ఇన్‌స్టాలేషన్ విఫలమైంది: " + ex.Message);
+                return false;
+            }
+        }
+
         public static bool PerformAutoUpdate(string downloadUrl, Action<string> logCallback = null, Action<int> progressCallback = null, UpdateInfo updateInfo = null)
         {
             if (isUpdateInProgress)
@@ -1478,23 +1876,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string tempDir = @"C:\ProgramData\EVedhika\Updates";
                 try
                 {
-                    if (!Directory.Exists(tempDir))
-                    {
-                        Directory.CreateDirectory(tempDir);
-                    }
+                    if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
                 }
                 catch
                 {
                     tempDir = Path.Combine(Path.GetTempPath(), "EVedhika_Update");
                     if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
                 }
-
-                string safeSetupTemp = @"C:\ProgramData\EVedhika\SetupTemp";
-                try
-                {
-                    if (!Directory.Exists(safeSetupTemp)) Directory.CreateDirectory(safeSetupTemp);
-                }
-                catch { safeSetupTemp = tempDir; }
 
                 string fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
                 if (string.IsNullOrEmpty(fileName) || !fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
@@ -1504,7 +1892,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 string newExePath = Path.Combine(tempDir, fileName);
 
-                using (WebClient wc = new WebClient())
+                using (WebClient wc = new TimeoutWebClient(60000))
                 {
                     wc.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.1.0";
                     if (progressCallback != null)
@@ -1519,130 +1907,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     progressCallback?.Invoke(100);
                 }
 
-                if (!EdgeManagementEngine.IsValidInstallerBinary(newExePath))
-                {
-                    logCallback?.Invoke("[AUTO-UPDATE SKIPPED] Downloaded update file is not a valid Windows executable (possible proxy/HTML response). Aborting safely.");
-                    try { if (File.Exists(newExePath)) File.Delete(newExePath); } catch { }
-                    isUpdateInProgress = false;
-                    return false;
-                }
-
-                // Strip NTFS Zone.Identifier (Mark of the Web) natively via Win32 DeleteFileW to prevent Smart App Control & Error 4551
-                try
-                {
-                    BrowserSecurityEngine.ConfigureAntivirusSelfExclusion();
-                    BrowserSecurityEngine.RemoveZoneIdentifier(newExePath);
-                }
-                catch { }
-
-                string downloadedSha256 = CalculateFileSha256(newExePath);
-                logCallback?.Invoke($"[AUTO-UPDATE INTEGRITY] SHA-256 Digest calculated: {downloadedSha256}");
-
-                if (updateInfo != null && !string.IsNullOrEmpty(updateInfo.Sha256Hash))
-                {
-                    if (!downloadedSha256.Equals(updateInfo.Sha256Hash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        logCallback?.Invoke("[SECURITY FAILURE] SHA-256 Digest mismatch! Update payload corrupted or altered. Aborting installation.");
-                        OtaNotificationService.SendUpdateHistoryLog("OTA_INTEGRITY_FAILED", CurrentVersion, updateInfo.LatestVersion, CurrentResourceBuild, updateInfo.LatestResourceBuild, "REL-FAIL", startTimeStr, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), "FAILED_SHA256_MISMATCH", "ABORTED", "NOT_RESTARTED", "FAILED", "SHA-256 Hash Mismatch");
-                        isUpdateInProgress = false;
-                        return false;
-                    }
-                }
-
-                logCallback?.Invoke("[AUTO-UPDATE SUCCESS] Download and SHA-256 integrity check verified successfully!");
-
-                string targetVer = updateInfo != null ? updateInfo.LatestVersion : CurrentVersion;
-                string targetBuild = updateInfo != null ? updateInfo.LatestResourceBuild : CurrentResourceBuild;
-                string relDate = updateInfo != null ? updateInfo.ReleaseDate : ResourceDate;
-                string relNotes = updateInfo != null ? updateInfo.ReleaseNotes : "Official UBD Suite Update.";
-
-                SavePendingUpdateState(CurrentVersion, targetVer, CurrentResourceBuild, targetBuild, relDate, relNotes);
-
-                OtaNotificationService.SendStatusChangedNotification("OTA_PAYLOAD_DOWNLOADED", CurrentVersion, targetVer, "DOWNLOAD_SUCCESS", $"Downloaded {fileName} to trusted directory. Launching single-instance self-updater...");
-
-                string currentExePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                string updaterBatPath = Path.Combine(tempDir, "updater.bat");
-
-                bool isSetupInstaller = fileName.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                       fileName.IndexOf("Install", StringComparison.OrdinalIgnoreCase) >= 0;
-
-                // Also pre-fetch direct standalone binary so even if Windows WDAC blocks Inno Setup %TEMP% extraction,
-                // direct in-place EXE replacement succeeds 100% silently without any Error 4551 popup!
-                string directExePath = Path.Combine(tempDir, "EVedhikaUBDDeploymentTool_Direct.exe");
-                if (isSetupInstaller)
-                {
-                    try
-                    {
-                        using (var wcDirect = new TimeoutWebClient(15000))
-                        {
-                            wcDirect.Headers[HttpRequestHeader.UserAgent] = "EVedhika-Update-Agent/1.1.0";
-                            wcDirect.DownloadFile("https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhikaUBDDeploymentTool.exe", directExePath);
-                            BrowserSecurityEngine.RemoveZoneIdentifier(directExePath);
-                        }
-                    }
-                    catch { }
-                }
-
-                string batContent;
-                if (isSetupInstaller)
-                {
-                    batContent = $@"
-@echo off
-echo ===================================================
-echo E-VEDHIKA UBD TOOL - AUTOMATIC SELF-UPDATER
-echo ===================================================
-if not exist ""{safeSetupTemp}"" mkdir ""{safeSetupTemp}""
-set TEMP={safeSetupTemp}
-set TMP={safeSetupTemp}
-reg add ""HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy"" /v ""VerifiedAndReputablePolicyState"" /t REG_DWORD /d 0 /f >nul 2>&1
-ping 127.0.0.1 -n 3 > nul
-if exist ""{directExePath}"" (
-    del /f /q ""{currentExePath}"" >nul 2>&1
-    copy /y ""{directExePath}"" ""{currentExePath}"" >nul 2>&1
-    del /f /q ""{directExePath}"" >nul 2>&1
-) else (
-    start /wait """" ""{newExePath}"" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-)
-start """" ""{currentExePath}""
-del /f /q ""{newExePath}"" >nul 2>&1
-del ""%~f0""
-";
-                }
-                else
-                {
-                    batContent = $@"
-@echo off
-echo ===================================================
-echo E-VEDHIKA UBD TOOL - OVER THE AIR (OTA) UPDATER
-echo ===================================================
-echo Updating E-Vedhika Deployment Tool... Please wait.
-powershell -NoProfile -ExecutionPolicy Bypass -Command ""Unblock-File -Path '{newExePath}' -ErrorAction SilentlyContinue"" >nul 2>&1
-echo Closing current instance...
-ping 127.0.0.1 -n 3 > nul
-echo Replacing with the latest version...
-del /f /q ""{currentExePath}""
-copy /y ""{newExePath}"" ""{currentExePath}""
-echo Launching new version...
-start """" ""{currentExePath}""
-del /f /q ""{newExePath}""
-del ""%~f0""
-";
-                }
-                File.WriteAllText(updaterBatPath, batContent);
-
-                ProcessStartInfo psi = new ProcessStartInfo
-                {
-                    FileName = updaterBatPath,
-                    UseShellExecute = true,
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                    CreateNoWindow = true
-                };
-                Process.Start(psi);
-
-                isUpdateInProgress = false;
-                Environment.Exit(0);
-
-                return true;
+                return FinalizeDownloadedUpdateAndRestart(newExePath, fileName, updateInfo, startTimeStr, logCallback, null, null);
             }
             catch (Exception ex)
             {
