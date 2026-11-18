@@ -60,9 +60,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // CARD 1: TOTAL VERIFICATION (Dark Slate / Indigo)
             DrawMetricCard(g,
                 new Rectangle(margin, top, cardWidth, cardHeight),
-                "మొత్తం వెరిఫికేషన్ (TOTAL CHECKS)",
+                "TOTAL VERIFICATION CHECKS",
                 TotalChecks.ToString() + " Checks",
-                "● Grama Panchayat Standards",
+                "• Grama Panchayat Standards",
                 Color.FromArgb(20, 24, 40),
                 Color.FromArgb(15, 18, 30),
                 Color.FromArgb(99, 102, 241), // Indigo accent
@@ -70,10 +70,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 0);
 
             // CARD 2: PASSED CHECKS (Emerald Gradient)
-            string passedSub = (PassedChecks >= TotalChecks && TotalChecks > 0) ? "● 100% Fully Configured" : string.Format("● {0}% Configured", Math.Round((double)PassedChecks / (TotalChecks > 0 ? TotalChecks : 1) * 100));
+            string passedSub = (PassedChecks >= TotalChecks && TotalChecks > 0) ? "• 100% Fully Configured" : string.Format("• {0}% Configured", Math.Round((double)PassedChecks / (TotalChecks > 0 ? TotalChecks : 1) * 100));
             DrawMetricCard(g,
                 new Rectangle(margin * 2 + cardWidth, top, cardWidth, cardHeight),
-                string.Format("సక్సెస్ అయినవి (PASSED {0}/{1})", PassedChecks, TotalChecks),
+                string.Format("PASSED CHECKS ({0}/{1})", PassedChecks, TotalChecks),
                 PassedChecks.ToString() + " Passed",
                 passedSub,
                 Color.FromArgb(13, 36, 32),
@@ -83,10 +83,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 1);
 
             // CARD 3: ISSUES / WARNINGS (Amber Gradient)
-            string issuesSub = (IssuesCount == 0) ? "● Zero System Conflicts" : string.Format("● {0} System Conflicts Detected", IssuesCount);
+            string issuesSub = (IssuesCount == 0) ? "• Zero System Conflicts" : string.Format("• {0} System Conflicts Detected", IssuesCount);
             DrawMetricCard(g,
                 new Rectangle(margin * 3 + cardWidth * 2, top, cardWidth, cardHeight),
-                "ప్రాబ్లమ్స్ (ISSUES/WARNINGS)",
+                "ISSUES & WARNINGS",
                 IssuesCount.ToString() + " Issues",
                 issuesSub,
                 Color.FromArgb(38, 28, 14),
@@ -98,9 +98,9 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             // CARD 4: AVG HEALTH SCORE (Cyan Gradient)
             DrawMetricCard(g,
                 new Rectangle(margin * 4 + cardWidth * 3, top, cardWidth, cardHeight),
-                "సగటు హెల్త్ స్కోర్ (AVG HEALTH)",
+                "AVG HEALTH SCORE",
                 HealthScore.ToString() + "%",
-                "● Optimal Government State",
+                "• Optimal Government State",
                 Color.FromArgb(12, 33, 48),
                 Color.FromArgb(8, 22, 34),
                 Color.FromArgb(6, 182, 212), // Cyan accent

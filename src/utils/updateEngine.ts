@@ -43,16 +43,14 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
-    version: 'v1.1.0 (Resource Build 2026.11.16.R7)',
+    version: 'v1.1.0 (Resource Build 2026.11.18.R11)',
     date: 'November 2026',
     changes: [
-      'Upgraded main software version to v1.1.0 (EVedhika_Setup_v1.1.0.exe) with VersionCode 10100',
-      'Real-Time Central Cloud Admin & PC Monitoring Hub backed by Google Cloud Firestore',
-      'Automatic Version-Upgrade Reporting: Every PC upgrading to v1.1.0 reports full machine, operator & District/GP Office details',
-      'Interactive 1-5 Star Rating & Feedback Dialog after 17-Step Deployment & Dedicated Feedback Tab',
-      'District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) eliminating false Hyderabad ISP location',
-      'Strictly 1 Telegram Report on Install & 1 on 17-Step Run (Zero Duplicate Telegram Messages)',
-      'Dedicated Admin Installed PCs, Live Online PCs & User Ratings Reports (0% Dummy Data)'
+      'Added global window.onerror & unhandledrejection listener specifically capturing runtime errors on Windows 7, 8, 10 & 11 and sending diagnostic reports to central telemetry logs',
+      'Converted all C# WinForms dialogs, Selection labels, Status screens, Metric cards & Release Notes into clean English (eliminates box glyphs on Windows 7/8/10/11)',
+      'Background async OTA update download with live progress bar (prevents UI freeze / Not Responding)',
+      'Separated Admin Payments & Live Reports at /admin/ and cleaned duplicate shortcuts & Control Panel entries',
+      'Real-Time Central Cloud Admin & PC Monitoring Hub backed by Google Cloud Firestore'
     ]
   },
   {
@@ -157,9 +155,9 @@ export const CURRENT_APP_VERSION = 'v1.1.0';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.16.R7',
+  manifestVersion: '2026.11.18.R11',
   appVersion: 'v1.1.0',
-  lastSyncTimestamp: '2026-11-16T00:00:00.000Z',
+  lastSyncTimestamp: new Date().toISOString(),
   totalResources: 5,
   outdatedCount: 0,
   resources: [
@@ -498,7 +496,7 @@ export async function checkForUpdates(
   };
 }
 
-export const LOCAL_BUILD_VERSION = '2026.11.16.R7';
+export const LOCAL_BUILD_VERSION = '2026.11.18.R11';
 
 export interface OtaCheckResult {
   hasOtaUpdate: boolean;
@@ -513,7 +511,7 @@ export interface OtaCheckResult {
 }
 
 /**
- * Compares the local build version (e.g. '2026.11.16.R7') with a remote manifest hosted on GitHub,
+ * Compares the local build version (e.g. '2026.11.16.R10') with a remote manifest hosted on GitHub,
  * returning whether an Over-The-Air (OTA) update is available or if the user is on the latest build.
  */
 export async function checkForOtaUpdates(

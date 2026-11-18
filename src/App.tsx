@@ -67,6 +67,13 @@ function MainAppContent() {
     }
     return 'dashboard';
   });
+  const [adminInitialSection, setAdminInitialSection] = useState<'reports' | 'payments'>(() => {
+    if (typeof window !== 'undefined') {
+      const resolved = resolveRouteFromLocation(window.location.pathname, window.location.search, window.location.hash);
+      if (resolved.adminSection) return resolved.adminSection;
+    }
+    return 'reports';
+  });
   const [selectedPostSlug, setSelectedPostSlug] = useState<string>('ubd-setting-issues-one-click-all-in-one-setup');
   const [selectedProfile, setSelectedProfile] = useState<DepartmentProfile>(() => {
     const savedProfileId = localStorage.getItem('evedhika_selected_profile_id');
@@ -267,6 +274,9 @@ function MainAppContent() {
       );
       if (resolved.slug) {
         setSelectedPostSlug(resolved.slug);
+      }
+      if (resolved.adminSection) {
+        setAdminInitialSection(resolved.adminSection);
       }
       if (resolved.tab) {
         setActiveTab(resolved.tab as NavigationTab);
@@ -730,7 +740,12 @@ Report Timestamp: ${reportDate}
   };
 
   if (activeTab === 'admin-portal') {
-    return <AdminPortalView onExitAdmin={() => changeTab('dashboard')} />;
+    return (
+      <AdminPortalView
+        initialSection={adminInitialSection}
+        onExitAdmin={() => changeTab('dashboard')}
+      />
+    );
   }
 
   return (

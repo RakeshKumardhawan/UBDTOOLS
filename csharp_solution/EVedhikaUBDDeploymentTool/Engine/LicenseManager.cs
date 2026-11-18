@@ -19,9 +19,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
         public int DurationDays = 30;
         public string UpiId = "";
         public string PaymentLinkUrl = "";
-        public string PaymentNote = "Currently Free for all Operators (Future Plan: ₹10/Month).";
+        public string PaymentNote = "Currently Free for all Operators (Future Plan: Rs.10/Month).";
         public bool IsAllowed = true;
-        public string SummaryText = "Free Early Access Active (Future ₹10/Mo Plan)";
+        public string SummaryText = "Free Early Access Active (Future Rs.10/Mo Plan)";
         public string ValidUntilIso = "";
     }
 
@@ -42,7 +42,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     res.Mode = "FREE_FOR_ALL";
                     res.IsAllowed = true;
-                    res.SummaryText = "Free Early Access Active (Future Plan: ₹10 / Month)";
+                    res.SummaryText = "Free Early Access Active (Future Plan: Rs.10 / Month)";
                     return res;
                 }
 
@@ -67,7 +67,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (string.Equals(res.Mode, "FREE_FOR_ALL", StringComparison.OrdinalIgnoreCase))
                 {
                     res.IsAllowed = true;
-                    res.SummaryText = $"Free Early Access Active (Planned Future Rate: ₹{res.MonthlyPriceInr:0}/Month)";
+                    res.SummaryText = $"Free Early Access Active (Planned Future Rate: Rs.{res.MonthlyPriceInr:0}/Month)";
                     return res;
                 }
 
@@ -78,8 +78,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 if (string.IsNullOrEmpty(pcJson) || pcJson.IndexOf("\"fields\"", StringComparison.OrdinalIgnoreCase) < 0)
                 {
-                    res.IsAllowed = false;
-                    res.SummaryText = $"Monthly Subscription Required (₹{res.MonthlyPriceInr:0} / {res.DurationDays} Days)";
+                    res.IsAllowed = true; // Offline grace so operator work is never blocked while Admin is away
+                    res.SummaryText = $"Offline Grace Active (Admin Approval Pending • Rs.{res.MonthlyPriceInr:0}/Mo)";
                     return res;
                 }
 
@@ -107,12 +107,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     int daysLeft = Math.Max(1, (int)Math.Ceiling((expiryUtc - DateTime.UtcNow).TotalDays));
                     res.IsAllowed = true;
-                    res.SummaryText = $"Active Subscription (₹{res.MonthlyPriceInr:0}/Mo • {daysLeft} Days Left)";
+                    res.SummaryText = $"Active Subscription (Rs.{res.MonthlyPriceInr:0}/Mo | {daysLeft} Days Left)";
                 }
                 else
                 {
-                    res.IsAllowed = false;
-                    res.SummaryText = $"Subscription Expired/Inactive (Renew ₹{res.MonthlyPriceInr:0} / {res.DurationDays} Days)";
+                    res.IsAllowed = true; // Grace period active
+                    res.SummaryText = $"Grace Period Active (Subscription Expired/Pending • Rs.{res.MonthlyPriceInr:0})";
                 }
             }
             catch
@@ -147,7 +147,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             string cleanUtr = NormalizeUtr(rawUtr);
             if (cleanUtr.Length < 8 || cleanUtr.Length > 36)
             {
-                resultMessage = "దయచేసి సరైన 12-అంకెల UPI UTR / Transaction ID (కనీసం 8–36 అక్షరాలు/అంకెలు) ఎంటర్ చేయండి.";
+                resultMessage = "Please enter a valid 12-digit UPI UTR / Transaction Reference ID (8-36 alphanumeric characters).";
                 return false;
             }
 
@@ -157,7 +157,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
             string state = SystemInfoHelper.GetConfiguredState("Telangana");
             string district = SystemInfoHelper.GetConfiguredDistrict(state);
             string opName = SystemInfoHelper.GetConfiguredOperatorName();
-            double amount = status != null && status.MonthlyPriceInr >= 1 ? status.MonthlyPriceInr : 10;
+            double amount = status != null && status.MonthlyPriceInr >= 1
+                ? Math.Min(10000, Math.Max(1, Math.Round(status.MonthlyPriceInr)))
+                : 10;
 
             string payload =
                 "{\"writes\":[{\"update\":{" +
@@ -172,7 +174,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 $"\"state\":{{\"stringValue\":\"{EscapeJson(Truncate(state, 64))}\"}}," +
                 $"\"amountInr\":{{\"integerValue\":\"{Math.Round(amount)}\"}}," +
                 "\"status\":{\"stringValue\":\"PENDING\"}," +
-                $"\"note\":{{\"stringValue\":\"Submitted from desktop v1.1.0 for ₹{Math.Round(amount)} / {status?.DurationDays ?? 30}d verification\"}}" +
+                $"\"note\":{{\"stringValue\":\"Submitted from desktop v1.1.0 for Rs.{Math.Round(amount)} / {status?.DurationDays ?? 30}d verification\"}}" +
                 "}}," +
                 "\"currentDocument\":{\"exists\":false}," +
                 "\"updateTransforms\":[{\"fieldPath\":\"createdAt\",\"setToServerValue\":\"REQUEST_TIME\"}]" +
@@ -181,7 +183,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 OSCompatibilityEngine.ConfigureResilientTls();
-                using (WebClient wc = new WebClient())
+                using (TimeoutWebClient wc = new TimeoutWebClient(10000))
                 {
                     wc.Encoding = Encoding.UTF8;
                     wc.Headers[HttpRequestHeader.ContentType] = "application/json";
@@ -189,32 +191,31 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     wc.UploadString(Logger.FirestoreCommitUrl, "POST", payload);
                 }
 
-                // Notify Central Admin Hub & Telegram immediately so Admin sees which PC paid & UTR
                 try
                 {
-                    var claimReport = new Dictionary<string, string>
+                    string tgUrl = "https://api.telegram.org/bot8681492578:AAH23013347X5tI6qU5E6z2D2u1R3S0P1O0/sendMessage";
+                    string tgMsg = "💳 <b>NEW UTR PAYMENT CLAIM (DESKTOP)</b>\n" +
+                                   "━━━━━━━━━━━━━━━━━━━━━━\n" +
+                                   "🔑 <b>UTR:</b> <code>" + cleanUtr + "</code>\n" +
+                                   "🖥️ <b>PC:</b> " + EscapeJson(pcName) + " (<code>" + pcId + "</code>)\n" +
+                                   "👤 <b>Operator:</b> " + EscapeJson(opName) + "\n" +
+                                   "📍 <b>District:</b> " + EscapeJson(district) + " (" + state + ")\n" +
+                                   "💰 <b>Amount:</b> Rs." + Math.Round(amount) + "\n" +
+                                   "━━━━━━━━━━━━━━━━━━━━━━";
+                    string tgJson = "{\"chat_id\":\"431228008\",\"text\":\"" + EscapeJson(tgMsg) + "\",\"parse_mode\":\"HTML\",\"reply_markup\":{\"inline_keyboard\":[[{\"text\":\"✅ Open Admin Hub & Review " + cleanUtr + "\",\"url\":\"https://rakeshkumardhawan.github.io/UBDTOOLS/admin/?section=payments&utr=" + cleanUtr + "\"}]]}}";
+                    using (var wcTg = new TimeoutWebClient(8000))
                     {
-                        { "reportId", "PAY-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + "-" + cleanUtr.Substring(0, Math.Min(6, cleanUtr.Length)) },
-                        { "eventType", "PAYMENT_CLAIM" },
-                        { "pcId", pcId },
-                        { "pcName", pcName },
-                        { "userName", opName },
-                        { "district", district },
-                        { "state", state },
-                        { "officeLocation", $"{district} ({state})" },
-                        { "status", "PENDING" },
-                        { "remarks", $"💳 UPI ₹{Math.Round(amount)} Claim: UTR {cleanUtr} submitted by {pcName} ({pcId}). Check UPI & Approve in Tab 7." },
-                        { "sendTelegram", "true" },
-                        { "forceTelegram", "true" }
-                    };
-                    Logger.SendCentralTelemetry(claimReport);
+                        wcTg.Encoding = Encoding.UTF8;
+                        wcTg.Headers[HttpRequestHeader.ContentType] = "application/json; charset=utf-8";
+                        wcTg.UploadString(tgUrl, "POST", tgJson);
+                    }
                 }
                 catch { }
 
                 resultMessage =
-                    $"✅ పేమెంట్ UTR ({cleanUtr}) Admin వెరిఫికేషన్ క్యూకు పంపబడింది!\n\n" +
-                    $"Admin గారు తమ PhonePe/GPay లో ₹{Math.Round(amount)} చెక్ చేసి 'Approve UTR & +30d' క్లిక్ చేసిన తర్వాత,\n" +
-                    $"మీరు '🔄 Re-Check License Now' నొక్కితే యాప్ వెంటనే యాక్టివేట్ అవుతుంది.";
+                    $"[OK] Payment UTR ({cleanUtr}) submitted to Admin verification queue!\n\n" +
+                    $"Once Admin verifies Rs.{Math.Round(amount)} in PhonePe/GPay and clicks 'Approve UTR & +30d',\n" +
+                    $"click 'Re-Check License Now' in this window to activate immediately.";
                 return true;
             }
             catch (WebException wex)
@@ -237,19 +238,19 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     errBody.IndexOf("already exists", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     resultMessage =
-                        $"🚫 Duplicate / Already Used UTR Blocked!\n\n" +
-                        $"ఈ UTR నంబర్ ({cleanUtr}) ఇప్పటికే వేరే లేదా పాత క్లెయిమ్‌లో ఉపయోగించబడింది.\n" +
-                        $"ఒకే UTR నంబర్‌ను రెండుసార్లు / వేరే PC కి వాడడం సాధ్యం కాదు.\n" +
-                        $"మీరు నిజంగా ₹{Math.Round(amount)} చెల్లించిన కొత్త 12-అంకెల UTR నంబర్‌ను మాత్రమే ఎంటర్ చేయండి.";
+                        $"[BLOCKED] Duplicate / Already Used UTR!\n\n" +
+                        $"This UTR number ({cleanUtr}) was already used in an existing or previous claim.\n" +
+                        $"Reusing the same UTR across submissions or other PCs is not allowed.\n" +
+                        $"Please enter a fresh 12-digit UTR for your Rs.{Math.Round(amount)} payment.";
                     return false;
                 }
 
-                resultMessage = $"నెట్‌వర్క్ సమస్య కారణంగా UTR పంపడం విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.\n({wex.Message})";
+                resultMessage = $"Network error while submitting UTR. Please check your internet connection and retry.\n({wex.Message})";
                 return false;
             }
             catch (Exception ex)
             {
-                resultMessage = $"UTR సమర్పించడంలో లోపం: {ex.Message}";
+                resultMessage = $"Failed to submit UTR: {ex.Message}";
                 return false;
             }
         }
@@ -259,7 +260,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             string pcId = Logger.SanitizeFirestoreId(Logger.GetUniqueMachineId(), "EVD-PC");
             using (Form dlg = new Form())
             {
-                dlg.Text = "E-Vedhika Subscription Plan (₹10 / Month)";
+                dlg.Text = $"E-Vedhika Subscription Plan (Rs.{status.MonthlyPriceInr:0} / {status.DurationDays} Days)";
                 dlg.Size = new Size(710, 500);
                 dlg.StartPosition = FormStartPosition.CenterParent;
                 dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -269,21 +270,23 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 dlg.ForeColor = Color.White;
 
                 Label lblTitle = new Label();
-                lblTitle.Text = $"💳 E-Vedhika Monthly Subscription (₹{status.MonthlyPriceInr:0} / {status.DurationDays} Days)";
+                lblTitle.Text = $"E-Vedhika Monthly Subscription (Rs.{status.MonthlyPriceInr:0} / {status.DurationDays} Days)";
                 lblTitle.Font = new Font("Segoe UI", 12, FontStyle.Bold);
                 lblTitle.ForeColor = Color.FromArgb(56, 189, 248);
+                lblTitle.UseMnemonic = false;
                 lblTitle.Location = new Point(20, 16);
                 lblTitle.Size = new Size(650, 28);
 
                 Label lblInfo = new Label();
                 lblInfo.Text =
-                    $"మీ PC కి నెలవారీ సబ్‌స్క్రిప్షన్ ({status.DurationDays} రోజులు - ₹{status.MonthlyPriceInr:0}) అవసరం ఉంది.\n" +
+                    $"Your PC requires an active subscription ({status.DurationDays} Days - Rs.{status.MonthlyPriceInr:0}).\n" +
                     $"Status: {status.SummaryText}\n\n" +
-                    $"1. కుడివైపు ఉన్న QR కోడ్‌ను PhonePe / GPay / Paytm తో స్కాన్ చేసి ₹{status.MonthlyPriceInr:0} చెల్లించండి:\n" +
-                    (!string.IsNullOrEmpty(status.UpiId) ? $"   UPI ID: {status.UpiId}\n" : "   UPI ID: Admin సెట్ చేసిన వెంటనే QR ఇక్కడ కనిపిస్తుంది\n") +
-                    $"2. చెల్లించిన తర్వాత వచ్చిన 12-అంకెల UTR నంబర్‌ను క్రింద ఎంటర్ చేసి Submit చేయండి (Duplicate UTR అంగీకరించబడదు).\n" +
-                    $"3. Admin అప్రూవ్ చేసిన వెంటనే '🔄 Re-Check License Now' క్లిక్ చేయండి.";
+                    $"1. Scan the QR code on the right with PhonePe / GPay / Paytm to pay Rs.{status.MonthlyPriceInr:0}:\n" +
+                    (!string.IsNullOrEmpty(status.UpiId) ? $"   UPI ID: {status.UpiId}\n" : "   UPI ID: QR appears automatically once configured by Admin\n") +
+                    $"2. Enter the 12-digit UTR number below and click Submit (duplicate UTRs are blocked).\n" +
+                    $"3. Once Admin approves, click 'Re-Check License Now' to unlock immediately.";
                 lblInfo.Font = new Font("Segoe UI", 9.0f, FontStyle.Regular);
+                lblInfo.UseMnemonic = false;
                 lblInfo.Location = new Point(20, 50);
                 lblInfo.Size = new Size(440, 130);
 
@@ -295,7 +298,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 pnlQr.Size = new Size(200, 235);
 
                 Label lblQrHeader = new Label();
-                lblQrHeader.Text = $"📱 Scan & Pay ₹{status.MonthlyPriceInr:0}";
+                lblQrHeader.Text = $"Scan & Pay Rs.{status.MonthlyPriceInr:0}";
+                lblQrHeader.UseMnemonic = false;
                 lblQrHeader.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
                 lblQrHeader.ForeColor = Color.FromArgb(52, 211, 153);
                 lblQrHeader.TextAlign = ContentAlignment.MiddleCenter;
@@ -309,7 +313,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 picQr.SizeMode = PictureBoxSizeMode.StretchImage;
 
                 Label lblQrSub = new Label();
-                lblQrSub.Text = !string.IsNullOrEmpty(status.UpiId) ? status.UpiId : "Alias UPI Not Set";
+                string qrTargetData = !string.IsNullOrEmpty(status.UpiId)
+                    ? $"upi://pay?pa={Uri.EscapeDataString(status.UpiId.Trim())}&pn=EVedhika&am={status.MonthlyPriceInr:0}&cu=INR&tn={Uri.EscapeDataString("EVD-" + pcId)}"
+                    : ((!string.IsNullOrEmpty(status.PaymentLinkUrl) && status.PaymentLinkUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                        ? status.PaymentLinkUrl.Trim()
+                        : $"https://rakeshkumardhawan.github.io/UBDTOOLS/pay-checkout?pay=1&pcId={Uri.EscapeDataString(pcId)}&pcName={Uri.EscapeDataString(Environment.MachineName ?? "GP-PC")}");
+                lblQrSub.Text = !string.IsNullOrEmpty(status.UpiId) ? status.UpiId : "Scan Gateway QR";
+                lblQrSub.UseMnemonic = false;
                 lblQrSub.Font = new Font("Consolas", 8.0f, FontStyle.Bold);
                 lblQrSub.ForeColor = Color.FromArgb(203, 213, 225);
                 lblQrSub.TextAlign = ContentAlignment.MiddleCenter;
@@ -321,29 +331,39 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 pnlQr.Controls.Add(lblQrSub);
 
                 Action loadInAppQr = delegate {
-                    if (string.IsNullOrEmpty(status.UpiId)) return;
                     System.Threading.ThreadPool.QueueUserWorkItem(delegate {
-                        try
+                        string[] qrEndpoints = new string[] {
+                            "https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=4&data=" + Uri.EscapeDataString(qrTargetData),
+                            "https://quickchart.io/qr?size=160&text=" + Uri.EscapeDataString(qrTargetData)
+                        };
+                        foreach (string qrImgEndpoint in qrEndpoints)
                         {
-                            OSCompatibilityEngine.ConfigureResilientTls();
-                            string upiUri = $"upi://pay?pa={Uri.EscapeDataString(status.UpiId.Trim())}&pn=EVedhika&am={status.MonthlyPriceInr:0}&cu=INR&tn={Uri.EscapeDataString("EVD-" + pcId)}";
-                            string qrImgEndpoint = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=4&data=" + Uri.EscapeDataString(upiUri);
-                            using (WebClient wc = new WebClient())
+                            try
                             {
-                                byte[] imgBytes = wc.DownloadData(qrImgEndpoint);
-                                using (var ms = new MemoryStream(imgBytes))
+                                OSCompatibilityEngine.ConfigureResilientTls();
+                                using (TimeoutWebClient wc = new TimeoutWebClient(8000))
                                 {
-                                    Image qrImg = Image.FromStream(ms);
-                                    if (!dlg.IsDisposed)
+                                    byte[] imgBytes = wc.DownloadData(qrImgEndpoint);
+                                    if (imgBytes != null && imgBytes.Length > 100)
                                     {
-                                        dlg.BeginInvoke((MethodInvoker)delegate {
-                                            picQr.Image = new Bitmap(qrImg);
-                                        });
+                                        using (var ms = new MemoryStream(imgBytes))
+                                        using (Image qrImg = Image.FromStream(ms))
+                                        {
+                                            if (!dlg.IsDisposed && dlg.IsHandleCreated)
+                                            {
+                                                Bitmap bmp = new Bitmap(qrImg);
+                                                dlg.BeginInvoke((MethodInvoker)delegate {
+                                                    if (!dlg.IsDisposed && !picQr.IsDisposed) picQr.Image = bmp;
+                                                    else bmp.Dispose();
+                                                });
+                                            }
+                                            return;
+                                        }
                                     }
                                 }
                             }
+                            catch { }
                         }
-                        catch { }
                     });
                 };
                 loadInAppQr();
@@ -358,7 +378,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 txtPcId.Size = new Size(295, 26);
 
                 Button btnCopy = new Button();
-                btnCopy.Text = "📋 Copy PC ID";
+                btnCopy.Text = "Copy PC ID";
+                btnCopy.UseMnemonic = false;
                 btnCopy.Location = new Point(325, 186);
                 btnCopy.Size = new Size(135, 28);
                 btnCopy.BackColor = Color.FromArgb(51, 65, 85);
@@ -374,9 +395,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 };
 
                 Label lblUtrPrompt = new Label();
-                lblUtrPrompt.Text = $"UPI 12-Digit UTR / Ref Number (₹{status.MonthlyPriceInr:0} చెల్లించిన రిఫరెన్స్ నంబర్):";
+                lblUtrPrompt.Text = $"UPI 12-Digit UTR / Ref Number (for Rs.{status.MonthlyPriceInr:0} payment):";
                 lblUtrPrompt.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
                 lblUtrPrompt.ForeColor = Color.FromArgb(251, 191, 36);
+                lblUtrPrompt.UseMnemonic = false;
                 lblUtrPrompt.Location = new Point(20, 228);
                 lblUtrPrompt.Size = new Size(440, 22);
 
@@ -388,23 +410,58 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 txtUtr.Size = new Size(285, 30);
 
                 Button btnSubmitUtr = new Button();
-                btnSubmitUtr.Text = "📩 Submit UTR";
+                btnSubmitUtr.Text = "Submit UTR";
+                btnSubmitUtr.UseMnemonic = false;
                 btnSubmitUtr.Location = new Point(315, 253);
                 btnSubmitUtr.Size = new Size(145, 31);
                 btnSubmitUtr.BackColor = Color.FromArgb(2, 132, 199);
                 btnSubmitUtr.ForeColor = Color.White;
                 btnSubmitUtr.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
                 btnSubmitUtr.FlatStyle = FlatStyle.Flat;
+                Button btnRecheck = new Button();
+                btnRecheck.Text = "Re-Check License Now";
+                btnRecheck.UseMnemonic = false;
+                btnRecheck.Location = new Point(20, 400);
+                btnRecheck.Size = new Size(260, 42);
+                btnRecheck.BackColor = Color.FromArgb(16, 185, 129);
+                btnRecheck.ForeColor = Color.White;
+                btnRecheck.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+                btnRecheck.FlatStyle = FlatStyle.Flat;
+
                 btnSubmitUtr.Click += delegate {
+                    string rawUtr = txtUtr.Text;
                     btnSubmitUtr.Enabled = false;
-                    string msg;
-                    bool ok = SubmitUniquePaymentUtrClaim(txtUtr.Text, status, out msg);
-                    btnSubmitUtr.Enabled = true;
-                    MessageBox.Show(msg, ok ? "UTR Submitted" : "UTR Validation", MessageBoxButtons.OK, ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                    btnRecheck.Enabled = false;
+                    txtUtr.Enabled = false;
+                    btnSubmitUtr.Text = "Submitting...";
+                    System.Threading.ThreadPool.QueueUserWorkItem(delegate {
+                        string msg = "";
+                        bool ok = false;
+                        try
+                        {
+                            ok = SubmitUniquePaymentUtrClaim(rawUtr, status, out msg);
+                        }
+                        catch (Exception ex)
+                        {
+                            msg = "Failed to submit UTR: " + ex.Message;
+                        }
+                        if (!dlg.IsDisposed && dlg.IsHandleCreated)
+                        {
+                            dlg.BeginInvoke((MethodInvoker)delegate {
+                                if (dlg.IsDisposed) return;
+                                btnSubmitUtr.Enabled = true;
+                                btnRecheck.Enabled = true;
+                                txtUtr.Enabled = true;
+                                btnSubmitUtr.Text = "Submit UTR";
+                                MessageBox.Show(dlg, msg, ok ? "UTR Submitted" : "UTR Validation", MessageBoxButtons.OK, ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                            });
+                        }
+                    });
                 };
 
                 Button btnOpenUpi = new Button();
-                btnOpenUpi.Text = $"📱 Scan QR / Pay ₹{status.MonthlyPriceInr:0} Online";
+                btnOpenUpi.Text = $"Scan QR / Pay Rs.{status.MonthlyPriceInr:0} Online";
+                btnOpenUpi.UseMnemonic = false;
                 btnOpenUpi.Location = new Point(20, 300);
                 btnOpenUpi.Size = new Size(320, 36);
                 btnOpenUpi.BackColor = Color.FromArgb(124, 58, 237);
@@ -430,33 +487,47 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 lblNote.Text = status.PaymentNote;
                 lblNote.Font = new Font("Segoe UI", 8.5f, FontStyle.Italic);
                 lblNote.ForeColor = Color.FromArgb(148, 163, 184);
+                lblNote.UseMnemonic = false;
                 lblNote.Location = new Point(20, 345);
                 lblNote.Size = new Size(650, 42);
 
-                Button btnRecheck = new Button();
-                btnRecheck.Text = "🔄 Re-Check License Now";
-                btnRecheck.Location = new Point(20, 400);
-                btnRecheck.Size = new Size(260, 42);
-                btnRecheck.BackColor = Color.FromArgb(16, 185, 129);
-                btnRecheck.ForeColor = Color.White;
-                btnRecheck.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-                btnRecheck.FlatStyle = FlatStyle.Flat;
                 btnRecheck.Click += delegate {
-                    var fresh = CheckRemoteLicenseStatus();
-                    if (fresh.IsAllowed)
-                    {
-                        MessageBox.Show($"✅ License Active!\n{fresh.SummaryText}", "Activated", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        dlg.DialogResult = DialogResult.OK;
-                        dlg.Close();
-                    }
-                    else
-                    {
-                        MessageBox.Show($"⏳ Still waiting for Admin activation.\n{fresh.SummaryText}", "Not Active Yet", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
+                    btnRecheck.Enabled = false;
+                    btnSubmitUtr.Enabled = false;
+                    btnRecheck.Text = "Checking License...";
+                    System.Threading.ThreadPool.QueueUserWorkItem(delegate {
+                        LicenseStatusResult fresh = null;
+                        try
+                        {
+                            fresh = CheckRemoteLicenseStatus();
+                        }
+                        catch { }
+                        if (!dlg.IsDisposed && dlg.IsHandleCreated)
+                        {
+                            dlg.BeginInvoke((MethodInvoker)delegate {
+                                if (dlg.IsDisposed) return;
+                                btnRecheck.Enabled = true;
+                                btnSubmitUtr.Enabled = true;
+                                btnRecheck.Text = "Re-Check License Now";
+                                if (fresh != null && fresh.IsAllowed)
+                                {
+                                    MessageBox.Show(dlg, $"[OK] License Active!\n{fresh.SummaryText}", "Activated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    dlg.DialogResult = DialogResult.OK;
+                                    dlg.Close();
+                                }
+                                else
+                                {
+                                    string sum = fresh != null ? fresh.SummaryText : status.SummaryText;
+                                    MessageBox.Show(dlg, $"Still waiting for Admin activation.\n{sum}", "Not Active Yet", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                }
+                            });
+                        }
+                    });
                 };
 
                 Button btnClose = new Button();
                 btnClose.Text = "Close";
+                btnClose.UseMnemonic = false;
                 btnClose.Location = new Point(530, 400);
                 btnClose.Size = new Size(145, 42);
                 btnClose.BackColor = Color.FromArgb(71, 85, 105);
@@ -499,7 +570,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                using (WebClient wc = new WebClient())
+                using (TimeoutWebClient wc = new TimeoutWebClient(8000))
                 {
                     wc.Encoding = Encoding.UTF8;
                     wc.Headers[HttpRequestHeader.UserAgent] = "EVedhikaUBDTool/1.1.0";

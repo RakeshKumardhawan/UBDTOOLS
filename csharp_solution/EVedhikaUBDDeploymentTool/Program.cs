@@ -139,7 +139,7 @@ namespace EVedhikaUBDDeploymentTool
                         if (!silent)
                         {
                             DialogResult dr = MessageBox.Show(
-                                "Are you sure you want to uninstall E-Vedhika UBD Deployment Tool from Control Panel?\n\n(మీరు ఈ సాఫ్ట్‌వేర్ మరియు సెట్టింగ్‌లను కంట్రోల్ ప్యానెల్ ద్వారా అన్‌ఇన్‌స్టాల్ చేయాలనుకుంటున్నారా?)",
+                                "Are you sure you want to uninstall E-Vedhika UBD Deployment Tool and revert its settings from Control Panel?",
                                 "E-Vedhika UBD Control Panel Uninstall",
                                 MessageBoxButtons.YesNo,
                                 MessageBoxIcon.Question);
@@ -152,7 +152,7 @@ namespace EVedhikaUBDDeploymentTool
                         if (!silent)
                         {
                             MessageBox.Show(
-                                "E-Vedhika UBD Deployment Tool has been successfully uninstalled from your PC!\n\n(సాఫ్ట్‌వేర్ మీ కంప్యూటర్ నుండి విజయవంతంగా అన్‌ఇన్‌స్టాల్ చేయబడింది!)",
+                                "E-Vedhika UBD Deployment Tool has been successfully uninstalled from your PC!",
                                 "Uninstall Complete",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Information);

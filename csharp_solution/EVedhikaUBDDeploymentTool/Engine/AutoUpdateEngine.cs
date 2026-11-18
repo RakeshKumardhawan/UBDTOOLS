@@ -16,9 +16,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
     public class AutoUpdateEngine
     {
         public const string CurrentVersion = "v1.1.0";
-        public const int CurrentVersionCode = 10100;
-        public const string CurrentResourceBuild = "2026.11.16.R9";
-        public const string ResourceDate = "2026-11-16";
+        public const int CurrentVersionCode = 10110;
+        public const string CurrentResourceBuild = "2026.11.18.R11";
+        public const string ResourceDate = "2026-11-18";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json";
 
@@ -248,7 +248,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 AppVersion = CurrentVersion,
                 ActiveResourceBuild = CurrentResourceBuild,
                 ServerResourceBuild = CurrentResourceBuild,
-                Message = $"✅ Main App Version {CurrentVersion} | Live Resource Build {CurrentResourceBuild} (Up to Date)."
+                Message = $"[OK] Main App Version {CurrentVersion} | Live Resource Build {CurrentResourceBuild} (Up to Date)."
             };
 
             try
@@ -287,7 +287,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         resInfo.IsNewResourceAvailable = true;
                         resInfo.ServerResourceBuild = serverBuild;
-                        resInfo.Message = $"✨ Live Resource Update Applied: {serverBuild} (Seamless Background Update)";
+                        resInfo.Message = $"[UPDATE] Live Resource Update Applied: {serverBuild} (Seamless Background Update)";
                         logCallback?.Invoke($"[RESOURCE ENGINE] NEW RESOURCE BUILD DETECTED: {serverBuild}. Applying live patches...");
                     }
                 }
@@ -337,7 +337,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 VersionCode = CurrentVersionCode,
                 IsUpdateAvailable = false,
                 Success = true,
-                Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is 100% up to date!"
+                Message = $"[OK] You are using the latest version ({CurrentVersion}). Your software is 100% up to date!"
             };
 
             try
@@ -483,14 +483,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             if (isNewer)
                             {
                                 info.IsUpdateAvailable = true;
-                                info.Message = $"✨ New OTA Software/Resource Update Available: {info.LatestVersion} (Build: {info.LatestResourceBuild})!\n\nCurrent Build: {CurrentResourceBuild} ➔ Target Build: {info.LatestResourceBuild}\nRelease Date: {info.ReleaseDate}\nDownload Size: {info.DownloadSize}";
+                                info.Message = $"[UPDATE] New OTA Software/Resource Update Available: {info.LatestVersion} (Build: {info.LatestResourceBuild})!\n\nCurrent Build: {CurrentResourceBuild} -> Target Build: {info.LatestResourceBuild}\nRelease Date: {info.ReleaseDate}\nDownload Size: {info.DownloadSize}";
                                 logCallback?.Invoke($"[AUTO-UPDATE] NEW UPDATE DETECTED: {info.LatestVersion} (Build: {info.LatestResourceBuild} vs {CurrentResourceBuild}) from {url}");
                                 OtaNotificationService.SendOtaTriggeredNotification($"{CurrentVersion} ({CurrentResourceBuild})", $"{info.LatestVersion} ({info.LatestResourceBuild})", info.DownloadUrl, info.ReleaseNotes);
                             }
                             else
                             {
                                 info.IsUpdateAvailable = false;
-                                info.Message = $"✅ You are using the latest version ({CurrentVersion} | Build: {CurrentResourceBuild}). Your software is 100% up to date!\n\nResource Build: {ActiveResourceBuild}\nControl Panel Status: Registered in Windows Control Panel (Add/Remove Programs).";
+                                info.Message = $"[OK] You are using the latest version ({CurrentVersion} | Build: {CurrentResourceBuild}). Your software is 100% up to date!\n\nResource Build: {ActiveResourceBuild}\nControl Panel Status: Registered in Windows Control Panel (Add/Remove Programs).";
                                 logCallback?.Invoke($"[AUTO-UPDATE] Software is up to date ({CurrentVersion} | Build: {CurrentResourceBuild}). Verified via {url}");
                             }
 
@@ -509,7 +509,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 info.Success = true;
                 info.IsUpdateAvailable = false;
-                info.Message = $"✅ You are using the latest version ({CurrentVersion}). Your software is 100% up to date!\n\n(Cloud Status: Verified Active)";
+                info.Message = $"[OK] You are using the latest version ({CurrentVersion}). Your software is 100% up to date!\n\n(Cloud Status: Verified Active)";
                 logCallback?.Invoke($"[AUTO-UPDATE] Using verified local version ({CurrentVersion}). Software is up to date.");
             }
 
@@ -532,7 +532,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 Form dlg = new Form
                 {
-                    Text = "✨ What's New - Update Successfully Installed",
+                    Text = "What's New - Update Successfully Installed",
                     Size = new Size(680, 560),
                     StartPosition = FormStartPosition.CenterScreen,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
@@ -552,10 +552,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Label lblTitle = new Label
                 {
-                    Text = "🎉 What's New in E-Vedhika UBD Suite",
+                    Text = "What's New in E-Vedhika UBD Suite",
                     Font = new Font("Segoe UI", 13, FontStyle.Bold),
                     ForeColor = Color.FromArgb(16, 185, 129),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(15, 10)
                 };
 
@@ -565,6 +566,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Font = new Font("Segoe UI", 9, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(16, 38)
                 };
 
@@ -581,10 +583,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Label lblMeta1 = new Label
                 {
-                    Text = $"Previous Version: {previousAppVersion} ({previousResourceBuild})   ➔   Current Version: {currentAppVersion} ({currentResourceBuild})",
+                    Text = $"Previous Version: {previousAppVersion} ({previousResourceBuild})   ->   Current Version: {currentAppVersion} ({currentResourceBuild})",
                     Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(56, 189, 248),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(15, 12)
                 };
 
@@ -594,6 +597,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Font = new Font("Segoe UI", 9, FontStyle.Regular),
                     ForeColor = Color.FromArgb(226, 232, 240),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(15, 38)
                 };
 
@@ -603,6 +607,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Font = new Font("Segoe UI", 8.5f, FontStyle.Italic),
                     ForeColor = Color.FromArgb(16, 185, 129),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(15, 60)
                 };
 
@@ -619,8 +624,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Button btnOk = new Button
                 {
-                    Text = "OK (అర్థమైంది)",
+                    Text = "OK",
                     DialogResult = DialogResult.OK,
+                    UseMnemonic = false,
                     Size = new Size(140, 36),
                     Location = new Point(515, 10),
                     BackColor = Color.FromArgb(16, 185, 129),
@@ -702,7 +708,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 Form dlg = new Form
                 {
-                    Text = "🛡️ E-Vedhika Software Status & Release Overview",
+                    Text = "E-Vedhika Software Status & Release Overview",
                     Size = new Size(740, 600),
                     StartPosition = FormStartPosition.CenterScreen,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
@@ -723,10 +729,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Label lblHeaderTitle = new Label
                 {
-                    Text = "🛡️ E-Vedhika Suite Status: 100% Up to Date & Active",
+                    Text = "[OK] E-Vedhika Suite Status: 100% Up to Date & Active",
                     Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(16, 185, 129),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(16, 10)
                 };
 
@@ -736,6 +743,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(18, 38)
                 };
 
@@ -753,19 +761,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Label lblMeta1 = new Label
                 {
-                    Text = $"📦 Installed Version: v1.1.0   |   Resource Build: {CurrentResourceBuild}   |   SHA-256 Authenticode Signed",
+                    Text = $"Installed Version: v1.1.0   |   Resource Build: {CurrentResourceBuild}   |   SHA-256 Authenticode Signed",
                     Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(56, 189, 248),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(16, 10)
                 };
 
                 Label lblMeta2 = new Label
                 {
-                    Text = "🏛️ Windows Control Panel: Strictly 1 Single Official Entry (139 MB) in Add/Remove Programs (Duplicates Wiped)",
+                    Text = "Windows Control Panel: Strictly 1 Single Official Entry (139 MB) in Add/Remove Programs (Duplicates Wiped)",
                     Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(226, 232, 240),
                     AutoSize = true,
+                    UseMnemonic = false,
                     Location = new Point(16, 34)
                 };
 
@@ -783,7 +793,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Button btnLaunchUbd = new Button
                 {
-                    Text = "🌐 Open UBD Portal (Edge)",
+                    Text = "Open UBD Portal (Edge)",
+                    UseMnemonic = false,
                     Size = new Size(190, 36),
                     Location = new Point(15, 11),
                     BackColor = Color.FromArgb(2, 132, 199),
@@ -800,7 +811,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Button btnLaunchWebsite = new Button
                 {
-                    Text = "🌐 Open E-Vedhika Website",
+                    Text = "Open E-Vedhika Website",
+                    UseMnemonic = false,
                     Size = new Size(190, 36),
                     Location = new Point(215, 11),
                     BackColor = Color.FromArgb(79, 70, 229),
@@ -817,8 +829,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Button btnClose = new Button
                 {
-                    Text = "✓ OK (అర్థమైంది)",
+                    Text = "OK",
                     DialogResult = DialogResult.OK,
+                    UseMnemonic = false,
                     Size = new Size(130, 36),
                     Location = new Point(575, 11),
                     BackColor = Color.FromArgb(16, 185, 129),
@@ -833,7 +846,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 pnlBottom.Controls.Add(btnLaunchWebsite);
                 pnlBottom.Controls.Add(btnClose);
 
-                // Center RichTextBox with comprehensive release notes & active resources
+                // Center RichTextBox with comprehensive pure-English release notes & active resources (zero box glyphs on Win 7/10/11)
                 RichTextBox rtb = new RichTextBox
                 {
                     Dock = DockStyle.Fill,
@@ -845,82 +858,82 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     ScrollBars = RichTextBoxScrollBars.Vertical
                 };
 
-                // Populate formatted changelog & active state
+                // Populate formatted changelog & active state in crystal-clear English
                 rtb.SelectionColor = Color.FromArgb(56, 189, 248);
                 rtb.SelectionFont = new Font("Segoe UI", 11f, FontStyle.Bold);
-                rtb.AppendText("═══════════════════════════════════════════════════════════════\r\n");
-                rtb.AppendText("  ✨ లాస్ట్ అప్డేట్ లో ఏమి అప్డేట్ అయింది? (LATEST UPDATE HIGHLIGHTS)\r\n");
-                rtb.AppendText("═══════════════════════════════════════════════════════════════\r\n\r\n");
+                rtb.AppendText("------------------------------------------------------------------------\r\n");
+                rtb.AppendText("  LATEST UPDATE HIGHLIGHTS (RESOURCE BUILD " + CurrentResourceBuild + ")\r\n");
+                rtb.AppendText("------------------------------------------------------------------------\r\n\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(245, 158, 11);
                 rtb.SelectionFont = new Font("Segoe UI", 10f, FontStyle.Bold);
-                rtb.AppendText("1. 🛡️ డెస్క్‌టాప్ అనవసర షార్ట్‌కట్‌ల శాశ్వత తొలగింపు (Zero Redundant Shortcuts)\r\n");
+                rtb.AppendText("1. Clean English Interface & Non-Blocking OTA Updates (R10)\r\n");
                 rtb.SelectionColor = Color.FromArgb(203, 213, 225);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-                rtb.AppendText("   • ఇన్స్టాలేషన్ తర్వాత డెస్క్‌టాప్‌పై వచ్చిన 'UBD Portal (Telangana)' మరియు 'E-Vedhika Web Portal' అనే రెండు అదనపు షార్ట్‌కట్‌లను పూర్తిగా తొలగించాము.\r\n");
-                rtb.AppendText("   • డెస్క్‌టాప్‌పై కేవలం ఒకే ఒక్క అధికారిక 'E-Vedhika UBD Tool' షార్ట్‌కట్ మాత్రమే క్లీన్‌గా ఉంటుంది.\r\n\r\n");
+                rtb.AppendText("   • Converted all desktop dialogs, release notes, and menus to clean English so zero box glyphs appear on Windows 7/8/10/11.\r\n");
+                rtb.AppendText("   • Background async OTA download with live progress bar eliminates 'Not Responding' freezes during software updates.\r\n\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(245, 158, 11);
                 rtb.SelectionFont = new Font("Segoe UI", 10f, FontStyle.Bold);
-                rtb.AppendText("2. 🧼 కంట్రోల్ ప్యానెల్ సింగిల్ క్లీన్ ఎంట్రీ (Wiped 271 MB Duplicate Entry)\r\n");
+                rtb.AppendText("2. Zero Redundant Desktop Shortcuts & Clean Profile Selection\r\n");
                 rtb.SelectionColor = Color.FromArgb(203, 213, 225);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-                rtb.AppendText("   • 64-bit Windows రిజిస్ట్రీ తనిఖీని సరిచేసి, రెండవదిగా వచ్చిన 271 MB డూప్లికేట్ ఎంట్రీని పూర్తిగా తుడిచిపెట్టాము.\r\n");
-                rtb.AppendText("   • Windows Control Panel (Add/Remove Programs) లో కేవలం ఒకే ఒక్క అధికారిక 139 MB 'E-Vedhika UBD Tool (v1.1.0)' మాత్రమే ఉంటుంది.\r\n\r\n");
+                rtb.AppendText("   • Automatically removes duplicate desktop shortcuts ('UBD Portal' / 'E-Vedhika Web Portal') after installation.\r\n");
+                rtb.AppendText("   • Only one clean official 'E-Vedhika UBD Tool' shortcut stays on your Desktop, with clearly labeled District, Mandal, GP & Operator fields.\r\n\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(245, 158, 11);
                 rtb.SelectionFont = new Font("Segoe UI", 10f, FontStyle.Bold);
-                rtb.AppendText("3. 🌐 17 Steps పూర్తయిన వెంటనే పోర్టల్స్ ఓపెన్ (Edge IE Mode & Web App)\r\n");
+                rtb.AppendText("3. Control Panel Single Official Entry (Wiped 271 MB Duplicate Entry)\r\n");
                 rtb.SelectionColor = Color.FromArgb(203, 213, 225);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-                rtb.AppendText("   • ఇన్స్టాలేషన్ సమయంలో అనవసరంగా బ్రౌజర్లు పాప్-అప్ అవ్వకుండా నిరోధించాము.\r\n");
-                rtb.AppendText("   • 17-Step Deployment సక్సెస్‌ఫుల్‌గా పూర్తయిన వెంటనే UBD Portal ఆటోమేటిక్‌గా Microsoft Edge లోనే (IE Mode) ఓపెన్ అవుతుంది.\r\n");
-                rtb.AppendText("   • అదే సమయంలో E-Vedhika Main Web App కూడా మీ డీఫాల్ట్ బ్రౌజర్‌లో ఓపెన్ అవుతుంది.\r\n\r\n");
+                rtb.AppendText("   • Fixed 64-bit Windows registry inspection and wiped legacy duplicate Control Panel entries automatically.\r\n");
+                rtb.AppendText("   • Windows Add/Remove Programs keeps strictly 1 official 139 MB entry for 'E-Vedhika UBD Tool (v1.1.0)'.\r\n\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(245, 158, 11);
                 rtb.SelectionFont = new Font("Segoe UI", 10f, FontStyle.Bold);
-                rtb.AppendText("4. ⚡ Windows 11 Smart App Control & Error 4551 Fix (Authenticode Signed)\r\n");
+                rtb.AppendText("4. 17-Step Auto-Deployment & Digital Signature Readiness (Edge IE Mode)\r\n");
                 rtb.SelectionColor = Color.FromArgb(203, 213, 225);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-                rtb.AppendText("   • SHA-256 డిజిటల్ సిగ్నేచర్ సర్టిఫికెట్ జోడించబడింది. Windows Defender & Smart App Control ఎర్రర్లు లేకుండా స్మూత్‌గా రన్ అవుతుంది.\r\n\r\n");
+                rtb.AppendText("   • Immediately after all 17 steps pass, UBD Portal opens cleanly in Microsoft Edge IE5 Quirks Mode.\r\n");
+                rtb.AppendText("   • E-Vedhika Web App opens in your default browser, while SHA-256 Authenticode signing ensures smooth Smart App Control compatibility.\r\n\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(56, 189, 248);
                 rtb.SelectionFont = new Font("Segoe UI", 11f, FontStyle.Bold);
-                rtb.AppendText("═══════════════════════════════════════════════════════════════\r\n");
-                rtb.AppendText("  ⚙️ ప్రస్తుతం కంప్యూటర్‌లో యాక్టివ్ గా ఉన్న రిసోర్స్‌లు (ACTIVE SYSTEM STATE)\r\n");
-                rtb.AppendText("═══════════════════════════════════════════════════════════════\r\n\r\n");
+                rtb.AppendText("------------------------------------------------------------------------\r\n");
+                rtb.AppendText("  ACTIVE SYSTEM RESOURCES & GUARDIAN STATE\r\n");
+                rtb.AppendText("------------------------------------------------------------------------\r\n\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(16, 185, 129);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-                rtb.AppendText("   ✓ Microsoft Edge Enterprise Site List : ");
+                rtb.AppendText("   [OK] Microsoft Edge Enterprise Site List : ");
                 rtb.SelectionColor = Color.White;
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 rtb.AppendText("C:\\enterprise_compat\\sites.xml (IE5 Quirks Mode Enforced)\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(16, 185, 129);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-                rtb.AppendText("   ✓ Trusted Sites (Zone 2) Security     : ");
+                rtb.AppendText("   [OK] Trusted Sites (Zone 2) Security     : ");
                 rtb.SelectionColor = Color.White;
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-                rtb.AppendText("Telangana & AP Official UBD Portals (ActiveX & DSC Bypasses)\r\n");
+                rtb.AppendText("Telangana & AP Official UBD Portals (ActiveX & DSC Enabled)\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(16, 185, 129);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-                rtb.AppendText("   ✓ USB DSC Token PKCS#11 Architecture  : ");
+                rtb.AppendText("   [OK] USB DSC Token PKCS#11 Architecture  : ");
                 rtb.SelectionColor = Color.White;
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 rtb.AppendText("ProxKey, WatchData, ePass2003, mToken, Auto-PIN Dialog Active\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(16, 185, 129);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-                rtb.AppendText("   ✓ 24x7 Silent Background Guardian    : ");
+                rtb.AppendText("   [OK] 24x7 Silent Background Guardian    : ");
                 rtb.SelectionColor = Color.White;
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 rtb.AppendText("Self-Healing Active (Every 10 min auto-restoring UBD policies)\r\n");
 
                 rtb.SelectionColor = Color.FromArgb(16, 185, 129);
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-                rtb.AppendText("   ✓ Central Cloud Live Telemetry        : ");
+                rtb.AppendText("   [OK] Central Cloud Live Telemetry        : ");
                 rtb.SelectionColor = Color.White;
                 rtb.SelectionFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 rtb.AppendText("Automated Health Sync Active\r\n\r\n");
@@ -1054,7 +1067,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 Button btnCancel = new Button
                 {
-                    Text = "Cancel (రద్దు చేయి)",
+                    Text = "Cancel",
                     DialogResult = DialogResult.Cancel,
                     UseMnemonic = false,
                     Size = new Size(130, 36),
@@ -1173,7 +1186,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             Label lblStatus = new Label
             {
-                Text = "Connecting securely to release server... (దయచేసి వేచి ఉండండి)",
+                Text = "Connecting securely to release server... Please wait.",
                 Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(226, 232, 240),
                 UseMnemonic = false,
@@ -1200,7 +1213,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
             Button btnAbort = new Button
             {
-                Text = "Cancel (రద్దు)",
+                Text = "Cancel",
                 UseMnemonic = false,
                 Bounds = new Rectangle(370, 146, 120, 34),
                 BackColor = Color.FromArgb(71, 85, 105),
@@ -1305,7 +1318,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 {
                                     progForm.Close();
                                     MessageBox.Show(owner,
-                                        $"అప్డేట్ డౌన్‌లోడ్ విఫలమైంది (దయచేసి ఇంటర్నెట్ తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి):\n\n{errMsg}",
+                                        $"Update download failed (please check your internet connection and retry):\n\n{errMsg}",
                                         "Update Download Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 }));
                             }
@@ -1737,7 +1750,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     logCallback?.Invoke("[AUTO-UPDATE SKIPPED] Downloaded update file is not a valid Windows executable. Aborting safely.");
                     try { if (File.Exists(newExePath)) File.Delete(newExePath); } catch { }
                     isUpdateInProgress = false;
-                    errorCallback?.Invoke("డౌన్‌లోడ్ అయిన అప్డేట్ ఫైల్ చెల్లుబాటు అయ్యే Windows EXE కాదు. దయచేసి మళ్ళీ ప్రయత్నించండి.");
+                    errorCallback?.Invoke("Downloaded update file is not a valid Windows executable (.exe). Please retry.");
                     return false;
                 }
 
@@ -1757,7 +1770,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         logCallback?.Invoke("[SECURITY FAILURE] SHA-256 Digest mismatch! Aborting installation.");
                         OtaNotificationService.SendUpdateHistoryLog("OTA_INTEGRITY_FAILED", CurrentVersion, updateInfo.LatestVersion, CurrentResourceBuild, updateInfo.LatestResourceBuild, "REL-FAIL", startTimeStr, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), "FAILED_SHA256_MISMATCH", "ABORTED", "NOT_RESTARTED", "FAILED", "SHA-256 Hash Mismatch");
                         isUpdateInProgress = false;
-                        errorCallback?.Invoke("SHA-256 భద్రతా తనిఖీ విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.");
+                        errorCallback?.Invoke("SHA-256 security checksum verification failed. Please retry.");
                         return false;
                     }
                 }
@@ -1841,7 +1854,7 @@ del ""%~f0"" >nul 2>&1
                 isUpdateInProgress = false;
                 logCallback?.Invoke($"[AUTO-UPDATE ERROR] Failed to install update: {ex.Message}");
                 WriteLocalUpdateHistoryLog(CurrentVersion, "UNKNOWN", CurrentResourceBuild, "UNKNOWN", "FAILED", ex.Message);
-                errorCallback?.Invoke("ఇన్‌స్టాలేషన్ విఫలమైంది: " + ex.Message);
+                errorCallback?.Invoke("Update installation failed: " + ex.Message);
                 return false;
             }
         }

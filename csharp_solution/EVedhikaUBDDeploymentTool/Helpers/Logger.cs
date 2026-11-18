@@ -60,7 +60,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             catch { }
         }
 
-        public const string AdminDashboardUrl = "https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports";
+        public const string AdminDashboardUrl = "https://rakeshkumardhawan.github.io/UBDTOOLS/admin/";
         public const string FirestoreProjectId = "e-vedhika-258f2";
         public const string FirestoreDatabaseId = "ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82";
         public const string FirestoreDocBase = "projects/e-vedhika-258f2/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/documents";

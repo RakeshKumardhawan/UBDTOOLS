@@ -29,6 +29,7 @@ export const PublicPaymentCheckout: React.FC = () => {
   });
   const [operatorInput, setOperatorInput] = useState<string>('');
   const [districtInput, setDistrictInput] = useState<string>('');
+  const [stateInput, setStateInput] = useState<'Telangana' | 'Andhra Pradesh'>('Telangana');
   const [utrInput, setUtrInput] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitState, setSubmitState] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -111,11 +112,17 @@ export const PublicPaymentCheckout: React.FC = () => {
       return;
     }
 
-    const safePcId = (pcIdInput || pcNameInput || 'EVD-WEB-PC').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    const safePcId = (pcIdInput.trim() || pcNameInput.trim() || 'EVD-WEB-PC')
+      .replace(/[^a-zA-Z0-9_-]/g, '-')
+      .slice(0, 120);
     if (!safePcId) {
       setSubmitState({ type: 'error', text: 'మీ PC Machine ID తప్పనిసరిగా ఇవ్వండి.' });
       return;
     }
+
+    const cleanPcName = (pcNameInput.trim() || safePcId).slice(0, 128);
+    const cleanOperator = (operatorInput.trim() || 'Operator').slice(0, 128);
+    const cleanDistrict = (districtInput.trim() || 'District').slice(0, 100);
 
     setSubmitting(true);
     try {
@@ -123,11 +130,11 @@ export const PublicPaymentCheckout: React.FC = () => {
         claimId,
         utrNumber: cleanUtr,
         pcId: safePcId,
-        pcName: (pcNameInput || safePcId).slice(0, 128),
-        operatorName: (operatorInput || 'Operator').slice(0, 128),
-        district: (districtInput || 'District').slice(0, 100),
-        state: 'Telangana',
-        amountInr: Math.max(1, Number(policy.monthlyPriceInr || 10)),
+        pcName: cleanPcName,
+        operatorName: cleanOperator,
+        district: cleanDistrict,
+        state: stateInput,
+        amountInr: Math.max(1, Math.min(10000, Number(policy.monthlyPriceInr || 10))),
         status: 'PENDING',
         note: `Submitted via QR Checkout Portal (?pay=1) for ₹${policy.monthlyPriceInr}/${policy.durationDays}d`,
         createdAt: serverTimestamp()
@@ -139,6 +146,36 @@ export const PublicPaymentCheckout: React.FC = () => {
       });
       showSuccess(`UTR ${cleanUtr} submitted for verification!`, 'UTR Submitted');
       setUtrInput('');
+
+      try {
+        const tgMsg = `💳 <b>NEW UTR PAYMENT CLAIM</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🔑 <b>UTR:</b> <code>${cleanUtr}</code>\n` +
+          `🖥️ <b>PC Name:</b> ${cleanPcName} (<code>${safePcId}</code>)\n` +
+          `👤 <b>Operator:</b> ${cleanOperator}\n` +
+          `📍 <b>District:</b> ${cleanDistrict} (${stateInput})\n` +
+          `💰 <b>Amount:</b> ₹${policy.monthlyPriceInr || 10} / ${policy.durationDays || 30}d\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━`;
+        await fetch('https://api.telegram.org/bot8681492578:AAH23013347X5tI6qU5E6z2D2u1R3S0P1O0/sendMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: '431228008',
+            text: tgMsg,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: `✅ Open Admin Hub & Review ${cleanUtr}`,
+                    url: `https://rakeshkumardhawan.github.io/UBDTOOLS/admin/?section=payments&utr=${cleanUtr}`
+                  }
+                ]
+              ]
+            }
+          })
+        });
+      } catch {}
     } catch (err: any) {
       const code = String(err?.code || err?.message || '').toLowerCase();
       if (code.includes('permission') || code.includes('already-exists')) {
@@ -219,6 +256,10 @@ export const PublicPaymentCheckout: React.FC = () => {
               <div className="bg-white p-4 rounded-2xl shadow-lg">
                 <QRCodeSVG value={upiUri} size={196} level="M" includeMargin={false} />
               </div>
+            ) : policy.paymentLinkUrl && /^https?:\/\//i.test(policy.paymentLinkUrl) ? (
+              <div className="bg-white p-4 rounded-2xl shadow-lg">
+                <QRCodeSVG value={policy.paymentLinkUrl} size={196} level="M" includeMargin={false} />
+              </div>
             ) : (
               <div className="w-48 h-48 rounded-2xl border border-dashed border-slate-700 flex items-center justify-center p-4 text-xs text-slate-400">
                 Admin గారు License Control లో Merchant / Alias UPI ID లేదా Payment Link సెట్ చేసిన వెంటనే QR ఇక్కడ వస్తుంది.
@@ -229,6 +270,11 @@ export const PublicPaymentCheckout: React.FC = () => {
               <div className="text-sm font-black text-white">
                 Pay ₹{policy.monthlyPriceInr} • Validity: {policy.durationDays} Days
               </div>
+              {pcLicense && !isExemptPc && (
+                <div className="text-[11px] font-mono text-cyan-300">
+                  PC Plan: {pcLicense.status} {pcLicense.validUntilIso ? `• Until ${new Date(pcLicense.validUntilIso).toLocaleDateString()}` : ''}
+                </div>
+              )}
               {policy.upiId && (
                 <div className="flex items-center justify-center gap-2 text-xs text-emerald-300 bg-slate-900 border border-slate-800 rounded-xl py-2 px-3">
                   <span className="font-mono font-bold truncate">{policy.upiId}</span>
@@ -246,6 +292,16 @@ export const PublicPaymentCheckout: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {upiUri && (
+              <a
+                href={upiUri}
+                className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-lg"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Open UPI App (PhonePe / GPay / Paytm)</span>
+              </a>
+            )}
 
             {policy.paymentLinkUrl && /^https?:\/\//i.test(policy.paymentLinkUrl) && (
               <a
@@ -301,15 +357,28 @@ export const PublicPaymentCheckout: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-300 mb-1">OPERATOR NAME</label>
-              <input
-                type="text"
-                placeholder="మీ పేరు"
-                value={operatorInput}
-                onChange={(e) => setOperatorInput(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">STATE (రాష్ట్రం)</label>
+                <select
+                  value={stateInput}
+                  onChange={(e) => setStateInput(e.target.value === 'Andhra Pradesh' ? 'Andhra Pradesh' : 'Telangana')}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                >
+                  <option value="Telangana">Telangana</option>
+                  <option value="Andhra Pradesh">Andhra Pradesh</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">OPERATOR NAME</label>
+                <input
+                  type="text"
+                  placeholder="మీ పేరు"
+                  value={operatorInput}
+                  onChange={(e) => setOperatorInput(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
             </div>
 
             <div>

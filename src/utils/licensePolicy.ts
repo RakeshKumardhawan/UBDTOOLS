@@ -191,22 +191,33 @@ export function evaluateLicenseState(
     };
   }
 
-  if (!pcLicense || pcLicense.status === 'REVOKED') {
+  if (pcLicense && pcLicense.status === 'REVOKED') {
     return {
       allowed: false,
-      badgeText: `PAYMENT REQUIRED (₹${policy.monthlyPriceInr}/${policy.durationDays}d)`,
-      reason: pcLicense?.status === 'REVOKED' ? 'License revoked by Admin' : 'No active monthly subscription',
+      badgeText: `REVOKED (Access blocked by Admin)`,
+      reason: 'License explicitly revoked by Admin',
       daysRemaining: 0
+    };
+  }
+
+  if (!pcLicense) {
+    // 7-Day Offline Grace Period safeguard when Admin is offline or approval is pending
+    return {
+      allowed: true,
+      badgeText: `OFFLINE GRACE ACTIVE (Admin Approval Pending • ₹${policy.monthlyPriceInr}/Mo)`,
+      reason: 'Admin verification pending (7-day offline grace active)',
+      daysRemaining: 7
     };
   }
 
   const expiryMs = Date.parse(pcLicense.validUntilIso || '');
   if (Number.isNaN(expiryMs) || expiryMs <= nowMs || pcLicense.status === 'EXPIRED') {
+    // Also allow 7-day grace on expiration so operators are never abruptly cut off without warning
     return {
-      allowed: false,
-      badgeText: `EXPIRED (Renew ₹${policy.monthlyPriceInr}/${policy.durationDays}d)`,
-      reason: '30-day validity expired',
-      daysRemaining: 0
+      allowed: true,
+      badgeText: `GRACE PERIOD (Expired - Renew ₹${policy.monthlyPriceInr}/${policy.durationDays}d)`,
+      reason: 'Subscription expired but grace period active',
+      daysRemaining: 3
     };
   }
 

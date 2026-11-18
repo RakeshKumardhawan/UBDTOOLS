@@ -24,69 +24,69 @@ namespace EVedhikaUBDDeploymentTool
 
         private static readonly string[] TelanganaDistricts = new string[]
         {
-            "Mancherial (మంచిర్యాల)",
-            "Khammam (ఖమ్మం)",
-            "Suryapet (సూర్యాపేట)",
-            "Nalgonda (నల్గొండ)",
-            "Warangal (వరంగల్)",
-            "Hanumakonda (హనుమకొండ)",
-            "Karimnagar (కరీంనగర్)",
-            "Nizamabad (నిజామాబాద్)",
-            "Adilabad (ఆదిలాబాద్)",
-            "Bhadradri Kothagudem (భద్రాద్రి కొత్తగూడెం)",
-            "Jagtial (జగిత్యాల)",
-            "Jangaon (జనగామ)",
-            "Jayashankar Bhupalpally (జయశంకర్ భూపాలపల్లి)",
-            "Jogulamba Gadwal (జోగులాంబ గద్వాల)",
-            "Kamareddy (కామారెడ్డి)",
-            "Kumuram Bheem Asifabad (కుమ్రం భీమ్ ఆసిఫాబాద్)",
-            "Mahabubabad (మహబూబాబాద్)",
-            "Mahabubnagar (మహబూబ్ నగర్)",
-            "Medak (మెదక్)",
-            "Medchal-Malkajgiri (మేడ్చల్-మల్కాజిగిరి)",
-            "Mulugu (ములుగు)",
-            "Nagarkurnool (నాగర్ కర్నూల్)",
-            "Narayanpet (నారాయణపేట)",
-            "Nirmal (నిర్మల్)",
-            "Peddapalli (పెద్దపల్లి)",
-            "Rajanna Sircilla (రాజన్న సిరిసిల్ల)",
-            "Rangareddy (రంగారెడ్డి)",
-            "Sangareddy (సంగారెడ్డి)",
-            "Siddipet (సిద్దిపేట)",
-            "Vikarabad (వికారాబాద్)",
-            "Wanaparthy (వనపర్తి)",
-            "Yadadri Bhuvanagiri (యాదాద్రి భువనగిరి)",
-            "Hyderabad (హైదరాబాద్)"
+            "Mancherial",
+            "Khammam",
+            "Suryapet",
+            "Nalgonda",
+            "Warangal",
+            "Hanumakonda",
+            "Karimnagar",
+            "Nizamabad",
+            "Adilabad",
+            "Bhadradri Kothagudem",
+            "Jagtial",
+            "Jangaon",
+            "Jayashankar Bhupalpally",
+            "Jogulamba Gadwal",
+            "Kamareddy",
+            "Kumuram Bheem Asifabad",
+            "Mahabubabad",
+            "Mahabubnagar",
+            "Medak",
+            "Medchal-Malkajgiri",
+            "Mulugu",
+            "Nagarkurnool",
+            "Narayanpet",
+            "Nirmal",
+            "Peddapalli",
+            "Rajanna Sircilla",
+            "Rangareddy",
+            "Sangareddy",
+            "Siddipet",
+            "Vikarabad",
+            "Wanaparthy",
+            "Yadadri Bhuvanagiri",
+            "Hyderabad"
         };
 
         private static readonly string[] AndhraDistricts = new string[]
         {
-            "Visakhapatnam (విశాఖపట్నం)",
-            "NTR Vijayawada (ఎన్టీఆర్ విజయవాడ)",
-            "Guntur (గుంటూరు)",
-            "YSR Kadapa (వైఎస్ఆర్ కడప)",
-            "Kurnool (కర్నూలు)",
-            "Anantapuramu (అనంతపురం)",
-            "Chittoor (చిత్తూరు)",
-            "Tirupati (తిరుపతి)",
-            "SPSR Nellore (నెల్లూరు)",
-            "Prakasam (ప్రకాశం)",
-            "Kakinada (కాకినాడ)",
-            "East Godavari (తూర్పు గోదావరి)",
-            "West Godavari (పశ్చిమ గోదావరి)",
-            "Eluru (ఏలూరు)",
-            "Krishna (కృష్ణా)",
-            "Srikakulam (శ్రీకాకుళం)",
-            "Vizianagaram (విజయనగరం)",
-            "Bapatla (బాపట్ల)",
-            "Palnadu (పల్నాడు)",
-            "Nandyal (నంద్యాల)",
-            "Sri Sathya Sai (శ్రీ సత్యసాయి)",
-            "Annamayya (అన్నమయ్య)",
-            "Konaseema (కోనసీమ)",
-            "Anakapalli (అనకాపల్లి)",
-            "Alluri Sitharama Raju (అల్లూరి సీతారామరాజు)",
-            "Parvathipuram Manyam (పార్వతీపురం మన్యం)"
+            "Visakhapatnam",
+            "NTR Vijayawada",
+            "Guntur",
+            "YSR Kadapa",
+            "Kurnool",
+            "Anantapuramu",
+            "Chittoor",
+            "Tirupati",
+            "SPSR Nellore",
+            "Prakasam",
+            "Kakinada",
+            "East Godavari",
+            "West Godavari",
+            "Eluru",
+            "Krishna",
+            "Srikakulam",
+            "Vizianagaram",
+            "Bapatla",
+            "Palnadu",
+            "Nandyal",
+            "Sri Sathya Sai",
+            "Annamayya",
+            "Konaseema",
+            "Anakapalli",
+            "Alluri Sitharama Raju",
+            "Parvathipuram Manyam"
         };
 
         public StateSelectionDialog()
@@ -118,7 +118,7 @@ namespace EVedhikaUBDDeploymentTool
             this.Controls.Add(lblHeader);
 
             Label lblSub = new Label();
-            lblSub.Text = "మీ రాష్ట్రం, జిల్లా, మండలం, గ్రామ పంచాయతీ & ఆపరేటర్ వివరాలను స్పష్టంగా ఎంటర్ చేయండి:";
+            lblSub.Text = "Please enter your State, District, Mandal, Grama Panchayat & Operator details:";
             lblSub.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             lblSub.ForeColor = Color.FromArgb(203, 213, 225);
             lblSub.AutoSize = false;
@@ -132,7 +132,7 @@ namespace EVedhikaUBDDeploymentTool
             pnlState.Bounds = new Rectangle(24, 82, 492, 78);
 
             rbTelangana = new RadioButton();
-            rbTelangana.Text = "Telangana (తెలంగాణ - Official UBD Portal)";
+            rbTelangana.Text = "Telangana (Official UBD Portal)";
             rbTelangana.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             rbTelangana.ForeColor = Color.White;
             rbTelangana.UseMnemonic = false;
@@ -142,7 +142,7 @@ namespace EVedhikaUBDDeploymentTool
             pnlState.Controls.Add(rbTelangana);
 
             rbAndhra = new RadioButton();
-            rbAndhra.Text = "Andhra Pradesh (ఆంధ్రప్రదేశ్ - Official UBD Portal)";
+            rbAndhra.Text = "Andhra Pradesh (Official UBD Portal)";
             rbAndhra.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             rbAndhra.ForeColor = Color.White;
             rbAndhra.UseMnemonic = false;
@@ -154,7 +154,7 @@ namespace EVedhikaUBDDeploymentTool
 
             // Row 1: District
             Label lblDistrict = new Label();
-            lblDistrict.Text = "1. జిల్లా ఎంచుకోండి (Select District) *:";
+            lblDistrict.Text = "1. Select District *:";
             lblDistrict.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             lblDistrict.ForeColor = Color.FromArgb(251, 191, 36);
             lblDistrict.UseMnemonic = false;
@@ -171,7 +171,7 @@ namespace EVedhikaUBDDeploymentTool
 
             // Row 2: Mandal Name (Separate, Unambiguous Full-Width Row)
             Label lblMandal = new Label();
-            lblMandal.Text = "2. మండలం పేరు (Mandal Name) *  [ఉదా: Yadagirigutta / Mancherial]:";
+            lblMandal.Text = "2. Mandal Name *  (e.g., Yadagirigutta / Mancherial):";
             lblMandal.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             lblMandal.ForeColor = Color.FromArgb(56, 189, 248);
             lblMandal.UseMnemonic = false;
@@ -188,7 +188,7 @@ namespace EVedhikaUBDDeploymentTool
 
             // Row 3: Grama Panchayat / Office Name (Separate Full-Width Row)
             Label lblOffice = new Label();
-            lblOffice.Text = "3. గ్రామ పంచాయతీ / ఆఫీస్ పేరు (GP / Office Name) *  [ఉదా: Mailargudem GP]:";
+            lblOffice.Text = "3. Grama Panchayat / Office Name *  (e.g., Mailargudem GP):";
             lblOffice.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             lblOffice.ForeColor = Color.White;
             lblOffice.UseMnemonic = false;
@@ -205,7 +205,7 @@ namespace EVedhikaUBDDeploymentTool
 
             // Row 4: Operator Name (Separate Full-Width Row)
             Label lblOp = new Label();
-            lblOp.Text = "4. ఆపరేటర్ పేరు (Operator Name)  [మీ పూర్తి పేరు ఇక్కడ ఇవ్వండి]:";
+            lblOp.Text = "4. Operator Name  (Enter your full name):";
             lblOp.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             lblOp.ForeColor = Color.FromArgb(203, 213, 225);
             lblOp.UseMnemonic = false;
@@ -221,7 +221,7 @@ namespace EVedhikaUBDDeploymentTool
             this.Controls.Add(txtOperatorName);
 
             Label lblNote = new Label();
-            lblNote.Text = "[OK] మీరు ఎంచుకున్న జిల్లా, మండలం, GP & ఆపరేటర్ వివరాలు నేరుగా అడ్మిన్ రిపోర్ట్‌లో సేవ్ అవుతాయి.";
+            lblNote.Text = "[OK] Your selected District, Mandal, GP & Operator details will sync directly to Admin Reports.";
             lblNote.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
             lblNote.ForeColor = Color.FromArgb(52, 211, 153);
             lblNote.AutoSize = false;
@@ -254,7 +254,7 @@ namespace EVedhikaUBDDeploymentTool
         private void PopulateDistricts(string state)
         {
             cboDistrict.Items.Clear();
-            cboDistrict.Items.Add("-- Select Your District (మీ జిల్లా ఎంచుకోండి) --");
+            cboDistrict.Items.Add("-- Select Your District --");
             string[] list = state == "Andhra Pradesh" ? AndhraDistricts : TelanganaDistricts;
             cboDistrict.Items.AddRange(list);
             if (cboDistrict.Items.Count > 0)
@@ -369,8 +369,8 @@ namespace EVedhikaUBDDeploymentTool
             if (cboDistrict.SelectedIndex <= 0 || cboDistrict.SelectedItem == null || cboDistrict.SelectedItem.ToString().StartsWith("--"))
             {
                 MessageBox.Show(
-                    "దయచేసి మీ జిల్లాను ఎంచుకోండి!\n\nPlease select your actual District so your Gram Panchayat / Mandal office location is recorded accurately.",
-                    "District Required / జిల్లా ఎంచుకోండి",
+                    "Please select your actual District so your Grama Panchayat / Mandal office location is recorded accurately.",
+                    "District Required",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 cboDistrict.DroppedDown = true;

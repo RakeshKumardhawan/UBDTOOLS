@@ -344,13 +344,16 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         zone2Key.SetValue("1808", 0, RegistryValueKind.DWord); // Font download
                         zone2Key.SetValue("1809", 0, RegistryValueKind.DWord); // Pop-up Blocker: Disable
                         zone2Key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary and script behaviors
-                        zone2Key.SetValue("2001", 3, RegistryValueKind.DWord); // Disabled per user order // .NET-reliant components
+                        zone2Key.SetValue("2001", 0, RegistryValueKind.DWord); // Run components signed with Authenticode / .NET (0 = Enable)
                         zone2Key.SetValue("2004", 0, RegistryValueKind.DWord); // Run components not signed with Authenticode
+                        zone2Key.SetValue("2007", 0, RegistryValueKind.DWord); // Permissions for components with manifests
                         zone2Key.SetValue("2101", 0, RegistryValueKind.DWord); // Status bar updates via script
                         zone2Key.SetValue("2102", 0, RegistryValueKind.DWord); // Script-initiated windows without size/pos constraints
                         zone2Key.SetValue("2200", 0, RegistryValueKind.DWord); // Automatic prompting for file downloads
                         zone2Key.SetValue("2201", 0, RegistryValueKind.DWord); // Automatic prompting for ActiveX
                         zone2Key.SetValue("2300", 0, RegistryValueKind.DWord); // Web sites in less privileged zone can navigate into this zone
+                        zone2Key.SetValue("2500", 3, RegistryValueKind.DWord); // Turn Off Protected Mode on Win7 IE11 (3 = Disable Protected Mode)
+                        zone2Key.SetValue("160A", 0, RegistryValueKind.DWord); // Include local directory path when uploading files
                         zone2Key.SetValue("2702", 0, RegistryValueKind.DWord); // Allow active content
                         zone2Key.SetValue("2708", 0, RegistryValueKind.DWord); // Allow only approved domains to use ActiveX without prompt
                     }
@@ -363,21 +366,29 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         if (zoneKey != null)
                         {
-                            zoneKey.SetValue("1803", 0, RegistryValueKind.DWord);
-                            zoneKey.SetValue("2200", 0, RegistryValueKind.DWord);
                             zoneKey.SetValue("1200", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("1201", 0, RegistryValueKind.DWord);
                             zoneKey.SetValue("1400", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("1405", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("1803", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("2000", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("2001", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("2004", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("2200", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("2201", 0, RegistryValueKind.DWord);
+                            zoneKey.SetValue("2500", 3, RegistryValueKind.DWord);
                         }
                     }
                 }
 
-                // Enable TLS 1.1 + 1.2 + 1.3
+                // Enable TLS protocols appropriate for Windows version
+                // On Windows 7/8 (Major < 10), avoid setting unknown TLS 1.3 bit (0x2000) which can reset IE11 SecureProtocols to SSL3/TLS1.0!
+                int secureProtocolsMask = (Environment.OSVersion.Version.Major >= 10) ? 10880 : 2688; // 0x2AA0 (Win10+) vs 0x0A80 (Win7 TLS 1.0/1.1/1.2)
                 using (RegistryKey systemSettings = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings"))
                 {
                     if (systemSettings != null)
                     {
-                        // TLS 1.0 (128) + TLS 1.1 (512) + TLS 1.2 (2048) + TLS 1.3 (8192) = 10880 (0x2AA0)
-                        systemSettings.SetValue("SecureProtocols", 10880, RegistryValueKind.DWord);
+                        systemSettings.SetValue("SecureProtocols", secureProtocolsMask, RegistryValueKind.DWord);
                         systemSettings.SetValue("DisableCachingOfSSLPages", 0, RegistryValueKind.DWord);
                         systemSettings.SetValue("SyncMode5", 3, RegistryValueKind.DWord);
                         systemSettings.SetValue("CertificateRevocation", 0, RegistryValueKind.DWord);
@@ -393,7 +404,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     if (advHklm != null)
                     {
-                        advHklm.SetValue("SecureProtocols", 10880, RegistryValueKind.DWord);
+                        advHklm.SetValue("SecureProtocols", secureProtocolsMask, RegistryValueKind.DWord);
                         advHklm.SetValue("CertificateRevocation", 0, RegistryValueKind.DWord);
                         advHklm.SetValue("PublisherRevocation", 0, RegistryValueKind.DWord);
                         advHklm.SetValue("WarnonBadCertRecving", 0, RegistryValueKind.DWord);
@@ -435,8 +446,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         ieMain.SetValue("TabProcGrowth", 1, RegistryValueKind.DWord);
                         ieMain.SetValue("DOMStorage", 1, RegistryValueKind.DWord);
+                        ieMain.SetValue("Isolation", "PMIL", RegistryValueKind.String);
+                        ieMain.SetValue("Isolation64Bit", 0, RegistryValueKind.DWord);
+                        ieMain.SetValue("ActiveXFiltering", 0, RegistryValueKind.DWord);
+                        ieMain.SetValue("DisableProtectedModeBanner", 1, RegistryValueKind.DWord);
                     }
                 }
+                ApplyWindows7Ie11AndTlsFixes();
                 ApplyMasterZonesConfiguration();
                 ForceEnableDownloadsForAllZones();
                 return true;
@@ -574,41 +590,52 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // 1. Comprehensive list of ProgIDs invoked by Government Portal JavaScript (DigiSignHelper, DigiSigner, CAPICOM)
-                string[] progIds = new string[] { 
-                    "DigiSignHelper", "DigiSignHelper.1", "DigiSignHelper.DigiSigner",
-                    "DigiSigner", "DigiSigner.1", "DigiSigner.DigiSignHelper",
-                    "DigiSignerHelper", "DigiSignerHelper.1", "SignatureDemoLib.DigiSignHelper",
-                    "NIC.DigiSigner", "CAPICOM.SignedData", "CAPICOM.SignedData.1",
-                    "CAPICOM.SignedData.2", "CAPICOM.Store", "CAPICOM.Store.1",
-                    "CAPICOM.Store.2", "CAPICOM.Signer", "CAPICOM.Signer.1"
-                };
-
-                // Real Common CLSIDs for DigiSigner and CAPICOM
-                string[] clsids = new string[] 
-                { 
-                    "{32DB2444-A227-463C-868C-D63D6D254924}", // Common DigiSignHelper
-                    "{B8601633-0100-47F1-9457-495204431B32}", // SignatureDemoLib
-                    "{A996E48C-D3DE-4206-89AF-00AA006C42C4}", // CAPICOM.SignedData
-                    "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}", // Another DigiSigner variant
-                    "{96A006C4-AA00-CF11-9FA9-00AA006C42C4}", // CAPICOM variant
-                    "{15E2085E-94D1-4551-9E1D-444453456789}", // Hybrid variant
-                    "{B6D9006F-035D-4A76-884A-C3E7705B9FF1}", // Hybrid variant 2
-                    "{BD0D437A-F76E-4545-9244-6720D911718F}"  // NIC variant
-                };
-
-                // Determine actual DLL path for InprocServer32
                 string sysWOW64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
                 string system32 = Environment.SystemDirectory;
                 string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
                 string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                string dllPath = "";
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
-                // Search priority
-                string[] searchFiles = { "DigiSignHelper.dll", "capicom.dll", "NICDigiSignHelper.dll", "SignatureDemoLib.dll" };
+                // 1. Register CAPICOM cleanly via regsvr32 ONLY if capicom.dll is present (NEVER overwrite CAPICOM CLSIDs with DigiSignHelper!)
+                string[] capicomCandidates = {
+                    Path.Combine(baseDir, "Payload", "capicom.dll"),
+                    Path.Combine(baseDir, "installers", "capicom.dll"),
+                    Path.Combine(baseDir, "capicom.dll"),
+                    Path.Combine(sysWOW64, "capicom.dll"),
+                    Path.Combine(system32, "capicom.dll"),
+                    Path.Combine(pf86, "NIC", "DigiSigner", "capicom.dll"),
+                    Path.Combine(pf, "NIC", "DigiSigner", "capicom.dll")
+                };
+                foreach (var cPath in capicomCandidates)
+                {
+                    if (File.Exists(cPath))
+                    {
+                        RunRegsvr32Silent(Path.Combine(sysWOW64, "regsvr32.exe"), cPath);
+                        if (Environment.Is64BitOperatingSystem)
+                        {
+                            RunRegsvr32Silent(Path.Combine(system32, "regsvr32.exe"), cPath);
+                        }
+                        break;
+                    }
+                }
+
+                // Stamp Safe-For-Scripting Implemented Categories onto existing CAPICOM CLSIDs without altering their InprocServer32
+                string[] capicomClsids = {
+                    "{A996E48C-D3DE-4206-89AF-00AA006C42C4}", // CAPICOM.SignedData
+                    "{91D221C4-0CD4-461C-A728-01D509321556}", // CAPICOM.Store
+                    "{60A9863A-11FD-4080-850E-A8E184FC3A3C}"  // CAPICOM.Signer
+                };
+                StampSafeForScriptingCategories(capicomClsids);
+
+                // 2. Locate native COM DigiSignHelper / NICDigiSignHelper DLLs (strictly excluding .NET SignatureDemoLib.dll & capicom.dll)
+                string nativeDllPath = "";
+                string[] searchFiles = { "DigiSignHelper.dll", "NICDigiSignHelper.dll", "DigiSigner.dll" };
                 foreach (var file in searchFiles)
                 {
                     string[] paths = {
+                        Path.Combine(baseDir, "Payload", file),
+                        Path.Combine(baseDir, "installers", file),
+                        Path.Combine(baseDir, file),
                         Path.Combine(sysWOW64, file),
                         Path.Combine(system32, file),
                         Path.Combine(pf86, "NIC", "DigiSigner", file),
@@ -616,57 +643,64 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         Path.Combine(pf86, "DigiSigner", file),
                         Path.Combine(pf, "DigiSigner", file)
                     };
-                    
+
                     foreach (var p in paths)
                     {
-                        if (File.Exists(p)) { dllPath = p; break; }
+                        if (File.Exists(p)) { nativeDllPath = p; break; }
                     }
-                    if (!string.IsNullOrEmpty(dllPath)) break;
+                    if (!string.IsNullOrEmpty(nativeDllPath)) break;
                 }
 
-                // If DLL not found in common paths, try to find it from existing registry entry to preserve it
-                if (string.IsNullOrEmpty(dllPath))
+                // Repair native DigiSignHelper ProgIDs/CLSIDs ONLY when an actual native DLL is found (and NEVER overwrite mscoree.dll .NET COM classes)
+                if (!string.IsNullOrEmpty(nativeDllPath) && File.Exists(nativeDllPath))
                 {
-                    try {
-                        using (var key = Registry.ClassesRoot.OpenSubKey(@"DigiSignHelper\CLSID")) {
-                            string existingClsid = key?.GetValue("")?.ToString();
-                            if (!string.IsNullOrEmpty(existingClsid)) {
-                                using (var inproc = Registry.ClassesRoot.OpenSubKey($@"CLSID\{existingClsid}\InprocServer32")) {
-                                    dllPath = inproc?.GetValue("")?.ToString();
-                                }
-                            }
-                        }
-                    } catch { }
-                }
-
-                if (string.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
-                {
-                    Logger.LogWarn("Registry", "HealDigiSignHelperAutomation: No matching DLL found. Skipping registry injection.");
-                    return;
-                }
-
-                // Try to detect existing CLSID from the DLL we found
-                string targetClsid = clsids[0]; 
-                try {
-                    using (var key = Registry.ClassesRoot.OpenSubKey(@"DigiSignHelper\CLSID")) {
-                        string existing = key?.GetValue("")?.ToString();
-                        if (!string.IsNullOrEmpty(existing)) targetClsid = existing;
+                    RunRegsvr32Silent(Path.Combine(sysWOW64, "regsvr32.exe"), nativeDllPath);
+                    if (Environment.Is64BitOperatingSystem)
+                    {
+                        RunRegsvr32Silent(Path.Combine(system32, "regsvr32.exe"), nativeDllPath);
                     }
-                } catch { }
 
-                // A. Write ProgIDs to Registry
-                string[] progIdRoots = new string[] { @"Software\Classes", @"Software\WOW6432Node\Classes" };
-                foreach (var progId in progIds)
-                {
+                    string[] nativeProgIds = new string[] {
+                        "DigiSignHelper", "DigiSignHelper.1", "DigiSignHelper.Helper", "DigiSignHelper.DigiSigner",
+                        "DigiSigner", "DigiSigner.1", "DigiSigner.DigiSignHelper",
+                        "DigiSignerHelper", "DigiSignerHelper.1", "NICDigiSignHelper.Helper", "NIC.DigiSigner"
+                    };
+
+                    string[] nativeClsids = new string[] {
+                        "{32DB2444-A227-463C-868C-D63D6D254924}",
+                        "{D4F44F4E-E1A4-4E64-884A-98C045F9616D}",
+                        "{BD0D437A-F76E-4545-9244-6720D911718F}"
+                    };
+
+                    string targetClsid = nativeClsids[0];
                     try
                     {
-                        Registry.ClassesRoot.CreateSubKey(progId)?.SetValue("", "NIC DigiSigner Helper Object");
-                        Registry.ClassesRoot.CreateSubKey($@"{progId}\CLSID")?.SetValue("", targetClsid);
-
-                        foreach (var rootPath in progIdRoots)
+                        using (var key = Registry.ClassesRoot.OpenSubKey(@"DigiSignHelper\CLSID"))
                         {
-                            using (RegistryKey baseKey = Registry.LocalMachine.CreateSubKey(rootPath))
+                            string existing = key?.GetValue("")?.ToString();
+                            if (!string.IsNullOrEmpty(existing)) targetClsid = existing;
+                        }
+                    }
+                    catch { }
+
+                    string[] progIdRoots = new string[] { @"Software\Classes", @"Software\WOW6432Node\Classes" };
+                    foreach (var progId in nativeProgIds)
+                    {
+                        try
+                        {
+                            // Preserve existing ProgID->CLSID mapping if already pointing to a valid InprocServer32
+                            using (var chk = Registry.ClassesRoot.OpenSubKey($@"{progId}\CLSID"))
                             {
+                                string cur = chk?.GetValue("")?.ToString();
+                                if (!string.IsNullOrEmpty(cur)) continue;
+                            }
+
+                            Registry.ClassesRoot.CreateSubKey(progId)?.SetValue("", "NIC DigiSigner Helper Object");
+                            Registry.ClassesRoot.CreateSubKey($@"{progId}\CLSID")?.SetValue("", targetClsid);
+
+                            foreach (var rootPath in progIdRoots)
+                            {
+                                using (RegistryKey baseKey = Registry.LocalMachine.CreateSubKey(rootPath))
                                 using (RegistryKey progKey = baseKey?.CreateSubKey(progId))
                                 {
                                     if (progKey != null)
@@ -677,47 +711,60 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 }
                             }
                         }
+                        catch { }
                     }
-                    catch { }
-                }
 
-                // B. Write CLSIDs to Registry
-                string[] clsidRoots = new string[] { @"CLSID", @"Software\Classes\CLSID", @"Software\WOW6432Node\Classes\CLSID" };
-                foreach (var clsid in clsids)
-                {
-                    try
+                    string[] clsidRoots = new string[] { @"Software\Classes\CLSID", @"Software\WOW6432Node\Classes\CLSID" };
+                    foreach (var clsid in nativeClsids)
                     {
-                        foreach (var rootPath in clsidRoots)
+                        try
                         {
-                            using (RegistryKey clsidBase = Registry.LocalMachine.CreateSubKey(rootPath + "\\" + clsid))
+                            foreach (var rootPath in clsidRoots)
                             {
-                                if (clsidBase != null)
+                                using (RegistryKey clsidBase = Registry.LocalMachine.CreateSubKey(rootPath + "\\" + clsid))
                                 {
-                                    clsidBase.SetValue("", "NIC DigiSigner Helper Object");
-                                    clsidBase.CreateSubKey("ProgID")?.SetValue("", "DigiSignHelper");
-                                    
-                                    using (RegistryKey inproc = clsidBase.CreateSubKey("InprocServer32"))
+                                    if (clsidBase != null)
                                     {
-                                        if (inproc != null)
+                                        using (var existingInproc = clsidBase.OpenSubKey("InprocServer32"))
                                         {
-                                            inproc.SetValue("", dllPath);
-                                            inproc.SetValue("ThreadingModel", "Apartment");
+                                            string val = existingInproc?.GetValue("")?.ToString() ?? "";
+                                            // Never touch .NET COM registrations hosted by mscoree.dll
+                                            if (val.IndexOf("mscoree.dll", StringComparison.OrdinalIgnoreCase) >= 0) continue;
                                         }
-                                    }
 
-                                    using (RegistryKey catKey = clsidBase.CreateSubKey("Implemented Categories"))
-                                    {
-                                        catKey.CreateSubKey("{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
-                                        catKey.CreateSubKey("{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+                                        clsidBase.SetValue("", "NIC DigiSigner Helper Object");
+                                        clsidBase.CreateSubKey("ProgID")?.SetValue("", "DigiSignHelper");
+
+                                        using (RegistryKey inproc = clsidBase.CreateSubKey("InprocServer32"))
+                                        {
+                                            if (inproc != null)
+                                            {
+                                                inproc.SetValue("", nativeDllPath);
+                                                inproc.SetValue("ThreadingModel", "Apartment");
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
+                        catch { }
                     }
-                    catch { }
+
+                    StampSafeForScriptingCategories(nativeClsids);
                 }
 
-                // 3. Force-Enable ActiveX Controls across All IE Zones (0, 1, 2, 3, 4) in HKCU & HKLM
+                // Always enforce clean SignatureDemoLib.DigiSignHelper COM registration & purge any stale HKCU capicom.dll overrides
+                if (File.Exists(@"C:\enterprise_compat\SignatureDemoLib.dll"))
+                {
+                    UBDSigningFixEngine.RegisterCompiledAssemblyForCom(@"C:\enterprise_compat\SignatureDemoLib.dll");
+                }
+                else
+                {
+                    UBDSigningFixEngine.VerifyAndEnforceIntegrity();
+                }
+                StampSafeForScriptingCategories(new string[] { "{1FC6E67B-8F52-4F80-8321-FCF7CE940052}" });
+
+                // 3. Force-Enable ActiveX, .NET Components & Disable Protected Mode across IE Zones (0, 1, 2, 3) in HKCU & HKLM
                 RegistryKey[] rootKeys = new RegistryKey[] { Registry.CurrentUser, Registry.LocalMachine };
                 string[] zones = new string[] { "0", "1", "2", "3", "4" };
 
@@ -732,23 +779,30 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 if (key != null)
                                 {
+                                    if (zone == "4") continue; // Keep Restricted Sites restricted
                                     if (zone == "2")
                                     {
                                         key.SetValue("CurrentLevel", 0, RegistryValueKind.DWord); // 0 = Custom level
                                         key.SetValue("Flags", 0x47, RegistryValueKind.DWord); // 0x47 = Enable Custom Level, Sites & Add button
                                     }
+                                    key.SetValue("1001", 0, RegistryValueKind.DWord); // Download signed ActiveX
+                                    key.SetValue("1004", 0, RegistryValueKind.DWord); // Download unsigned ActiveX
                                     key.SetValue("1200", 0, RegistryValueKind.DWord); // Run ActiveX
                                     key.SetValue("1201", 0, RegistryValueKind.DWord); // Initialize and script ActiveX not marked safe
                                     key.SetValue("1208", 0, RegistryValueKind.DWord); // Allow previous unused ActiveX controls
                                     key.SetValue("1209", 0, RegistryValueKind.DWord); // Allow scriptlets
-                                    key.SetValue("1400", 0, RegistryValueKind.DWord); // ActiveX prompt/enable
-                                    key.SetValue("1402", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
-                                    key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX not marked safe
+                                    key.SetValue("1400", 0, RegistryValueKind.DWord); // Active scripting
+                                    key.SetValue("1402", 0, RegistryValueKind.DWord); // Scripting of Java applets
+                                    key.SetValue("1405", 0, RegistryValueKind.DWord); // Script ActiveX marked safe
+                                    key.SetValue("1406", 0, RegistryValueKind.DWord); // Access data sources across domains
+                                    key.SetValue("1609", 0, RegistryValueKind.DWord); // Display mixed content
                                     key.SetValue("2000", 0, RegistryValueKind.DWord); // Binary/script behaviors
+                                    key.SetValue("2001", 0, RegistryValueKind.DWord); // Run signed Authenticode / .NET components
+                                    key.SetValue("2004", 0, RegistryValueKind.DWord); // Run unsigned Authenticode / .NET components
+                                    key.SetValue("2007", 0, RegistryValueKind.DWord); // Permissions for components with manifests
                                     key.SetValue("2201", 0, RegistryValueKind.DWord); // ActiveX opt-in
+                                    key.SetValue("2500", 3, RegistryValueKind.DWord); // Disable IE Protected Mode (Fixes Win7 [object Error])
                                     key.SetValue("2708", 0, RegistryValueKind.DWord); // Deny IE ActiveX filtering
-                                    key.SetValue("1001", 0, RegistryValueKind.DWord); // Download signed ActiveX
-                                    key.SetValue("1004", 0, RegistryValueKind.DWord); // Download unsigned ActiveX
                                 }
                             }
                         }
@@ -762,7 +816,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_SAFE_BINDING",
                     @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_LOCALMACHINE_LOCKDOWN",
                     @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_RESTRICT_ACTIVEX_INSTALL",
-                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_ACTIVEX_FILTERING"
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_ACTIVEX_FILTERING",
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_SECURITYBAND",
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_ZONE_ELEVATION",
+                    @"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_ADDON_MANAGEMENT"
                 };
 
                 foreach (var root in rootKeys)
@@ -782,23 +839,199 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                 }
 
-                // Specifically ensure ActiveX Filtering is OFF in main IE settings
+                // Specifically ensure ActiveX Filtering is OFF & 32-bit IE tab processes on x64 Win7
                 foreach (var root in rootKeys)
                 {
-                    try {
-                        using (var key = root.CreateSubKey(@"Software\Microsoft\Internet Explorer\Main")) {
-                            key?.SetValue("ActiveXFiltering", 0, RegistryValueKind.DWord);
+                    try
+                    {
+                        using (var key = root.CreateSubKey(@"Software\Microsoft\Internet Explorer\Main"))
+                        {
+                            if (key != null)
+                            {
+                                key.SetValue("ActiveXFiltering", 0, RegistryValueKind.DWord);
+                                key.SetValue("Isolation", "PMIL", RegistryValueKind.String);
+                                key.SetValue("Isolation64Bit", 0, RegistryValueKind.DWord);
+                                key.SetValue("DOMStorage", 1, RegistryValueKind.DWord);
+                            }
                         }
-                    } catch { }
+                    }
+                    catch { }
                 }
 
-                Logger.LogInfo("Registry", "DigiSigner & CAPICOM ActiveX Auto-Heal (Full ProgID/InprocServer32/Policy Force) applied successfully.");
+                ApplyWindows7Ie11AndTlsFixes();
+                Logger.LogInfo("Registry", "DigiSigner, SignatureDemoLib & CAPICOM ActiveX Auto-Heal (Win7 COM-Safe & TLS 1.2) applied successfully.");
                 FixInvalidAlgorithmAndCryptoProviders();
             }
             catch (Exception ex)
             {
                 Logger.LogWarn("Registry", "ActiveX heal notice: " + ex.Message);
             }
+        }
+
+        private static void RunRegsvr32Silent(string regsvrExe, string dllPath)
+        {
+            try
+            {
+                if (!File.Exists(regsvrExe) || !File.Exists(dllPath)) return;
+                using (var p = Process.Start(new ProcessStartInfo
+                {
+                    FileName = regsvrExe,
+                    Arguments = $"/s \"{dllPath}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                }))
+                {
+                    p?.WaitForExit(5000);
+                }
+            }
+            catch { }
+        }
+
+        private static void StampSafeForScriptingCategories(string[] clsids)
+        {
+            if (clsids == null) return;
+            string[] catGuids = new string[] {
+                "{7DD95801-9882-11CF-9FA9-00AA006C42C4}", // Safe for Scripting
+                "{7DD95802-9882-11CF-9FA9-00AA006C42C4}"  // Safe for Initializing
+            };
+            RegistryView[] views = Environment.Is64BitOperatingSystem
+                ? new[] { RegistryView.Registry64, RegistryView.Registry32 }
+                : new[] { RegistryView.Registry32 };
+
+            foreach (var clsid in clsids)
+            {
+                foreach (var view in views)
+                {
+                    try
+                    {
+                        using (var lm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
+                        using (var exist = lm.OpenSubKey($@"SOFTWARE\Classes\CLSID\{clsid}"))
+                        {
+                            if (exist != null)
+                            {
+                                using (var cat = lm.CreateSubKey($@"SOFTWARE\Classes\CLSID\{clsid}\Implemented Categories"))
+                                {
+                                    if (cat != null)
+                                    {
+                                        foreach (var g in catGuids) cat.CreateSubKey(g)?.Close();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                try
+                {
+                    using (var cuExist = Registry.CurrentUser.OpenSubKey($@"Software\Classes\CLSID\{clsid}"))
+                    {
+                        if (cuExist != null)
+                        {
+                            using (var cat = Registry.CurrentUser.CreateSubKey($@"Software\Classes\CLSID\{clsid}\Implemented Categories"))
+                            {
+                                if (cat != null)
+                                {
+                                    foreach (var g in catGuids) cat.CreateSubKey(g)?.Close();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+        }
+
+        /// <summary>
+        /// Windows 7 / IE11 / Edge IE5 Quirks Mode Hardening:
+        /// Enables OS-level SCHANNEL TLS 1.2 + WinHTTP DefaultSecureProtocols, disables 64-bit IE isolation tabs,
+        /// configures FeatureControl XMLHTTP/SecurityBand/Emulation flags, and ensures deactivation/signing calls succeed without [object Error].
+        /// </summary>
+        public static void ApplyWindows7Ie11AndTlsFixes()
+        {
+            try
+            {
+                // 1. OS-level SCHANNEL TLS 1.1 & TLS 1.2 Client/Server enablement (Essential for Windows 7 SP1 HTTPS & XHR)
+                string[] tlsVersions = { "TLS 1.1", "TLS 1.2" };
+                foreach (var ver in tlsVersions)
+                {
+                    foreach (var side in new[] { "Client", "Server" })
+                    {
+                        try
+                        {
+                            using (var k = Registry.LocalMachine.CreateSubKey($@"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\{ver}\{side}"))
+                            {
+                                if (k != null)
+                                {
+                                    k.SetValue("Enabled", 1, RegistryValueKind.DWord);
+                                    k.SetValue("DisabledByDefault", 0, RegistryValueKind.DWord);
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // 2. WinHTTP DefaultSecureProtocols = 0x00000A00 (TLS 1.1 + TLS 1.2) on both 64-bit & 32-bit hives
+                RegistryView[] views = Environment.Is64BitOperatingSystem
+                    ? new[] { RegistryView.Registry64, RegistryView.Registry32 }
+                    : new[] { RegistryView.Registry32 };
+
+                foreach (var view in views)
+                {
+                    try
+                    {
+                        using (var lm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
+                        using (var winHttp = lm.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp"))
+                        {
+                            winHttp?.SetValue("DefaultSecureProtocols", 0x00000A00, RegistryValueKind.DWord);
+                        }
+                    }
+                    catch { }
+
+                    // Also ensure IE FeatureControl entries in both 64-bit & 32-bit HKLM views
+                    try
+                    {
+                        using (var lm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
+                        {
+                            using (var xmlHttp = lm.CreateSubKey(@"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_XMLHTTP"))
+                            {
+                                xmlHttp?.SetValue("iexplore.exe", 1, RegistryValueKind.DWord);
+                                xmlHttp?.SetValue("msedge.exe", 1, RegistryValueKind.DWord);
+                            }
+                            using (var ajax = lm.CreateSubKey(@"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_AJAX_CONNECTIONEVENTS"))
+                            {
+                                ajax?.SetValue("iexplore.exe", 1, RegistryValueKind.DWord);
+                                ajax?.SetValue("msedge.exe", 1, RegistryValueKind.DWord);
+                            }
+                            using (var emu = lm.CreateSubKey(@"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION"))
+                            {
+                                emu?.SetValue("iexplore.exe", 5000, RegistryValueKind.DWord);
+                                emu?.SetValue("msedge.exe", 5000, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 3. HKCU FeatureControl XMLHTTP & AJAX & Scripted Windows
+                try
+                {
+                    using (var k = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_XMLHTTP"))
+                    {
+                        k?.SetValue("iexplore.exe", 1, RegistryValueKind.DWord);
+                        k?.SetValue("msedge.exe", 1, RegistryValueKind.DWord);
+                    }
+                    using (var k2 = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_AJAX_CONNECTIONEVENTS"))
+                    {
+                        k2?.SetValue("iexplore.exe", 1, RegistryValueKind.DWord);
+                        k2?.SetValue("msedge.exe", 1, RegistryValueKind.DWord);
+                    }
+                }
+                catch { }
+            }
+            catch { }
         }
 
         /// <summary>
@@ -1170,7 +1403,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1806", "Launching applications and unsafe files", 0, "Launching applications and unsafe files (Value = 0)", "Security"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "1809", "Use Pop-up Blocker", 0, "Use Pop-up Blocker (Value = 0)", "Pop-up Blocker"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2000", "Binary and script behaviors", 0, "Binary and script behaviors (Value = 0)", "ActiveX"));
-            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2001", "Run components signed with Authenticode / .NET", 3, "Disabled per exact user specification (3 = Disable)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2001", "Run components signed with Authenticode / .NET", 0, "Run components signed with Authenticode / .NET (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2004", "Run components not signed with Authenticode", 0, "Run components not signed with Authenticode (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2007", "Run components signed with Authenticode (Secondary)", 0, "Run components signed with Authenticode (Secondary) (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2100", "Open files based on content (MIME Sniffing)", 0, "Open files based on content (MIME Sniffing) (Value = 0)", "Downloads"));
@@ -1184,6 +1417,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2400", ".NET Framework: XAML browser applications", 0, ".NET Framework: XAML browser applications (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2401", ".NET Framework: XPS documents", 0, ".NET Framework: XPS documents (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2402", ".NET Framework: Loose XAML", 0, ".NET Framework: Loose XAML (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2500", "Turn On Protected Mode (Disabled for USB DSC)", 3, "Disable IE Protected Mode for DSC Token access (Value = 3)", "Security"));
+            catalog.Add(new ZoneSettingItem(1, "Local Intranet", "160A", "Include local directory path when uploading files", 0, "Include local directory path when uploading files (Value = 0)", "Security"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2600", "Enable .NET Framework setup", 0, "Enable .NET Framework setup (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2702", "ActiveX Filtering", 0, "ActiveX Filtering (Value = 0)", "ActiveX"));
             catalog.Add(new ZoneSettingItem(1, "Local Intranet", "2708", "Allow approved domains to use ActiveX", 0, "Allow approved domains to use ActiveX (Value = 0)", "ActiveX"));
@@ -1222,7 +1457,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1806", "Launching applications and unsafe files", 0, "Launching applications and unsafe files (Value = 0)", "Security"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "1809", "Use Pop-up Blocker", 0, "Use Pop-up Blocker (Value = 0)", "Pop-up Blocker"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2000", "Binary and script behaviors", 0, "Binary and script behaviors (Value = 0)", "ActiveX"));
-            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2001", "Run components signed with Authenticode / .NET", 3, "Disabled per exact user specification (3 = Disable)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2001", "Run components signed with Authenticode / .NET", 0, "Run components signed with Authenticode / .NET (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2004", "Run components not signed with Authenticode", 0, "Run components not signed with Authenticode (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2007", "Run components signed with Authenticode (Secondary)", 0, "Run components signed with Authenticode (Secondary) (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2100", "Open files based on content (MIME Sniffing)", 0, "Open files based on content (MIME Sniffing) (Value = 0)", "Downloads"));
@@ -1236,6 +1471,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2400", ".NET Framework: XAML browser applications", 0, ".NET Framework: XAML browser applications (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2401", ".NET Framework: XPS documents", 0, ".NET Framework: XPS documents (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2402", ".NET Framework: Loose XAML", 0, ".NET Framework: Loose XAML (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2500", "Turn On Protected Mode (Disabled for USB DSC)", 3, "Disable IE Protected Mode for DSC Token access (Value = 3)", "Security"));
+            catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "160A", "Include local directory path when uploading files", 0, "Include local directory path when uploading files (Value = 0)", "Security"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2600", "Enable .NET Framework setup", 0, "Enable .NET Framework setup (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2702", "ActiveX Filtering", 0, "ActiveX Filtering (Value = 0)", "ActiveX"));
             catalog.Add(new ZoneSettingItem(2, "Trusted Sites", "2708", "Allow approved domains to use ActiveX", 0, "Allow approved domains to use ActiveX (Value = 0)", "ActiveX"));
@@ -1273,7 +1510,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catalog.Add(new ZoneSettingItem(3, "Internet", "1806", "Launching applications and unsafe files", 0, "Launching applications and unsafe files (Value = 0)", "Security"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "1809", "Use Pop-up Blocker", 0, "Use Pop-up Blocker (Value = 0)", "Pop-up Blocker"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2000", "Binary and script behaviors", 0, "Binary and script behaviors (Value = 0)", "ActiveX"));
-            catalog.Add(new ZoneSettingItem(3, "Internet", "2001", "Run components signed with Authenticode / .NET", 3, "Disabled per exact user specification (3 = Disable)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2001", "Run components signed with Authenticode / .NET", 0, "Run components signed with Authenticode / .NET (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2004", "Run components not signed with Authenticode", 0, "Run components not signed with Authenticode (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2007", "Run components signed with Authenticode (Secondary)", 0, "Run components signed with Authenticode (Secondary) (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2100", "Open files based on content (MIME Sniffing)", 0, "Open files based on content (MIME Sniffing) (Value = 0)", "Downloads"));
@@ -1287,6 +1524,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catalog.Add(new ZoneSettingItem(3, "Internet", "2400", ".NET Framework: XAML browser applications", 0, ".NET Framework: XAML browser applications (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2401", ".NET Framework: XPS documents", 0, ".NET Framework: XPS documents (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2402", ".NET Framework: Loose XAML", 0, ".NET Framework: Loose XAML (Value = 0)", ".NET"));
+            catalog.Add(new ZoneSettingItem(3, "Internet", "2500", "Turn On Protected Mode (Disabled for USB DSC)", 3, "Disable IE Protected Mode for DSC Token access (Value = 3)", "Security"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2600", "Enable .NET Framework setup", 0, "Enable .NET Framework setup (Value = 0)", ".NET"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2702", "ActiveX Filtering", 0, "ActiveX Filtering (Value = 0)", "ActiveX"));
             catalog.Add(new ZoneSettingItem(3, "Internet", "2708", "Allow approved domains to use ActiveX", 0, "Allow approved domains to use ActiveX (Value = 0)", "ActiveX"));
@@ -1316,9 +1554,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 z0.SetValue("CurrentLevel", 0, RegistryValueKind.DWord);
                                 z0.SetValue("Flags", 0x21, RegistryValueKind.DWord);
                                 z0.SetValue("1200", 0, RegistryValueKind.DWord);
+                                z0.SetValue("1201", 0, RegistryValueKind.DWord);
                                 z0.SetValue("1400", 0, RegistryValueKind.DWord);
-                                z0.SetValue("2001", 3, RegistryValueKind.DWord);
-                                z0.SetValue("2004", 3, RegistryValueKind.DWord);
+                                z0.SetValue("2001", 0, RegistryValueKind.DWord);
+                                z0.SetValue("2004", 0, RegistryValueKind.DWord);
                             }
                         }
 
@@ -1367,6 +1606,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         Logger.LogWarn("Registry", $"Root hive zone application notice ({root.Name}): {rEx.Message}");
                     }
                 }
+
+                ApplyWindows7Ie11AndTlsFixes();
             }
             catch (Exception ex)
             {

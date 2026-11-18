@@ -22,7 +22,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         string safeQuery = (query ?? "").Replace("\\", "\\\\").Replace("\"", "'");
                         string safeCtx = (systemContext ?? "").Replace("\\", "\\\\").Replace("\"", "'").Replace("\r", " ").Replace("\n", " ");
 
-                        string payload = string.Format("{{\"query\":\"{0}\",\"systemContext\":{{\"context\":\"{1}\"}},\"language\":\"Telugu and English\"}}", safeQuery, safeCtx);
+                        string payload = string.Format("{{\"query\":\"{0}\",\"systemContext\":{{\"context\":\"{1}\"}},\"language\":\"English\"}}", safeQuery, safeCtx);
                         string res = wc.UploadString("https://www.e-vedhika.in/api/diagnose", "POST", payload);
 
                         if (!string.IsNullOrEmpty(res) && res.Contains("\"analysis\""))
@@ -52,7 +52,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                            "1. Open C# Deployment Tool -> Click 'One-Click Deployment' to write Zone 2 Internet Settings.\n" +
                            "2. Ensure HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\\2\\1201 is set to 0 (DWORD).\n" +
                            "3. Re-launch Microsoft Edge in IE Mode.\n\n" +
-                           "తెలుగు వివరణ: ActiveX సెట్టింగ్స్ సరిగ్గా లేకపోవడం వల్ల ఈ ఎర్రర్ వస్తుంది. టూల్‌లో One-Click Deployment రన్ చేస్తే ఆటోమేటిక్‌గా సరిదిద్దబడుతుంది.";
+                           "Summary: This error occurs due to incomplete ActiveX policy permissions. Running One-Click Deployment automatically fixes all Zone 2 settings.";
                 }
                 else if (query.ToLower().Contains("dsc") || query.ToLower().Contains("token") || query.ToLower().Contains("certificate"))
                 {
@@ -62,13 +62,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                            "1. Navigate to Drivers Tab -> Click 'Install Driver' for ProxKey / HYP2003 / mToken.\n" +
                            "2. Verify NIC DigiSigner WebSocket bridge is active on 127.0.0.1:8080.\n" +
                            "3. Re-insert USB Token into a USB 2.0/3.0 motherboard port.\n\n" +
-                           "తెలుగు వివరణ: డిజిటల్ సిగ్నేచర్ టోకెన్ డ్రైవర్ లేదా NIC DigiSigner పోర్ట్ 8080 బ్లాక్ కావడం వల్ల ఇది జరుగుతుంది. Drivers ట్యాబ్‌లో సంబంధిత డ్రైవర్ ఇన్‌స్టాల్ చేయండి.";
+                           "Summary: Install the matching DSC Token driver from the Drivers tab and ensure NIC DigiSigner port 8080 is running.";
                 }
 
                 return string.Format("AI TROUBLESHOOTER ANALYSIS FOR '{0}':\n", query) +
                        string.Format("System Context: {0}\n", systemContext) +
                        "Resolution: Verified Internet Explorer Integration Level policy and Zone 2 Trusted Sites registry payload. All parameters match Enterprise specifications.\n\n" +
-                       "తెలుగు వివరణ: మీ సిస్టమ్‌లోని అన్ని UBD పాలసీలు మరియు సెట్టింగ్స్ పరిశీలించబడ్డాయి. UBD పోర్టల్‌ను Microsoft Edge లో IE Mode లో ఓపెన్ చేయండి.";
+                       "Summary: All UBD policies and security zones are verified. Open the UBD Portal in Microsoft Edge IE Mode to continue.";
             }
             catch (Exception ex)
             {

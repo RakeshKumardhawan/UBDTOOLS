@@ -10,10 +10,10 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         public static void FixDscObjectError(Action<string> logCallback)
         {
-            logCallback("Starting DSC USB Token / [Object Error] Auto-Repair...");
+            logCallback("Starting DSC USB Token / Windows 7 [object Error] Auto-Repair...");
             try
             {
-                // 1. Force kill Edge to clear locked sessions
+                // 1. Force kill Edge & IE to clear locked sessions and reload registry/COM cleanly
                 logCallback("Closing active Microsoft Edge and Internet Explorer sessions...");
                 RunCommand("taskkill", "/F /IM msedge.exe /T", logCallback);
                 RunCommand("taskkill", "/F /IM iexplore.exe /T", logCallback);
@@ -23,18 +23,33 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 RunCommand("RunDll32.exe", "InetCpl.cpl,ClearMyTracksByProcess 8", logCallback);
                 RunCommand("RunDll32.exe", "InetCpl.cpl,ClearMyTracksByProcess 2", logCallback);
                 
-                // 3. Fix Smart Card Service (SCardSvr) which usually causes the [Object Error]
-                logCallback("Re-configuring Smart Card Service (SCardSvr) for automatic startup...");
+                // 3. Fix Smart Card & Certificate Propagation Services (SCardSvr, CertPropSvc)
+                logCallback("Re-configuring Smart Card Services (SCardSvr & CertPropSvc) for automatic startup...");
                 RunCommand("sc", "config SCardSvr start= auto", logCallback);
                 RunCommand("sc", "failure SCardSvr reset= 86400 actions= restart/5000/restart/5000/restart/5000", logCallback);
                 RunCommand("net", "start SCardSvr", logCallback);
-                
-                // 4. Force Registry Reload (Trust & ActiveX)
-                logCallback("Re-applying Trusted Sites and ActiveX Security protocols...");
+                RunCommand("sc", "config CertPropSvc start= auto", logCallback);
+                RunCommand("net", "start CertPropSvc", logCallback);
+
+                // 4. Windows 7 OS-level TLS 1.2, .NET Strong Crypto & IE11 Protected Mode / 64-bit Isolation fixes
+                logCallback("Applying Windows 7 TLS 1.2, SCHANNEL, IE11 Protected Mode OFF (2500=3) & 32-bit ActiveX fixes...");
+                OSCompatibilityEngine.ApplyCompatibilityShims();
                 RegistryManager.ConfigureTrustedSites("ubd.telangana.gov.in");
+                RegistryManager.ConfigureTrustedSites("ubd.ap.gov.in");
                 RegistryManager.ConfigureActiveXAndTLS();
-                
-                logCallback("DSC [Object Error] fixed successfully! Please open the UBD Portal and try signing again.");
+
+                // 5. Register SmartCard CSPs + Rebuild COM-Safe SignatureDemoLib.dll + Heal ActiveX & CAPICOM safely
+                logCallback("Rebuilding COM-Safe Signature Engine (v2.0.1.0) and repairing ActiveX / CAPICOM...");
+                DriverInstaller.RegisterSmartCardAndCspProviders();
+                UBDSigningFixEngine.ApplyUniversalTokenFix(logCallback);
+                DriverInstaller.RegisterActiveXComponents();
+                RegistryManager.HealDigiSignHelperAutomation();
+
+                // 6. Re-apply Enterprise Site List & IE5 Quirks Mode policies
+                string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { "ubd.telangana.gov.in", "ubd.ap.gov.in", "www.ubd.ap.gov.in" });
+                EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
+
+                logCallback("DSC / Deactivation [object Error] fixed successfully! Please re-open the UBD Portal and try again.");
             }
             catch (Exception ex)
             {

@@ -46,7 +46,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     // Non-admin fallback: HKCU policy is already active
                 }
 
-                // 3. Set legacy IE11 EnterpriseModeSiteList key under Internet Explorer policies (NOT under Edge)
+                // 3. Set legacy IE11 EnterpriseModeSiteList key under Internet Explorer policies (HKCU + HKLM)
                 try
                 {
                     using (RegistryKey ieKey = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Policies\Microsoft\Internet Explorer\Main\EnterpriseMode"))
@@ -57,10 +57,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             ieKey.SetValue("SiteList", siteListXmlPath, RegistryValueKind.String);
                         }
                     }
+                    using (RegistryKey ieKeyLm = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Policies\Microsoft\Internet Explorer\Main\EnterpriseMode"))
+                    {
+                        if (ieKeyLm != null)
+                        {
+                            ieKeyLm.SetValue("Enable", "1", RegistryValueKind.String);
+                            ieKeyLm.SetValue("SiteList", siteListXmlPath, RegistryValueKind.String);
+                        }
+                    }
                 }
                 catch { }
 
-                // 3. Enforce IE5 Browser Emulation
+                // 4. Enforce IE5 Browser Emulation (64-bit & 32-bit WOW6432Node for Win7 IE11)
                 ConfigureIE5BrowserEmulation();
 
                 return true;
@@ -86,22 +94,27 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     }
                 }
 
-                // Attempt HKLM
-                try
+                // Attempt HKLM in both 64-bit and 32-bit WOW6432Node views (critical for 32-bit IE11 on Win7 x64)
+                RegistryView[] views = Environment.Is64BitOperatingSystem
+                    ? new[] { RegistryView.Registry64, RegistryView.Registry32 }
+                    : new[] { RegistryView.Registry32 };
+
+                foreach (var view in views)
                 {
-                    using (RegistryKey hklmKey = Registry.LocalMachine.CreateSubKey(BrowserEmulationPath))
+                    try
                     {
-                        if (hklmKey != null)
+                        using (RegistryKey baseLm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
+                        using (RegistryKey hklmKey = baseLm.CreateSubKey(BrowserEmulationPath))
                         {
-                            hklmKey.SetValue("msedge.exe", 5000, RegistryValueKind.DWord);
-                            hklmKey.SetValue("iexplore.exe", 5000, RegistryValueKind.DWord);
-                            hklmKey.SetValue("NICDigiSigner.exe", 5000, RegistryValueKind.DWord);
+                            if (hklmKey != null)
+                            {
+                                hklmKey.SetValue("msedge.exe", 5000, RegistryValueKind.DWord);
+                                hklmKey.SetValue("iexplore.exe", 5000, RegistryValueKind.DWord);
+                                hklmKey.SetValue("NICDigiSigner.exe", 5000, RegistryValueKind.DWord);
+                            }
                         }
                     }
-                }
-                catch
-                {
-                    // HKLM skipped if non-admin
+                    catch { }
                 }
             }
             catch (Exception ex)

@@ -195,10 +195,11 @@ namespace EVedhikaUBDDeploymentTool
                 Padding = new Padding(12, 10, 8, 8)
             };
             Label lblBrand = new Label {
-                Text = "⚡ E-VEDHIKA PRO v1.1.0",
+                Text = "E-VEDHIKA PRO v1.1.0",
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(52, 211, 153),
                 AutoSize = true,
+                UseMnemonic = false,
                 Location = new Point(12, 12)
             };
             pnlSidebarBrand.Controls.Add(lblBrand);
@@ -211,10 +212,11 @@ namespace EVedhikaUBDDeploymentTool
                 Padding = new Padding(10, 8, 10, 8)
             };
             Label lblSideStatus = new Label {
-                Text = string.Format("● Online | PC: {0}\nVer: v1.1.0 | {1}\nRAM: {2}% | Ready (17-Step)", Environment.MachineName, Engine.AutoUpdateEngine.CurrentResourceBuild, Helpers.SystemInfoHelper.GetRamUsagePercentage()),
+                Text = string.Format("[ONLINE] PC: {0}\nVer: v1.1.0 | {1}\nRAM: {2}% | Ready (17-Step)", Environment.MachineName, Engine.AutoUpdateEngine.CurrentResourceBuild, Helpers.SystemInfoHelper.GetRamUsagePercentage()),
                 Font = new Font("Segoe UI", 8f),
                 ForeColor = Color.FromArgb(148, 163, 184),
                 AutoSize = true,
+                UseMnemonic = false,
                 Location = new Point(10, 10)
             };
             pnlSidebarBottom.Controls.Add(lblSideStatus);
@@ -315,6 +317,7 @@ namespace EVedhikaUBDDeploymentTool
 
                     Button btn = new Button();
                     btn.Text = page.Text;
+                    btn.UseMnemonic = false;
                     btn.Tag = page;
                     btn.Dock = DockStyle.Top;
                     btn.Height = 46;
@@ -373,6 +376,9 @@ namespace EVedhikaUBDDeploymentTool
         {
             foreach (Control c in parent.Controls)
             {
+                if (c is ButtonBase bb) bb.UseMnemonic = false;
+                else if (c is Label lbl) lbl.UseMnemonic = false;
+
                 Button btn = c as Button;
                 if (btn != null && btn.Parent != null && btn.Parent.GetType() != typeof(Panel))
                 {
@@ -431,7 +437,7 @@ namespace EVedhikaUBDDeploymentTool
         {
             if (tabRemote != null)
             {
-                tabRemote.Text = "⚡ PC Boost & Live Resources";
+                tabRemote.Text = "PC Boost & Live Resources";
             }
 
             ApplyExtraModernDarkTheme();
@@ -462,7 +468,8 @@ namespace EVedhikaUBDDeploymentTool
             };
 
             Button btnTour = new Button();
-            btnTour.Text = "ℹ️ Interactive Guide";
+            btnTour.Text = "Interactive Guide";
+            btnTour.UseMnemonic = false;
             btnTour.Size = new System.Drawing.Size(160, 34);
             btnTour.BackColor = System.Drawing.Color.FromArgb(16, 185, 129); // Emerald Green
             btnTour.ForeColor = System.Drawing.Color.White;
@@ -474,7 +481,8 @@ namespace EVedhikaUBDDeploymentTool
             btnTour.Click += delegate(object s, EventArgs ev) { RunInteractiveTour(); };
 
             Button btnCustomLevel = new Button();
-            btnCustomLevel.Text = "🛡️ Custom Level (సెక్యూరిటీ)";
+            btnCustomLevel.Text = "Security Custom Level";
+            btnCustomLevel.UseMnemonic = false;
             btnCustomLevel.Size = new System.Drawing.Size(190, 34);
             btnCustomLevel.BackColor = System.Drawing.Color.FromArgb(37, 99, 235); // Blue
             btnCustomLevel.ForeColor = System.Drawing.Color.White;
@@ -504,7 +512,8 @@ namespace EVedhikaUBDDeploymentTool
             };
 
             Button btnHeaderPortal = new Button();
-            btnHeaderPortal.Text = "🏛️ UBD Portal (IE Mode)";
+            btnHeaderPortal.Text = "UBD Portal (IE Mode)";
+            btnHeaderPortal.UseMnemonic = false;
             btnHeaderPortal.Size = new System.Drawing.Size(180, 34);
             btnHeaderPortal.BackColor = System.Drawing.Color.FromArgb(79, 70, 229); // Indigo
             btnHeaderPortal.ForeColor = System.Drawing.Color.White;
@@ -565,10 +574,11 @@ namespace EVedhikaUBDDeploymentTool
                 pnlBoostHub.Padding = new Padding(20);
                 
                 Label lblHeader = new Label();
-                lblHeader.Text = "🚀 Live System Resources Monitor & PC Boost Engine";
+                lblHeader.Text = "Live System Resources Monitor & PC Boost Engine";
                 lblHeader.Font = new Font("Segoe UI", 12, FontStyle.Bold);
                 lblHeader.ForeColor = Color.FromArgb(52, 211, 153); // Accent green
                 lblHeader.AutoSize = true;
+                lblHeader.UseMnemonic = false;
                 lblHeader.Location = new Point(15, 12);
                 pnlBoostHub.Controls.Add(lblHeader);
 
@@ -591,17 +601,19 @@ namespace EVedhikaUBDDeploymentTool
 
                 Label lblStats = new Label();
                 lblStats.Text = $"[Live PC Resources & System Monitor]\n" +
-                                $"📊 RAM Usage: {ramPct}%  |  🗑️ Cleanable Temp & Junk: {Math.Round(junkMB / 1024.0, 2)} GB ({junkMB} MB | {tempCount} files)\n" +
-                                $"💻 Processor: {Helpers.SystemInfoHelper.GetProcessorInfo()}  |  💾 Disk: {Helpers.SystemInfoHelper.GetDiskSpace()}\n" +
+                                $"RAM Usage: {ramPct}%  |  Cleanable Temp & Junk: {Math.Round(junkMB / 1024.0, 2)} GB ({junkMB} MB | {tempCount} files)\n" +
+                                $"Processor: {Helpers.SystemInfoHelper.GetProcessorInfo()}  |  Disk: {Helpers.SystemInfoHelper.GetDiskSpace()}\n" +
                                 $"Status: Optimal & Ready for One-Click PC_BOOST & Central Telemetry Sync.";
                 lblStats.Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
                 lblStats.ForeColor = Color.FromArgb(203, 213, 225); // Light slate text
                 lblStats.AutoSize = true;
+                lblStats.UseMnemonic = false;
                 lblStats.Location = new Point(15, 58);
                 pnlBoostHub.Controls.Add(lblStats);
 
                 Button btnRunBoost = new Button();
-                btnRunBoost.Text = "🚀 Run PC_BOOST & Optimize";
+                btnRunBoost.Text = "Run PC_BOOST & Optimize";
+                btnRunBoost.UseMnemonic = false;
                 btnRunBoost.Font = new Font("Segoe UI", 10, FontStyle.Bold);
                 btnRunBoost.BackColor = Color.FromArgb(16, 185, 129); // Emerald 500
                 btnRunBoost.ForeColor = Color.White;
@@ -614,9 +626,9 @@ namespace EVedhikaUBDDeploymentTool
                     btnRunBoost.Enabled = false;
                     btnRunBoost.Text = "Cleaning & Optimizing...";
                     PCBoostEngine.OptimizeSystem(delegate(string msg) { });
-                    MessageBox.Show("🚀 PC_BOOST & Junk Clean completed successfully!\n\nTemporary files cleaned, DNS cache flushed, and system performance optimized.", "PC Boost Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("PC_BOOST & Junk Clean completed successfully!\n\nTemporary files cleaned, DNS cache flushed, and system performance optimized.", "PC Boost Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     btnRunBoost.Enabled = true;
-                    btnRunBoost.Text = "🚀 Run PC_BOOST & Optimize";
+                    btnRunBoost.Text = "Run PC_BOOST & Optimize";
                 };
                 pnlBoostHub.Controls.Add(btnRunBoost);
 
@@ -641,7 +653,8 @@ namespace EVedhikaUBDDeploymentTool
                 txtRemoteLog.Visible = true;
 
                 Button btnTestCloud = new Button();
-                btnTestCloud.Text = "🌐 Test Central Cloud Report Hub Connection";
+                btnTestCloud.Text = "Test Central Cloud Report Hub Connection";
+                btnTestCloud.UseMnemonic = false;
                 btnTestCloud.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
                 btnTestCloud.BackColor = Color.FromArgb(30, 41, 59); // slate-800
                 btnTestCloud.ForeColor = Color.White;
@@ -688,11 +701,11 @@ namespace EVedhikaUBDDeploymentTool
                         
                         SafeInvoke(delegate() {
                             btnTestCloud.Enabled = true;
-                            btnTestCloud.Text = "🌐 Test Central Cloud Report Hub Connection";
+                            btnTestCloud.Text = "Test Central Cloud Report Hub Connection";
                             if (reachable)
-                                MessageBox.Show("✅ Central Cloud Report Hub is REACHABLE (24/7 Live)!\n\nReports & Ratings sync automatically to Google Cloud Firestore.", "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                MessageBox.Show("[OK] Central Cloud Report Hub is REACHABLE (24/7 Live)!\n\nReports & Ratings sync automatically to Google Cloud Firestore.", "Network Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             else
-                                MessageBox.Show("⚠️ Central Cloud Report Hub is NOT reachable.\n\nError: " + msg + "\n\nThis system might be blocked by a firewall or proxy.", "Network Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                MessageBox.Show("[!] Central Cloud Report Hub is NOT reachable.\n\nError: " + msg + "\n\nThis system might be blocked by a firewall or proxy.", "Network Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         });
                     });
                 };
@@ -718,16 +731,18 @@ namespace EVedhikaUBDDeploymentTool
                 
                 // Title
                 Label lblHubTitle = new Label();
-                lblHubTitle.Text = "🏛️ Quick Launch Portals & Real-Time Environment Integrity Hub";
+                lblHubTitle.Text = "Quick Launch Portals & Real-Time Environment Integrity Hub";
                 lblHubTitle.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
                 lblHubTitle.ForeColor = Color.FromArgb(56, 189, 248); // sky-400
                 lblHubTitle.Location = new Point(8, 8);
                 lblHubTitle.AutoSize = true;
+                lblHubTitle.UseMnemonic = false;
                 pnlDeployHub.Controls.Add(lblHubTitle);
                 
                 // Quick Portal Buttons
                 Button btnLaunchTG = new Button();
-                btnLaunchTG.Text = "🏛️ Telangana UBD (IE Mode)";
+                btnLaunchTG.Text = "Telangana UBD (IE Mode)";
+                btnLaunchTG.UseMnemonic = false;
                 btnLaunchTG.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
                 btnLaunchTG.BackColor = Color.FromArgb(2, 132, 199); // Sky-600
                 btnLaunchTG.ForeColor = Color.White;
@@ -742,7 +757,8 @@ namespace EVedhikaUBDDeploymentTool
                 pnlDeployHub.Controls.Add(btnLaunchTG);
 
                 Button btnLaunchAP = new Button();
-                btnLaunchAP.Text = "🏛️ AP UBD (IE Mode)";
+                btnLaunchAP.Text = "AP UBD (IE Mode)";
+                btnLaunchAP.UseMnemonic = false;
                 btnLaunchAP.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
                 btnLaunchAP.BackColor = Color.FromArgb(37, 99, 235); // Blue-600
                 btnLaunchAP.ForeColor = Color.White;
@@ -757,7 +773,8 @@ namespace EVedhikaUBDDeploymentTool
                 pnlDeployHub.Controls.Add(btnLaunchAP);
 
                 Button btnLaunchWeb = new Button();
-                btnLaunchWeb.Text = "🌐 E-Vedhika Web App";
+                btnLaunchWeb.Text = "E-Vedhika Web App";
+                btnLaunchWeb.UseMnemonic = false;
                 btnLaunchWeb.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
                 btnLaunchWeb.BackColor = Color.FromArgb(79, 70, 229); // Indigo-600
                 btnLaunchWeb.ForeColor = Color.White;
@@ -772,7 +789,8 @@ namespace EVedhikaUBDDeploymentTool
                 pnlDeployHub.Controls.Add(btnLaunchWeb);
 
                 Button btnInetcpl = new Button();
-                btnInetcpl.Text = "⚙️ Internet Options (Zone 2)";
+                btnInetcpl.Text = "Internet Options (Zone 2)";
+                btnInetcpl.UseMnemonic = false;
                 btnInetcpl.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
                 btnInetcpl.BackColor = Color.FromArgb(51, 65, 85); // Slate-700
                 btnInetcpl.ForeColor = Color.White;
@@ -795,23 +813,25 @@ namespace EVedhikaUBDDeploymentTool
                 pnlStatusGrid.BorderStyle = BorderStyle.FixedSingle;
 
                 Label lblEnvTitle = new Label();
-                lblEnvTitle.Text = "🛡️ REAL-TIME SYSTEM ENVIRONMENT & CRYPTOGRAPHIC HEALTH";
+                lblEnvTitle.Text = "REAL-TIME SYSTEM ENVIRONMENT & CRYPTOGRAPHIC HEALTH";
                 lblEnvTitle.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
                 lblEnvTitle.ForeColor = Color.FromArgb(52, 211, 153); // Emerald-400
                 lblEnvTitle.Location = new Point(12, 8);
                 lblEnvTitle.AutoSize = true;
+                lblEnvTitle.UseMnemonic = false;
                 pnlStatusGrid.Controls.Add(lblEnvTitle);
 
                 Label lblEnv1 = new Label();
-                lblEnv1.Text = "✔ Microsoft Edge Enterprise Site List: sites.xml (IE5 Quirks Mode Enforced)\n" +
-                               "✔ Windows CryptoAPI & PKCS#11 CSP: ProxKey, ePass2003, Class 3 mToken Active\n" +
-                               "✔ NIC DigiSigner WebSocket: Port 8080 Firewall Loopback Unlocked\n" +
-                               "✔ DigiSignHelper & CAPICOM ActiveX: 32-Bit SysWOW64 Dual Reg Healed\n" +
-                               "✔ Official Government Portals: Telangana & AP UBD Deployment Certified";
+                lblEnv1.Text = "[OK] Microsoft Edge Enterprise Site List: sites.xml (IE5 Quirks Mode Enforced)\n" +
+                               "[OK] Windows CryptoAPI & PKCS#11 CSP: ProxKey, ePass2003, Class 3 mToken Active\n" +
+                               "[OK] NIC DigiSigner WebSocket: Port 8080 Firewall Loopback Unlocked\n" +
+                               "[OK] DigiSignHelper & CAPICOM ActiveX: 32-Bit SysWOW64 Dual Reg Healed\n" +
+                               "[OK] Official Government Portals: Telangana & AP UBD Deployment Certified";
                 lblEnv1.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
                 lblEnv1.ForeColor = Color.FromArgb(203, 213, 225);
                 lblEnv1.Location = new Point(12, 30);
                 lblEnv1.AutoSize = true;
+                lblEnv1.UseMnemonic = false;
                 pnlStatusGrid.Controls.Add(lblEnv1);
 
                 pnlDeployHub.Controls.Add(pnlStatusGrid);
@@ -839,7 +859,7 @@ namespace EVedhikaUBDDeploymentTool
             }
             catch { }
             LogMessage("SYSTEM", "=========================================================");
-            LogMessage("SYSTEM", "System initialized. Click '▶ Start 17-Step Deployment' to begin.");
+            LogMessage("SYSTEM", "System initialized. Click 'Start 17-Step Deployment' to begin.");
 
             RunSystemDiagnostics();
             
@@ -883,7 +903,7 @@ namespace EVedhikaUBDDeploymentTool
                             { "appState", "RUNNING" },
                             { "version", "v1.1.0" },
                             { "suppressTelegram", "true" },
-                            { "remarks", "⚡ App Opened: E-Vedhika v1.1.0 running and ready for deployment." }
+                            { "remarks", "[ONLINE] App Opened: E-Vedhika v1.1.0 running and ready for deployment." }
                         };
                         Logger.SendCentralTelemetry(startupData);
                     }
@@ -1016,7 +1036,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 if (!LicenseManager.EnsureAllowedOrShowSubscriptionDialog(this))
                 {
-                    LogMessage("LICENSE", "Subscription required (₹10 / 30 Days). Waiting for Admin activation.");
+                    LogMessage("LICENSE", "Subscription required (Rs.10 / 30 Days). Waiting for Admin activation.");
                     return;
                 }
             }
@@ -1125,8 +1145,8 @@ namespace EVedhikaUBDDeploymentTool
                 LogMessage("DEPLOY", string.Format("Generated On        : {0}", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss")));
                 LogMessage("DEPLOY", "Software Version    : EVedhika_Setup_v1.1.0.exe");
                 LogMessage("DEPLOY", "==========================================");
-                LogMessage("DEPLOY", "✓ UBD Portal launched in Microsoft Edge (IE Mode active).");
-                LogMessage("DEPLOY", "✓ E-Vedhika Web App launched in default browser.");
+                LogMessage("DEPLOY", "[OK] UBD Portal launched in Microsoft Edge (IE Mode active).");
+                LogMessage("DEPLOY", "[OK] E-Vedhika Web App launched in default browser.");
             });
             
             try
@@ -1468,19 +1488,21 @@ namespace EVedhikaUBDDeploymentTool
                         DriverInstaller.InstallNICDigiSignerMsiSilent();
                     }
 
-                    // Heal DigiSignHelper automation registry keys
+                    // Heal DigiSignHelper automation registry keys (safely preserving CAPICOM & .NET COM)
                     RegistryManager.HealDigiSignHelperAutomation();
+                    UBDSigningFixEngine.VerifyAndEnforceIntegrity(delegate(string msg) {
+                        SafeInvoke(delegate() { LogMessage("UBD-FIX", msg); });
+                    });
                     
                     // Verify by attempting to create COM object
                     bool comOk = DriverInstaller.VerifyDigiSignHelperCom();
                     if (comOk)
                     {
-                        LogMessage("DRIVERS", "[OK] DigiSignHelper COM object verified.");
+                        LogMessage("DRIVERS", "[OK] Signing COM Object (SignatureDemoLib / DigiSignHelper / CAPICOM) verified.");
                     }
                     else
                     {
-                        LogMessage("WARN", "[WARNING] DigiSignHelper COM not responding. Portal may show 'Automation server can't create object' error.");
-                        LogMessage("WARN", "Fix: Ensure installers/DigiSignHelper.dll is present and app runs as Admin.");
+                        LogMessage("WARN", "[WARNING] Signing COM object check returned warning. Step 16 will enforce COM-safe rebuild.");
                     }
                     break;
                 case 10:
@@ -1549,7 +1571,7 @@ namespace EVedhikaUBDDeploymentTool
                         // SafeInvoke now uses synchronous Invoke, so dr will be updated correctly
                         SafeInvoke(delegate() {
                             dr = MessageBox.Show(this,
-                                string.Format("మీ కంప్యూటర్‌కు USB DSC టోకెన్ అమర్చబడలేదు. (Attempt {0}/{1})\n\nదయచేసి టోకెన్ అమర్చి 'Retry' నొక్కండి. లేకపోతే 'Cancel' నొక్కండి.", attempts, maxAttempts),
+                                string.Format("No USB DSC Token detected on this computer. (Attempt {0}/{1})\n\nPlease insert your USB DSC token and click 'Retry', or click 'Cancel' to continue.", attempts, maxAttempts),
                                 "E-Vedhika - DSC Token Verification",
                                 MessageBoxButtons.RetryCancel,
                                 MessageBoxIcon.Warning);
@@ -1567,7 +1589,7 @@ namespace EVedhikaUBDDeploymentTool
 
                     if (tokenFound)
                     {
-                        LogMessage("HARDWARE", "✓ USB DSC Token Detected.");
+                        LogMessage("HARDWARE", "[OK] USB DSC Token Detected.");
                         SafeInvoke(delegate() { DiagnosticsEngine.VerifyDscPin(this); });
                     }
                     else
@@ -1611,11 +1633,11 @@ namespace EVedhikaUBDDeploymentTool
             bool ok = DriverInstaller.RegisterActiveXComponents();
             if (ok)
             {
-                MessageBox.Show("✅ DigiSignHelper & CAPICOM ActiveX components have been registered successfully in both 32-bit and 64-bit Windows subsystems!", "ActiveX Registration", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("[OK] DigiSignHelper & CAPICOM ActiveX components have been registered successfully in both 32-bit and 64-bit Windows subsystems!", "ActiveX Registration", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
-                MessageBox.Show("⚠️ ActiveX registration completed with warnings. Please ensure the tool is running as Administrator.", "ActiveX Registration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("[!] ActiveX registration completed with warnings. Please ensure the tool is running as Administrator.", "ActiveX Registration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -1637,21 +1659,21 @@ namespace EVedhikaUBDDeploymentTool
                 bool comVerified = DriverInstaller.VerifyDigiSignHelperCom();
 
                 sb.AppendLine("[1] USB HARDWARE & SMARTCARD DETECTION:");
-                sb.AppendLine(string.Format("    ● USB DSC Hardware Detected    : {0}", isPlugged ? "✔ YES (Connected)" : "✖ No USB DSC Token detected"));
-                sb.AppendLine(string.Format("    ● Smart Card Process Activity   : {0}", sCardActive ? "✔ Active (SCardSvr responsive)" : "Inactive"));
+                sb.AppendLine(string.Format("    * USB DSC Hardware Detected    : {0}", isPlugged ? "[OK] YES (Connected)" : "[X] No USB DSC Token detected"));
+                sb.AppendLine(string.Format("    * Smart Card Process Activity  : {0}", sCardActive ? "[OK] Active (SCardSvr responsive)" : "Inactive"));
                 sb.AppendLine();
                 sb.AppendLine("[2] INSTALLED TOKEN DRIVERS & CRYPTOGRAPHIC CSPs:");
-                sb.AppendLine(string.Format("    ● Watchdata ProxKey (wdscsp)   : {0}", isProxKey ? "✔ Installed & Active" : "Not Installed"));
-                sb.AppendLine(string.Format("    ● ePass2003 / HYP2003 (eps2003): {0}", isHyp2003 ? "✔ Installed & Active" : "Not Installed"));
-                sb.AppendLine(string.Format("    ● Longmai mToken (Class 3)     : {0}", isMToken ? "✔ Installed & Active (Level 3 Ready)" : "Not Installed"));
-                sb.AppendLine(string.Format("    ● NIC DigiSigner WebSocket     : {0}", isDigiSigner ? "✔ Installed (Port 8080)" : "Not Installed"));
-                sb.AppendLine(string.Format("    ● DigiSignHelper ActiveX COM   : {0}", comVerified ? "✔ Verified & Callable" : "Registration Needed"));
+                sb.AppendLine(string.Format("    * Watchdata ProxKey (wdscsp)   : {0}", isProxKey ? "[OK] Installed & Active" : "Not Installed"));
+                sb.AppendLine(string.Format("    * ePass2003 / HYP2003 (eps2003): {0}", isHyp2003 ? "[OK] Installed & Active" : "Not Installed"));
+                sb.AppendLine(string.Format("    * Longmai mToken (Class 3)     : {0}", isMToken ? "[OK] Installed & Active (Level 3 Ready)" : "Not Installed"));
+                sb.AppendLine(string.Format("    * NIC DigiSigner WebSocket     : {0}", isDigiSigner ? "[OK] Installed (Port 8080)" : "Not Installed"));
+                sb.AppendLine(string.Format("    * DigiSignHelper ActiveX COM   : {0}", comVerified ? "[OK] Verified & Callable" : "Registration Needed"));
                 sb.AppendLine();
                 sb.AppendLine("[3] RECOMMENDATION & NEXT ACTIONS:");
                 if (!isPlugged) {
-                    sb.AppendLine("    👉 Insert your Watchdata ProxKey, ePass2003, or mToken USB token into any USB port and click Scan again.");
+                    sb.AppendLine("    -> Insert your Watchdata ProxKey, ePass2003, or mToken USB token into any USB port and click Scan again.");
                 } else {
-                    sb.AppendLine("    👉 Token is detected! Ready for digital signing in UBD Telangana / AP portals.");
+                    sb.AppendLine("    -> Token is detected! Ready for digital signing in UBD Telangana / AP portals.");
                 }
 
                 SafeInvoke(delegate {
@@ -1707,7 +1729,26 @@ namespace EVedhikaUBDDeploymentTool
                     return;
                 }
 
-                // 2. Windows 10/11 native Microsoft Edge protocol handler (Guaranteed to open strictly in Microsoft Edge)
+                // 2. Windows 7 / 8 fallback: launch Internet Explorer 11 (iexplore.exe) directly so ActiveX & Deactivation COM controls load!
+                // NEVER fall back to Chrome/Firefox or 'microsoft-edge:' on Windows 7 when Edge is missing.
+                if (Environment.OSVersion.Version.Major < 10)
+                {
+                    string iePath32 = @"C:\Program Files (x86)\Internet Explorer\iexplore.exe";
+                    string iePath64 = @"C:\Program Files\Internet Explorer\iexplore.exe";
+                    string chosenIe = File.Exists(iePath32) ? iePath32 : (File.Exists(iePath64) ? iePath64 : null);
+                    if (!string.IsNullOrEmpty(chosenIe))
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = chosenIe,
+                            Arguments = $"\"{url}\"",
+                            UseShellExecute = true
+                        });
+                        return;
+                    }
+                }
+
+                // 3. Windows 10/11 native Microsoft Edge protocol handler (Guaranteed to open strictly in Microsoft Edge)
                 try
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -1719,14 +1760,27 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 catch { }
 
-                // 3. Fallback to default browser
+                // 4. Final fallback to iexplore.exe or default browser
+                string ieFallback = @"C:\Program Files\Internet Explorer\iexplore.exe";
+                if (File.Exists(ieFallback))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ieFallback, Arguments = $"\"{url}\"", UseShellExecute = true });
+                    return;
+                }
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
             }
             catch (Exception ex)
             {
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = "microsoft-edge:" + url, UseShellExecute = true });
+                    if (Environment.OSVersion.Version.Major < 10 && File.Exists(@"C:\Program Files\Internet Explorer\iexplore.exe"))
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = @"C:\Program Files\Internet Explorer\iexplore.exe", Arguments = $"\"{url}\"", UseShellExecute = true });
+                    }
+                    else
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = "microsoft-edge:" + url, UseShellExecute = true });
+                    }
                 }
                 catch { }
                 EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently("UBD Portal Launch Failed", "Failed to launch " + url + ": " + ex.Message, "PORTAL-LAUNCH");
@@ -1940,10 +1994,11 @@ namespace EVedhikaUBDDeploymentTool
 
                     Label lblHeader = new Label
                     {
-                        Text = "📢 Latest from E-Vedhika Website (Live Posts)",
+                        Text = "Latest from E-Vedhika Website (Live Posts)",
                         Font = new Font("Segoe UI", 12, FontStyle.Bold),
                         ForeColor = Color.FromArgb(251, 233, 71),
                         AutoSize = true,
+                        UseMnemonic = false,
                         Margin = new Padding(0, 0, 0, 15)
                     };
                     pnlNews.Controls.Add(lblHeader);
@@ -2037,7 +2092,7 @@ namespace EVedhikaUBDDeploymentTool
                         {
                             sw.Stop();
                             int code = (int)resp.StatusCode;
-                            SafeInvoke(delegate() { LogMessage("PORTAL-PING", $"[ONLINE] {url} -> HTTP {code} in {sw.ElapsedMilliseconds} ms (🟢 Excellent)"); });
+                            SafeInvoke(delegate() { LogMessage("PORTAL-PING", $"[ONLINE] {url} -> HTTP {code} in {sw.ElapsedMilliseconds} ms (Excellent)"); });
                         }
                     }
                     catch (System.Net.WebException wex)
@@ -2093,7 +2148,7 @@ namespace EVedhikaUBDDeploymentTool
                 string diagSummary = DiagnosticsEngine.GetSystemDiagnosticSummary();
                 string dscStatus = SystemInfoHelper.CheckDscStatus();
 
-                LogMessage("REPORT", "⚡ Autonomous background report silently dispatched to Google AI Studio & GitHub...");
+                LogMessage("REPORT", "[REPORT] Autonomous background report silently dispatched to Google AI Studio & GitHub...");
 
                 // 100% Automatic silent background dispatch - Zero permissions, zero popups
                 EVedhikaUBDDeploymentTool.Helpers.GitHubIssueDispatcher.AutoReportSilently(
@@ -2104,10 +2159,10 @@ namespace EVedhikaUBDDeploymentTool
 
                 if (lblAiStatus != null)
                 {
-                    lblAiStatus.Text = "✅ సమస్య రిపోర్ట్ టెలిగ్రామ్ & AI స్టూడియోకు పంపబడింది! (Report dispatched to Telegram & Support)";
+                    lblAiStatus.Text = "[OK] Issue report dispatched to Telegram & Support Hub!";
                     lblAiStatus.ForeColor = Color.FromArgb(16, 185, 129);
                 }
-                LogMessage("REPORT", "✅ Issue Report dispatched to Telegram Alerts (@DhawanRakesh) & Central Cloud Report Hub!");
+                LogMessage("REPORT", "[OK] Issue Report dispatched to Telegram Alerts (@DhawanRakesh) & Central Cloud Report Hub!");
             }
             catch (Exception ex)
             {
@@ -2128,8 +2183,8 @@ namespace EVedhikaUBDDeploymentTool
         private void btnRollback_Click(object sender, EventArgs e)
         {
             DialogResult dr = MessageBox.Show(
-                "Are you sure you want to rollback all Internet Security Settings and Zone policies to the previous pre-deployment backup snapshot?\n\n(మునుపటి బ్యాకప్ నుండి సెక్యూరిటీ జోన్ సెట్టింగ్స్‌ను రోల్‌బ్యాక్ / రీస్టోర్ చేయాలనుకుంటున్నారా?)",
-                "Rollback Security Zones / రోల్‌బ్యాక్ సెట్టింగ్స్",
+                "Are you sure you want to rollback all Internet Security Settings and Zone policies to the previous pre-deployment backup snapshot?",
+                "Rollback Security Zones",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 
@@ -2167,8 +2222,8 @@ namespace EVedhikaUBDDeploymentTool
         private void btnUninstall_Click(object sender, EventArgs e)
         {
             DialogResult dr = MessageBox.Show(
-                "Are you sure you want to completely uninstall & revert all E-Vedhika UBD Deployment Tool configurations, Edge IE Mode policies, registry entries, shortcuts, and application files?\n\n(మీరు ఇ-వేదిక UBD డిప్లాయ్‌మెంట్ టూల్ సెట్టింగ్స్, రిజిస్ట్రీ మరియు ఫైళ్లను అన్‌ఇన్‌స్టాల్ చేసి రీవర్ట్ చేయాలనుకుంటున్నారా?)",
-                "Confirm Complete Uninstall / అన్‌ఇన్‌స్టాల్ రీవర్ట్",
+                "Are you sure you want to completely uninstall & revert all E-Vedhika UBD Deployment Tool configurations, Edge IE Mode policies, registry entries, shortcuts, and application files?",
+                "Confirm Complete Uninstall",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
 
@@ -2176,7 +2231,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 UninstallEngine.PerformFullUninstall(delegate(string msg) { LogMessage("UNINSTALL", msg); });
                 MessageBox.Show(
-                    "All E-Vedhika UBD Deployment Tool configurations, registry policies, shortcuts, and files have been cleanly uninstalled and reverted!\n\n(అన్ని సెట్టింగ్‌లు మరియు ఫైళ్లు విజయవంతంగా అన్‌ఇన్‌స్టాల్ అయ్యాయి!)",
+                    "All E-Vedhika UBD Deployment Tool configurations, registry policies, shortcuts, and files have been cleanly uninstalled and reverted!",
                     "Uninstall Completed",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -2278,8 +2333,8 @@ namespace EVedhikaUBDDeploymentTool
             {
                 Helpers.NativeRemoteAgent.StopRemoteSession();
                 isRemotePaused = true;
-                btnToggleRemote.Text = "▶ Resume Remote Agent";
-                lblRemoteStatus.Text = "Status: ⏸️ PAUSED (Remote Screen Sharing Stopped)";
+                btnToggleRemote.Text = "Resume Remote Agent";
+                lblRemoteStatus.Text = "Status: PAUSED (Remote Screen Sharing Stopped)";
                 lblRemoteStatus.ForeColor = System.Drawing.Color.Orange;
                 LogRemoteMessage("REMOTE", "Remote screen sharing session paused by operator.");
             }
@@ -2287,8 +2342,8 @@ namespace EVedhikaUBDDeploymentTool
             {
                 Helpers.NativeRemoteAgent.StartRemoteSession();
                 isRemotePaused = false;
-                btnToggleRemote.Text = "⏸️ Pause Remote Agent";
-                lblRemoteStatus.Text = "Status: 🟢 LIVE ONLINE & REPORTING TO E-VEDHIKA WEBSITE";
+                btnToggleRemote.Text = "Pause Remote Agent";
+                lblRemoteStatus.Text = "Status: LIVE ONLINE & REPORTING TO E-VEDHIKA WEBSITE";
                 lblRemoteStatus.ForeColor = System.Drawing.Color.FromArgb(16, 185, 129);
                 LogRemoteMessage("REMOTE", "Remote screen sharing session resumed successfully.");
             }
@@ -2380,27 +2435,27 @@ namespace EVedhikaUBDDeploymentTool
 
         private void RunInteractiveTour()
         {
-            MessageBox.Show("నమస్కారం! E-Vedhika యాప్ ఇంటరాక్టివ్ గైడ్‌కి స్వాగతం.\n\nఈ సాఫ్ట్‌వేర్‌లో ఏ ఆప్షన్ ఎందుకు ఉందో, దేన్ని ఎలా వాడుకోవాలో ఇప్పుడు మీకు స్టెప్-బై-స్టెప్ వివరిస్తాం. ప్రారంభించడానికి OK నొక్కండి.", "Interactive Guide", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Welcome to the E-Vedhika Interactive Guide!\n\nLet's walk through every section step-by-step so you can use all features effortlessly. Click OK to begin.", "Interactive Guide", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Step 1: Deploy
             if(tabControlMain != null && tabDeploy != null) tabControlMain.SelectedTab = tabDeploy;
-            MessageBox.Show("1. One-Click Deployment (డ్యాష్‌బోర్డ్):\n\nఇక్కడ ఉన్న ఆకుపచ్చ బటన్ (Execute Deploy) నొక్కితే చాలు. UBD పోర్టల్ కోసం కావాల్సిన IE మోడ్, రిజిస్ట్రీ సెట్టింగ్స్ మొత్తం 17 స్టెప్స్‌లో ఆటోమేటిక్‌గా సెట్ అవుతాయి.", "Tour: 17-Step Deployment", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("1. One-Click Deployment (Dashboard):\n\nSimply click the green 'Execute Deploy' button. All 17 UBD configuration steps (Microsoft Edge IE Mode, Trusted Sites, ActiveX & DSC policies) will be applied automatically.", "Tour: 17-Step Deployment", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Step 2: Diagnostics
             if(tabControlMain != null && tabDiagnostics != null) tabControlMain.SelectedTab = tabDiagnostics;
-            MessageBox.Show("2. Diagnostics & PC Boost (క్లీనర్):\n\nమీ కంప్యూటర్ స్లో అయినప్పుడు జంక్ ఫైల్స్ క్లీన్ చేయడానికి, ప్రింటర్ ప్రాబ్లమ్స్ సాల్వ్ చేయడానికి లేదా పూర్తి హెల్త్ చెక్ కోసం ఈ సెక్షన్ వాడండి.", "Tour: Diagnostics & PC Boost", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("2. Diagnostics & PC Boost:\n\nUse this tab to clean system junk files, fix printer or browser conflicts, or run a complete workstation health check.", "Tour: Diagnostics & PC Boost", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Step 3: Drivers
             if(tabControlMain != null && tabDrivers != null) tabControlMain.SelectedTab = tabDrivers;
-            MessageBox.Show("3. Drivers & Token (డీఎస్సీ పరిష్కారం):\n\nఒకవేళ మీ డిజిటల్ సిగ్నేచర్ (DSC Token) పని చేయకపోతే, ఇక్కడ ProxKey లేదా HYP2003 డ్రైవర్లను ఒక్క క్లిక్‌తో ఇన్‌స్టాల్ చేసుకోండి.", "Tour: Drivers", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("3. Drivers & USB DSC Token:\n\nIf your USB DSC Token (ProxKey, HYP2003, or mToken) is not signing, install its driver or register ActiveX here with a single click.", "Tour: Drivers", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Step 4: Remote
             if(tabControlMain != null && tabRemote != null) tabControlMain.SelectedTab = tabRemote;
-            MessageBox.Show("4. Remote Support (సహాయ కేంద్రం):\n\nమీకు ఏదైనా సాంకేతిక సమస్య వస్తే, ఇక్కడ ఉన్న 'Remote Agent' ఆన్ చేయండి. ఐటీ టీమ్ మీ స్క్రీన్‌ను సురక్షితంగా చూసి ప్రాబ్లమ్ సాల్వ్ చేస్తారు.", "Tour: Remote Support", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("4. PC Boost & Live Resources:\n\nCheck live PC performance, test cloud telemetry connectivity, or manage the Remote Support Agent from this tab.", "Tour: Remote Support", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Finish
             if(tabControlMain != null && tabDeploy != null) tabControlMain.SelectedTab = tabDeploy;
-            MessageBox.Show("గైడ్ పూర్తయింది!\n\nమీకు ఎప్పుడైనా మళ్లీ ఈ గైడ్ కావాలంటే కుడి వైపు పైన ఉన్న 'Start Interactive Guide' బటన్ ద్వారా మళ్ళీ చదవవచ్చు.", "Tour Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Guide Complete!\n\nYou can revisit this tour anytime by clicking 'Interactive Guide' at the top-right header.", "Tour Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void RunProactiveHealthCheckBackground()
@@ -2452,7 +2507,7 @@ namespace EVedhikaUBDDeploymentTool
                                     {
                                         trayNotifyIcon.ShowBalloonTip(
                                             8000,
-                                            "✨ E-Vedhika OTA Update Available",
+                                            "E-Vedhika OTA Update Available",
                                             $"New Release {otaInfo.LatestVersion} (Build: {otaInfo.LatestResourceBuild}) is ready to install!",
                                             ToolTipIcon.Info
                                         );
@@ -2486,26 +2541,26 @@ namespace EVedhikaUBDDeploymentTool
             {
                 trayContextMenu = new ContextMenuStrip();
                 
-                var itemOpen = new ToolStripMenuItem("⚡ Open E-Vedhika UBD Suite");
+                var itemOpen = new ToolStripMenuItem("Open E-Vedhika UBD Suite");
                 itemOpen.Font = new Font("Segoe UI", 9, FontStyle.Bold);
                 itemOpen.Click += (s, e) => RestoreFromTray();
                 trayContextMenu.Items.Add(itemOpen);
 
-                var itemDsc = new ToolStripMenuItem("🔑 Check USB DSC Token Status");
+                var itemDsc = new ToolStripMenuItem("Check USB DSC Token Status");
                 itemDsc.Click += (s, e) => { RestoreFromTray(); CheckAndReportDscStatus(); };
                 trayContextMenu.Items.Add(itemDsc);
 
-                var itemDeploy = new ToolStripMenuItem("🛠️ Run One-Click Deployment (17 Steps)");
+                var itemDeploy = new ToolStripMenuItem("Run One-Click Deployment (17 Steps)");
                 itemDeploy.Click += (s, e) => { RestoreFromTray(); ExecuteFullDeployment(); };
                 trayContextMenu.Items.Add(itemDeploy);
 
-                var itemUpdates = new ToolStripMenuItem("🔄 Check for Updates");
+                var itemUpdates = new ToolStripMenuItem("Check for Updates");
                 itemUpdates.Click += (s, e) => { RestoreFromTray(); ExecuteCheckForUpdatesInteractive(); };
                 trayContextMenu.Items.Add(itemUpdates);
 
                 trayContextMenu.Items.Add(new ToolStripSeparator());
 
-                var itemExit = new ToolStripMenuItem("❌ Exit 24x7 Guardian");
+                var itemExit = new ToolStripMenuItem("Exit 24x7 Guardian");
                 itemExit.Click += (s, e) => ExitApplicationFromTray();
                 trayContextMenu.Items.Add(itemExit);
 
@@ -2697,12 +2752,12 @@ namespace EVedhikaUBDDeploymentTool
         {
             string status = SystemInfoHelper.CheckDscStatus();
             MessageBox.Show(
-                $"🔑 USB DSC Token Status: {status}\n\n" +
+                $"USB DSC Token Status: {status}\n\n" +
                 $"• SmartCard Service (SCardSvr): Running\n" +
                 $"• SignatureDemoLib.dll: v2.0.0.0 Registered\n" +
                 $"• Algorithm Compliance: SHA256 (2.16.840.1.101.3.4.2.1) & SHA1 Dual Fallback Active\n" +
                 $"• NIC DigiSigner WebSocket: Port 8080 Active\n\n" +
-                $"(E-Vedhika 24x7 Guardian సజీవంగా ఉంది. UBD పోర్టల్‌లో సంతకం విజయవంతమయ్యే వరకు మన అప్లికేషన్ బాధ్యత వహిస్తుంది.)",
+                $"(E-Vedhika 24x7 Guardian is active and monitoring digital signature readiness for the UBD portal.)",
                 "USB DSC Token Status & Guardian",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
@@ -2715,7 +2770,7 @@ namespace EVedhikaUBDDeploymentTool
                 if (tabControlMain == null) return;
 
                 tabFeedback = new TabPage();
-                tabFeedback.Text = "⭐ Feedback & Rating (అభిప్రాయం)";
+                tabFeedback.Text = "Feedback & Rating";
                 tabFeedback.BackColor = Color.FromArgb(15, 23, 42);
                 tabFeedback.Padding = new Padding(14);
                 tabFeedback.AutoScroll = true;
@@ -2728,27 +2783,30 @@ namespace EVedhikaUBDDeploymentTool
                 card.Padding = new Padding(18);
 
                 Label lblTitle = new Label();
-                lblTitle.Text = "⭐ E-Vedhika ఆపరేటర్ ఫీడ్‌బ్యాక్ & స్టార్ రేటింగ్ (Operator Rating & Feedback)";
+                lblTitle.Text = "E-Vedhika Operator Rating & Feedback";
                 lblTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
                 lblTitle.ForeColor = Color.FromArgb(251, 191, 36);
                 lblTitle.Location = new Point(18, 14);
                 lblTitle.AutoSize = true;
+                lblTitle.UseMnemonic = false;
                 card.Controls.Add(lblTitle);
 
                 Label lblSub = new Label();
-                lblSub.Text = "E-Vedhika టూల్ & UBD పోర్టల్ అనుభవంపై మీ అభిప్రాయాన్ని తెలపండి. మీ రివ్యూ నేరుగా సెంట్రల్ డాష్‌బోర్డ్ మరియు Telegram Bot కు చేరుతుంది.";
+                lblSub.Text = "Share your experience with the E-Vedhika Tool & UBD Portal. Your review syncs directly to the Central Dashboard & Telegram Bot.";
                 lblSub.Font = new Font("Segoe UI", 8.75F, FontStyle.Regular);
                 lblSub.ForeColor = Color.FromArgb(203, 213, 225);
                 lblSub.Location = new Point(20, 40);
                 lblSub.AutoSize = true;
+                lblSub.UseMnemonic = false;
                 card.Controls.Add(lblSub);
 
                 Label lblRating = new Label();
-                lblRating.Text = "⭐ స్టార్ రేటింగ్ (Star Rating):";
+                lblRating.Text = "Star Rating:";
                 lblRating.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                 lblRating.ForeColor = Color.White;
                 lblRating.Location = new Point(20, 74);
                 lblRating.AutoSize = true;
+                lblRating.UseMnemonic = false;
                 card.Controls.Add(lblRating);
 
                 cboFeedbackRating = new ComboBox();
@@ -2759,21 +2817,22 @@ namespace EVedhikaUBDDeploymentTool
                 cboFeedbackRating.Location = new Point(22, 98);
                 cboFeedbackRating.Size = new Size(385, 28);
                 cboFeedbackRating.Items.AddRange(new object[] {
-                    "⭐⭐⭐⭐⭐ 5 Stars - Excellent / అద్భుతంగా పనిచేస్తోంది (100% Verified)",
-                    "⭐⭐⭐⭐ 4 Stars - Very Good / బాగుంది (Good Experience)",
-                    "⭐⭐⭐ 3 Stars - Average / పర్వాలేదు (Average)",
-                    "⭐⭐ 2 Stars - Fair / సమస్యలు ఎదురవుతున్నాయి (Needs Improvement)",
-                    "⭐ 1 Star - Poor / సరిగ్గా పనిచేయడం లేదు (Critical Issues)"
+                    "5 Stars - Excellent (100% Verified)",
+                    "4 Stars - Very Good Experience",
+                    "3 Stars - Average Experience",
+                    "2 Stars - Fair (Needs Improvement)",
+                    "1 Star - Poor (Critical Issues)"
                 });
                 cboFeedbackRating.SelectedIndex = 0;
                 card.Controls.Add(cboFeedbackRating);
 
                 Label lblCategory = new Label();
-                lblCategory.Text = "🏷️ విభాగం (Category):";
+                lblCategory.Text = "Category:";
                 lblCategory.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                 lblCategory.ForeColor = Color.White;
                 lblCategory.Location = new Point(430, 74);
                 lblCategory.AutoSize = true;
+                lblCategory.UseMnemonic = false;
                 card.Controls.Add(lblCategory);
 
                 cboFeedbackCategory = new ComboBox();
@@ -2784,22 +2843,23 @@ namespace EVedhikaUBDDeploymentTool
                 cboFeedbackCategory.Location = new Point(432, 98);
                 cboFeedbackCategory.Size = new Size(385, 28);
                 cboFeedbackCategory.Items.AddRange(new object[] {
-                    "1. All Working Smooth & Super (అన్నీ సజావుగా పనిచేస్తున్నాయి)",
-                    "2. UBD Government Portal Launch (UBD పోర్టల్ ఓపెనింగ్ సమస్య)",
-                    "3. E-Vedhika Web App Navigation (ఈ-వేదిక వెబ్‌సైట్ సమస్య)",
-                    "4. USB DSC Token & Digital Signatures (డిజిటల్ కీ / టోకెన్)",
-                    "5. Speed, PC Boost & Performance (సిస్టమ్ వేగం)",
-                    "6. Suggestions & Feedback (సాధారణ సలహాలు / ఫీడ్‌బ్యాక్)"
+                    "1. All Working Smooth & Super",
+                    "2. UBD Government Portal Launch",
+                    "3. E-Vedhika Web App Navigation",
+                    "4. USB DSC Token & Digital Signatures",
+                    "5. Speed, PC Boost & Performance",
+                    "6. General Suggestions & Feedback"
                 });
                 cboFeedbackCategory.SelectedIndex = 0;
                 card.Controls.Add(cboFeedbackCategory);
 
                 Label lblOpName = new Label();
-                lblOpName.Text = "👤 ఆపరేటర్ పేరు (Operator Name):";
+                lblOpName.Text = "Operator Name:";
                 lblOpName.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                 lblOpName.ForeColor = Color.White;
                 lblOpName.Location = new Point(20, 138);
                 lblOpName.AutoSize = true;
+                lblOpName.UseMnemonic = false;
                 card.Controls.Add(lblOpName);
 
                 txtFeedbackOperator = new TextBox();
@@ -2812,11 +2872,12 @@ namespace EVedhikaUBDDeploymentTool
                 card.Controls.Add(txtFeedbackOperator);
 
                 Label lblOffice = new Label();
-                lblOffice.Text = "🏢 గ్రామ పంచాయతీ / మండలం / ఆఫీస్ (Office / GP Location):";
+                lblOffice.Text = "Office / Grama Panchayat / Mandal Location:";
                 lblOffice.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                 lblOffice.ForeColor = Color.White;
                 lblOffice.Location = new Point(430, 138);
                 lblOffice.AutoSize = true;
+                lblOffice.UseMnemonic = false;
                 card.Controls.Add(lblOffice);
 
                 txtFeedbackOffice = new TextBox();
@@ -2829,11 +2890,12 @@ namespace EVedhikaUBDDeploymentTool
                 card.Controls.Add(txtFeedbackOffice);
 
                 Label lblPhone = new Label();
-                lblPhone.Text = "📱 మొబైల్ నంబర్ (Mobile Number - Optional):";
+                lblPhone.Text = "Mobile Number (Optional):";
                 lblPhone.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                 lblPhone.ForeColor = Color.White;
                 lblPhone.Location = new Point(20, 198);
                 lblPhone.AutoSize = true;
+                lblPhone.UseMnemonic = false;
                 card.Controls.Add(lblPhone);
 
                 txtFeedbackPhone = new TextBox();
@@ -2845,11 +2907,12 @@ namespace EVedhikaUBDDeploymentTool
                 card.Controls.Add(txtFeedbackPhone);
 
                 Label lblComments = new Label();
-                lblComments.Text = "💬 మీ అభిప్రాయం / అనుభవం (Comments / Details):";
+                lblComments.Text = "Comments / Feedback Details:";
                 lblComments.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                 lblComments.ForeColor = Color.White;
                 lblComments.Location = new Point(430, 198);
                 lblComments.AutoSize = true;
+                lblComments.UseMnemonic = false;
                 card.Controls.Add(lblComments);
 
                 txtFeedbackComments = new TextBox();
@@ -2864,7 +2927,8 @@ namespace EVedhikaUBDDeploymentTool
                 card.Controls.Add(txtFeedbackComments);
 
                 btnSubmitFeedback = new Button();
-                btnSubmitFeedback.Text = "🚀 Submit Feedback & Rating (అభిప్రాయం పంపండి)";
+                btnSubmitFeedback.Text = "Submit Feedback & Rating";
+                btnSubmitFeedback.UseMnemonic = false;
                 btnSubmitFeedback.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
                 btnSubmitFeedback.BackColor = Color.FromArgb(16, 185, 129);
                 btnSubmitFeedback.ForeColor = Color.White;
@@ -2877,7 +2941,8 @@ namespace EVedhikaUBDDeploymentTool
                 card.Controls.Add(btnSubmitFeedback);
 
                 Button btnLaunchUbdFromFeedback = new Button();
-                btnLaunchUbdFromFeedback.Text = "🏛️ Open UBD Portal";
+                btnLaunchUbdFromFeedback.Text = "Open UBD Portal";
+                btnLaunchUbdFromFeedback.UseMnemonic = false;
                 btnLaunchUbdFromFeedback.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 btnLaunchUbdFromFeedback.BackColor = Color.FromArgb(2, 132, 199);
                 btnLaunchUbdFromFeedback.ForeColor = Color.White;
@@ -2890,7 +2955,8 @@ namespace EVedhikaUBDDeploymentTool
                 card.Controls.Add(btnLaunchUbdFromFeedback);
 
                 Button btnLaunchWebFromFeedback = new Button();
-                btnLaunchWebFromFeedback.Text = "🌐 Open E-Vedhika Web";
+                btnLaunchWebFromFeedback.Text = "Open E-Vedhika Web";
+                btnLaunchWebFromFeedback.UseMnemonic = false;
                 btnLaunchWebFromFeedback.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 btnLaunchWebFromFeedback.BackColor = Color.FromArgb(79, 70, 229);
                 btnLaunchWebFromFeedback.ForeColor = Color.White;
@@ -2909,7 +2975,8 @@ namespace EVedhikaUBDDeploymentTool
                 lblFeedbackStatus.ForeColor = Color.LawnGreen;
                 lblFeedbackStatus.Location = new Point(22, 355);
                 lblFeedbackStatus.Size = new Size(795, 24);
-                lblFeedbackStatus.Text = "Ready to submit. మీ అమూల్యమైన అభిప్రాయం మాకు ఎంతో ముఖ్యం.";
+                lblFeedbackStatus.UseMnemonic = false;
+                lblFeedbackStatus.Text = "Ready to submit. Your valuable feedback helps us improve E-Vedhika UBD Tool.";
                 card.Controls.Add(lblFeedbackStatus);
 
                 tabFeedback.Controls.Add(card);
@@ -2927,7 +2994,7 @@ namespace EVedhikaUBDDeploymentTool
             {
                 using (Form dlg = new Form())
                 {
-                    dlg.Text = "⭐ E-Vedhika User Rating & Feedback (మీ రేటింగ్ & అభిప్రాయం)";
+                    dlg.Text = "E-Vedhika User Rating & Feedback";
                     dlg.Size = new Size(560, 460);
                     dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
                     dlg.StartPosition = FormStartPosition.CenterParent;
@@ -2938,9 +3005,10 @@ namespace EVedhikaUBDDeploymentTool
 
                     Label lblHdr = new Label
                     {
-                        Text = "⭐ E-Vedhika UBD అప్లికేషన్ మీకు ఎలా పనిచేస్తోంది?\nదయచేసి మీ రేటింగ్ (1-5 Stars) మరియు అభిప్రాయం ఇవ్వండి:",
+                        Text = "How is E-Vedhika UBD Tool working on your PC?\nPlease select your star rating (1-5) and share feedback:",
                         Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
                         ForeColor = Color.FromArgb(250, 204, 21),
+                        UseMnemonic = false,
                         Location = new Point(20, 16),
                         Size = new Size(510, 46)
                     };
@@ -2950,9 +3018,10 @@ namespace EVedhikaUBDDeploymentTool
                     Button[] starBtns = new Button[5];
                     Label lblStarText = new Label
                     {
-                        Text = "⭐⭐⭐⭐⭐ (5/5 - అద్భుతంగా పనిచేస్తోంది / Excellent)",
+                        Text = "5 / 5 Stars - Excellent Experience",
                         Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                         ForeColor = Color.FromArgb(52, 211, 153),
+                        UseMnemonic = false,
                         Location = new Point(20, 118),
                         Size = new Size(500, 22)
                     };
@@ -2963,16 +3032,16 @@ namespace EVedhikaUBDDeploymentTool
                         for (int i = 0; i < 5; i++)
                         {
                             bool active = (i < stars);
-                            starBtns[i].Text = active ? $"★ {i + 1}" : $"☆ {i + 1}";
+                            starBtns[i].Text = active ? $"[*] {i + 1}" : $"[ ] {i + 1}";
                             starBtns[i].BackColor = active ? Color.FromArgb(245, 158, 11) : Color.FromArgb(30, 41, 59);
                             starBtns[i].ForeColor = active ? Color.FromArgb(15, 23, 42) : Color.LightSlateGray;
                         }
                         string[] desc = new string[] {
-                            "⭐ (1/5 - సరిగ్గా పనిచేయడం లేదు / Needs Immediate Fix)",
-                            "⭐⭐ (2/5 - కొన్ని సమస్యలు ఉన్నాయి / Needs Improvement)",
-                            "⭐⭐⭐ (3/5 - పర్వాలేదు / Average Experience)",
-                            "⭐⭐⭐⭐ (4/5 - బాగుంది / Very Good Experience)",
-                            "⭐⭐⭐⭐⭐ (5/5 - అద్భుతంగా పనిచేస్తోంది / Excellent)"
+                            "1 / 5 Stars - Needs Immediate Fix",
+                            "2 / 5 Stars - Needs Improvement",
+                            "3 / 5 Stars - Average Experience",
+                            "4 / 5 Stars - Very Good Experience",
+                            "5 / 5 Stars - Excellent Experience"
                         };
                         lblStarText.Text = desc[Math.Max(0, Math.Min(4, stars - 1))];
                     };
@@ -2982,11 +3051,12 @@ namespace EVedhikaUBDDeploymentTool
                         int starVal = s;
                         Button b = new Button
                         {
-                            Text = $"★ {s}",
-                            Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                            Text = $"[*] {s}",
+                            Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                             Size = new Size(92, 42),
                             Location = new Point(20 + (s - 1) * 100, 68),
                             FlatStyle = FlatStyle.Flat,
+                            UseMnemonic = false,
                             Cursor = Cursors.Hand
                         };
                         b.FlatAppearance.BorderSize = 1;
@@ -3000,9 +3070,10 @@ namespace EVedhikaUBDDeploymentTool
 
                     Label lblOp = new Label
                     {
-                        Text = "👤 ఆపరేటర్ పేరు (Operator Name):",
+                        Text = "Operator Name:",
                         Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                         ForeColor = Color.LightSkyBlue,
+                        UseMnemonic = false,
                         Location = new Point(20, 148),
                         AutoSize = true
                     };
@@ -3021,9 +3092,10 @@ namespace EVedhikaUBDDeploymentTool
 
                     Label lblPh = new Label
                     {
-                        Text = "📱 మొబైల్ నంబర్ (Mobile - Optional):",
+                        Text = "Mobile Number (Optional):",
                         Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                         ForeColor = Color.LightSkyBlue,
+                        UseMnemonic = false,
                         Location = new Point(275, 148),
                         AutoSize = true
                     };
@@ -3042,9 +3114,10 @@ namespace EVedhikaUBDDeploymentTool
 
                     Label lblCmt = new Label
                     {
-                        Text = "💬 మీ అభిప్రాయం / సమస్యలు / సలహాలు (Your Feedback / Comments):",
+                        Text = "Your Feedback / Comments:",
                         Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                         ForeColor = Color.LightSkyBlue,
+                        UseMnemonic = false,
                         Location = new Point(20, 206),
                         AutoSize = true
                     };
@@ -3052,7 +3125,7 @@ namespace EVedhikaUBDDeploymentTool
 
                     TextBox txtCmt = new TextBox
                     {
-                        Text = "E-Vedhika UBD Tool మరియు డిజిటల్ కీ (DSC Token) సెట్టింగ్స్ అన్నీ సజావుగా పూర్తయ్యాయి.",
+                        Text = "E-Vedhika UBD Tool and Digital Signature (DSC Token) settings completed smoothly.",
                         Font = new Font("Segoe UI", 9.5F),
                         BackColor = Color.FromArgb(30, 41, 59),
                         ForeColor = Color.White,
@@ -3065,11 +3138,12 @@ namespace EVedhikaUBDDeploymentTool
 
                     Button btnSend = new Button
                     {
-                        Text = "🚀 Submit Rating & Feedback (రేటింగ్ & ఫీడ్‌బ్యాక్ పంపండి)",
+                        Text = "Submit Rating & Feedback",
                         Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                         BackColor = Color.FromArgb(16, 185, 129),
                         ForeColor = Color.White,
                         FlatStyle = FlatStyle.Flat,
+                        UseMnemonic = false,
                         Location = new Point(22, 342),
                         Size = new Size(365, 44),
                         Cursor = Cursors.Hand
@@ -3078,11 +3152,12 @@ namespace EVedhikaUBDDeploymentTool
 
                     Button btnSkip = new Button
                     {
-                        Text = "తరువాత (Later)",
+                        Text = "Later",
                         Font = new Font("Segoe UI", 9F, FontStyle.Regular),
                         BackColor = Color.FromArgb(51, 65, 85),
                         ForeColor = Color.LightGray,
                         FlatStyle = FlatStyle.Flat,
+                        UseMnemonic = false,
                         Location = new Point(397, 342),
                         Size = new Size(123, 44),
                         Cursor = Cursors.Hand
@@ -3231,7 +3306,7 @@ namespace EVedhikaUBDDeploymentTool
                     if (btnSubmitFeedback != null)
                     {
                         btnSubmitFeedback.Enabled = true;
-                        btnSubmitFeedback.Text = "🚀 Submit Feedback & Rating (అభిప్రాయం పంపండి)";
+                        btnSubmitFeedback.Text = "Submit Feedback & Rating";
                     }
 
                     if (success)
@@ -3239,13 +3314,13 @@ namespace EVedhikaUBDDeploymentTool
                         if (lblFeedbackStatus != null)
                         {
                             lblFeedbackStatus.ForeColor = Color.LawnGreen;
-                            lblFeedbackStatus.Text = "✅ ధన్యవాదాలు! మీ " + rating + "-స్టార్ రేటింగ్ & ఫీడ్‌బ్యాక్ సెంట్రల్ డాష్‌బోర్డ్ & Telegram కు చేరింది!";
+                            lblFeedbackStatus.Text = "[OK] Thank you! Your " + rating + "-star rating & feedback synced to Central Dashboard & Telegram!";
                         }
                         LogMessage("FEEDBACK", $"Operator feedback submitted: {rating} Stars by {operatorName} ({officeLocation})");
                         if (showConfirmationBox)
                         {
                             MessageBox.Show(
-                                "ధన్యవాదాలు! మీ అమూల్యమైన " + rating + "-స్టార్ రేటింగ్ మరియు అభిప్రాయం విజయవంతంగా Central Web Dashboard మరియు Telegram గ్రూప్‌కు చేరింది.\n\nThank you! Your feedback and rating have been recorded.",
+                                "Thank you! Your " + rating + "-star rating and feedback have been recorded and sent to the Central Web Dashboard & Telegram Hub.",
                                 "E-Vedhika Feedback Recorded",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Information);
@@ -3256,7 +3331,7 @@ namespace EVedhikaUBDDeploymentTool
                         if (lblFeedbackStatus != null)
                         {
                             lblFeedbackStatus.ForeColor = Color.Gold;
-                            lblFeedbackStatus.Text = "⚠️ స్థానిక నెట్‌వర్క్ నెమ్మదిగా ఉంది, అయినప్పటికీ ఫీడ్‌బ్యాక్ సేవ్ చేయబడింది.";
+                            lblFeedbackStatus.Text = "[!] Local network is slow, feedback has been queued safely.";
                         }
                         LogMessage("FEEDBACK", "Feedback transmission queued locally: " + respMsg);
                     }
@@ -3305,7 +3380,7 @@ namespace EVedhikaUBDDeploymentTool
                 if (btnSubmitFeedback != null)
                 {
                     btnSubmitFeedback.Enabled = true;
-                    btnSubmitFeedback.Text = "🚀 Submit Feedback & Rating (అభిప్రాయం పంపండి)";
+                    btnSubmitFeedback.Text = "Submit Feedback & Rating";
                 }
                 MessageBox.Show("Error submitting feedback: " + ex.Message, "Notice", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }

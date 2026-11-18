@@ -197,7 +197,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
         /// to fix "Automation server can't create object" errors on target PCs.
         /// Searches across multiple paths and registers for both 32-bit and 64-bit architectures.
         /// </summary>
-        public static bool RegisterActiveXComponents()
+        public static bool RegisterActiveXComponents(bool allowMsiFallback = true)
         {
             try
             {
@@ -216,7 +216,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     @"C:\Windows\SysWOW64"
                 };
 
-                // Possible filenames for DigiSignHelper and related components
+                // Possible filenames for native COM DigiSignHelper and CAPICOM components
+                // NOTE: SignatureDemoLib.dll is a .NET assembly and must NEVER be passed to regsvr32 (handled via UBDSigningFixEngine RegAsm)
                 string[] digiSignFiles = new string[]
                 {
                     "DigiSignHelper.dll",
@@ -224,8 +225,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     "DigiSignHelper64.dll",
                     "NICDigiSignHelper.dll",
                     "eSignHelper.dll",
-                    "capicom.dll",
-                    "SignatureDemoLib.dll"
+                    "capicom.dll"
                 };
 
                 string foundPath = null;
@@ -243,7 +243,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 foundPath = fullPath;
                             }
                             
-                            // Register it immediately while we are here
+                            // Register native COM DLL immediately while we are here
                             RegisterDllWithBothArchitectures(fullPath);
                         }
                     }
@@ -260,27 +260,34 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             var matches = Directory.GetFiles(payloadDir, file, SearchOption.AllDirectories);
                             if (matches.Length > 0)
                             {
-                                foundPath = matches[0];
-                                RegisterDllWithBothArchitectures(foundPath);
-                                break;
+                                RegisterDllWithBothArchitectures(matches[0]);
+                                if (file.IndexOf("DigiSign", StringComparison.OrdinalIgnoreCase) >= 0 && foundPath == null)
+                                {
+                                    foundPath = matches[0];
+                                }
                             }
                         }
                     }
                 }
 
-                if (foundPath == null)
+                // Always ensure .NET SignatureDemoLib.dll v2.0.1.0 (COM-Safe IObjectSafety) is compiled & RegAsm-registered
+                UBDSigningFixEngine.VerifyAndEnforceIntegrity();
+
+                if (foundPath != null)
                 {
-                    Logger.LogWarn("ActiveX", "Primary DigiSignHelper.dll not found in any search path. Attempting MSI fallback...");
-                    return TryInstallDigiSignerFromMsi();
+                    // Register related native components in the same directory
+                    RegisterRelatedComponents(foundPath);
+
+                    // Fallback registration in Current User hive
+                    RegisterInCurrentUserHive(foundPath);
+                }
+                else if (allowMsiFallback)
+                {
+                    Logger.LogWarn("ActiveX", "Native DigiSignHelper.dll not found in local search paths. Trying MSI fallback alongside SignatureDemoLib COM...");
+                    TryInstallDigiSignerFromMsi();
                 }
 
-                // Register related components in the same directory
-                RegisterRelatedComponents(foundPath);
-
-                // Fallback registration in Current User hive
-                RegisterInCurrentUserHive(foundPath);
-
-                // Call the registry healer to inject full ProgID and InprocServer32 COM entries
+                // Call the registry healer to inject safe ProgID, CAPICOM categories & Windows 7 Zone/TLS entries
                 RegistryManager.HealDigiSignHelperAutomation();
 
                 return true;
@@ -423,7 +430,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             {
                                 Logger.LogInfo("ActiveX", "[OK] DigiSigner MSI installed. Re-running registration...");
                                 System.Threading.Thread.Sleep(3000);
-                                return RegisterActiveXComponents();
+                                return RegisterActiveXComponents(false);
                             }
                         }
                     }
@@ -995,29 +1002,33 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
         public static bool VerifyDigiSignHelperCom()
         {
-            try
+            string[] progIds = new string[]
             {
-                // Attempt to create COM object by ProgID
-                Type type = Type.GetTypeFromProgID("DigiSignHelper.Helper");
-                if (type == null)
-                {
-                    type = Type.GetTypeFromProgID("NICDigiSignHelper.Helper");
-                }
-                if (type == null)
-                {
-                    return false; // Not registered
-                }
-                
-                object instance = Activator.CreateInstance(type);
-                if (instance != null)
-                {
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(instance);
-                    return true;
-                }
-            }
-            catch
+                "SignatureDemoLib.DigiSignHelper",
+                "DigiSignHelper.Helper",
+                "DigiSignHelper",
+                "NICDigiSignHelper.Helper",
+                "CAPICOM.SignedData"
+            };
+
+            foreach (string progId in progIds)
             {
-                return false;
+                try
+                {
+                    Type type = Type.GetTypeFromProgID(progId);
+                    if (type == null) continue;
+
+                    object instance = Activator.CreateInstance(type);
+                    if (instance != null)
+                    {
+                        if (System.Runtime.InteropServices.Marshal.IsComObject(instance))
+                        {
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(instance);
+                        }
+                        return true;
+                    }
+                }
+                catch { }
             }
             return false;
         }

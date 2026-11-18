@@ -304,7 +304,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[Audit Repair] Zone 2 check error: {0}", ex.Message));
             }
 
-            // 3. Verify ActiveX Controls & Security Zone 2 Policies
+            // 3. Verify ActiveX Controls, .NET Components & Security Zone 2 Protected Mode Policies
             try
             {
                 using (RegistryKey zone2Key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\2"))
@@ -315,12 +315,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         var val1201 = zone2Key.GetValue("1201");
                         var val1405 = zone2Key.GetValue("1405");
                         var val1803 = zone2Key.GetValue("1803");
+                        var val2001 = zone2Key.GetValue("2001");
+                        var val2004 = zone2Key.GetValue("2004");
                         var val2200 = zone2Key.GetValue("2200");
+                        var val2500 = zone2Key.GetValue("2500");
                         if (val1001 == null || Convert.ToInt32(val1001) != 0 ||
                             val1201 == null || Convert.ToInt32(val1201) != 0 ||
                             val1405 == null || Convert.ToInt32(val1405) != 0 ||
                             val1803 == null || Convert.ToInt32(val1803) != 0 ||
-                            val2200 == null || Convert.ToInt32(val2200) != 0)
+                            val2001 == null || Convert.ToInt32(val2001) != 0 ||
+                            val2004 == null || Convert.ToInt32(val2004) != 0 ||
+                            val2200 == null || Convert.ToInt32(val2200) != 0 ||
+                            val2500 == null || Convert.ToInt32(val2500) != 3)
                         {
                             activexOk = false;
                         }
@@ -334,8 +340,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (!activexOk)
                 {
                     if (string.IsNullOrEmpty(detectedIssue)) detectedIssue = "ActiveX Security Zone 2 Policy Drift";
-                    if (logCallback != null) logCallback("[Audit WARN] ActiveX Security Zone 2 settings missing or restricted. Re-enabling ActiveX Controls & TLS...");
+                    if (logCallback != null) logCallback("[Audit WARN] ActiveX / Win7 Protected Mode Security Zone 2 settings missing or restricted. Re-enabling ActiveX, .NET Controls & TLS 1.2...");
                     RegistryManager.ConfigureActiveXAndTLS();
+                    RegistryManager.HealDigiSignHelperAutomation();
                     repairedSomething = true;
                 }
             }

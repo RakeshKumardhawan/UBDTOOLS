@@ -16,7 +16,7 @@ test('resolvePcModalDisplay avoids hardcoded fake hardware metrics when optional
     officeLocation: 'Naspoor GP (Telangana)',
     osVersion: 'Microsoft Windows 11 Pro (Build 22631)',
     appVersion: 'v1.1.0',
-    resourceBuild: '2026.11.16.R9',
+    resourceBuild: '2026.11.18.R11',
     pcConnectivity: 'ONLINE',
     appState: 'RUNNING',
     healthScore: 97,
@@ -32,6 +32,9 @@ test('resolvePcModalDisplay avoids hardcoded fake hardware metrics when optional
   assert.equal(normalized.memoryDisplay, 'Cloud Synced');
   assert.notEqual(normalized.ipAddress, '192.168.1.104');
   assert.notEqual(normalized.macAddress, '48:2A:E3:10:BF:C9');
+
+  const fallback = resolvePcModalDisplay('EVD-TS-HYD-99', { pcName: 'GP-TEST' });
+  assert.equal(fallback.resourceBuild, '2026.11.18.R11');
 });
 
 test('extractTelegramField accurately parses updated System Resources and Workstation Health report output', () => {
@@ -55,7 +58,7 @@ Deployment Result: SUCCESS (17/17 Steps Passed)
 PC Health Score: 100/100 (Excellent - Ready for UBD & DSC Signing)
 Readiness Check: All 17/17 deployment steps passed; Edge IE Mode, DigiSigner (Port 8080) & DSC services are active.
 Application Version: v1.1.0
-Build Version: 2026.11.16.R9
+Build Version: 2026.11.18.R11
 Step Counts: Passed: 17 | Failed: 0 | Warnings: 0
 Summary: 17/17 steps passed.
 
@@ -66,7 +69,7 @@ Edge IE Mode: IE5 Quirks Active (sites.xml present)`;
   assert.equal(extractTelegramField(sampleReport, ['Report ID']), 'RPT-20261117-ABC123');
   assert.equal(extractTelegramField(sampleReport, ['Machine ID', 'PC ID']), 'EVD-TS-MNCL-42');
   assert.equal(extractTelegramField(sampleReport, ['Application Version']), 'v1.1.0');
-  assert.equal(extractTelegramField(sampleReport, ['Build Version']), '2026.11.16.R9');
+  assert.equal(extractTelegramField(sampleReport, ['Build Version']), '2026.11.18.R11');
   assert.equal(extractTelegramField(sampleReport, ['Summary', 'Final Verification']), '17/17 steps passed.');
   assert.equal(extractTelegramField(sampleReport, ['USB DSC Token']), 'USB Token Driver Active');
   assert.equal(extractTelegramField(sampleReport, ['Edge IE Mode']), 'IE5 Quirks Active (sites.xml present)');

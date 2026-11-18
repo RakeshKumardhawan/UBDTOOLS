@@ -20,12 +20,12 @@ namespace EVedhikaUBDDeploymentTool
         private void InitializeSystemTrayAndDscListener()
         {
             trayContextMenu = new ContextMenuStrip();
-            trayContextMenu.Items.Add(new ToolStripMenuItem("⚡ Open E-Vedhika UBD Suite", null, (s, e) => RestoreFromTray()));
-            trayContextMenu.Items.Add(new ToolStripMenuItem("🔑 Check USB DSC Token Status", null, (s, e) => CheckAndReportDscStatus()));
-            trayContextMenu.Items.Add(new ToolStripMenuItem("🛠️ Run One-Click Deployment (17 Steps)", null, (s, e) => ExecuteFullDeployment()));
-            trayContextMenu.Items.Add(new ToolStripMenuItem("🔄 Check for Updates", null, (s, e) => ExecuteCheckForUpdatesInteractive()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("Open E-Vedhika UBD Suite", null, (s, e) => RestoreFromTray()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("Check USB DSC Token Status", null, (s, e) => CheckAndReportDscStatus()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("Run One-Click Deployment (17 Steps)", null, (s, e) => ExecuteFullDeployment()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("Check for Software Updates", null, (s, e) => ExecuteCheckForUpdatesInteractive()));
             trayContextMenu.Items.Add(new ToolStripSeparator());
-            trayContextMenu.Items.Add(new ToolStripMenuItem("❌ Exit 24x7 Guardian", null, (s, e) => ExitApplicationFromTray()));
+            trayContextMenu.Items.Add(new ToolStripMenuItem("Exit 24x7 Guardian", null, (s, e) => ExitApplicationFromTray()));
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -42,7 +42,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
     public class AutoUpdateEngine
     {
         public const string CurrentVersion = "v1.1.0";
-        public const string CurrentResourceBuild = "2026.11.16.R7";
+        public const string CurrentResourceBuild = "2026.11.18.R11";
 
         public static void ShowWhatsNewDialog(IWin32Window owner, string prevVer, string currVer, string prevBuild, string currBuild, string relDate, string installStatus, string integrityStatus, string restartStatus, string releaseNotes)
         {
@@ -100,7 +100,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
               <Code className="w-3.5 h-3.5" /> C# WINFORMS DEPLOYMENT SOLUTION
             </span>
             <span className="bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold px-2.5 py-1 rounded border border-emerald-500/30">
-              v1.0.8 ENTERPRISE READY
+              v1.1.0 ENTERPRISE READY (Build 2026.11.18.R11)
             </span>
           </div>
           <h1 className="text-2xl font-bold font-syne">EVedhikaUBDDeploymentTool.sln</h1>

@@ -18,13 +18,13 @@ test('FREE_FOR_ALL mode allows access regardless of per-PC record', () => {
   assert.match(res.badgeText, /FREE ACCESS/i);
 });
 
-test('PAID_MONTHLY denies PC without active license and allows valid 30-day license', () => {
+test('PAID_MONTHLY grants offline grace for missing/pending license and allows valid 30-day license', () => {
   const now = Date.UTC(2026, 10, 16);
   const paidPolicy = { ...DEFAULT_LICENSE_POLICY, mode: 'PAID_MONTHLY' as const };
 
   const missing = evaluateLicenseState(paidPolicy, null, now);
-  assert.equal(missing.allowed, false);
-  assert.equal(missing.daysRemaining, 0);
+  assert.equal(missing.allowed, true); // Offline grace active so operator work is never blocked
+  assert.match(missing.badgeText, /OFFLINE GRACE ACTIVE/i);
 
   const futureExpiry = computeRenewalExpiryIso(undefined, 30, now);
   const active = evaluateLicenseState(
@@ -42,7 +42,7 @@ test('PAID_MONTHLY denies PC without active license and allows valid 30-day lice
   assert.equal(active.daysRemaining, 30);
 });
 
-test('PAID_MONTHLY denies expired or revoked license', () => {
+test('PAID_MONTHLY grants grace period on expiration and denies revoked license', () => {
   const now = Date.UTC(2026, 10, 16);
   const paidPolicy = { ...DEFAULT_LICENSE_POLICY, mode: 'PAID_MONTHLY' as const };
 
@@ -57,7 +57,8 @@ test('PAID_MONTHLY denies expired or revoked license', () => {
     },
     now
   );
-  assert.equal(expired.allowed, false);
+  assert.equal(expired.allowed, true); // Grace period active on expiration
+  assert.match(expired.badgeText, /GRACE PERIOD/i);
 
   const revoked = evaluateLicenseState(
     paidPolicy,
@@ -70,7 +71,7 @@ test('PAID_MONTHLY denies expired or revoked license', () => {
     },
     now
   );
-  assert.equal(revoked.allowed, false);
+  assert.equal(revoked.allowed, false); // Explicitly revoked by Admin
 });
 
 test('computeRenewalExpiryIso extends from future expiry when still active', () => {

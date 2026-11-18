@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal } from 'lucide-react';
+import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal, Copy, Search } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useToast } from './Toast';
 import { PublicPaymentCheckout } from './PublicPaymentCheckout';
@@ -35,13 +35,22 @@ import {
   buildUpiPaymentUri
 } from '../utils/licensePolicy';
 
-export const PaymentLicenseHubView: React.FC = () => {
+interface PaymentLicenseHubViewProps {
+  defaultSubTab?: 'qr-checkout' | 'admin-controls';
+}
+
+export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
+  defaultSubTab = 'qr-checkout'
+}) => {
   const { showInfo, showSuccess, showError } = useToast();
 
   const [subTab, setSubTab] = useState<'qr-checkout' | 'admin-controls'>(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('section') === 'admin-license') return 'admin-controls';
-    return 'qr-checkout';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('pay') === '1') return 'qr-checkout';
+      if (params.get('section') === 'admin-license') return 'admin-controls';
+    } catch {}
+    return defaultSubTab;
   });
 
   const [authReady, setAuthReady] = useState<boolean>(false);
@@ -58,6 +67,8 @@ export const PaymentLicenseHubView: React.FC = () => {
   const [reviewingClaimId, setReviewingClaimId] = useState<string | null>(null);
   const [bypassPcIdInput, setBypassPcIdInput] = useState<string>('');
   const [bypassPcNameInput, setBypassPcNameInput] = useState<string>('');
+  const [claimStatusFilter, setClaimStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [pcSearchFilter, setPcSearchFilter] = useState<string>('');
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -69,6 +80,14 @@ export const PaymentLicenseHubView: React.FC = () => {
         setAuthNotice('');
       }
     });
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const utrParam = params.get('utr');
+      if (utrParam) {
+        setClaimStatusFilter('ALL');
+        setPcSearchFilter(utrParam);
+      }
+    } catch {}
     return () => unsub();
   }, []);
 
@@ -131,6 +150,8 @@ export const PaymentLicenseHubView: React.FC = () => {
         setInstalledPcs(rows);
       },
       (error) => {
+        setAuthNotice('Firestore Read Error (installed_pcs): ' + error.message);
+        showError(error.message || 'Failed to load installed PCs', 'Firestore Read Error');
         handleFirestoreError(error, OperationType.LIST, 'installed_pcs');
       }
     );
@@ -156,6 +177,8 @@ export const PaymentLicenseHubView: React.FC = () => {
         setPcLicensesMap(nextMap);
       },
       (error) => {
+        setAuthNotice('Firestore Read Error (pc_licenses): ' + error.message);
+        showError(error.message || 'Failed to load PC licenses', 'Firestore Read Error');
         handleFirestoreError(error, OperationType.LIST, 'pc_licenses');
       }
     );
@@ -184,6 +207,8 @@ export const PaymentLicenseHubView: React.FC = () => {
         setPaymentClaims(list);
       },
       (error) => {
+        setAuthNotice('Firestore Read Error (payment_claims): ' + error.message);
+        showError(error.message || 'Failed to load payment claims', 'Firestore Read Error');
         handleFirestoreError(error, OperationType.LIST, 'payment_claims');
       }
     );
@@ -193,7 +218,7 @@ export const PaymentLicenseHubView: React.FC = () => {
       unsubLicenses();
       unsubClaims();
     };
-  }, [isVerifiedAdmin]);
+  }, [isVerifiedAdmin, showError]);
 
   const handleAdminGoogleSignIn = async () => {
     try {
@@ -219,32 +244,72 @@ export const PaymentLicenseHubView: React.FC = () => {
     showInfo('Admin Cloud Session లాగౌట్ చేయబడింది.', 'Signed Out');
   };
 
+  const resolveExactPcId = (pcIdRaw: string): string => {
+    const trimmed = String(pcIdRaw || '').trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    if (!trimmed) return '';
+    const matchPc = installedPcs.find((p) => String(p.pcId || '').toUpperCase() === trimmed.toUpperCase());
+    if (matchPc?.pcId) return String(matchPc.pcId).replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    const matchLic = pcLicensesMap[trimmed.toUpperCase()];
+    if (matchLic?.pcId) return String(matchLic.pcId).replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    return trimmed;
+  };
+
   const handleSaveLicensePolicy = async (overrideMode?: 'FREE_FOR_ALL' | 'PAID_MONTHLY') => {
     if (!isVerifiedAdmin) {
       showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
       return;
     }
     const nextMode = overrideMode || licensePolicy.mode;
+    const rawPrice = Number(licensePolicy.monthlyPriceInr);
+    const safePrice =
+      nextMode === 'PAID_MONTHLY'
+        ? Math.max(1, Math.min(10000, Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 10))
+        : Math.max(0, Math.min(10000, Number.isFinite(rawPrice) ? rawPrice : 10));
+    const safeDays = Math.max(1, Math.min(3650, Math.floor(Number(licensePolicy.durationDays) || 30)));
+    const cleanUpi = String(licensePolicy.upiId || '').trim().slice(0, 120);
+    let cleanLink = String(licensePolicy.paymentLinkUrl || '').trim().slice(0, 300);
+    if (cleanLink && !/^https?:\/\//i.test(cleanLink)) {
+      cleanLink = `https://${cleanLink}`.slice(0, 300);
+    }
+    const cleanNote = String(licensePolicy.paymentNote || DEFAULT_LICENSE_POLICY.paymentNote).trim().slice(0, 400);
+
     setSavingPolicy(true);
     try {
       await setDoc(doc(db, 'app_settings', 'licensing'), {
         policyId: 'licensing',
         mode: nextMode,
-        monthlyPriceInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr) || 10)),
-        durationDays: Math.max(1, Math.min(3650, Math.floor(Number(licensePolicy.durationDays) || 30))),
-        upiId: String(licensePolicy.upiId || '').slice(0, 120),
-        paymentLinkUrl: String(licensePolicy.paymentLinkUrl || '').slice(0, 300),
-        paymentNote: String(licensePolicy.paymentNote || DEFAULT_LICENSE_POLICY.paymentNote).slice(0, 400),
+        monthlyPriceInr: safePrice,
+        durationDays: safeDays,
+        upiId: cleanUpi,
+        paymentLinkUrl: cleanLink,
+        paymentNote: cleanNote || DEFAULT_LICENSE_POLICY.paymentNote,
         updatedAt: serverTimestamp()
       });
-      setLicensePolicy((prev) => ({ ...prev, mode: nextMode }));
-      showSuccess(
-        nextMode === 'FREE_FOR_ALL'
-          ? '🟢 FREE_FOR_ALL ఆన్ అయింది — అందరికీ పూర్తిగా ఉచితం!'
-          : `💳 PAID_MONTHLY (₹${licensePolicy.monthlyPriceInr} / ${licensePolicy.durationDays} రోజులు) ఆన్ చేయబడింది!`,
-        'License Mode Saved'
-      );
+      setLicensePolicy((prev) => ({
+        ...prev,
+        mode: nextMode,
+        monthlyPriceInr: safePrice,
+        durationDays: safeDays,
+        upiId: cleanUpi,
+        paymentLinkUrl: cleanLink,
+        paymentNote: cleanNote || DEFAULT_LICENSE_POLICY.paymentNote
+      }));
+      if (nextMode === 'PAID_MONTHLY' && !cleanUpi && !cleanLink) {
+        showInfo(
+          'PAID_MONTHLY ఆన్ అయింది! దయచేసి Alias UPI ID లేదా Payment Gateway Link కూడా సేవ్ చేయండి (అప్పుడే యూజర్లకు QR కోడ్ కనిపిస్తుంది).',
+          'Add UPI ID / Link'
+        );
+      } else {
+        showSuccess(
+          nextMode === 'FREE_FOR_ALL'
+            ? '🟢 FREE_FOR_ALL ఆన్ అయింది — అందరికీ పూర్తిగా ఉచితం!'
+            : `💳 PAID_MONTHLY (₹${safePrice} / ${safeDays} రోజులు) ఆన్ చేయబడింది!`,
+          'License Mode Saved'
+        );
+      }
     } catch (err: any) {
+      setAuthNotice('Save License Policy Error: ' + (err?.message || 'Permission denied'));
+      showError(err?.message || 'Failed to save license policy', 'Save Failed');
       handleFirestoreError(err, OperationType.WRITE, 'app_settings/licensing');
     } finally {
       setSavingPolicy(false);
@@ -256,24 +321,31 @@ export const PaymentLicenseHubView: React.FC = () => {
       showError('Please sign in as Admin first.', 'Admin Auth Required');
       return;
     }
-    const rawId = String(pc.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
-    if (!rawId) return;
+    const rawId = resolveExactPcId(pc.pcId || '');
+    if (!rawId) {
+      showError('దయచేసి సరైన PC Machine ID (ఉదా: EVD-TS-MNCL-01) ఇవ్వండి.', 'PC ID Required');
+      return;
+    }
     setActivatingPcId(rawId);
     try {
       const existingRec = pcLicensesMap[rawId.toUpperCase()];
       const validUntilIso = computeRenewalExpiryIso(existingRec?.validUntilIso, licensePolicy.durationDays || 30);
       await setDoc(doc(db, 'pc_licenses', rawId), {
         pcId: rawId,
-        pcName: String(pc.pcName || 'GP-OFFICE-PC').slice(0, 128),
+        pcName: String(pc.pcName || rawId || 'GP-OFFICE-PC').trim().slice(0, 128),
         planType: 'PAID_30_DAYS',
         status: 'ACTIVE',
-        amountInr: Number(licensePolicy.monthlyPriceInr || 10),
+        amountInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr || 10))),
         validUntilIso,
         paymentRef: `INR${licensePolicy.monthlyPriceInr || 10}-${new Date().toISOString().slice(0, 10)}`,
         updatedAt: serverTimestamp()
       });
-      showSuccess(`${pc.pcName} (${rawId}) కు ₹${licensePolicy.monthlyPriceInr || 10} / ${licensePolicy.durationDays || 30} రోజుల లైసెన్స్ యాక్టివేట్ అయింది!`, '30-Day License Activated');
+      setBypassPcIdInput('');
+      setBypassPcNameInput('');
+      showSuccess(`${pc.pcName || rawId} (${rawId}) కు ₹${licensePolicy.monthlyPriceInr || 10} / ${licensePolicy.durationDays || 30} రోజుల లైసెన్స్ యాక్టివేట్ అయింది!`, '30-Day License Activated');
     } catch (err: any) {
+      setAuthNotice('License Activate Error: ' + (err?.message || 'Permission denied'));
+      showError(err?.message || 'Failed to activate PC license', 'Activation Failed');
       handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
     } finally {
       setActivatingPcId(null);
@@ -281,14 +353,17 @@ export const PaymentLicenseHubView: React.FC = () => {
   };
 
   const handleRevokePcSubscription = async (pc: any) => {
-    if (!isVerifiedAdmin) return;
-    const rawId = String(pc.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    if (!isVerifiedAdmin) {
+      showError('Please sign in as Admin first.', 'Admin Auth Required');
+      return;
+    }
+    const rawId = resolveExactPcId(pc.pcId || '');
     if (!rawId) return;
     setActivatingPcId(rawId);
     try {
       await setDoc(doc(db, 'pc_licenses', rawId), {
         pcId: rawId,
-        pcName: String(pc.pcName || 'GP-OFFICE-PC').slice(0, 128),
+        pcName: String(pc.pcName || rawId || 'GP-OFFICE-PC').trim().slice(0, 128),
         planType: 'PAID_30_DAYS',
         status: 'REVOKED',
         amountInr: 0,
@@ -296,8 +371,10 @@ export const PaymentLicenseHubView: React.FC = () => {
         paymentRef: 'REVOKED_BY_ADMIN',
         updatedAt: serverTimestamp()
       });
-      showInfo(`${pc.pcName} (${rawId}) సబ్‌స్క్రిప్షన్ నిలిపివేయబడింది.`, 'License Revoked');
+      showInfo(`${pc.pcName || rawId} (${rawId}) సబ్‌స్క్రిప్షన్ నిలిపివేయబడింది.`, 'License Revoked');
     } catch (err: any) {
+      setAuthNotice('Revoke License Error: ' + (err?.message || 'Permission denied'));
+      showError(err?.message || 'Failed to revoke license', 'Revoke Failed');
       handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
     } finally {
       setActivatingPcId(null);
@@ -309,7 +386,7 @@ export const PaymentLicenseHubView: React.FC = () => {
       showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
       return;
     }
-    const rawId = String(pcIdRaw || '').trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    const rawId = resolveExactPcId(pcIdRaw);
     if (!rawId) {
       showError('దయచేసి సరైన PC Machine ID (ఉదా: EVD-TS-MNCL-01) ఇవ్వండి.', 'PC ID Required');
       return;
@@ -338,7 +415,7 @@ export const PaymentLicenseHubView: React.FC = () => {
           pcName: safeName,
           planType: 'PAID_30_DAYS',
           status: 'EXPIRED',
-          amountInr: Number(licensePolicy.monthlyPriceInr || 10),
+          amountInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr || 10))),
           validUntilIso: new Date(Date.now() - 60000).toISOString(),
           paymentRef: 'PAYMENT_REQUIRED_BY_ADMIN',
           updatedAt: serverTimestamp()
@@ -351,6 +428,8 @@ export const PaymentLicenseHubView: React.FC = () => {
       setBypassPcIdInput('');
       setBypassPcNameInput('');
     } catch (err: any) {
+      setAuthNotice('Per-PC Override Error: ' + (err?.message || 'Permission denied'));
+      showError(err?.message || 'Failed to update PC override', 'Update Failed');
       handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
     } finally {
       setActivatingPcId(null);
@@ -362,7 +441,7 @@ export const PaymentLicenseHubView: React.FC = () => {
       showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
       return;
     }
-    const cleanPcId = String(claim.pcId || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120);
+    const cleanPcId = resolveExactPcId(claim.pcId || '');
     if (!cleanPcId || !claim.claimId) return;
     setReviewingClaimId(claim.claimId);
     try {
@@ -373,19 +452,19 @@ export const PaymentLicenseHubView: React.FC = () => {
         doc(db, 'payment_claims', claim.claimId),
         {
           status: 'APPROVED',
-          note: `Verified UTR ${claim.utrNumber} by Admin on ${new Date().toLocaleDateString()}`
+          note: `Verified UTR ${claim.utrNumber} by Admin on ${new Date().toLocaleDateString()}`.slice(0, 300)
         },
         { merge: true }
       );
 
       await setDoc(doc(db, 'pc_licenses', cleanPcId), {
         pcId: cleanPcId,
-        pcName: String(claim.pcName || 'GP-OFFICE-PC').slice(0, 128),
+        pcName: String(claim.pcName || 'GP-OFFICE-PC').trim().slice(0, 128),
         planType: 'PAID_30_DAYS',
         status: 'ACTIVE',
-        amountInr: Number(claim.amountInr || licensePolicy.monthlyPriceInr || 10),
+        amountInr: Math.max(0, Math.min(10000, Number(claim.amountInr || licensePolicy.monthlyPriceInr || 10))),
         validUntilIso,
-        paymentRef: `UTR-${claim.utrNumber}`,
+        paymentRef: `UTR-${claim.utrNumber}`.slice(0, 128),
         updatedAt: serverTimestamp()
       });
 
@@ -394,6 +473,8 @@ export const PaymentLicenseHubView: React.FC = () => {
         'Payment Claim Approved'
       );
     } catch (err: any) {
+      setAuthNotice('Approve UTR Error: ' + (err?.message || 'Permission denied'));
+      showError(err?.message || 'Failed to approve UTR claim', 'Approve Failed');
       handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
     } finally {
       setReviewingClaimId(null);
@@ -408,12 +489,14 @@ export const PaymentLicenseHubView: React.FC = () => {
         doc(db, 'payment_claims', claim.claimId),
         {
           status: 'REJECTED',
-          note: `Rejected (Duplicate / Unmatched UTR ${claim.utrNumber}) on ${new Date().toLocaleDateString()}`
+          note: `Rejected (Duplicate / Unmatched UTR ${claim.utrNumber}) on ${new Date().toLocaleDateString()}`.slice(0, 300)
         },
         { merge: true }
       );
       showInfo(`UTR ${claim.utrNumber} తిరస్కరించబడింది.`, 'UTR Claim Rejected');
     } catch (err: any) {
+      setAuthNotice('Reject UTR Error: ' + (err?.message || 'Permission denied'));
+      showError(err?.message || 'Failed to reject UTR claim', 'Reject Failed');
       handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
     } finally {
       setReviewingClaimId(null);
@@ -421,6 +504,13 @@ export const PaymentLicenseHubView: React.FC = () => {
   };
 
   const pendingClaimsCount = paymentClaims.filter((c) => c.status === 'PENDING').length;
+  const activePaidPcsCount = (Object.values(pcLicensesMap) as PcLicenseRecord[]).filter(
+    (rec) => rec.planType === 'PAID_30_DAYS' && evaluateLicenseState(licensePolicy, rec).allowed
+  ).length;
+  const freeBypassPcsCount = (Object.values(pcLicensesMap) as PcLicenseRecord[]).filter(
+    (rec) => isPcPaymentExempt(rec)
+  ).length;
+  const filteredClaims = paymentClaims.filter((c) => claimStatusFilter === 'ALL' || c.status === claimStatusFilter);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans text-slate-100">
@@ -481,35 +571,84 @@ export const PaymentLicenseHubView: React.FC = () => {
         </div>
       </div>
 
-      {/* Dedicated 2-Tab Bar inside Payment Hub */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3 font-mono text-xs">
-        <button
-          type="button"
-          onClick={() => setSubTab('qr-checkout')}
-          className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
-            subTab === 'qr-checkout'
-              ? 'bg-emerald-600 text-white shadow-lg'
-              : 'bg-slate-900 text-slate-300 hover:text-white border border-slate-800'
-          }`}
-        >
-          <QrCode className="w-4 h-4" />
-          <span>1. Operator QR Payment &amp; UTR Checkout</span>
-        </button>
+      {/* Dedicated 2-Tab Bar inside Payment Hub (Admin Controls first when in Admin Portal) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {defaultSubTab === 'admin-controls' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setSubTab('admin-controls')}
+                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
+                  subTab === 'admin-controls'
+                    ? 'bg-cyan-600 text-white shadow-lg'
+                    : 'bg-slate-900 text-cyan-300 hover:text-white border border-slate-800'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>
+                  1. Admin License Plans, UTR Queue &amp; Per-PC Control
+                  {pendingClaimsCount > 0 ? ` (${pendingClaimsCount})` : ''}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSubTab('qr-checkout')}
+                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
+                  subTab === 'qr-checkout'
+                    ? 'bg-emerald-600 text-white shadow-lg'
+                    : 'bg-slate-900 text-slate-300 hover:text-white border border-slate-800'
+                }`}
+              >
+                <QrCode className="w-4 h-4" />
+                <span>2. Operator QR Payment &amp; UTR Checkout Preview</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setSubTab('qr-checkout')}
+                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
+                  subTab === 'qr-checkout'
+                    ? 'bg-emerald-600 text-white shadow-lg'
+                    : 'bg-slate-900 text-slate-300 hover:text-white border border-slate-800'
+                }`}
+              >
+                <QrCode className="w-4 h-4" />
+                <span>1. Operator QR Payment &amp; UTR Checkout</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSubTab('admin-controls')}
+                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
+                  subTab === 'admin-controls'
+                    ? 'bg-cyan-600 text-white shadow-lg'
+                    : 'bg-slate-900 text-cyan-300 hover:text-white border border-slate-800'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>
+                  2. Admin License Plans, UTR Queue &amp; Per-PC Control
+                  {pendingClaimsCount > 0 ? ` (${pendingClaimsCount})` : ''}
+                </span>
+              </button>
+            </>
+          )}
+        </div>
 
         <button
           type="button"
-          onClick={() => setSubTab('admin-controls')}
-          className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
-            subTab === 'admin-controls'
-              ? 'bg-cyan-600 text-white shadow-lg'
-              : 'bg-slate-900 text-cyan-300 hover:text-white border border-slate-800'
-          }`}
+          onClick={() => {
+            navigator.clipboard.writeText('https://rakeshkumardhawan.github.io/UBDTOOLS/pay-checkout?pay=1');
+            showInfo('Operator Checkout Link కాపీ అయింది!', 'Checkout Link Copied');
+          }}
+          className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-emerald-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
         >
-          <SlidersHorizontal className="w-4 h-4" />
-          <span>
-            2. Admin License Plans, UTR Queue &amp; Per-PC Control
-            {pendingClaimsCount > 0 ? ` (${pendingClaimsCount})` : ''}
-          </span>
+          <Copy className="w-3.5 h-3.5" />
+          <span>Copy Operator Pay Link</span>
         </button>
       </div>
 
@@ -519,6 +658,27 @@ export const PaymentLicenseHubView: React.FC = () => {
       {/* Sub-Tab 2: Admin Licensing Plan, UTR Claims & Per-PC Overrides */}
       {subTab === 'admin-controls' && (
         <div className="space-y-6 font-mono text-xs">
+          {/* Quick Payment Mode & License Metrics Strip */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+              <div className="text-[10px] text-slate-400 font-bold">GLOBAL MODE</div>
+              <div className={`text-sm font-black mt-1 ${licensePolicy.mode === 'PAID_MONTHLY' ? 'text-amber-300' : 'text-emerald-300'}`}>
+                {licensePolicy.mode === 'PAID_MONTHLY' ? `PAID (₹${licensePolicy.monthlyPriceInr}/${licensePolicy.durationDays}d)` : 'FREE FOR ALL'}
+              </div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+              <div className="text-[10px] text-slate-400 font-bold">PENDING UTR CLAIMS</div>
+              <div className="text-xl font-black text-amber-400 mt-1">{pendingClaimsCount}</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+              <div className="text-[10px] text-slate-400 font-bold">ACTIVE PAID PCs</div>
+              <div className="text-xl font-black text-emerald-400 mt-1">{activePaidPcsCount}</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+              <div className="text-[10px] text-slate-400 font-bold">FREE BYPASS PCs</div>
+              <div className="text-xl font-black text-violet-300 mt-1">{freeBypassPcsCount}</div>
+            </div>
+          </div>
           {!isVerifiedAdmin && (
             <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-sans">
               <div className="text-xs text-amber-200">
@@ -543,7 +703,15 @@ export const PaymentLicenseHubView: React.FC = () => {
                   <span>APP LICENSING CONTROL — FREE NOW &amp; ₹{licensePolicy.monthlyPriceInr}/MONTH SUBSCRIPTION</span>
                 </h2>
                 <p className="text-slate-400 text-[11px] mt-1 font-sans">
-                  ప్రస్తుతం <strong>FREE_FOR_ALL</strong> మోడ్‌లో అందరికీ 100% ఉచితంగా రన్ అవుతుంది. మీరు <strong>PAID_MONTHLY</strong> ఆన్ చేసిన వెంటనే ప్రతి PC కి సబ్‌స్క్రిప్షన్ చెక్ వర్తిస్తుంది.
+                  {licensePolicy.mode === 'PAID_MONTHLY' ? (
+                    <>
+                      ప్రస్తుతం <strong className="text-amber-300">PAID_MONTHLY (₹{licensePolicy.monthlyPriceInr}/{licensePolicy.durationDays} రోజులు)</strong> ఆన్‌లో ఉంది! Active లైసెన్స్ లేదా Free Bypass లేని PCలకు సబ్‌స్క్రిప్షన్ చెక్ వర్తిస్తుంది.
+                    </>
+                  ) : (
+                    <>
+                      ప్రస్తుతం <strong className="text-emerald-300">FREE_FOR_ALL</strong> మోడ్ ఆన్‌లో ఉంది — అందరికీ 100% ఉచితంగా రన్ అవుతుంది. <strong className="text-amber-300">PAID_MONTHLY</strong> ఆన్ చేస్తే సబ్‌స్క్రిప్షన్ చెక్ వర్తిస్తుంది.
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -557,7 +725,7 @@ export const PaymentLicenseHubView: React.FC = () => {
                       : 'bg-slate-800 text-slate-300 hover:bg-emerald-700 hover:text-white'
                   }`}
                 >
-                  🟢 FREE FOR ALL (Active Now)
+                  {licensePolicy.mode === 'FREE_FOR_ALL' ? '🟢 FREE FOR ALL (Active Now)' : '🟢 Switch to FREE FOR ALL'}
                 </button>
                 <button
                   type="button"
@@ -569,7 +737,9 @@ export const PaymentLicenseHubView: React.FC = () => {
                       : 'bg-slate-800 text-slate-300 hover:bg-amber-600 hover:text-white'
                   }`}
                 >
-                  💳 ENABLE ₹{licensePolicy.monthlyPriceInr}/{licensePolicy.durationDays}d PAID MODE
+                  {licensePolicy.mode === 'PAID_MONTHLY'
+                    ? `💳 PAID MODE ₹${licensePolicy.monthlyPriceInr}/${licensePolicy.durationDays}d (Active Now)`
+                    : `💳 ENABLE ₹${licensePolicy.monthlyPriceInr}/${licensePolicy.durationDays}d PAID MODE`}
                 </button>
               </div>
             </div>
@@ -652,13 +822,25 @@ export const PaymentLicenseHubView: React.FC = () => {
 
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center text-center space-y-2.5">
                 <div className="text-[10px] font-bold text-cyan-300 uppercase">Live UPI QR Preview (No Phone # Shown)</div>
-                {licensePolicy.upiId ? (
+                {licensePolicy.upiId.trim() ? (
                   <div className="bg-white p-2.5 rounded-xl">
                     <QRCodeSVG
-                      value={buildUpiPaymentUri(licensePolicy.upiId, licensePolicy.monthlyPriceInr)}
+                      value={buildUpiPaymentUri(licensePolicy.upiId.trim(), licensePolicy.monthlyPriceInr)}
                       size={128}
                       level="M"
                     />
+                  </div>
+                ) : licensePolicy.paymentLinkUrl && /^https?:\/\//i.test(licensePolicy.paymentLinkUrl.trim()) ? (
+                  <div className="bg-white p-2.5 rounded-xl">
+                    <QRCodeSVG
+                      value={licensePolicy.paymentLinkUrl.trim()}
+                      size={128}
+                      level="M"
+                    />
+                  </div>
+                ) : licensePolicy.mode === 'PAID_MONTHLY' ? (
+                  <div className="w-36 min-h-32 rounded-xl border border-amber-500/50 bg-amber-500/10 flex items-center justify-center p-2.5 text-[10px] text-amber-200 font-sans">
+                    ⚠️ Paid Mode ఆన్‌లో ఉంది! ఆపరేటర్లకు QR రావాలంటే Alias UPI ID లేదా Gateway Link సేవ్ చేయండి.
                   </div>
                 ) : (
                   <div className="w-32 h-32 rounded-xl border border-dashed border-slate-700 flex items-center justify-center p-2 text-[10px] text-slate-500 font-sans">
@@ -670,7 +852,7 @@ export const PaymentLicenseHubView: React.FC = () => {
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="p-4 border-b border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
               <div>
                 <h3 className="text-sm font-black text-white uppercase">
                   🧾 UPI PAYMENT CLAIMS &amp; ANTI-DUPLICATE QUEUE ({pendingClaimsCount} PENDING)
@@ -679,7 +861,40 @@ export const PaymentLicenseHubView: React.FC = () => {
                   ప్రతి UTR నంబర్ Firestore లో ఒకేసారి సేవ్ అవుతుంది (Duplicate UTR ను సిస్టమ్ బ్లాక్ చేస్తుంది). మీ PhonePe/GPay లో UTR మ్యాచ్ అయిన తర్వాత Approve నొక్కండి.
                 </p>
               </div>
-              <span className="text-[11px] text-amber-300 font-bold">Unique UTR Lock Enabled</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {pendingClaimsCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm(`Are you sure you want to approve all ${pendingClaimsCount} pending payment claims instantly?`)) return;
+                      const pending = paymentClaims.filter((c) => c.status === 'PENDING');
+                      for (const claim of pending) {
+                        try {
+                          await handleApprovePaymentClaim(claim);
+                        } catch {}
+                      }
+                      showSuccess(`Approved all ${pendingClaimsCount} pending claims!`, 'Emergency Bulk Approve');
+                    }}
+                    className="px-3 py-1 rounded-lg text-[10px] font-bold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer transition flex items-center gap-1 mr-2"
+                  >
+                    <span>⚡ Emergency Approve All ({pendingClaimsCount})</span>
+                  </button>
+                )}
+                {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((statusKey) => (
+                  <button
+                    key={statusKey}
+                    type="button"
+                    onClick={() => setClaimStatusFilter(statusKey)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition ${
+                      claimStatusFilter === statusKey
+                        ? 'bg-cyan-600 text-white'
+                        : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {statusKey}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -694,14 +909,14 @@ export const PaymentLicenseHubView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {paymentClaims.length === 0 ? (
+                  {filteredClaims.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="p-6 text-center text-slate-400 font-sans">
-                        ఇంకా ఏ పేమెంట్ UTR క్లెయిమ్ రాలేదు. Paid Mode ఆన్ అయిన తర్వాత యూజర్లు పంపే 12-అంకెల UTR ఇక్కడ కనిపిస్తుంది.
+                        ఎంచుకున్న ఫిల్టర్‌లో ఇంకా ఏ పేమెంట్ UTR క్లెయిమ్ లేదు. Paid Mode ఆన్ అయిన తర్వాత యూజర్లు పంపే 12-అంకెల UTR ఇక్కడ కనిపిస్తుంది.
                       </td>
                     </tr>
                   ) : (
-                    paymentClaims.map((claim) => {
+                    filteredClaims.map((claim) => {
                       const samePcOthers = paymentClaims.filter(
                         (other) =>
                           other.claimId !== claim.claimId &&
@@ -799,32 +1014,53 @@ export const PaymentLicenseHubView: React.FC = () => {
                 <span className="text-[11px] text-emerald-400 font-bold">Per-PC Payment Override Ready</span>
               </div>
 
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
-                <div className="text-[11px] font-bold text-cyan-300 shrink-0">
-                  🔓 ఏదైనా PC కి Payment OFF చేయండి:
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5">
+                <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+                  <div className="text-[11px] font-bold text-cyan-300 shrink-0">
+                    PC ID Control:
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="PC Machine ID (ఉదా: EVD-TS-MNCL-01)"
+                    value={bypassPcIdInput}
+                    onChange={(e) => setBypassPcIdInput(e.target.value)}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-300 font-mono"
+                  />
+                  <input
+                    type="text"
+                    placeholder="PC Name / ఆఫీస్ పేరు (Optional)"
+                    value={bypassPcNameInput}
+                    onChange={(e) => setBypassPcNameInput(e.target.value)}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white"
+                  />
+                  <button
+                    type="button"
+                    disabled={!bypassPcIdInput.trim() || activatingPcId === resolveExactPcId(bypassPcIdInput)}
+                    onClick={() => handleSetPcFreeBypass(bypassPcIdInput, bypassPcNameInput, true)}
+                    className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    🔓 Free PC
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!bypassPcIdInput.trim() || activatingPcId === resolveExactPcId(bypassPcIdInput)}
+                    onClick={() => handleActivatePcSubscription({ pcId: bypassPcIdInput, pcName: bypassPcNameInput })}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    ✅ +{licensePolicy.durationDays}d Paid
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  placeholder="PC Machine ID (ఉదా: EVD-TS-MNCL-01)"
-                  value={bypassPcIdInput}
-                  onChange={(e) => setBypassPcIdInput(e.target.value)}
-                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-300 font-mono"
-                />
-                <input
-                  type="text"
-                  placeholder="PC Name / ఆఫీస్ పేరు (Optional)"
-                  value={bypassPcNameInput}
-                  onChange={(e) => setBypassPcNameInput(e.target.value)}
-                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white"
-                />
-                <button
-                  type="button"
-                  disabled={!bypassPcIdInput.trim() || activatingPcId === bypassPcIdInput.trim()}
-                  onClick={() => handleSetPcFreeBypass(bypassPcIdInput, bypassPcNameInput, true)}
-                  className="bg-violet-600 hover:bg-violet-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
-                >
-                  🔓 Turn Payment OFF for this PC (Free)
-                </button>
+
+                <div className="relative lg:w-64">
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={pcSearchFilter}
+                    onChange={(e) => setPcSearchFilter(e.target.value)}
+                    placeholder="Search PC Name, ID, District..."
+                    className="w-full h-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -858,7 +1094,17 @@ export const PaymentLicenseHubView: React.FC = () => {
                         });
                       }
                     });
-                    const allManagedPcs = Array.from(combinedMap.values());
+                    const q = pcSearchFilter.trim().toLowerCase();
+                    const allManagedPcs = Array.from(combinedMap.values()).filter((p) => {
+                      if (!q) return true;
+                      return (
+                        String(p.pcId || '').toLowerCase().includes(q) ||
+                        String(p.pcName || '').toLowerCase().includes(q) ||
+                        String(p.userName || '').toLowerCase().includes(q) ||
+                        String(p.district || '').toLowerCase().includes(q) ||
+                        String(p.officeLocation || '').toLowerCase().includes(q)
+                      );
+                    });
 
                     if (allManagedPcs.length === 0) {
                       return (

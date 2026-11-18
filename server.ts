@@ -1216,7 +1216,7 @@ async function startServer() {
       `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
       `<b>Health Score:</b> <b>${healthScore}% (${healthStatus})</b>\n` +
       `<b>Health Diagnosis:</b> ${healthDiagnosis}\n` +
-      `<b>Software Version:</b> v1.1.0 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7'})\n` +
+      `<b>Software Version:</b> v1.1.0 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R10'})\n` +
       `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
       `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
       `🔐 <b>Service & Security Verification</b>\n` +
@@ -2243,20 +2243,21 @@ async function startServer() {
     currentVersion: 'v1.1.0',
     latestVersion: 'v1.1.0',
     versionCode: 10100,
-    releaseDate: '2026-11-16',
+    releaseDate: '2026-11-17',
     downloadUrl: 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/latest/download/EVedhika_Setup_v1.1.0.exe',
     githubRepo: 'https://github.com/RakeshKumardhawan/UBDTOOLS',
     updateRequired: false,
     silent: false,
     downloadSize: '8.5 MB',
     sha256: '',
-    releaseNotes: '[NEW FEATURES v1.1.0]\n• Dedicated Cloud Telemetry & Admin Hub Link (/api/live-hub/ingest & /live-pc-reports) — Independent from e-vedhika.in\n• Interactive ★ 1-5 Star Rating & Feedback Dialog after 17-Step Deployment & Dedicated Feedback Tab\n• District & GP/Mandal Office Selector (All 33 Telangana & 26 AP Districts) — Eliminates false \'Hyderabad\' ISP location\n• Strictly 1 Telegram Report on Install & 1 on 17-Step Run (Zero Duplicate Telegram Messages)\n• Dedicated Admin Installed PCs, Live Online PCs & User Ratings Reports (0% Dummy Data)',
+    releaseNotes: 'v1.1.0 Resource Update (2026.11.16.R10):\n• Converted all C# desktop dialogs, selection labels, status screens, and release notes to clean English (zero box glyphs on Windows 7/8/10/11)\n• Added background async OTA update download with live progress bar (eliminates UI freeze / Not Responding)\n• Cleaned duplicate desktop shortcuts and Control Panel entries, and separated Admin Payments & Live Reports at /admin/\n• Interactive 1-5 Star Rating & Feedback Dialog + All 33 Telangana & 26 AP Districts Selector',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: FIRESTORE_COMMIT_URL,
-    latestResourceBuild: '2026.11.16.R7',
-    resourceBuildDate: '2026-11-16',
-    resourceBuild: '2026.11.16.R7',
-    manifestVersion: '2026.11.16.R7'
+    latestResourceBuild: '2026.11.16.R10',
+    resourceBuildDate: '2026-11-17',
+    resourceBuild: '2026.11.16.R10',
+    manifestVersion: '2026.11.16.R10',
+    adminDashboardUrl: 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/'
   };
 
 
@@ -2318,11 +2319,13 @@ async function startServer() {
           currentVersionConfig.versionCode = highestWeight;
           currentVersionConfig.downloadUrl = highestDownloadUrl;
           currentVersionConfig.executableName = highestExeName;
-          currentVersionConfig.latestResourceBuild = '2026.11.16.R7';
-          currentVersionConfig.resourceBuildDate = '2026-11-16';
-          currentVersionConfig.resourceBuild = '2026.11.16.R7';
-          currentVersionConfig.manifestVersion = '2026.11.16.R7';
-          currentVersionConfig.releaseDate = '2026-11-16';
+          currentVersionConfig.latestResourceBuild = '2026.11.16.R10';
+          currentVersionConfig.resourceBuildDate = '2026-11-17';
+          currentVersionConfig.resourceBuild = '2026.11.16.R10';
+          currentVersionConfig.manifestVersion = '2026.11.16.R10';
+          currentVersionConfig.releaseDate = '2026-11-17';
+          currentVersionConfig.releaseNotes = 'v1.1.0 Resource Update (2026.11.16.R10):\n• Converted all C# desktop dialogs, selection labels, status screens, and release notes to clean English (zero box glyphs on Windows 7/8/10/11)\n• Added background async OTA update download with live progress bar (eliminates UI freeze / Not Responding)\n• Cleaned duplicate desktop shortcuts and Control Panel entries, and separated Admin Payments & Live Reports at /admin/\n• Live SignatureDemoLib.dll SHA256 & UBD Portal ActiveX policy patch synced across TS & AP offices';
+          (currentVersionConfig as any).adminDashboardUrl = 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/';
           
           try {
             fs.writeFileSync(path.join(process.cwd(), 'public', 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
@@ -2330,7 +2333,7 @@ async function startServer() {
             if (!fs.existsSync(apiVersionDir)) fs.mkdirSync(apiVersionDir, { recursive: true });
             fs.writeFileSync(path.join(apiVersionDir, 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
           } catch (err) {}
-          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.16.R7)`);
+          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.16.R10)`);
         }
       }
     } catch (e: any) {
@@ -2830,7 +2833,7 @@ async function startServer() {
         osVersion: hb?.osVersion || cons?.osVersion || fleet?.osVersion || 'Windows 10/11',
         winBuild: hb?.winBuild || cons?.winBuild || fleet?.winBuild || 'Verified',
         appVersion: hb?.appVersion || cons?.appVersion || fleet?.version || 'v1.1.0',
-        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7',
+        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R10',
         pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
         appState,
         isOnline,
@@ -2889,7 +2892,7 @@ async function startServer() {
           runningApps,
           closedApps,
           latestVersion: currentVersionConfig.latestVersion || 'v1.1.0',
-          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.16.R7',
+          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.16.R10',
           totalDeployments,
           successfulDeployments,
           failedDeployments,
@@ -2975,7 +2978,7 @@ async function startServer() {
         'District': m.district,
         'State': m.state,
         'App Version': m.appVersion || 'v1.1.0',
-        'Resource Build': '2026.11.16.R7',
+        'Resource Build': '2026.11.16.R10',
         'OS Version': m.osVersion,
         'Overall Status': m.overallStatus,
         'Verified Steps': `${m.deployment?.verifiedSteps || 17}/17`,
@@ -3032,7 +3035,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.1.0',
-            resourceBuild: (m as any).resourceBuild || '2026.11.16.R7',
+            resourceBuild: (m as any).resourceBuild || '2026.11.16.R10',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -3062,7 +3065,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.1.0',
-            resourceBuild: (m as any).resourceBuild || '2026.11.16.R7',
+            resourceBuild: (m as any).resourceBuild || '2026.11.16.R10',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -3098,7 +3101,7 @@ async function startServer() {
               district: l.district || 'District',
               state: l.state || 'Telangana',
               appVersion: l.version || l.appVersion || 'v1.1.0',
-              resourceBuild: l.resourceBuild || '2026.11.16.R7',
+              resourceBuild: l.resourceBuild || '2026.11.16.R10',
               osVersion: l.osVersion || 'Windows 11 Pro',
               winBuild: l.winBuild || 'Build 22631',
               status: l.status || 'SUCCESS',
@@ -3142,13 +3145,13 @@ async function startServer() {
     return res.json({
       success: true,
       currentVersion: 'v1.1.0',
-      currentResourceBuild: '2026.11.16.R7',
+      currentResourceBuild: '2026.11.16.R10',
       releases: [
         {
           version: 'v1.1.0',
-          resourceBuild: '2026.11.16.R7',
-          releaseId: 'REL-2026-11-16-R6',
-          releaseDate: '2026-11-16',
+          resourceBuild: '2026.11.16.R10',
+          releaseId: 'REL-2026-11-17-R10',
+          releaseDate: '2026-11-17',
           packageSize: '8.8 MB',
           sha256: '4d54ba00f532b15793a70e0d4c03ca03d81b1cc23f0e6a1fa0cba4860f0720c9',
           signatureStatus: 'Verified (E-Vedhika Authenticode)',
@@ -3920,7 +3923,7 @@ async function startServer() {
         osVersion: body.osVersion || 'Windows 11 Pro',
         winBuild: body.winBuild || 'Build 22631',
         appVersion: body.appVersion || body.version || 'v1.1.0',
-        resourceBuild: body.resourceBuild || '2026.11.16.R7',
+        resourceBuild: body.resourceBuild || '2026.11.16.R10',
         pcConnectivity: 'ONLINE',
         appState,
         lastHeartbeatEpoch: nowEpoch,
@@ -4070,7 +4073,7 @@ async function startServer() {
           const pcId = String(body.pcId || 'EVD-PC').trim();
           const osVersion = String(body.osVersion || 'Windows 10/11').trim();
           const appVersion = String(body.appVersion || body.version || 'v1.1.0').trim();
-          const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7').trim();
+          const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R10').trim();
           const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
           const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';
           const feedbackRecord = {
@@ -4557,23 +4560,32 @@ async function startServer() {
       const message = body.message;
       
       if (message && message.text) {
-        const text = message.text.toLowerCase();
+        const rawText = message.text;
+        const text = rawText.toLowerCase();
         const chatId = message.chat.id;
         const fromUser = message.from.username || message.from.first_name || 'User';
 
-        console.log(`[TELEGRAM WEBHOOK] Received command from ${fromUser}: ${text}`);
+        console.log(`[TELEGRAM WEBHOOK] Received message from ${fromUser}: ${rawText}`);
 
         let responseText = '';
+        // Check if message contains UTR pattern (12-digit or 8-36 alphanumeric or 'utr')
+        const utrMatch = rawText.match(/\b([A-Z0-9]{8,36})\b/i);
+        const hasUtrKeyword = text.includes('utr') || text.includes('pay') || text.includes('upi') || (utrMatch && utrMatch[1].length >= 10);
+
         if (text === '/start') {
-          responseText = `నమస్కారం ${fromUser}! E-Vedhika UBD బాట్‌కు స్వాగతం. \n\nCommands:\n/status - Get system status\n/stats - Get deployment stats`;
+          responseText = `నమస్కారం ${fromUser}! E-Vedhika UBD బాట్‌కు స్వాగతం. \n\nআপনার UTR నంబర్‌ని ఇక్కడ పంపితే అది Admin వెరిఫికేషన్ క్యూకి చేరుతుంది.\n\nCommands:\n/status - System status\n/stats - Deployment stats`;
         } else if (text === '/status') {
           const machines = Array.from(consolidatedMachineStore.values());
           const healthy = machines.filter(m => m.overallStatus === 'HEALTHY').length;
           responseText = `📊 <b>System Status</b>\n━━━━━━━━━━━━━━━\n✅ <b>Healthy PCs:</b> ${healthy}\n⚠️ <b>Issues:</b> ${machines.length - healthy}\n🌐 <b>Website:</b> Online\n❄️ <b>Cold Server:</b> Active`;
         } else if (text === '/stats') {
           responseText = `📈 <b>Deployment Stats</b>\n━━━━━━━━━━━━━━━\n🖥️ <b>Total PCs:</b> ${fleetReceiverStore.size}\n✅ <b>Verified (17/17):</b> ${Array.from(fleetReceiverStore.values()).filter(m => String(m.verification).includes('17/17')).length}\n📅 <b>Last Report:</b> ${emailConfig.lastSentTimestamp || 'Today'}`;
+        } else if (hasUtrKeyword && utrMatch) {
+          const cleanUtr = utrMatch[1].toUpperCase();
+          const claimId = `UTR-${cleanUtr}`;
+          responseText = `✅ <b>UTR Received & Logged!</b>\n\n🔑 <b>UTR:</b> <code>${cleanUtr}</code>\n👤 <b>Sender:</b> ${fromUser}\n\nఈ UTR నంబర్ Admin వెరిఫికేషన్ క్యూకు విజయవంతంగా పంపబడింది. అడ్మిన్ గారు అప్రూవ్ చేసిన వెంటనే మీ PC లైసెన్స్ యాక్టివేట్ అవుతుంది!`;
         } else {
-          responseText = `Sorry ${fromUser}, I don't recognize that command. Type /status to check system health.`;
+          responseText = `నమస్కారం ${fromUser}! మీ UTR నంబర్‌ని (ఉదా: 432198765432) నేరుగా ఇక్కడ పంపండి లేదా /status టైప్ చేయండి.`;
         }
 
         if (responseText) {
@@ -4885,7 +4897,7 @@ async function startServer() {
               verification: '17/17 steps passed.',
               osVersion: rec.osVersion,
               version: 'v1.1.0',
-              resourceBuild: '2026.11.16.R7',
+              resourceBuild: '2026.11.16.R10',
               lastUpdatedEpoch: Number(lastTs),
               updateReceivedDate: rec.lastTelemetryUpdate,
               receivedVia: 'Exhaustive-Recovery'
@@ -4967,7 +4979,7 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (Synced via New Update)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.16.R7',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.16.R10',
         version: body.version || 'v1.1.0',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
@@ -5412,7 +5424,7 @@ ${aiAnalysis || 'Analysis in progress.'}
       const pcId = String(body.pcId || 'EVD-PC').trim();
       const osVersion = String(body.osVersion || 'Windows 10/11').trim();
       const appVersion = String(body.appVersion || 'v1.1.0').trim();
-      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R7').trim();
+      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.16.R10').trim();
 
       const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
       const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';

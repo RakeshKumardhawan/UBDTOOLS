@@ -334,7 +334,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
         {
             try
             {
-                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT Caption, Version FROM Win32_OperatingSystem"))
+                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT Caption, Version, BuildNumber, OSArchitecture FROM Win32_OperatingSystem"))
                 {
                     var collection = searcher.Get();
                     if (collection != null)
@@ -342,9 +342,16 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         foreach (ManagementObject os in collection)
                         {
                             if (os == null) continue;
-                            string caption = os["Caption"] != null ? os["Caption"].ToString() : "Windows";
-                            string version = os["Version"] != null ? os["Version"].ToString() : "";
-                            return string.Format("{0} (Build {1})", caption, version);
+                            string caption = os["Caption"] != null ? os["Caption"].ToString().Trim() : "Windows";
+                            string version = os["Version"] != null ? os["Version"].ToString().Trim() : "";
+                            string build = os["BuildNumber"] != null ? os["BuildNumber"].ToString().Trim() : "";
+                            string arch = os["OSArchitecture"] != null ? os["OSArchitecture"].ToString().Trim() : (Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit");
+                            
+                            if (caption.Contains("Microsoft"))
+                            {
+                                caption = caption.Replace("Microsoft ", "");
+                            }
+                            return string.Format("{0} (Version {1}, Build {2}, {3})", caption, version, build, arch);
                         }
                     }
                 }
@@ -353,7 +360,38 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             {
                 // Fallback
             }
-            return Environment.OSVersion != null ? Environment.OSVersion.ToString() : "Windows OS";
+
+            try
+            {
+                var os = Environment.OSVersion;
+                if (os.Platform == PlatformID.Win32NT)
+                {
+                    int major = os.Version.Major;
+                    int minor = os.Version.Minor;
+                    int build = os.Version.Build;
+                    string arch = Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit";
+
+                    if (major == 10)
+                    {
+                        if (build >= 22000) return $"Windows 11 Pro / Enterprise (Build {build}, {arch})";
+                        return $"Windows 10 Pro / Enterprise (Build {build}, {arch})";
+                    }
+                    else if (major == 6)
+                    {
+                        if (minor == 3) return $"Windows 8.1 / Server 2012 R2 (Build {build}, {arch})";
+                        if (minor == 2) return $"Windows 8 / Server 2012 (Build {build}, {arch})";
+                        if (minor == 1) return $"Windows 7 SP1 / Server 2008 R2 (Build {build}, {arch})";
+                        if (minor == 0) return $"Windows Vista / Server 2008 (Build {build}, {arch})";
+                    }
+                    else if (major == 5)
+                    {
+                        return $"Windows XP (Build {build}, {arch})";
+                    }
+                }
+            }
+            catch { }
+
+            return Environment.OSVersion != null ? $"{Environment.OSVersion.VersionString} ({(Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit")})" : "Windows OS (Unknown)";
         }
 
         public static string GetProcessorInfo()

@@ -114,7 +114,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDeploy.Padding = new System.Windows.Forms.Padding(12);
             this.tabDeploy.Size = new System.Drawing.Size(876, 444);
             this.tabDeploy.TabIndex = 0;
-            this.tabDeploy.Text = "🚀 17-Step Deployment";
+            this.tabDeploy.Text = "17-Step Deployment";
             this.tabDeploy.UseVisualStyleBackColor = false;
             // 
             // pnlMetricsCards
@@ -136,7 +136,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnStartDeploy.Name = "btnStartDeploy";
             this.btnStartDeploy.Size = new System.Drawing.Size(250, 38);
             this.btnStartDeploy.TabIndex = 1;
-            this.btnStartDeploy.Text = "▶ Start 17-Step Deployment";
+            this.btnStartDeploy.Text = "Start 17-Step Deployment";
             this.btnStartDeploy.UseVisualStyleBackColor = false;
             this.btnStartDeploy.Click += new System.EventHandler(this.btnStartDeploy_Click);
             // 
@@ -177,7 +177,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabRemote.Padding = new System.Windows.Forms.Padding(12);
             this.tabRemote.Size = new System.Drawing.Size(876, 444);
             this.tabRemote.TabIndex = 5;
-            this.tabRemote.Text = "⚡ PC Boost & Live Resources";
+            this.tabRemote.Text = "PC Boost & Live Resources";
             // 
             // lblRemoteTitle
             // 
@@ -198,7 +198,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblRemoteStatus.Name = "lblRemoteStatus";
             this.lblRemoteStatus.Size = new System.Drawing.Size(420, 17);
             this.lblRemoteStatus.TabIndex = 1;
-            this.lblRemoteStatus.Text = "Status: 🟢 LIVE ONLINE & REPORTING TO E-VEDHIKA WEBSITE";
+            this.lblRemoteStatus.Text = "Status: [ONLINE] LIVE ONLINE & REPORTING TO E-VEDHIKA WEBSITE";
             // 
             // lblPcNameInfo
             // 
@@ -220,7 +220,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnToggleRemote.Name = "btnToggleRemote";
             this.btnToggleRemote.Size = new System.Drawing.Size(220, 35);
             this.btnToggleRemote.TabIndex = 3;
-            this.btnToggleRemote.Text = "⏸️ Pause Remote Agent";
+            this.btnToggleRemote.Text = "Pause Remote Agent";
             this.btnToggleRemote.UseVisualStyleBackColor = false;
             this.btnToggleRemote.Click += new System.EventHandler(this.btnToggleRemote_Click);
             // 
@@ -234,7 +234,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnSendTelemetryManual.Name = "btnSendTelemetryManual";
             this.btnSendTelemetryManual.Size = new System.Drawing.Size(320, 35);
             this.btnSendTelemetryManual.TabIndex = 4;
-            this.btnSendTelemetryManual.Text = "📤 Send Live Report to E-Vedhika Website Now";
+            this.btnSendTelemetryManual.Text = "Send Live Report to E-Vedhika Website Now";
             this.btnSendTelemetryManual.UseVisualStyleBackColor = false;
             this.btnSendTelemetryManual.Click += new System.EventHandler(this.btnSendTelemetryManual_Click);
             // 
@@ -271,7 +271,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDiagnostics.Padding = new System.Windows.Forms.Padding(12);
             this.tabDiagnostics.Size = new System.Drawing.Size(876, 444);
             this.tabDiagnostics.TabIndex = 1;
-            this.tabDiagnostics.Text = "🔍 Diagnostics";
+            this.tabDiagnostics.Text = "Diagnostics";
             this.tabDiagnostics.UseVisualStyleBackColor = false;
             // 
             // btnRunDiagnostics
@@ -284,7 +284,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnRunDiagnostics.Name = "btnRunDiagnostics";
             this.btnRunDiagnostics.Size = new System.Drawing.Size(160, 36);
             this.btnRunDiagnostics.TabIndex = 1;
-            this.btnRunDiagnostics.Text = "🔄 Run WMI Scan";
+            this.btnRunDiagnostics.Text = "Run WMI Scan";
             this.btnRunDiagnostics.UseVisualStyleBackColor = false;
             this.btnRunDiagnostics.Click += new System.EventHandler(this.btnRunDiagnostics_Click);
             // 
@@ -314,7 +314,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnPCBoost.Name = "btnPCBoost";
             this.btnPCBoost.Size = new System.Drawing.Size(190, 36);
             this.btnPCBoost.TabIndex = 3;
-            this.btnPCBoost.Text = "🚀 PC Boost & Junk Clean";
+            this.btnPCBoost.Text = "PC Boost & Junk Clean";
             this.btnPCBoost.UseVisualStyleBackColor = false;
             this.btnPCBoost.Click += new System.EventHandler(this.btnPCBoost_Click);
             // 
@@ -329,7 +329,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnRepairEdge.Name = "btnRepairEdge";
             this.btnRepairEdge.Size = new System.Drawing.Size(240, 36);
             this.btnRepairEdge.TabIndex = 7;
-            this.btnRepairEdge.Text = "🌐 Install / Update Edge";
+            this.btnRepairEdge.Text = "Install / Update Edge";
             this.btnRepairEdge.UseVisualStyleBackColor = false;
             this.btnRepairEdge.Click += new System.EventHandler(this.btnRepairEdge_Click);
             // 
@@ -344,7 +344,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnFixPrinter.Name = "btnFixPrinter";
             this.btnFixPrinter.Size = new System.Drawing.Size(160, 36);
             this.btnFixPrinter.TabIndex = 4;
-            this.btnFixPrinter.Text = "🖨️ Fix Printer Spooler";
+            this.btnFixPrinter.Text = "Fix Printer Spooler";
             this.btnFixPrinter.UseVisualStyleBackColor = false;
             this.btnFixPrinter.Click += new System.EventHandler(this.btnFixPrinter_Click);
             // 
@@ -359,7 +359,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnDeepRepair.Name = "btnDeepRepair";
             this.btnDeepRepair.Size = new System.Drawing.Size(190, 36);
             this.btnDeepRepair.TabIndex = 5;
-            this.btnDeepRepair.Text = "🛠️ OS Deep Repair (SFC)";
+            this.btnDeepRepair.Text = "OS Deep Repair (SFC)";
             this.btnDeepRepair.UseVisualStyleBackColor = false;
             this.btnDeepRepair.Click += new System.EventHandler(this.btnDeepRepair_Click);
             // 
@@ -374,7 +374,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnSyncTime.Name = "btnSyncTime";
             this.btnSyncTime.Size = new System.Drawing.Size(190, 36);
             this.btnSyncTime.TabIndex = 6;
-            this.btnSyncTime.Text = "🌐 Time && Date Fixer";
+            this.btnSyncTime.Text = "Time & Date Fixer";
             this.btnSyncTime.UseVisualStyleBackColor = false;
             this.btnSyncTime.Click += new System.EventHandler(this.btnSyncTime_Click);
             // 
@@ -389,7 +389,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnReportUbdIssueDiag.Name = "btnReportUbdIssueDiag";
             this.btnReportUbdIssueDiag.Size = new System.Drawing.Size(240, 36);
             this.btnReportUbdIssueDiag.TabIndex = 8;
-            this.btnReportUbdIssueDiag.Text = "🚨 Report Issue (GitHub / AI)";
+            this.btnReportUbdIssueDiag.Text = "Report Issue (GitHub / AI)";
             this.btnReportUbdIssueDiag.UseVisualStyleBackColor = false;
             this.btnReportUbdIssueDiag.Click += new System.EventHandler(this.btnReportGitHubIssue_Click);
             // 
@@ -425,7 +425,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabDrivers.Padding = new System.Windows.Forms.Padding(12);
             this.tabDrivers.Size = new System.Drawing.Size(876, 444);
             this.tabDrivers.TabIndex = 2;
-            this.tabDrivers.Text = "🔌 Drivers & Token";
+            this.tabDrivers.Text = "Drivers & Token";
             this.tabDrivers.UseVisualStyleBackColor = false;
             // 
             // btnInstallProxKey
@@ -438,7 +438,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnInstallProxKey.Name = "btnInstallProxKey";
             this.btnInstallProxKey.Size = new System.Drawing.Size(200, 38);
             this.btnInstallProxKey.TabIndex = 1;
-            this.btnInstallProxKey.Text = "🔑 Install ProxKey Driver";
+            this.btnInstallProxKey.Text = "Install ProxKey Driver";
             this.btnInstallProxKey.UseVisualStyleBackColor = false;
             this.btnInstallProxKey.Click += new System.EventHandler(this.btnInstallProxKey_Click);
             // 
@@ -452,7 +452,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnInstallHYP2003.Name = "btnInstallHYP2003";
             this.btnInstallHYP2003.Size = new System.Drawing.Size(200, 38);
             this.btnInstallHYP2003.TabIndex = 2;
-            this.btnInstallHYP2003.Text = "🛡️ Install HYP2003 Driver";
+            this.btnInstallHYP2003.Text = "Install HYP2003 Driver";
             this.btnInstallHYP2003.UseVisualStyleBackColor = false;
             this.btnInstallHYP2003.Click += new System.EventHandler(this.btnInstallHYP2003_Click);
             // 
@@ -466,7 +466,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnInstallMToken.Name = "btnInstallMToken";
             this.btnInstallMToken.Size = new System.Drawing.Size(200, 38);
             this.btnInstallMToken.TabIndex = 3;
-            this.btnInstallMToken.Text = "💎 Install Class 3 mToken";
+            this.btnInstallMToken.Text = "Install Class 3 mToken";
             this.btnInstallMToken.UseVisualStyleBackColor = false;
             this.btnInstallMToken.Click += new System.EventHandler(this.btnInstallMToken_Click);
             // 
@@ -480,7 +480,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnRegisterActiveXManual.Name = "btnRegisterActiveXManual";
             this.btnRegisterActiveXManual.Size = new System.Drawing.Size(210, 38);
             this.btnRegisterActiveXManual.TabIndex = 4;
-            this.btnRegisterActiveXManual.Text = "⚡ Register DigiSignHelper";
+            this.btnRegisterActiveXManual.Text = "Register DigiSignHelper";
             this.btnRegisterActiveXManual.UseVisualStyleBackColor = false;
             this.btnRegisterActiveXManual.Click += new System.EventHandler(this.btnRegisterActiveXManual_Click);
             // 
@@ -494,7 +494,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnScanDscTokens.Name = "btnScanDscTokens";
             this.btnScanDscTokens.Size = new System.Drawing.Size(320, 36);
             this.btnScanDscTokens.TabIndex = 5;
-            this.btnScanDscTokens.Text = "🔍 Scan Connected USB DSC Tokens";
+            this.btnScanDscTokens.Text = "Scan Connected USB DSC Tokens";
             this.btnScanDscTokens.UseVisualStyleBackColor = false;
             this.btnScanDscTokens.Click += new System.EventHandler(this.btnScanDscTokens_Click);
             // 
@@ -524,7 +524,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblDriversInfo.Name = "lblDriversInfo";
             this.lblDriversInfo.Size = new System.Drawing.Size(530, 19);
             this.lblDriversInfo.TabIndex = 0;
-            this.lblDriversInfo.Text = "🔌 USB Digital Signature Certificate (DSC) & PKCS#11 Cryptographic Token Center";
+            this.lblDriversInfo.Text = "USB Digital Signature Certificate (DSC) & PKCS#11 Cryptographic Token Center";
             // 
             // tabLiveUpdates
             // 
@@ -534,7 +534,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabLiveUpdates.Padding = new System.Windows.Forms.Padding(12);
             this.tabLiveUpdates.Size = new System.Drawing.Size(876, 444);
             this.tabLiveUpdates.TabIndex = 6;
-            this.tabLiveUpdates.Text = "✨ Live Website Posts";
+            this.tabLiveUpdates.Text = "Live Website Posts";
             // 
             // tabAiTrouble
             // 
@@ -549,7 +549,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabAiTrouble.Padding = new System.Windows.Forms.Padding(12);
             this.tabAiTrouble.Size = new System.Drawing.Size(876, 444);
             this.tabAiTrouble.TabIndex = 3;
-            this.tabAiTrouble.Text = "🤖 AI Troubleshooter";
+            this.tabAiTrouble.Text = "AI Troubleshooter";
             this.tabAiTrouble.UseVisualStyleBackColor = true;
             // 
             // lblAiStatus
@@ -600,7 +600,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnReportGitHubIssue.Name = "btnReportGitHubIssue";
             this.btnReportGitHubIssue.Size = new System.Drawing.Size(320, 32);
             this.btnReportGitHubIssue.TabIndex = 5;
-            this.btnReportGitHubIssue.Text = "🚨 Report Issue to GitHub & AI Studio";
+            this.btnReportGitHubIssue.Text = "Report Issue to GitHub & AI Studio";
             this.btnReportGitHubIssue.UseVisualStyleBackColor = false;
             this.btnReportGitHubIssue.Click += new System.EventHandler(this.btnReportGitHubIssue_Click);
             // 
@@ -637,7 +637,7 @@ namespace EVedhikaUBDDeploymentTool
             this.tabBackup.Padding = new System.Windows.Forms.Padding(12);
             this.tabBackup.Size = new System.Drawing.Size(876, 444);
             this.tabBackup.TabIndex = 4;
-            this.tabBackup.Text = "💾 Registry Snapshots & Security Zones";
+            this.tabBackup.Text = "Registry Snapshots & Security Zones";
             this.tabBackup.UseVisualStyleBackColor = true;
             // 
             // btnBackup
@@ -663,7 +663,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnRollback.Name = "btnRollback";
             this.btnRollback.Size = new System.Drawing.Size(240, 36);
             this.btnRollback.TabIndex = 4;
-            this.btnRollback.Text = "⏪ Rollback Registry Settings";
+            this.btnRollback.Text = "Rollback Registry Settings";
             this.btnRollback.UseVisualStyleBackColor = false;
             this.btnRollback.Click += new System.EventHandler(this.btnRollback_Click);
             // 
@@ -677,7 +677,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnVerifyZones.Name = "btnVerifyZones";
             this.btnVerifyZones.Size = new System.Drawing.Size(280, 36);
             this.btnVerifyZones.TabIndex = 5;
-            this.btnVerifyZones.Text = "🔍 Verify Security Zones (1, 2, 3) Audit";
+            this.btnVerifyZones.Text = "Verify Security Zones (1, 2, 3) Audit";
             this.btnVerifyZones.UseVisualStyleBackColor = false;
             this.btnVerifyZones.Click += new System.EventHandler(this.btnVerifyZones_Click);
             // 
@@ -691,7 +691,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnUninstall.Name = "btnUninstall";
             this.btnUninstall.Size = new System.Drawing.Size(280, 36);
             this.btnUninstall.TabIndex = 2;
-            this.btnUninstall.Text = "🗑️ Uninstall & Revert All Settings";
+            this.btnUninstall.Text = "Uninstall & Revert All Settings";
             this.btnUninstall.UseVisualStyleBackColor = false;
             this.btnUninstall.Click += new System.EventHandler(this.btnUninstall_Click);
             // 
@@ -705,7 +705,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnCheckUpdates.Name = "btnCheckUpdates";
             this.btnCheckUpdates.Size = new System.Drawing.Size(270, 36);
             this.btnCheckUpdates.TabIndex = 3;
-            this.btnCheckUpdates.Text = "✨ Check for Software Updates (OTA)";
+            this.btnCheckUpdates.Text = "Check for Software Updates (OTA)";
             this.btnCheckUpdates.UseVisualStyleBackColor = false;
             this.btnCheckUpdates.Click += new System.EventHandler(this.btnCheckUpdates_Click);
             // 
@@ -740,7 +740,7 @@ namespace EVedhikaUBDDeploymentTool
             this.lblHeaderTitle.Name = "lblHeaderTitle";
             this.lblHeaderTitle.Size = new System.Drawing.Size(600, 21);
             this.lblHeaderTitle.TabIndex = 0;
-            this.lblHeaderTitle.Text = "🛡️ E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.1.0)";
+            this.lblHeaderTitle.Text = "E-VEDHIKA ALL PROBLEMS ONE SOLUTION & UBD DEPLOYMENT TOOL (v1.1.0)";
             // 
             // lblHeaderSubtitle
             // 

@@ -1,4 +1,4 @@
-export const GITHUB_ADMIN_LIVE_LINK = 'https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports';
+export const GITHUB_ADMIN_LIVE_LINK = 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/';
 
 const DIRECT_TABS = [
   'dashboard', 'posts', 'post-detail', 'deploy', 'csharp', 'repair', 'diagnostics', 'remote',
@@ -9,6 +9,7 @@ const DIRECT_TABS = [
 export interface ResolvedUrlRoute {
   tab: string | null;
   slug?: string;
+  adminSection?: 'reports' | 'payments';
 }
 
 /**
@@ -22,24 +23,65 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
 
   // Handle GitHub Pages query-encoded path (?/live-pc-reports or ?/admin/) if not yet history-replaced
   let decodedSearchPath = '';
+  let decodedQueryParams = '';
   if (search && search.startsWith('?/')) {
-    decodedSearchPath = search.slice(1).split('&')[0].toLowerCase();
+    const [pathPart, ...rest] = search.slice(1).split('&');
+    decodedSearchPath = (pathPart || '').toLowerCase();
+    if (rest.length > 0) {
+      decodedQueryParams = rest.join('&').replace(/~and~/g, '&');
+    }
   }
   const routeSurface = `${combinedPath} ${decodedSearchPath}`;
+  const effectiveSearch = decodedQueryParams ? `?${decodedQueryParams}` : (search || '');
+  const params = new URLSearchParams(effectiveSearch);
 
   const cleanNoTrailingSlash = lowerPath.replace(/\/+$/, '');
   const cleanSearchPath = decodedSearchPath.replace(/\/+$/, '');
+  const cleanHash = lowerHash.replace(/\/+$/, '');
+  const tabQuery = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+  const isLegacyTelemetryAdminSubpath =
+    cleanNoTrailingSlash.includes('/admin/ubd') ||
+    cleanNoTrailingSlash.includes('/admin/telemetry') ||
+    cleanNoTrailingSlash.includes('/admin/monitoring') ||
+    cleanSearchPath.includes('/admin/ubd') ||
+    cleanSearchPath.includes('/admin/telemetry') ||
+    cleanSearchPath.includes('/admin/monitoring');
+
   const isDedicatedAdminRoot =
-    cleanNoTrailingSlash === '/admin' ||
-    cleanNoTrailingSlash === '/ubdtools/admin' ||
-    cleanSearchPath === '/admin' ||
-    lowerHash.replace(/\/+$/, '') === '#/admin';
+    !isLegacyTelemetryAdminSubpath &&
+    (cleanNoTrailingSlash === '/admin' ||
+      cleanNoTrailingSlash === '/admin/index.html' ||
+      cleanNoTrailingSlash === '/admin/reports' ||
+      cleanNoTrailingSlash === '/admin/payments' ||
+      cleanNoTrailingSlash === '/ubdtools/admin' ||
+      cleanNoTrailingSlash === '/ubdtools/admin/index.html' ||
+      cleanNoTrailingSlash === '/ubdtools/admin/reports' ||
+      cleanNoTrailingSlash === '/ubdtools/admin/payments' ||
+      cleanSearchPath === '/admin' ||
+      cleanSearchPath === '/admin/reports' ||
+      cleanSearchPath === '/admin/payments' ||
+      cleanHash === '#/admin' ||
+      cleanHash === '#/admin/reports' ||
+      cleanHash === '#/admin/payments' ||
+      tabQuery === 'admin-portal');
 
   if (isDedicatedAdminRoot) {
-    return { tab: 'admin-portal' };
+    const secParam = (params.get('section') || '').toLowerCase();
+    const isPaymentsSection =
+      cleanNoTrailingSlash.endsWith('/admin/payments') ||
+      cleanSearchPath.endsWith('/admin/payments') ||
+      cleanHash.endsWith('/admin/payments') ||
+      secParam === 'payments' ||
+      secParam === 'admin-license' ||
+      params.get('pay') === '1';
+
+    return {
+      tab: 'admin-portal',
+      adminSection: isPaymentsSection ? 'payments' : 'reports'
+    };
   }
 
-  const params = new URLSearchParams(search || '');
   if (
     params.get('pay') === '1' ||
     Boolean(params.get('pcId')) ||
@@ -54,7 +96,7 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
     routeSurface.includes('live-pc-reports') ||
     routeSurface.includes('admin-live-reports') ||
     routeSurface.includes('report-center') ||
-    routeSurface.includes('/admin')
+    (routeSurface.includes('/admin') && !isLegacyTelemetryAdminSubpath)
   ) {
     return { tab: 'report-center' };
   }

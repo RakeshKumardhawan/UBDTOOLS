@@ -176,7 +176,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 store.Open(System.Security.Cryptography.X509Certificates.OpenFlags.ReadOnly);
                 var certs = store.Certificates;
                 var selected = System.Security.Cryptography.X509Certificates.X509Certificate2UI.SelectFromCollection(
-                    certs, "DSC Token PIN Verification", "దయచేసి మీ DSC సర్టిఫికెట్‌ను ఎంచుకుని OK నొక్కండి, ఆపై టోకెన్ PIN ఎంటర్ చేయండి.",
+                    certs, "DSC Token PIN Verification", "Please select your Digital Signature Certificate, click OK, and enter your USB Token PIN.",
                     System.Security.Cryptography.X509Certificates.X509SelectionFlag.SingleSelection);
                 
                 if (selected.Count > 0)

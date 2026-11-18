@@ -122,8 +122,8 @@ jobs:
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
           public/downloads/Unblock_EVedhika_Antivirus_Exclusion.bat
-        name: Latest Stable Build v1.1.0 (Guardian Build - Resource Build 2026.11.16.R7)
-        body: "Automatic build from GitHub Actions. Enterprise v1.1.0 Guardian Build (Resource Build 2026.11.16.R7) - Single Particular GitHub Admin Live Hub (https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports), Automatic New-Version Upgrade Reporting from every upgraded PC, Interactive Operator 1-5 Star Rating & Feedback Dialog, Single Telegram Report Deduplication (1 on Install + 1 on 17-Step Run), Accurate District & GP Office Selection (All 33 TS & 26 AP Districts), Dedicated Admin Installed/Live/Upgraded PCs & Feedback Reports (Zero Dummy Data), and Universal Windows 7/8/10/11 Compatibility."
+        name: Latest Stable Build v1.1.0 (Guardian Build - Resource Build 2026.11.18.R11)
+        body: "Automatic build from GitHub Actions. Enterprise v1.1.0 Guardian Build (Resource Build 2026.11.18.R11) - Universal Windows 7/8/10/11 COM-Safe IObjectSafety SignatureDemoLib v2.0.1.0 (Fixes Windows 7 'Unable to Deactivation[object Error]'), Single Particular GitHub Admin Live Hub (https://rakeshkumardhawan.github.io/UBDTOOLS/admin/), Telegram Bot UTR Auto-Listener & Admin Approval Hub, Automatic OTA Upgrade & Accurate Windows OS Reporting."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

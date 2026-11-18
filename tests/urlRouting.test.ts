@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GITHUB_ADMIN_LIVE_LINK, resolveRouteFromLocation } from '../src/utils/urlRouting.ts';
 
-test('GITHUB_ADMIN_LIVE_LINK points to GitHub Pages live-pc-reports route', () => {
-  assert.equal(GITHUB_ADMIN_LIVE_LINK, 'https://rakeshkumardhawan.github.io/UBDTOOLS/live-pc-reports');
+test('GITHUB_ADMIN_LIVE_LINK points to GitHub Pages dedicated /admin/ portal', () => {
+  assert.equal(GITHUB_ADMIN_LIVE_LINK, 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/');
 });
 
 test('resolves GitHub Pages subpath /UBDTOOLS/live-pc-reports to report-center', () => {
@@ -34,11 +34,15 @@ test('resolves ?pay=1 and /pay-checkout to dedicated pay-checkout tab', () => {
   assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '?tab=payment', '').tab, 'pay-checkout');
 });
 
-test('resolves /admin and /UBDTOOLS/admin/ strictly to dedicated admin-portal (Reports & Payments only)', () => {
-  assert.equal(resolveRouteFromLocation('/UBDTOOLS/admin/', '', '').tab, 'admin-portal');
-  assert.equal(resolveRouteFromLocation('/UBDTOOLS/admin', '', '').tab, 'admin-portal');
-  assert.equal(resolveRouteFromLocation('/admin/', '', '').tab, 'admin-portal');
-  assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '?/admin/', '').tab, 'admin-portal');
+test('resolves /admin and /UBDTOOLS/admin/* strictly to dedicated admin-portal (Reports & Payments only)', () => {
+  assert.deepEqual(resolveRouteFromLocation('/UBDTOOLS/admin/', '', ''), { tab: 'admin-portal', adminSection: 'reports' });
+  assert.deepEqual(resolveRouteFromLocation('/UBDTOOLS/admin', '', ''), { tab: 'admin-portal', adminSection: 'reports' });
+  assert.deepEqual(resolveRouteFromLocation('/admin/', '', ''), { tab: 'admin-portal', adminSection: 'reports' });
+  assert.deepEqual(resolveRouteFromLocation('/UBDTOOLS/', '?/admin/', ''), { tab: 'admin-portal', adminSection: 'reports' });
+  assert.deepEqual(resolveRouteFromLocation('/UBDTOOLS/admin/', '?section=payments', ''), { tab: 'admin-portal', adminSection: 'payments' });
+  assert.deepEqual(resolveRouteFromLocation('/UBDTOOLS/admin/payments', '', ''), { tab: 'admin-portal', adminSection: 'payments' });
+  assert.deepEqual(resolveRouteFromLocation('/UBDTOOLS/', '?/admin/&section=payments', ''), { tab: 'admin-portal', adminSection: 'payments' });
   assert.equal(resolveRouteFromLocation('/UBDTOOLS/admin/', '?pay=1', '').tab, 'admin-portal');
+  assert.equal(resolveRouteFromLocation('/UBDTOOLS/admin/ubd_monitoring', '', '').tab, 'telemetry-dashboard');
 });
 

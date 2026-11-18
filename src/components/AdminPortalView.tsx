@@ -1,7 +1,49 @@
-import React, { useState } from 'react';
-import { BarChart3, CreditCard, ShieldCheck, ArrowLeft } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BarChart3, CreditCard, ShieldCheck, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { ReportCenter } from './ReportCenter';
 import { PaymentLicenseHubView } from './PaymentLicenseHubView';
+
+interface AdminErrorBoundaryState {
+  hasError: boolean;
+  message: string;
+}
+
+class AdminErrorBoundary extends React.Component<{ children: React.ReactNode }, AdminErrorBoundaryState> {
+  declare state: AdminErrorBoundaryState;
+  declare props: { children: React.ReactNode };
+  declare setState: (state: Partial<AdminErrorBoundaryState>) => void;
+
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+
+  static getDerivedStateFromError(error: Error): AdminErrorBoundaryState {
+    return { hasError: true, message: error?.message || 'Unexpected Admin error' };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-3xl mx-auto m-6 bg-rose-950/40 border border-rose-500/40 rounded-3xl p-6 text-slate-100 space-y-3">
+          <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
+            <AlertTriangle className="w-5 h-5" />
+            <span>Admin Cloud Sync Notice</span>
+          </div>
+          <p className="text-xs text-slate-300 font-mono break-all">{this.state.message}</p>
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false, message: '' })}
+            className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold cursor-pointer"
+          >
+            🔄 Retry Loading Panel
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface AdminPortalViewProps {
   initialSection?: 'reports' | 'payments';
@@ -15,12 +57,33 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [section, setSection] = useState<'reports' | 'payments'>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('pay') === '1' || params.get('section') === 'payments') {
+      const pathLower = window.location.pathname.toLowerCase();
+      if (
+        pathLower.endsWith('/admin/payments') ||
+        params.get('pay') === '1' ||
+        params.get('section') === 'payments' ||
+        params.get('section') === 'admin-license'
+      ) {
         return 'payments';
       }
     } catch {}
     return initialSection;
   });
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
+
+  useEffect(() => {
+    const prevTitle = document.title;
+    document.title =
+      section === 'payments'
+        ? 'E-Vedhika Admin Portal — Payments & License Control'
+        : 'E-Vedhika Admin Portal — Live PC Reports';
+    return () => {
+      document.title = prevTitle;
+    };
+  }, [section]);
 
   const switchSection = (next: 'reports' | 'payments') => {
     setSection(next);
@@ -47,7 +110,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 <ShieldCheck className="w-5 h-5 text-slate-950" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm sm:text-base font-black tracking-tight text-white">
                     E-VEDHIKA ADMIN PORTAL
                   </span>
@@ -116,8 +179,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
       {/* Main Content: ONLY Reports OR Payments */}
       <main className="flex-1 w-full">
-        {section === 'reports' ? <ReportCenter /> : <PaymentLicenseHubView />}
+        <AdminErrorBoundary>
+          {section === 'reports' ? (
+            <ReportCenter />
+          ) : (
+            <PaymentLicenseHubView defaultSubTab="admin-controls" />
+          )}
+        </AdminErrorBoundary>
       </main>
     </div>
   );
 };
+
