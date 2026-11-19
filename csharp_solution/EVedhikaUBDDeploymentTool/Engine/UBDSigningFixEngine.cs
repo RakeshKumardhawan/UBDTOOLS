@@ -20,7 +20,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
             {
                 if (!File.Exists(dllPath))
                 {
-                    logCallback?.Invoke("[INTEGRITY-CHECK] SignatureDemoLib.dll NOT found. Auto-triggering SHA256 v2.0.1.0 patch build...");
+                    logCallback?.Invoke("[INTEGRITY-CHECK] SignatureDemoLib.dll NOT found. Auto-triggering SHA256 v2.0.2.0 patch build...");
                     ApplyUniversalTokenFix(logCallback);
                     return true;
                 }
@@ -29,11 +29,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 string fileVer = fvi.FileVersion ?? "";
                 string productVer = fvi.ProductVersion ?? "";
 
-                logCallback?.Invoke($"[INTEGRITY-CHECK] Found SignatureDemoLib.dll (Version: {fileVer}). Verifying 2.0.1.0 Windows 7/10/11 COM Safety compliance...");
+                logCallback?.Invoke($"[INTEGRITY-CHECK] Found SignatureDemoLib.dll (Version: {fileVer}). Verifying 2.0.2.0 Anti-Tamper & COM-Safe compliance...");
 
-                if (!fileVer.StartsWith("2.0.1") && !productVer.StartsWith("2.0.1"))
+                if (!fileVer.StartsWith("2.0.2") && !productVer.StartsWith("2.0.2"))
                 {
-                    logCallback?.Invoke($"[INTEGRITY-CHECK WARN] Outdated or legacy DLL version detected ({fileVer}). Upgrading to COM-Safe v2.0.1.0 DLL...");
+                    logCallback?.Invoke($"[INTEGRITY-CHECK WARN] Outdated DLL version detected ({fileVer}). Upgrading to Anti-Tamper COM-Safe v2.0.2.0 DLL...");
                     ApplyUniversalTokenFix(logCallback);
                     return true;
                 }
@@ -46,7 +46,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     RegisterCompiledAssemblyForCom(dllPath, logCallback);
                 }
 
-                logCallback?.Invoke("[INTEGRITY-CHECK PASS] SignatureDemoLib.dll v2.0.1.0 verified healthy & COM-safe.");
+                logCallback?.Invoke("[INTEGRITY-CHECK PASS] SignatureDemoLib.dll v2.0.2.0 verified healthy, anti-tamper & COM-safe.");
                 return true;
             }
             catch (Exception ex)
@@ -58,15 +58,15 @@ namespace EVedhikaUBDDeploymentTool.Engine
         }
 
         /// <summary>
-        /// Deploys the high-performance SHA256 Signature Library for UBD Portal.
-        /// This fix addresses the "Internal error (-2146893792)" on HyperPKI HYP2003 v3.3 tokens
-        /// and implements IObjectSafety + Windows 7 COM resilience to eliminate "[object Error]" failures.
+        /// Deploys the high-performance SHA256 Signature Library for UBD Portal (v2.0.2.0).
+        /// Fixes HyperPKI HYP2003 v3.3 (-2146893792), Windows 7 COM IObjectSafety ("[object Error]"),
+        /// and prevents "Verification failed, Data might be Tampered" during UBD bulk signing.
         /// </summary>
         public static void ApplyUniversalTokenFix(Action<string> logCallback)
         {
             try
             {
-                logCallback?.Invoke("[UBD-FIX] Preparing Universal SHA256 Digital Signature Patch (v2.0.1.0 COM-Safe)...");
+                logCallback?.Invoke("[UBD-FIX] Preparing Universal SHA256 Digital Signature Patch (v2.0.2.0 Anti-Tamper COM-Safe)...");
                 
                 string installDir = @"C:\enterprise_compat";
                 if (!Directory.Exists(installDir)) Directory.CreateDirectory(installDir);
@@ -106,8 +106,8 @@ using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-[assembly: AssemblyVersion(""2.0.1.0"")]
-[assembly: AssemblyFileVersion(""2.0.1.0"")]
+[assembly: AssemblyVersion(""2.0.2.0"")]
+[assembly: AssemblyFileVersion(""2.0.2.0"")]
 [assembly: ComVisible(true)]
 [assembly: Guid(""83403b68-128d-41fc-84fb-5477e2049662"")]
 
@@ -197,49 +197,70 @@ namespace SignatureDemoLib
             return signer;
         }
 
-        private byte[] SafeComputeCmsBytes(byte[] contentBytes, X509Certificate2 c, out X509Certificate2 usedCert)
+        private byte[] ComputeVerifiedCmsBytes(byte[] contentBytes, X509Certificate2 c, out X509Certificate2 usedCert, bool allowGracefulEmpty)
         {
-            byte[] safePayload = (contentBytes != null && contentBytes.Length > 0) ? contentBytes : new byte[] { 0x49, 0x53, 0x45, 0x53 };
-            X509Certificate2 activeCert = c ?? cert ?? PickSigningCertificate();
-            usedCert = activeCert;
+            if (contentBytes == null || contentBytes.Length == 0)
+            {
+                if (allowGracefulEmpty)
+                {
+                    usedCert = c ?? cert;
+                    return new byte[0];
+                }
+                throw new CryptographicException(""Cannot sign empty data payload."");
+            }
 
-            // Attempt 1: SHA-256 with resolved certificate
+            X509Certificate2 activeCert = c;
+            usedCert = activeCert;
+            Exception lastError = null;
+
+            // Attempt 1: SHA-256 with resolved certificate (required for HyperPKI HYP2003 v3.3 & modern Class 3 tokens)
             try
             {
-                ContentInfo ci1 = new ContentInfo(safePayload);
+                ContentInfo ci1 = new ContentInfo(contentBytes);
                 SignedCms cms1 = new SignedCms(ci1);
                 cms1.ComputeSignature(CreateSigner(activeCert, true), false);
+                cms1.CheckSignature(true);
                 usedCert = (cms1.SignerInfos.Count > 0 && cms1.SignerInfos[0].Certificate != null) ? cms1.SignerInfos[0].Certificate : activeCert;
                 return cms1.Encode();
             }
-            catch { }
+            catch (Exception ex1) { lastError = ex1; }
 
             // Attempt 2: SHA-1 fallback for legacy Windows 7 CSP tokens (PROV_RSA_FULL Type 1)
             try
             {
-                ContentInfo ci2 = new ContentInfo(safePayload);
+                ContentInfo ci2 = new ContentInfo(contentBytes);
                 SignedCms cms2 = new SignedCms(ci2);
-                X509Certificate2 fallbackCert = activeCert ?? PickSigningCertificate();
-                cms2.ComputeSignature(CreateSigner(fallbackCert, false), false);
-                usedCert = (cms2.SignerInfos.Count > 0 && cms2.SignerInfos[0].Certificate != null) ? cms2.SignerInfos[0].Certificate : fallbackCert;
+                cms2.ComputeSignature(CreateSigner(activeCert, false), false);
+                cms2.CheckSignature(true);
+                usedCert = (cms2.SignerInfos.Count > 0 && cms2.SignerInfos[0].Certificate != null) ? cms2.SignerInfos[0].Certificate : activeCert;
                 return cms2.Encode();
             }
-            catch { }
+            catch (Exception ex2) { lastError = ex2; }
 
             // Attempt 3: Default CmsSigner without forced OID
             try
             {
-                ContentInfo ci3 = new ContentInfo(safePayload);
+                ContentInfo ci3 = new ContentInfo(contentBytes);
                 SignedCms cms3 = new SignedCms(ci3);
                 CmsSigner defaultSigner = (activeCert != null) ? new CmsSigner(activeCert) : new CmsSigner();
+                defaultSigner.IncludeOption = X509IncludeOption.EndCertOnly;
                 cms3.ComputeSignature(defaultSigner, false);
+                cms3.CheckSignature(true);
                 usedCert = (cms3.SignerInfos.Count > 0 && cms3.SignerInfos[0].Certificate != null) ? cms3.SignerInfos[0].Certificate : activeCert;
                 return cms3.Encode();
             }
-            catch { }
+            catch (Exception ex3) { lastError = ex3; }
 
-            // Attempt 4: Never throw unhandled [object Error] during Deactivation when token is unplugged or CSP is locked
-            return safePayload;
+            // For FetchCertDetails (Deactivation / cert lookup), return gracefully so [object Error] never fires
+            if (allowGracefulEmpty)
+            {
+                return new byte[0];
+            }
+
+            // CRITICAL ANTI-TAMPER GUARD:
+            // NEVER return unsigned raw hash bytes as a signature - doing so causes UBD server
+            // 'Verification failed, Data might be Tampered' errors!
+            throw new CryptographicException(""USB DSC Token signing failed or PIN was cancelled. Please verify your registered USB DSC token is plugged in and try again."", lastError);
         }
 
         public string FetchCertDetails()
@@ -250,7 +271,7 @@ namespace SignatureDemoLib
                 try
                 {
                     X509Certificate2 cmsCert;
-                    SafeComputeCmsBytes(Convert.FromBase64String(""ISES""), usedCert, out cmsCert);
+                    ComputeVerifiedCmsBytes(Convert.FromBase64String(""ISES""), usedCert, out cmsCert, true);
                     if (cmsCert != null) usedCert = cmsCert;
                 }
                 catch { }
@@ -267,137 +288,103 @@ namespace SignatureDemoLib
 
         public byte[] SignData(string dataString, string serialNumber)
         {
-            try
-            {
-                byte[] bytes = Encoding.ASCII.GetBytes(dataString ?? """");
-                return SignData(bytes, serialNumber, ref hashedData);
-            }
-            catch { return new byte[0]; }
+            byte[] bytes = Encoding.ASCII.GetBytes(dataString ?? """");
+            return SignData(bytes, serialNumber, ref hashedData);
         }
 
         public byte[] SignData(byte[] dataBytes, string serialNumber, ref byte[] hashData)
         {
-            try
+            X509Certificate2 signingCert = ResolveCertificateForSigning(serialNumber);
+            byte[] input = dataBytes ?? new byte[0];
+            using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
             {
-                if (cert == null && !string.IsNullOrEmpty(serialNumber)) cert = getCertificate(serialNumber);
-                if (cert == null) cert = PickSigningCertificate();
-                byte[] input = dataBytes ?? new byte[0];
-                using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
-                {
-                    hashData = sha1.ComputeHash(input);
-                }
-                hashedData = hashData;
-                signedData = HashAndSignBytes(hashData, cert);
-                return signedData ?? new byte[0];
+                hashData = sha1.ComputeHash(input);
             }
-            catch
-            {
-                if (hashData == null) hashData = new byte[0];
-                return new byte[0];
-            }
+            hashedData = hashData;
+            signedData = HashAndSignBytes(hashData, signingCert);
+            return signedData;
         }
 
         public byte[] SignData(string dataString, string serialNumber, ref byte[] hashData)
         {
-            try
-            {
-                byte[] raw;
-                try { raw = string.IsNullOrEmpty(dataString) ? new byte[0] : Convert.FromBase64String(dataString); }
-                catch { raw = Encoding.ASCII.GetBytes(dataString ?? """"); }
-                return SignData(raw, serialNumber, ref hashData);
-            }
-            catch
-            {
-                if (hashData == null) hashData = new byte[0];
-                return new byte[0];
-            }
+            byte[] raw;
+            try { raw = string.IsNullOrEmpty(dataString) ? new byte[0] : Convert.FromBase64String(dataString); }
+            catch { raw = Encoding.ASCII.GetBytes(dataString ?? """"); }
+            return SignData(raw, serialNumber, ref hashData);
         }
 
         public string SignData(string dataString, string serialNumber, int count)
         {
-            try
+            List<byte[]> list = new List<byte[]>();
+            Encoding enc = Encoding.ASCII;
+            string safeInput = dataString ?? """";
+            string[] parts = safeInput.Split(new string[] { ""$$ISES$$"" }, StringSplitOptions.None);
+            int len = Math.Max(count, Math.Max(0, parts.Length - 1));
+            hashDataListString = new string[len];
+            X509Certificate2 signingCert = ResolveCertificateForSigning(serialNumber);
+            using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
             {
-                List<byte[]> list = new List<byte[]>();
-                Encoding enc = Encoding.ASCII;
-                string safeInput = dataString ?? """";
-                string[] parts = safeInput.Split(new string[] { ""$$ISES$$"" }, StringSplitOptions.None);
-                int len = Math.Max(count, Math.Max(0, parts.Length - 1));
-                hashDataListString = new string[len];
-                if (cert == null && !string.IsNullOrEmpty(serialNumber)) cert = getCertificate(serialNumber);
-                if (cert == null) cert = PickSigningCertificate();
-                using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
+                for (int i = 0; i < parts.Length - 1; i++)
                 {
-                    for (int i = 0; i < parts.Length - 1; i++)
-                    {
-                        byte[] h = sha1.ComputeHash(enc.GetBytes(parts[i] ?? """"));
-                        list.Add(h);
-                        if (i < hashDataListString.Length) hashDataListString[i] = Convert.ToBase64String(h);
-                    }
+                    byte[] h = sha1.ComputeHash(enc.GetBytes(parts[i] ?? """"));
+                    list.Add(h);
+                    if (i < hashDataListString.Length) hashDataListString[i] = Convert.ToBase64String(h);
                 }
-                List<byte[]> sigs = HashAndSignBytes(list, cert);
-                StringBuilder sb = new StringBuilder();
-                foreach (byte[] s in sigs) { sb.Append(Convert.ToBase64String(s ?? new byte[0])).Append(""$$ISES$$""); }
-                return sb.ToString();
             }
-            catch { return """"; }
+            List<byte[]> sigs = HashAndSignBytes(list, signingCert);
+            StringBuilder sb = new StringBuilder();
+            foreach (byte[] s in sigs) { sb.Append(Convert.ToBase64String(s)).Append(""$$ISES$$""); }
+            return sb.ToString();
         }
 
         public List<byte[]> SignData(List<byte[]> dataBytesList, string serialNumber, ref List<byte[]> hashDataList)
         {
-            try
+            X509Certificate2 signingCert = ResolveCertificateForSigning(serialNumber);
+            if (hashDataList == null) hashDataList = new List<byte[]>();
+            if (dataBytesList != null)
             {
-                if (cert == null && !string.IsNullOrEmpty(serialNumber)) cert = getCertificate(serialNumber);
-                if (cert == null) cert = PickSigningCertificate();
-                if (hashDataList == null) hashDataList = new List<byte[]>();
-                if (dataBytesList != null)
+                using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
                 {
-                    using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
-                    {
-                        foreach (byte[] b in dataBytesList) { hashDataList.Add(sha1.ComputeHash(b ?? new byte[0])); }
-                    }
+                    foreach (byte[] b in dataBytesList) { hashDataList.Add(sha1.ComputeHash(b ?? new byte[0])); }
                 }
-                return HashAndSignBytes(hashDataList, cert);
             }
-            catch { return new List<byte[]>(); }
+            return HashAndSignBytes(hashDataList, signingCert);
         }
 
         public string AllSignData(string dataBytes, string serialNumber)
         {
-            try
+            Encoding enc = Encoding.ASCII;
+            List<List<byte[]>> masterList = new List<List<byte[]>>();
+            X509Certificate2 signingCert = ResolveCertificateForSigning(serialNumber);
+            string safeData = dataBytes ?? """";
+            string[] groups = safeData.Split(new string[] { ""$$ISESDATA$$"" }, StringSplitOptions.None);
+            StringBuilder sbHash = new StringBuilder();
+            using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
             {
-                Encoding enc = Encoding.ASCII;
-                List<List<byte[]>> masterList = new List<List<byte[]>>();
-                if (cert == null && !string.IsNullOrEmpty(serialNumber)) cert = getCertificate(serialNumber);
-                if (cert == null) cert = PickSigningCertificate();
-                string safeData = dataBytes ?? """";
-                string[] groups = safeData.Split(new string[] { ""$$ISESDATA$$"" }, StringSplitOptions.None);
-                StringBuilder sbHash = new StringBuilder();
-                using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
+                for (int i = 0; i < groups.Length - 1; i++)
                 {
-                    for (int i = 0; i < groups.Length - 1; i++)
+                    string[] items = groups[i].Split(new string[] { ""$$ISES$$"" }, StringSplitOptions.None);
+                    List<byte[]> subList = new List<byte[]>();
+                    for (int j = 0; j < items.Length - 1; j++)
                     {
-                        string[] items = groups[i].Split(new string[] { ""$$ISES$$"" }, StringSplitOptions.None);
-                        List<byte[]> subList = new List<byte[]>();
-                        for (int j = 0; j < items.Length - 1; j++)
-                        {
-                            byte[] h = sha1.ComputeHash(enc.GetBytes(items[j] ?? """"));
-                            subList.Add(h);
-                            sbHash.Append(Convert.ToBase64String(h) + ""$$ISES$$"");
-                        }
-                        masterList.Add(subList);
-                        sbHash.Append(""$$ISESDATA$$"");
+                        byte[] h = sha1.ComputeHash(enc.GetBytes(items[j] ?? """"));
+                        subList.Add(h);
+                        sbHash.Append(Convert.ToBase64String(h) + ""$$ISES$$"");
                     }
+                    masterList.Add(subList);
+                    sbHash.Append(""$$ISESDATA$$"");
                 }
-                allHash = sbHash.ToString();
-                return HashAndSignBytesLOL(masterList, cert);
             }
-            catch { return """"; }
+            allHash = sbHash.ToString();
+            return HashAndSignBytesLOL(masterList, signingCert);
         }
 
         private byte[] HashAndSignBytes(byte[] hashData, X509Certificate2 c)
         {
             X509Certificate2 used;
-            return SafeComputeCmsBytes(hashData, c, out used);
+            byte[] encoded = ComputeVerifiedCmsBytes(hashData, c, out used, false);
+            if (used != null) cert = used;
+            return encoded;
         }
 
         private List<byte[]> HashAndSignBytes(List<byte[]> hashDataList, X509Certificate2 c)
@@ -406,8 +393,8 @@ namespace SignatureDemoLib
             foreach (byte[] h in hashDataList)
             {
                 X509Certificate2 used;
-                res.Add(SafeComputeCmsBytes(h, c, out used));
-                if (c == null && used != null) c = used;
+                res.Add(ComputeVerifiedCmsBytes(h, c, out used, false));
+                if (c == null && used != null) { c = used; cert = used; }
             }
             return res;
         }
@@ -420,18 +407,81 @@ namespace SignatureDemoLib
                 foreach (byte[] h in sub)
                 {
                     X509Certificate2 used;
-                    byte[] encoded = SafeComputeCmsBytes(h, c, out used);
-                    if (c == null && used != null) c = used;
-                    sb.Append(Convert.ToBase64String(encoded ?? new byte[0]) + ""$$ISES$$"");
+                    byte[] encoded = ComputeVerifiedCmsBytes(h, c, out used, false);
+                    if (c == null && used != null) { c = used; cert = used; }
+                    sb.Append(Convert.ToBase64String(encoded) + ""$$ISES$$"");
                 }
                 sb.Append(""$$ISESDATA$$"");
             }
             return sb.ToString();
         }
 
-        public bool VerifySignedMessage(string data, string signature, string hashData) { return true; }
-        public string[] getSignatureDetails(string Input, string signature, string hashedData) { return new string[0]; }
-        public string getCertificateDetails(string Input, string signature, string hashData) { return """"; }
+        private static bool ByteArraysEqual(byte[] a, byte[] b)
+        {
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
+        }
+
+        public bool VerifySignedMessage(string data, string signature, string hashData)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(hashData)) return false;
+                byte[] expectedHash = Convert.FromBase64String(hashData);
+                byte[] computedHash;
+                using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
+                {
+                    computedHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(data ?? """"));
+                }
+                if (!ByteArraysEqual(expectedHash, computedHash)) return false;
+
+                SignedCms cms = new SignedCms();
+                cms.Decode(Convert.FromBase64String(signature));
+                if (!ByteArraysEqual(cms.ContentInfo.Content, computedHash)) return false;
+                cms.CheckSignature(true);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public string[] getSignatureDetails(string Input, string signature, string hashedData)
+        {
+            try
+            {
+                if (!VerifySignedMessage(Input, signature, hashedData)) return new string[0];
+                SignedCms cms = new SignedCms();
+                cms.Decode(Convert.FromBase64String(signature));
+                if (cms.SignerInfos.Count > 0 && cms.SignerInfos[0].Certificate != null)
+                {
+                    X509Certificate2 sc = cms.SignerInfos[0].Certificate;
+                    return new string[] { sc.Subject ?? """", sc.SerialNumber ?? """", sc.Issuer ?? """", sc.NotAfter.ToString(""MM/dd/yyyy HH:mm:ss"", CultureInfo.InvariantCulture) };
+                }
+            }
+            catch { }
+            return new string[0];
+        }
+
+        public string getCertificateDetails(string Input, string signature, string hashData)
+        {
+            try
+            {
+                SignedCms cms = new SignedCms();
+                cms.Decode(Convert.FromBase64String(signature));
+                if (cms.SignerInfos.Count > 0 && cms.SignerInfos[0].Certificate != null)
+                {
+                    return cms.SignerInfos[0].Certificate.Subject ?? """";
+                }
+            }
+            catch { }
+            return """";
+        }
 
         private static string NormalizeSerial(string s)
         {
@@ -490,9 +540,9 @@ namespace SignatureDemoLib
             return null;
         }
 
-        private X509Certificate2 getCertificate(string serialNumber)
+        private X509Certificate2 FindCertificateBySerialOnly(string serialNumber)
         {
-            if (string.IsNullOrEmpty(serialNumber)) return PickSigningCertificate();
+            if (string.IsNullOrWhiteSpace(serialNumber)) return null;
             string cleanRaw = serialNumber.Replace("" "", """").Trim();
             string normTarget = NormalizeSerial(serialNumber);
 
@@ -520,12 +570,42 @@ namespace SignatureDemoLib
                 }
                 catch { }
             }
-            return PickSigningCertificate();
+            return null;
+        }
+
+        private X509Certificate2 ResolveCertificateForSigning(string serialNumber)
+        {
+            if (!string.IsNullOrWhiteSpace(serialNumber))
+            {
+                string normTarget = NormalizeSerial(serialNumber);
+                if (cert != null && NormalizeSerial(cert.SerialNumber) == normTarget)
+                {
+                    return cert;
+                }
+                X509Certificate2 exact = FindCertificateBySerialOnly(serialNumber);
+                if (exact != null)
+                {
+                    cert = exact;
+                    return exact;
+                }
+                // Registered serialNumber NOT found in store: never silently sign with another person's cached cert!
+                // Returning null triggers the native Windows certificate selector (matching original NIC SignatureDemoLib).
+                cert = null;
+                return null;
+            }
+
+            if (cert == null) cert = PickSigningCertificate();
+            return cert;
+        }
+
+        private X509Certificate2 getCertificate(string serialNumber)
+        {
+            return FindCertificateBySerialOnly(serialNumber);
         }
     }
 }";
 
-                logCallback?.Invoke("[UBD-FIX] Compiling Signature Engine DLL (In-Memory Build v2.0.1.0)...");
+                logCallback?.Invoke("[UBD-FIX] Compiling Signature Engine DLL (In-Memory Build v2.0.2.0)...");
                 
                 using (CSharpCodeProvider provider = new CSharpCodeProvider())
                 {
@@ -545,7 +625,7 @@ namespace SignatureDemoLib
                 logCallback?.Invoke("[UBD-FIX] DLL compiled successfully at " + dllPath);
                 RegisterCompiledAssemblyForCom(dllPath, logCallback);
 
-                logCallback?.Invoke("[UBD-FIX] Universal SHA256 Digital Signature Patch (v2.0.1.0 COM-Safe) applied successfully!");
+                logCallback?.Invoke("[UBD-FIX] Universal SHA256 Digital Signature Patch (v2.0.2.0 Anti-Tamper COM-Safe) applied successfully!");
             }
             catch (Exception ex)
             {
@@ -561,7 +641,7 @@ namespace SignatureDemoLib
             const string digiClsid = "{1FC6E67B-8F52-4F80-8321-FCF7CE940052}";
             const string progId = "SignatureDemoLib.DigiSignHelper";
             string codeBaseUri = "file:///" + dllPath.Replace("\\", "/");
-            const string assemblyFullName = "SignatureDemoLib, Version=2.0.1.0, Culture=neutral, PublicKeyToken=null";
+            const string assemblyFullName = "SignatureDemoLib, Version=2.0.2.0, Culture=neutral, PublicKeyToken=null";
 
             // 1. Purge any stale/corrupted HKCU Software\Classes overrides (e.g. from older tools pointing to capicom.dll)
             string[] staleProgIds = new string[]
@@ -671,7 +751,7 @@ namespace SignatureDemoLib
                             inproc.SetValue("Assembly", assemblyFullName);
                             inproc.SetValue("RuntimeVersion", "v4.0.30319");
                             inproc.SetValue("CodeBase", codeBaseUri);
-                            using (var verKey = inproc.CreateSubKey("2.0.1.0"))
+                            using (var verKey = inproc.CreateSubKey("2.0.2.0"))
                             {
                                 if (verKey != null)
                                 {

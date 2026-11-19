@@ -33,20 +33,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 // 4. Windows 7 OS-level TLS 1.2, .NET Strong Crypto & IE11 Protected Mode / 64-bit Isolation fixes
                 logCallback("Applying Windows 7 TLS 1.2, SCHANNEL, IE11 Protected Mode OFF (2500=3) & 32-bit ActiveX fixes...");
+                string activeState = Helpers.SystemInfoHelper.GetConfiguredState("Telangana");
+                bool isAp = EdgePolicyEngine.IsAndhraPradeshState(activeState);
                 OSCompatibilityEngine.ApplyCompatibilityShims();
-                RegistryManager.ConfigureTrustedSites("ubd.telangana.gov.in");
-                RegistryManager.ConfigureTrustedSites("ubd.ap.gov.in");
+                RegistryManager.ConfigureTrustedSites(isAp ? "ubd.ap.gov.in" : "ubd.telangana.gov.in");
                 RegistryManager.ConfigureActiveXAndTLS();
 
                 // 5. Register SmartCard CSPs + Rebuild COM-Safe SignatureDemoLib.dll + Heal ActiveX & CAPICOM safely
-                logCallback("Rebuilding COM-Safe Signature Engine (v2.0.1.0) and repairing ActiveX / CAPICOM...");
+                logCallback("Rebuilding Anti-Tamper COM-Safe Signature Engine (v2.0.2.0) and repairing ActiveX / CAPICOM...");
                 DriverInstaller.RegisterSmartCardAndCspProviders();
                 UBDSigningFixEngine.ApplyUniversalTokenFix(logCallback);
                 DriverInstaller.RegisterActiveXComponents();
                 RegistryManager.HealDigiSignHelperAutomation();
 
-                // 6. Re-apply Enterprise Site List & IE5 Quirks Mode policies
-                string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { "ubd.telangana.gov.in", "ubd.ap.gov.in", "www.ubd.ap.gov.in" });
+                // 6. Re-apply state-specific UBD Enterprise Site List & IE Mode policies
+                string xmlPath = EdgePolicyEngine.GenerateSiteListXmlForState(activeState);
                 EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
 
                 logCallback("DSC / Deactivation [object Error] fixed successfully! Please re-open the UBD Portal and try again.");

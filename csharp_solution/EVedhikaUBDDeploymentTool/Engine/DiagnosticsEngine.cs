@@ -192,5 +192,222 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
             return false;
         }
+
+        public class DscCertSummary
+        {
+            public string SubjectName { get; set; }
+            public string IssuerName { get; set; }
+            public string SerialNumber { get; set; }
+            public string Thumbprint { get; set; }
+            public DateTime NotAfter { get; set; }
+            public bool IsExpired { get; set; }
+        }
+
+        public class DscCertCleanupResult
+        {
+            public int TotalInspected { get; set; }
+            public int ExpiredRemoved { get; set; }
+            public int StaleOtherUserRemoved { get; set; }
+            public int RemainingCount { get; set; }
+            public System.Collections.Generic.List<string> RemovedNames { get; set; } = new System.Collections.Generic.List<string>();
+            public System.Collections.Generic.List<string> RemainingNames { get; set; } = new System.Collections.Generic.List<string>();
+        }
+
+        /// <summary>
+        /// Protects OS, IIS, Localhost, VPN, and E-Vedhika system certificates so only personal user DSC certificates are touched.
+        /// </summary>
+        public static bool IsProtectedSystemCertificate(X509Certificate2 cert)
+        {
+            if (cert == null) return true;
+            string subj = (cert.Subject ?? "").ToUpperInvariant();
+            string issuer = (cert.Issuer ?? "").ToUpperInvariant();
+            string friendly = (cert.FriendlyName ?? "").ToUpperInvariant();
+
+            string[] protectedKeywords = new string[]
+            {
+                "E-VEDHIKA", "EVEDHIKA", "CN=LOCALHOST", "IIS EXPRESS", "WMSVC",
+                "DO_NOT_TRUST", "FIDDLER", "MICROSOFT", "WINDOWS", "AZURE", "VPN",
+                "REMOTE DESKTOP", "HYPER-V", "DOCKER", "WSL", "DEVELOPMENT CERTIFICATE"
+            };
+
+            foreach (string kw in protectedKeywords)
+            {
+                if (subj.Contains(kw) || friendly.Contains(kw)) return true;
+            }
+
+            // Self-signed local dev/system certificates (Subject == Issuer) are never Government Class 2/3 DSCs
+            if (!string.IsNullOrEmpty(subj) && subj.Equals(issuer, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Lists all personal DSC certificates currently cached in CurrentUser\My (excluding protected OS/system certificates).
+        /// </summary>
+        public static System.Collections.Generic.List<DscCertSummary> GetCachedPersonalDscCertificates()
+        {
+            var list = new System.Collections.Generic.List<DscCertSummary>();
+            var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            try
+            {
+                store.Open(OpenFlags.ReadOnly);
+                foreach (X509Certificate2 cert in store.Certificates)
+                {
+                    if (cert == null || IsProtectedSystemCertificate(cert)) continue;
+
+                    string cn = cert.GetNameInfo(X509NameType.SimpleName, false);
+                    if (string.IsNullOrWhiteSpace(cn)) cn = cert.Subject ?? "Unknown Certificate";
+                    string issuerCn = cert.GetNameInfo(X509NameType.SimpleName, true);
+                    if (string.IsNullOrWhiteSpace(issuerCn)) issuerCn = cert.Issuer ?? "Unknown CA";
+
+                    list.Add(new DscCertSummary
+                    {
+                        SubjectName = cn.Trim(),
+                        IssuerName = issuerCn.Trim(),
+                        SerialNumber = cert.SerialNumber ?? "",
+                        Thumbprint = cert.Thumbprint ?? "",
+                        NotAfter = cert.NotAfter,
+                        IsExpired = cert.NotAfter < DateTime.Now
+                    });
+                }
+            }
+            catch { }
+            finally
+            {
+                try { store.Close(); } catch { }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Safely removes expired and other users' stale cached personal DSC certificates from Windows CurrentUser\My,
+        /// then triggers Windows SmartCard Certificate Propagation (certutil -pulse) so ONLY the currently plugged-in USB DSC token reloads cleanly.
+        /// </summary>
+        public static DscCertCleanupResult CleanOldAndOtherUserDscCertificates(bool forceClearAllCachedForFreshReload, Action<string> logCallback = null)
+        {
+            var result = new DscCertCleanupResult();
+            var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            bool anyRemoved = false;
+
+            try
+            {
+                store.Open(OpenFlags.ReadWrite);
+
+                var personalCerts = new System.Collections.Generic.List<X509Certificate2>();
+                foreach (X509Certificate2 cert in store.Certificates)
+                {
+                    if (cert == null || IsProtectedSystemCertificate(cert)) continue;
+                    personalCerts.Add(cert);
+                }
+
+                result.TotalInspected = personalCerts.Count;
+                bool tokenPluggedIn = IsUsbDscTokenConnected();
+
+                // Count currently valid (non-expired) personal DSC certs
+                int validCount = 0;
+                foreach (var c in personalCerts)
+                {
+                    if (c.NotAfter >= DateTime.Now) validCount++;
+                }
+
+                // Clear stale/other-person cached certs if operator explicitly requested full refresh,
+                // OR if multiple personal DSC certificates exist while a USB DSC token is currently inserted.
+                bool shouldClearStaleCached = forceClearAllCachedForFreshReload || (tokenPluggedIn && validCount > 1);
+
+                foreach (X509Certificate2 cert in personalCerts)
+                {
+                    string cn = cert.GetNameInfo(X509NameType.SimpleName, false);
+                    if (string.IsNullOrWhiteSpace(cn)) cn = cert.Subject ?? "Unknown DSC";
+                    string label = string.Format("{0} (Serial: {1}, Exp: {2:yyyy-MM-dd})", cn.Trim(), cert.SerialNumber, cert.NotAfter);
+
+                    if (cert.NotAfter < DateTime.Now)
+                    {
+                        try
+                        {
+                            store.Remove(cert);
+                            result.ExpiredRemoved++;
+                            result.RemovedNames.Add("[EXPIRED] " + label);
+                            anyRemoved = true;
+                            logCallback?.Invoke("[DSC-CLEANUP] Removed expired DSC certificate: " + label);
+                        }
+                        catch (Exception ex)
+                        {
+                            logCallback?.Invoke("[DSC-CLEANUP WARN] Could not remove expired cert (" + cn + "): " + ex.Message);
+                        }
+                    }
+                    else if (shouldClearStaleCached)
+                    {
+                        try
+                        {
+                            store.Remove(cert);
+                            result.StaleOtherUserRemoved++;
+                            result.RemovedNames.Add("[CACHED/OTHER USER] " + label);
+                            anyRemoved = true;
+                            logCallback?.Invoke("[DSC-CLEANUP] Cleared cached personal DSC certificate: " + label);
+                        }
+                        catch (Exception ex)
+                        {
+                            logCallback?.Invoke("[DSC-CLEANUP WARN] Could not clear cached cert (" + cn + "): " + ex.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logCallback?.Invoke("[DSC-CLEANUP WARN] Certificate store access notice: " + ex.Message);
+            }
+            finally
+            {
+                try { store.Close(); } catch { }
+            }
+
+            // Re-propagate ONLY the currently inserted USB DSC token certificate into Personal Store
+            if (anyRemoved || forceClearAllCachedForFreshReload)
+            {
+                try
+                {
+                    logCallback?.Invoke("[DSC-CLEANUP] Pulsing Windows Certificate Propagation Service (CertPropSvc) to reload active USB DSC token...");
+                    RunQuietCmd("sc", "config SCardSvr start= auto", 1500);
+                    RunQuietCmd("net", "start SCardSvr", 1500);
+                    RunQuietCmd("sc", "config CertPropSvc start= auto", 1500);
+                    RunQuietCmd("net", "start CertPropSvc", 1500);
+                    RunQuietCmd("certutil", "-pulse", 2500);
+                    System.Threading.Thread.Sleep(1500);
+                }
+                catch { }
+            }
+
+            // Re-scan remaining certificates after cleanup & pulse
+            var remaining = GetCachedPersonalDscCertificates();
+            result.RemainingCount = remaining.Count;
+            foreach (var r in remaining)
+            {
+                result.RemainingNames.Add(string.Format("{0} (Serial: {1}, Valid Until: {2:yyyy-MM-dd})", r.SubjectName, r.SerialNumber, r.NotAfter));
+            }
+
+            return result;
+        }
+
+        private static void RunQuietCmd(string exe, string args, int timeoutMs)
+        {
+            try
+            {
+                using (var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exe,
+                    Arguments = args,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                }))
+                {
+                    p?.WaitForExit(timeoutMs);
+                }
+            }
+            catch { }
+        }
     }
 }

@@ -344,14 +344,21 @@ try {
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -Name "SecureProtocols" -Value 2688 -Type DWord -Force
     Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -Name "SecureProtocols" -Value 2688 -Type DWord -Force
     
-    # Generate Enterprise Site List XML specifically for ubd.telangana.gov.in
+    # Generate Enterprise Site List XML strictly for Telangana UBD Portal only
     $SiteXmlContent = @"
-<site-list version="1">
-  <site url="ubd.telangana.gov.in">
+<site-list version="2">
+  <created-by>
+    <tool>E-Vedhika UBD PowerShell Deployment Script (Telangana UBD)</tool>
+  </created-by>
+  <site url="https://ubd.telangana.gov.in/">
     <compat-mode>IE5</compat-mode>
     <open-in>IE11</open-in>
   </site>
-  <site url="telangana.gov.in/ubd">
+  <site url="https://ubd.telangana.gov.in/login.do">
+    <compat-mode>IE5</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="ubd.telangana.gov.in">
     <compat-mode>IE5</compat-mode>
     <open-in>IE11</open-in>
   </site>

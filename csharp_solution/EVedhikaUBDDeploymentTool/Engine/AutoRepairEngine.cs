@@ -218,6 +218,27 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 bool hasValidXml = (File.Exists(expectedXmlPath) && new FileInfo(expectedXmlPath).Length >= 30) ||
                                    (File.Exists(enterpriseCompatXml) && new FileInfo(enterpriseCompatXml).Length >= 30);
 
+                string activeState = Helpers.SystemInfoHelper.GetConfiguredState("Telangana");
+                bool isApState = EdgePolicyEngine.IsAndhraPradeshState(activeState);
+                string forbiddenCrossStateHost = isApState ? "ubd.telangana.gov.in" : "ubd.ap.gov.in";
+                string expectedStateHost = isApState ? "ubd.ap.gov.in" : "ubd.telangana.gov.in";
+
+                if (hasValidXml)
+                {
+                    try
+                    {
+                        string xmlCheckPath = File.Exists(enterpriseCompatXml) ? enterpriseCompatXml : expectedXmlPath;
+                        string xmlBody = File.ReadAllText(xmlCheckPath);
+                        if (xmlBody.IndexOf(forbiddenCrossStateHost, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            xmlBody.IndexOf(expectedStateHost, StringComparison.OrdinalIgnoreCase) < 0)
+                        {
+                            if (logCallback != null) logCallback(string.Format("[Audit WARN] sites.xml contains cross-state or outdated entries for {0}. Regenerating state-clean sites.xml...", activeState));
+                            edgeOk = false;
+                        }
+                    }
+                    catch { }
+                }
+
                 if (!hasValidXml)
                 {
                     if (logCallback != null) logCallback("[Audit WARN] sites.xml is missing. Generating fresh Enterprise Site List...");
@@ -256,15 +277,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (!edgeOk)
                 {
                     detectedIssue = "UBD Edge Policy / sites.xml Drift Detected";
-                    issueDetails = "AutoRepair Guardian detected missing or corrupted Edge IE Mode policy/sites.xml.";
-                    if (logCallback != null) logCallback("[Audit REPAIR] Re-generating sites.xml and re-enforcing Edge IE Mode Group Policies...");
-                    string xmlPath = EdgePolicyEngine.GenerateSiteListXml(new string[] { 
-                        "ubd.telangana.gov.in", 
-                        "ubd.ap.gov.in", 
-                        "www.ubd.ap.gov.in", 
-                        "www.ubd.ap.gov.in:8080",
-                        "www.ubd.ap.gov.in:8080/UBDNEW"
-                    });
+                    issueDetails = "AutoRepair Guardian detected missing, cross-state, or corrupted Edge IE Mode policy/sites.xml.";
+                    if (logCallback != null) logCallback(string.Format("[Audit REPAIR] Re-generating state-specific ({0}) UBD sites.xml and re-enforcing Edge IE Mode Group Policies...", activeState));
+                    string xmlPath = EdgePolicyEngine.GenerateSiteListXmlForState(activeState);
                     EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                     repairedSomething = true;
                 }
@@ -274,28 +289,34 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 if (logCallback != null) logCallback(string.Format("[Audit Repair] Edge Policy check error: {0}", ex.Message));
             }
 
-            // 2. Verify Zone 2 Trusted Sites for UBD
+            // 2. Verify Zone 2 Trusted Sites strictly for the configured state's UBD portal
             try
             {
-                using (RegistryKey domainKeyTS = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ubd.telangana.gov.in") ??
-                                               Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\telangana.gov.in"))
-                using (RegistryKey domainKeyAP = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ubd.ap.gov.in") ??
-                                               Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ap.gov.in") ??
-                                               Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\www.ubd.ap.gov.in"))
+                string configuredState = Helpers.SystemInfoHelper.GetConfiguredState("Telangana");
+                bool isAp = EdgePolicyEngine.IsAndhraPradeshState(configuredState);
+
+                if (isAp)
                 {
-                    if (domainKeyTS == null && domainKeyAP == null)
+                    using (RegistryKey domainKeyAP = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ubd.ap.gov.in") ??
+                                                   Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\www.ubd.ap.gov.in"))
                     {
-                        zoneOk = false;
+                        if (domainKeyAP == null) zoneOk = false;
+                    }
+                }
+                else
+                {
+                    using (RegistryKey domainKeyTS = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\ubd.telangana.gov.in") ??
+                                                   Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\telangana.gov.in\ubd"))
+                    {
+                        if (domainKeyTS == null) zoneOk = false;
                     }
                 }
 
                 if (!zoneOk)
                 {
                     if (string.IsNullOrEmpty(detectedIssue)) detectedIssue = "UBD Zone 2 Trusted Site Mapping Missing";
-                    if (logCallback != null) logCallback("[Audit WARN] Zone 2 Trusted Site mapping for UBD (TS/AP) missing/deleted. Restoring...");
-                    RegistryManager.ConfigureTrustedSites("ubd.telangana.gov.in");
-                    RegistryManager.ConfigureTrustedSites("ubd.ap.gov.in");
-                    RegistryManager.ConfigureTrustedSites("www.ubd.ap.gov.in");
+                    if (logCallback != null) logCallback(string.Format("[Audit WARN] Zone 2 Trusted Site mapping for {0} UBD missing/deleted. Restoring...", configuredState));
+                    RegistryManager.ConfigureTrustedSites(isAp ? "ubd.ap.gov.in" : "ubd.telangana.gov.in");
                     repairedSomething = true;
                 }
             }

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site-list version="2">
+  <created-by>
+    <tool>E-Vedhika UBD C# Deployment Tool (Andhra Pradesh UBD)</tool>
+  </created-by>
+  <site url="http://www.ubd.ap.gov.in:8080/UBDNEW/">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="www.ubd.ap.gov.in:8080/UBDNEW">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="www.ubd.ap.gov.in:8080">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="www.ubd.ap.gov.in">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="ubd.ap.gov.in">
+    <compat-mode>IE7</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+</site-list>

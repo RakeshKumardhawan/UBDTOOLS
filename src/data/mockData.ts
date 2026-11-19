@@ -303,37 +303,29 @@ export const departmentProfiles: DepartmentProfile[] = [
     name: 'E-Vedhika UBD Portal (Telangana)',
     code: 'UBD_PORTAL_TS',
     primaryUrl: 'https://ubd.telangana.gov.in',
-    siteList: ['ubd.telangana.gov.in'],
+    siteList: [
+      'https://ubd.telangana.gov.in/',
+      'https://ubd.telangana.gov.in/login.do',
+      'ubd.telangana.gov.in',
+    ],
     compatibilityMode: 'IE5',
-    description: 'Government UBD Portal for Telangana in IE5 Quirks Mode (Edge IE Mode).',
+    description: 'Government UBD Portal for Telangana ONLY in IE5 Quirks Mode (Edge IE Mode).',
   },
   {
     id: 'ubd-portal-ap',
     name: 'E-Vedhika UBD Portal (Andhra Pradesh)',
     code: 'UBD_PORTAL_AP',
-    primaryUrl: 'http://www.ubd.ap.gov.in:8080/UBDNEW',
-    siteList: ['ubd.ap.gov.in', 'www.ubd.ap.gov.in', 'www.ubd.ap.gov.in:8080'],
-    compatibilityMode: 'IE5',
-    description: 'Government UBD Portal for Andhra Pradesh in IE5 Quirks Mode (Edge IE Mode).',
+    primaryUrl: 'http://www.ubd.ap.gov.in:8080/UBDNEW/',
+    siteList: [
+      'http://www.ubd.ap.gov.in:8080/UBDNEW/',
+      'www.ubd.ap.gov.in:8080/UBDNEW',
+      'www.ubd.ap.gov.in:8080',
+      'www.ubd.ap.gov.in',
+      'ubd.ap.gov.in',
+    ],
+    compatibilityMode: 'IE7',
+    description: 'Government UBD Portal for Andhra Pradesh ONLY in IE7 Mode (Edge IE Mode).',
   },
-  {
-    id: 'egramswaraj',
-    name: 'eGramSwaraj National Portal',
-    code: 'EGS_PORTAL',
-    primaryUrl: 'https://egramswaraj.gov.in',
-    siteList: ['egramswaraj.gov.in', 'egramswaraj.gov.in/payment'],
-    compatibilityMode: 'IE11',
-    description: 'Centralized Gram Panchayat accounting, voucher entry, and PFMS DSC online voucher signing.',
-  },
-  {
-    id: 'treasury-portal',
-    name: 'Treasury & IFMIS Portal',
-    code: 'TREASURY_PORTAL',
-    primaryUrl: 'https://ifmis.telangana.gov.in',
-    siteList: ['ifmis.telangana.gov.in', 'treasury.telangana.gov.in'],
-    compatibilityMode: 'IE11',
-    description: 'District Treasury officer payroll submission, bill verification, and fund disbursements.',
-  }
 ];
 
 export const initialBackupSnapshots: BackupSnapshot[] = [];

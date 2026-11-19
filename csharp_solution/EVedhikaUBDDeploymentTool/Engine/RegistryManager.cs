@@ -126,50 +126,43 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                // Core domains that are permanently protected and visible in Trusted Sites
-                List<string> domainPaths = new List<string>
-                {
-                    @"telangana.gov.in",
-                    @"telangana.gov.in\ubd",
-                    @"ubd.telangana.gov.in",
-                    @"ap.gov.in",
-                    @"ap.gov.in\ubd",
-                    @"ubd.ap.gov.in",
-                    @"epanchayat.telangana.gov.in",
-                    @"prrd.telangana.gov.in",
-                    @"127.0.0.1",
-                    @"localhost"
-                };
+                string activeState = Helpers.SystemInfoHelper.GetConfiguredState("Telangana");
+                bool isAp = EdgePolicyEngine.IsAndhraPradeshState(targetDomain) ||
+                            (string.IsNullOrWhiteSpace(targetDomain) && EdgePolicyEngine.IsAndhraPradeshState(activeState));
 
-                if (!string.IsNullOrEmpty(targetDomain))
+                // Strictly state-isolated UBD Trusted Sites (no cross-state domains, no PFMS/non-UBD domains)
+                List<string> domainPaths = new List<string>();
+                if (isAp)
                 {
-                    if (targetDomain == "ubd.telangana.gov.in" && !domainPaths.Contains(@"telangana.gov.in\ubd"))
-                        domainPaths.Add(@"telangana.gov.in\ubd");
-                    else if (targetDomain == "ubd.ap.gov.in" && !domainPaths.Contains(@"ap.gov.in\ubd"))
-                        domainPaths.Add(@"ap.gov.in\ubd");
-                    else if (!domainPaths.Contains(targetDomain))
-                        domainPaths.Add(targetDomain);
+                    domainPaths.Add(@"ap.gov.in");
+                    domainPaths.Add(@"ap.gov.in\ubd");
+                    domainPaths.Add(@"ubd.ap.gov.in");
+                    domainPaths.Add(@"www.ubd.ap.gov.in");
+                }
+                else
+                {
+                    domainPaths.Add(@"telangana.gov.in");
+                    domainPaths.Add(@"telangana.gov.in\ubd");
+                    domainPaths.Add(@"ubd.telangana.gov.in");
                 }
 
-                // Check if target website https://ubd.telangana.gov.in/ is ALREADY configured in Trusted Sites to avoid duplicate entries
+                // Required locally for NIC DigiSigner WebSocket/HTTP Bridge (Port 8080)
+                domainPaths.Add(@"127.0.0.1");
+                domainPaths.Add(@"localhost");
+
+                string primaryDomain = isAp ? "ubd.ap.gov.in" : "ubd.telangana.gov.in";
+                string primaryDisplayUrl = isAp ? "http://www.ubd.ap.gov.in:8080/UBDNEW/" : "https://ubd.telangana.gov.in/";
+
+                // Check if target UBD website is ALREADY configured in Trusted Sites to avoid duplicate entries
                 bool ubdAlreadyExists = false;
                 try
                 {
-                    using (RegistryKey chkKey = Registry.CurrentUser.OpenSubKey($@"{Zone2KeyPath}\ubd.telangana.gov.in"))
+                    using (RegistryKey chkKey = Registry.CurrentUser.OpenSubKey($@"{Zone2KeyPath}\{primaryDomain}"))
                     {
-                        if (chkKey != null && chkKey.GetValue("https") != null && Convert.ToInt32(chkKey.GetValue("https")) == 2)
+                        if (chkKey != null && ((chkKey.GetValue("https") != null && Convert.ToInt32(chkKey.GetValue("https")) == 2) ||
+                                               (chkKey.GetValue("http") != null && Convert.ToInt32(chkKey.GetValue("http")) == 2)))
                         {
                             ubdAlreadyExists = true;
-                        }
-                    }
-                    if (!ubdAlreadyExists)
-                    {
-                        using (RegistryKey chkKey2 = Registry.CurrentUser.OpenSubKey($@"{Zone2KeyPath}\telangana.gov.in\ubd"))
-                        {
-                            if (chkKey2 != null && chkKey2.GetValue("https") != null && Convert.ToInt32(chkKey2.GetValue("https")) == 2)
-                            {
-                                ubdAlreadyExists = true;
-                            }
                         }
                     }
                 }
@@ -177,11 +170,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 if (ubdAlreadyExists)
                 {
-                    Logger.LogInfo("Registry", "[VERIFIED] https://ubd.telangana.gov.in/ is already registered in Trusted Sites (Zone 2). Duplicate entry avoided.");
+                    Logger.LogInfo("Registry", string.Format("[VERIFIED] {0} is already registered in Trusted Sites (Zone 2). Duplicate entry avoided.", primaryDisplayUrl));
                 }
                 else
                 {
-                    Logger.LogInfo("Registry", "[ADDING] Registering https://ubd.telangana.gov.in/ into Trusted Sites (Zone 2)...");
+                    Logger.LogInfo("Registry", string.Format("[ADDING] Registering {0} into Trusted Sites (Zone 2)...", primaryDisplayUrl));
                 }
 
                 // Write to both CurrentUser (visible to user in Sites dialog) and LocalMachine (machine-level safety backup)
@@ -214,20 +207,29 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     {
                         if (z2 != null)
                         {
-                            // Flags = 0x47 enforces 'Require server verification (https:) for all sites in this zone' (bit 0x04)
-                            z2.SetValue("Flags", 0x00000047, RegistryValueKind.DWord);
-                            Logger.LogInfo("Registry", "[VERIFIED] Trusted Sites Server Verification (HTTPS) enforced with Flags = 0x47.");
+                            // For AP HTTP (:8080) portal allow non-HTTPS in Zone 2 (0x43); for TS HTTPS portal enforce 0x47
+                            int zoneFlags = isAp ? 0x00000043 : 0x00000047;
+                            z2.SetValue("Flags", zoneFlags, RegistryValueKind.DWord);
+                            Logger.LogInfo("Registry", string.Format("[VERIFIED] Trusted Sites Zone 2 Flags set to 0x{0:X2} ({1}).", zoneFlags, isAp ? "AP HTTP/HTTPS" : "TS HTTPS"));
                         }
                     }
                 }
                 catch { }
 
-                // Protect core government domains from deletion while keeping user ability to add/delete other domains
-                ProtectGovernmentDomainACL(@"telangana.gov.in\ubd");
-                ProtectGovernmentDomainACL(@"ubd.telangana.gov.in");
-                ProtectGovernmentDomainACL(@"telangana.gov.in");
-                ProtectGovernmentDomainACL(@"ap.gov.in\ubd");
-                ProtectGovernmentDomainACL(@"ubd.ap.gov.in");
+                // Protect ONLY the installed state's core UBD domains from accidental deletion
+                if (isAp)
+                {
+                    ProtectGovernmentDomainACL(@"ap.gov.in\ubd");
+                    ProtectGovernmentDomainACL(@"ubd.ap.gov.in");
+                    ProtectGovernmentDomainACL(@"www.ubd.ap.gov.in");
+                    ProtectGovernmentDomainACL(@"ap.gov.in");
+                }
+                else
+                {
+                    ProtectGovernmentDomainACL(@"telangana.gov.in\ubd");
+                    ProtectGovernmentDomainACL(@"ubd.telangana.gov.in");
+                    ProtectGovernmentDomainACL(@"telangana.gov.in");
+                }
 
                 return true;
             }

@@ -17,8 +17,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         public const string CurrentVersion = "v1.1.0";
         public const int CurrentVersionCode = 10110;
-        public const string CurrentResourceBuild = "2026.11.18.R11";
-        public const string ResourceDate = "2026-11-18";
+        public const string CurrentResourceBuild = "2026.11.19.R12";
+        public const string ResourceDate = "2026-11-19";
         public static string ActiveResourceBuild = CurrentResourceBuild;
         public const string UpdateApiUrl = "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json";
 

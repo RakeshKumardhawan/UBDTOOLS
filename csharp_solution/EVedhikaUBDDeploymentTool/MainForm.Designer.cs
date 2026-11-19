@@ -50,6 +50,7 @@ namespace EVedhikaUBDDeploymentTool
             this.btnInstallMToken = new System.Windows.Forms.Button();
             this.btnRegisterActiveXManual = new System.Windows.Forms.Button();
             this.btnScanDscTokens = new System.Windows.Forms.Button();
+            this.btnCleanOldDscCerts = new System.Windows.Forms.Button();
             this.txtTokenScanOutput = new System.Windows.Forms.TextBox();
             this.lblDriversInfo = new System.Windows.Forms.Label();
             this.tabAiTrouble = new System.Windows.Forms.TabPage();
@@ -414,6 +415,7 @@ namespace EVedhikaUBDDeploymentTool
             // 
             this.tabDrivers.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
             this.tabDrivers.Controls.Add(this.txtTokenScanOutput);
+            this.tabDrivers.Controls.Add(this.btnCleanOldDscCerts);
             this.tabDrivers.Controls.Add(this.btnScanDscTokens);
             this.tabDrivers.Controls.Add(this.btnRegisterActiveXManual);
             this.tabDrivers.Controls.Add(this.btnInstallMToken);
@@ -497,6 +499,20 @@ namespace EVedhikaUBDDeploymentTool
             this.btnScanDscTokens.Text = "Scan Connected USB DSC Tokens";
             this.btnScanDscTokens.UseVisualStyleBackColor = false;
             this.btnScanDscTokens.Click += new System.EventHandler(this.btnScanDscTokens_Click);
+            // 
+            // btnCleanOldDscCerts
+            // 
+            this.btnCleanOldDscCerts.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(38)))), ((int)(((byte)(38)))));
+            this.btnCleanOldDscCerts.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnCleanOldDscCerts.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            this.btnCleanOldDscCerts.ForeColor = System.Drawing.Color.White;
+            this.btnCleanOldDscCerts.Location = new System.Drawing.Point(350, 100);
+            this.btnCleanOldDscCerts.Name = "btnCleanOldDscCerts";
+            this.btnCleanOldDscCerts.Size = new System.Drawing.Size(340, 36);
+            this.btnCleanOldDscCerts.TabIndex = 6;
+            this.btnCleanOldDscCerts.Text = "Clean Old / Other Users' DSC Certs";
+            this.btnCleanOldDscCerts.UseVisualStyleBackColor = false;
+            this.btnCleanOldDscCerts.Click += new System.EventHandler(this.btnCleanOldDscCerts_Click);
             // 
             // txtTokenScanOutput
             // 
@@ -870,6 +886,7 @@ namespace EVedhikaUBDDeploymentTool
         private System.Windows.Forms.Button btnInstallMToken;
         private System.Windows.Forms.Button btnRegisterActiveXManual;
         private System.Windows.Forms.Button btnScanDscTokens;
+        private System.Windows.Forms.Button btnCleanOldDscCerts;
         private System.Windows.Forms.TextBox txtTokenScanOutput;
         private System.Windows.Forms.Label lblAskAi;
         private System.Windows.Forms.TextBox txtAiQuery;

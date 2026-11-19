@@ -1380,15 +1380,9 @@ namespace EVedhikaUBDDeploymentTool
                     EdgeManagementEngine.EnsureEdgeInstalledAndUpdated(delegate(string msg) { LogMessage("EDGE", msg); });
                     break;
                 case 5:
-                    // Generating Sites.xml Enterprise Site List Policy
-                    LogMessage("EDGE", "Generating Enterprise Mode Site List (sites.xml)...");
-                    // Filter URLs based on current state (Bug 9)
-                    System.Collections.Generic.List<string> urls = new System.Collections.Generic.List<string> { currentTargetDomain };
-                    if (currentStateName == "Andhra Pradesh") {
-                        urls.Add("www.ubd.ap.gov.in");
-                        urls.Add("www.ubd.ap.gov.in:8080");
-                    }
-                    string xmlPath = EdgePolicyEngine.GenerateSiteListXml(urls.ToArray());
+                    // Generating strictly state-specific UBD Enterprise Site List Policy (TS-only or AP-only)
+                    LogMessage("EDGE", string.Format("Generating state-specific ({0}) UBD Enterprise Mode Site List (sites.xml)...", currentStateName));
+                    string xmlPath = EdgePolicyEngine.GenerateSiteListXmlForState(currentStateName);
                     EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                     break;
                 case 6:
@@ -1533,9 +1527,9 @@ namespace EVedhikaUBDDeploymentTool
                         string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                         string exceptionFile = Path.Combine(userProfile, "AppData", "Sun", "Java", "Deployment", "exception.sites");
                         Directory.CreateDirectory(Path.GetDirectoryName(exceptionFile));
-                        string[] sites = currentStateName == "Andhra Pradesh"
+                        string[] sites = EdgePolicyEngine.IsAndhraPradeshState(currentStateName)
                             ? new[] { "http://www.ubd.ap.gov.in", "http://www.ubd.ap.gov.in:8080" }
-                            : new[] { "https://ubd.telangana.gov.in", "https://www.e-vedhika.in" };
+                            : new[] { "https://ubd.telangana.gov.in" };
                         File.WriteAllLines(exceptionFile, sites);
                         LogMessage("JAVA", $"[OK] Java exception.sites configured ({sites.Length} entries).");
                     } catch (Exception ex) {
@@ -1560,6 +1554,28 @@ namespace EVedhikaUBDDeploymentTool
                     BackupEngine.ExportRegistrySnapshot("Pre-Deployment Snapshot");
                     break;
                 case 15:
+                    LogMessage("HARDWARE", "Checking Windows Personal Certificate Store for expired or other users' cached DSC certificates...");
+                    try
+                    {
+                        var autoClean = DiagnosticsEngine.CleanOldAndOtherUserDscCertificates(false, delegate(string msg)
+                        {
+                            SafeInvoke(delegate() { LogMessage("DSC-CLEANUP", msg); });
+                        });
+                        if (autoClean.ExpiredRemoved > 0 || autoClean.StaleOtherUserRemoved > 0)
+                        {
+                            LogMessage("HARDWARE", string.Format("[CLEANED] Removed {0} expired and {1} stale/other-user cached DSC certificate(s). Active remaining: {2}.",
+                                autoClean.ExpiredRemoved, autoClean.StaleOtherUserRemoved, autoClean.RemainingCount));
+                        }
+                        else
+                        {
+                            LogMessage("HARDWARE", string.Format("[OK] Personal DSC Certificate Store clean ({0} active certificate(s)).", autoClean.RemainingCount));
+                        }
+                    }
+                    catch (Exception certEx)
+                    {
+                        LogMessage("WARN", "[DSC-CLEANUP] Non-fatal notice: " + certEx.Message);
+                    }
+
                     bool tokenFound = DiagnosticsEngine.IsUsbDscTokenConnected();
                     int attempts = 0;
                     const int maxAttempts = 3;
@@ -1669,7 +1685,29 @@ namespace EVedhikaUBDDeploymentTool
                 sb.AppendLine(string.Format("    * NIC DigiSigner WebSocket     : {0}", isDigiSigner ? "[OK] Installed (Port 8080)" : "Not Installed"));
                 sb.AppendLine(string.Format("    * DigiSignHelper ActiveX COM   : {0}", comVerified ? "[OK] Verified & Callable" : "Registration Needed"));
                 sb.AppendLine();
-                sb.AppendLine("[3] RECOMMENDATION & NEXT ACTIONS:");
+                var cachedCerts = DiagnosticsEngine.GetCachedPersonalDscCertificates();
+                sb.AppendLine("[3] PERSONAL DSC CERTIFICATES IN WINDOWS STORE (CurrentUser\\My):");
+                if (cachedCerts.Count == 0)
+                {
+                    sb.AppendLine("    * No personal DSC certificates currently cached.");
+                }
+                else
+                {
+                    int expiredCnt = 0;
+                    foreach (var c in cachedCerts)
+                    {
+                        if (c.IsExpired) expiredCnt++;
+                        sb.AppendLine(string.Format("    * [{0}] {1} | Issuer: {2} | Serial: {3} | Valid Until: {4:yyyy-MM-dd}",
+                            c.IsExpired ? "EXPIRED" : "ACTIVE", c.SubjectName, c.IssuerName, c.SerialNumber, c.NotAfter));
+                    }
+                    if (expiredCnt > 0 || cachedCerts.Count > 1)
+                    {
+                        sb.AppendLine("    [!] WARNING: Multiple or expired DSC certificates found! This can cause 'INVALID TOKEN' errors on UBD Portal.");
+                        sb.AppendLine("        Click 'Clean Old / Other Users' DSC Certs' above to remove stale certificates and reload only your inserted USB token.");
+                    }
+                }
+                sb.AppendLine();
+                sb.AppendLine("[4] RECOMMENDATION & NEXT ACTIONS:");
                 if (!isPlugged) {
                     sb.AppendLine("    -> Insert your Watchdata ProxKey, ePass2003, or mToken USB token into any USB port and click Scan again.");
                 } else {
@@ -1682,14 +1720,105 @@ namespace EVedhikaUBDDeploymentTool
             });
         }
 
+        private void btnCleanOldDscCerts_Click(object sender, EventArgs e)
+        {
+            var existing = DiagnosticsEngine.GetCachedPersonalDscCertificates();
+            if (existing.Count == 0)
+            {
+                MessageBox.Show(this,
+                    "No old or cached personal DSC certificates were found in the Windows Personal Certificate Store.\n\nIf your USB DSC token is plugged in, click OK to refresh SmartCard propagation.",
+                    "DSC Certificate Cleaner",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                var promptSb = new System.Text.StringBuilder();
+                promptSb.AppendLine(string.Format("Found {0} personal DSC certificate(s) cached in Windows:", existing.Count));
+                promptSb.AppendLine();
+                foreach (var c in existing)
+                {
+                    promptSb.AppendLine(string.Format("- [{0}] {1} (Valid Until: {2:yyyy-MM-dd})", c.IsExpired ? "EXPIRED" : "CACHED", c.SubjectName, c.NotAfter));
+                }
+                promptSb.AppendLine();
+                promptSb.AppendLine("Click YES to remove all old / expired / other users' cached DSC certificates and reload ONLY your currently plugged-in USB DSC token.");
+                promptSb.AppendLine("(Windows & E-Vedhika system certificates are completely protected.)");
+
+                DialogResult confirm = MessageBox.Show(this,
+                    promptSb.ToString(),
+                    "Clean Old / Other Users' DSC Certificates",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (confirm != DialogResult.Yes) return;
+            }
+
+            if (txtTokenScanOutput != null)
+            {
+                txtTokenScanOutput.Text = "Cleaning old, expired, and other users' cached DSC certificates...\r\n";
+                txtTokenScanOutput.AppendText("------------------------------------------------------------------\r\n");
+            }
+
+            ThreadPool.QueueUserWorkItem(delegate {
+                var logLines = new System.Text.StringBuilder();
+                var res = DiagnosticsEngine.CleanOldAndOtherUserDscCertificates(true, delegate(string msg)
+                {
+                    logLines.AppendLine(msg);
+                    SafeInvoke(delegate() { LogMessage("DSC-CLEANUP", msg); });
+                });
+
+                var outSb = new System.Text.StringBuilder();
+                outSb.AppendLine("==================================================================");
+                outSb.AppendLine("DSC CERTIFICATE CLEANUP REPORT (CurrentUser\\My)");
+                outSb.AppendLine("==================================================================");
+                outSb.AppendLine(string.Format("Certificates Inspected           : {0}", res.TotalInspected));
+                outSb.AppendLine(string.Format("Expired DSC Certs Removed        : {0}", res.ExpiredRemoved));
+                outSb.AppendLine(string.Format("Other Users / Stale Certs Cleared: {0}", res.StaleOtherUserRemoved));
+                outSb.AppendLine(string.Format("Active Certs After Token Reload  : {0}", res.RemainingCount));
+                outSb.AppendLine("------------------------------------------------------------------");
+                if (res.RemovedNames.Count > 0)
+                {
+                    outSb.AppendLine("REMOVED CERTIFICATES:");
+                    foreach (var rn in res.RemovedNames) outSb.AppendLine("  - " + rn);
+                    outSb.AppendLine();
+                }
+                outSb.AppendLine("CURRENTLY ACTIVE DSC CERTIFICATE(S):");
+                if (res.RemainingNames.Count == 0)
+                {
+                    outSb.AppendLine("  (None loaded yet - unplug and re-insert your USB DSC token if needed)");
+                }
+                else
+                {
+                    foreach (var an in res.RemainingNames) outSb.AppendLine("  + " + an);
+                }
+                outSb.AppendLine("==================================================================");
+
+                SafeInvoke(delegate()
+                {
+                    if (txtTokenScanOutput != null) txtTokenScanOutput.Text = outSb.ToString();
+                    MessageBox.Show(this,
+                        string.Format("DSC Certificate Cleanup Completed!\n\nExpired Removed: {0}\nOther Users / Stale Cleared: {1}\nActive Loaded from USB Token: {2}\n\nNow close & re-open Edge browser and log in to UBD Portal cleanly.",
+                            res.ExpiredRemoved, res.StaleOtherUserRemoved, res.RemainingCount),
+                        "DSC Certificate Cleanup Complete",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                });
+            });
+        }
+
         public static void LaunchGovernmentPortalStatic(string url)
         {
             try
             {
-                // Ensure sites.xml and IE Mode policies are active before launch
+                // Ensure state-specific UBD sites.xml and IE Mode policies are active before launch
                 try
                 {
-                    string xmlPath = Engine.EdgePolicyEngine.GenerateSiteListXml(new string[] { "ubd.telangana.gov.in", "ubd.ap.gov.in" });
+                    string targetState = !string.IsNullOrWhiteSpace(url) && url.IndexOf("ap.gov.in", StringComparison.OrdinalIgnoreCase) >= 0
+                        ? "Andhra Pradesh"
+                        : (!string.IsNullOrWhiteSpace(url) && url.IndexOf("telangana.gov.in", StringComparison.OrdinalIgnoreCase) >= 0
+                            ? "Telangana"
+                            : Helpers.SystemInfoHelper.GetConfiguredState("Telangana"));
+                    string xmlPath = Engine.EdgePolicyEngine.GenerateSiteListXmlForState(targetState);
                     Engine.EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                 }
                 catch { }
@@ -2066,17 +2195,14 @@ namespace EVedhikaUBDDeploymentTool
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
                 SafeInvoke(delegate() { LogMessage("PORTAL-PING", $"Starting Live Ping & Latency Test for {currentStateName} Portals..."); });
-                string[] portals = currentStateName == "Telangana" ? new string[]
-                {
-                    "https://ubd.telangana.gov.in",
-                    "https://firestore.googleapis.com",
-                    "https://epanchayat.telangana.gov.in",
-                    "https://prrd.telangana.gov.in"
-                } : new string[]
+                string[] portals = EdgePolicyEngine.IsAndhraPradeshState(currentStateName) ? new string[]
                 {
                     "http://www.ubd.ap.gov.in:8080/UBDNEW",
-                    "https://firestore.googleapis.com",
-                    "https://epanchayat.ap.gov.in"
+                    "https://firestore.googleapis.com"
+                } : new string[]
+                {
+                    "https://ubd.telangana.gov.in",
+                    "https://firestore.googleapis.com"
                 };
 
                 foreach (var url in portals)

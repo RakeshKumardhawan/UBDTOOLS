@@ -123,42 +123,60 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
-        public static string GenerateSiteListXml(string[] domains)
+        public static bool IsAndhraPradeshState(string stateName)
         {
-            var uniqueSites = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(stateName)) return false;
+            return stateName.IndexOf("Andhra", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   stateName.Equals("AP", StringComparison.OrdinalIgnoreCase) ||
+                   stateName.IndexOf("ap.gov.in", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
-            // Always ensure the core UBD Telangana and AP URLs are included
-            uniqueSites.Add("https://ubd.telangana.gov.in/");
-            uniqueSites.Add("https://ubd.telangana.gov.in/login.do");
-            uniqueSites.Add("ubd.telangana.gov.in");
-            uniqueSites.Add("http://www.ubd.ap.gov.in:8080/UBDNEW/");
-            uniqueSites.Add("www.ubd.ap.gov.in");
-            uniqueSites.Add("ubd.ap.gov.in");
+        public static string[] GetStateSpecificUbdSites(string stateName)
+        {
+            string resolvedState = string.IsNullOrWhiteSpace(stateName)
+                ? Helpers.SystemInfoHelper.GetConfiguredState("Telangana")
+                : stateName.Trim();
 
-            if (domains != null)
+            if (IsAndhraPradeshState(resolvedState))
             {
-                foreach (var d in domains)
+                // STRICT Andhra Pradesh UBD ONLY (Zero Telangana / Zero PFMS / Zero non-UBD sites)
+                return new string[]
                 {
-                    if (!string.IsNullOrWhiteSpace(d))
-                    {
-                        uniqueSites.Add(d.Trim());
-                        if (!d.StartsWith("http://", System.StringComparison.OrdinalIgnoreCase) &&
-                            !d.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase))
-                        {
-                            uniqueSites.Add("https://" + d.Trim() + "/");
-                        }
-                    }
-                }
+                    "http://www.ubd.ap.gov.in:8080/UBDNEW/",
+                    "www.ubd.ap.gov.in:8080/UBDNEW",
+                    "www.ubd.ap.gov.in:8080",
+                    "www.ubd.ap.gov.in",
+                    "ubd.ap.gov.in"
+                };
             }
 
-            string xmlContent = @"<site-list version=""2"">
-  <created-by>
-    <tool>E-Vedhika UBD C# Deployment Tool</tool>
-  </created-by>";
-
-            foreach (var site in uniqueSites)
+            // STRICT Telangana UBD ONLY (Zero Andhra Pradesh / Zero PFMS / Zero non-UBD sites)
+            return new string[]
             {
-                string compatMode = (site.Contains("ap.gov.in") && !site.Contains("telangana")) ? "IE7" : "IE5";
+                "https://ubd.telangana.gov.in/",
+                "https://ubd.telangana.gov.in/login.do",
+                "ubd.telangana.gov.in"
+            };
+        }
+
+        public static string GenerateSiteListXmlForState(string stateName = null)
+        {
+            string resolvedState = string.IsNullOrWhiteSpace(stateName)
+                ? Helpers.SystemInfoHelper.GetConfiguredState("Telangana")
+                : stateName.Trim();
+
+            bool isAp = IsAndhraPradeshState(resolvedState);
+            string[] stateSites = GetStateSpecificUbdSites(resolvedState);
+            string compatMode = isAp ? "IE7" : "IE5";
+            string stateLabel = isAp ? "Andhra Pradesh UBD" : "Telangana UBD";
+
+            string xmlContent = string.Format(@"<site-list version=""2"">
+  <created-by>
+    <tool>E-Vedhika UBD C# Deployment Tool ({0})</tool>
+  </created-by>", stateLabel);
+
+            foreach (var site in stateSites)
+            {
                 xmlContent += string.Format("\n  <site url=\"{0}\">\n    <compat-mode>{1}</compat-mode>\n    <open-in>IE11</open-in>\n  </site>", site, compatMode);
             }
 
@@ -199,6 +217,39 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 Console.WriteLine(string.Format("SiteList XML write exception: {0}", ex.Message));
                 return string.Empty;
             }
+        }
+
+        public static string GenerateSiteListXml(string[] domains)
+        {
+            // Determine strict target state from domains if unambiguous; otherwise use configured PC state.
+            // Never mix Telangana and Andhra Pradesh sites in the same sites.xml.
+            bool hasTs = false;
+            bool hasAp = false;
+            if (domains != null)
+            {
+                foreach (var d in domains)
+                {
+                    if (string.IsNullOrWhiteSpace(d)) continue;
+                    if (d.IndexOf("telangana.gov.in", StringComparison.OrdinalIgnoreCase) >= 0) hasTs = true;
+                    if (d.IndexOf("ap.gov.in", StringComparison.OrdinalIgnoreCase) >= 0) hasAp = true;
+                }
+            }
+
+            string targetState;
+            if (hasAp && !hasTs)
+            {
+                targetState = "Andhra Pradesh";
+            }
+            else if (hasTs && !hasAp)
+            {
+                targetState = "Telangana";
+            }
+            else
+            {
+                targetState = Helpers.SystemInfoHelper.GetConfiguredState("Telangana");
+            }
+
+            return GenerateSiteListXmlForState(targetState);
         }
     }
 }

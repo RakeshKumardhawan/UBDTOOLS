@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site-list version="2">
+  <created-by>
+    <tool>E-Vedhika UBD C# Deployment Tool (Telangana UBD)</tool>
+  </created-by>
+  <site url="https://ubd.telangana.gov.in/">
+    <compat-mode>IE5</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="https://ubd.telangana.gov.in/login.do">
+    <compat-mode>IE5</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+  <site url="ubd.telangana.gov.in">
+    <compat-mode>IE5</compat-mode>
+    <open-in>IE11</open-in>
+  </site>
+</site-list>

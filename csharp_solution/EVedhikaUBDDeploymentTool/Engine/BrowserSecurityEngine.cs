@@ -38,7 +38,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
         {
             try
             {
-                const string exemptJson = "[{\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.telangana.gov.in\", \"ubd.ap.gov.in\", \"e-vedhika.in\", \"telangana.gov.in\", \"ap.gov.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"xlsx\"}, {\"domains\": [\"e-vedhika.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"exe\"}]";
+                string activeState = Helpers.SystemInfoHelper.GetConfiguredState("Telangana");
+                bool isAp = EdgePolicyEngine.IsAndhraPradeshState(activeState);
+                string exemptJson = isAp
+                    ? "[{\"domains\": [\"ubd.ap.gov.in\", \"www.ubd.ap.gov.in\", \"e-vedhika.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.ap.gov.in\", \"www.ubd.ap.gov.in\", \"e-vedhika.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"xlsx\"}, {\"domains\": [\"e-vedhika.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"exe\"}]"
+                    : "[{\"domains\": [\"ubd.telangana.gov.in\", \"e-vedhika.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"xls\"}, {\"domains\": [\"ubd.telangana.gov.in\", \"e-vedhika.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"xlsx\"}, {\"domains\": [\"e-vedhika.in\", \"github.com\", \"githubusercontent.com\"], \"file_extension\": \"exe\"}]";
+                string[] insecureUrls = isAp
+                    ? new string[] { "http://www.ubd.ap.gov.in", "http://www.ubd.ap.gov.in:8080", "https://ubd.ap.gov.in", "https://*.e-vedhika.in" }
+                    : new string[] { "http://ubd.telangana.gov.in", "https://ubd.telangana.gov.in", "https://*.e-vedhika.in" };
 
                 // 1. Configure Microsoft Edge Policies for Unrestricted Downloads & Legacy Handling
                 using (RegistryKey edgeKey = Registry.CurrentUser.CreateSubKey(EdgePoliciesPath))
@@ -49,7 +56,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         edgeKey.SetValue("SmartScreenPuaEnabled", 0, RegistryValueKind.DWord);
                         edgeKey.SetValue("DownloadRestrictions", 0, RegistryValueKind.DWord);
                         edgeKey.SetValue("PromptForDownloadLocation", 0, RegistryValueKind.DWord);
-                        edgeKey.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in", "https://*.e-vedhika.in" }, RegistryValueKind.MultiString);
+                        edgeKey.SetValue("InsecureContentAllowedForUrls", insecureUrls, RegistryValueKind.MultiString);
                         edgeKey.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
                     }
                 }
@@ -64,7 +71,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             edgeKeyHKLM.SetValue("SmartScreenEnabled", 0, RegistryValueKind.DWord);
                             edgeKeyHKLM.SetValue("SmartScreenPuaEnabled", 0, RegistryValueKind.DWord);
                             edgeKeyHKLM.SetValue("DownloadRestrictions", 0, RegistryValueKind.DWord);
-                            edgeKeyHKLM.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in", "https://*.e-vedhika.in" }, RegistryValueKind.MultiString);
+                            edgeKeyHKLM.SetValue("InsecureContentAllowedForUrls", insecureUrls, RegistryValueKind.MultiString);
                             edgeKeyHKLM.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
                         }
                     }
@@ -83,7 +90,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             chromeKey.SetValue("SafeBrowsingProtectionLevel", 0, RegistryValueKind.DWord);
                             chromeKey.SetValue("AllowFileSelectionDialogs", 1, RegistryValueKind.DWord);
                             chromeKey.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
-                            chromeKey.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in", "https://*.e-vedhika.in" }, RegistryValueKind.MultiString);
+                            chromeKey.SetValue("InsecureContentAllowedForUrls", insecureUrls, RegistryValueKind.MultiString);
                         }
                     }
                 }
@@ -99,7 +106,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                             chromeKeyHKLM.SetValue("SafeBrowsingProtectionLevel", 0, RegistryValueKind.DWord);
                             chromeKeyHKLM.SetValue("AllowFileSelectionDialogs", 1, RegistryValueKind.DWord);
                             chromeKeyHKLM.SetValue("ExemptDomainFileTypePairsFromFileTypeDownloadWarnings", exemptJson, RegistryValueKind.String);
-                            chromeKeyHKLM.SetValue("InsecureContentAllowedForUrls", new string[] { "http://*.telangana.gov.in", "https://*.telangana.gov.in", "http://*.gov.in", "https://*.gov.in", "https://*.e-vedhika.in" }, RegistryValueKind.MultiString);
+                            chromeKeyHKLM.SetValue("InsecureContentAllowedForUrls", insecureUrls, RegistryValueKind.MultiString);
                         }
                     }
                 }

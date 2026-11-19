@@ -184,7 +184,7 @@ namespace EVedhikaUBDDeploymentTool
                 }
                 catch { }
 
-                string selectedState = "Telangana";
+                string selectedState = SystemInfoHelper.GetConfiguredState("Telangana");
                 if (!startSilent)
                 {
                     // Show State Selection Dialog when manually launched
@@ -388,16 +388,19 @@ namespace EVedhikaUBDDeploymentTool
         {
             try
             {
-                // Ensure sites.xml and IE Mode policies are active before launch
+                string configuredState = SystemInfoHelper.GetConfiguredState("Telangana");
+                bool isAp = Engine.EdgePolicyEngine.IsAndhraPradeshState(configuredState);
+
+                // Ensure state-specific UBD sites.xml and IE Mode policies are active before launch
                 try
                 {
-                    string xmlPath = Engine.EdgePolicyEngine.GenerateSiteListXml(new string[] { "ubd.telangana.gov.in", "ubd.ap.gov.in" });
+                    string xmlPath = Engine.EdgePolicyEngine.GenerateSiteListXmlForState(configuredState);
                     Engine.EdgePolicyEngine.ApplyIEModePolicies(xmlPath);
                 }
                 catch { }
 
-                // 1. Launch UBD Government Portal in Microsoft Edge (configured for IE Mode)
-                string ubdUrl = "https://ubd.telangana.gov.in";
+                // 1. Launch the configured state's UBD Government Portal in Microsoft Edge (configured for IE Mode)
+                string ubdUrl = isAp ? "http://www.ubd.ap.gov.in:8080/UBDNEW/" : "https://ubd.telangana.gov.in";
                 string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
                 if (!File.Exists(edgePath)) edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
                 if (!File.Exists(edgePath))

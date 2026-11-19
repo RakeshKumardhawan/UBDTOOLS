@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Cpu, QrCode, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Cpu, QrCode, ExternalLink, ShieldCheck, Download, Check } from 'lucide-react';
 import { EnvironmentStatus, LogEntry } from '../types';
 import { getDeviceHardwareIdentity } from '../utils/hardwareIdentity';
+import { downloadStructuredLogsJson } from '../utils/logExport';
 import { DeviceIdentityCard } from './DeviceIdentityCard';
 import { SystemHealthMonitorWidget } from './SystemHealthMonitorWidget';
 
@@ -14,12 +15,39 @@ export const SystemPanel: React.FC<SystemPanelProps> = ({ envStatus, logs }) => 
   const consoleRef = useRef<HTMLDivElement>(null);
   const deviceHw = getDeviceHardwareIdentity();
   const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [exportedRecently, setExportedRecently] = useState(false);
+  const exportTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (consoleRef.current) {
       consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
     }
   }, [logs]);
+
+  useEffect(() => {
+    return () => {
+      if (exportTimerRef.current !== null) {
+        window.clearTimeout(exportTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleExportLogs = () => {
+    downloadStructuredLogsJson(logs, envStatus, deviceHw);
+    setExportedRecently(true);
+    if (exportTimerRef.current !== null) {
+      window.clearTimeout(exportTimerRef.current);
+    }
+    exportTimerRef.current = window.setTimeout(() => {
+      setExportedRecently(false);
+    }, 2200);
+  };
+
+  const dscActive = Boolean(
+    envStatus.proxKeyDriverInstalled ||
+    envStatus.dscTokenConnected ||
+    (envStatus as unknown as { proxKeyInstalled?: boolean }).proxKeyInstalled
+  );
 
   return (
     <aside className="border-l border-ink-faint p-4 sm:p-5 lg:p-6 bg-[rgba(0,240,255,0.02)] flex flex-col gap-5 h-full overflow-y-auto custom-scrollbar">
@@ -100,8 +128,8 @@ export const SystemPanel: React.FC<SystemPanelProps> = ({ envStatus, logs }) => 
           <div className="status-card p-2.5 sm:p-3">
             <div className="flex justify-between items-center text-[0.68rem] sm:text-[0.72rem] font-mono">
               <span className="truncate pr-2 text-slate-300">DSC TOKEN</span>
-              <span className={`font-bold shrink-0 ${envStatus.proxKeyInstalled ? "text-accent" : "text-amber-400"}`}>
-                {envStatus.proxKeyInstalled ? "ACTIVE" : "MISSING"}
+              <span className={`font-bold shrink-0 ${dscActive ? "text-accent" : "text-amber-400"}`}>
+                {dscActive ? "ACTIVE" : "MISSING"}
               </span>
             </div>
           </div>
@@ -109,17 +137,38 @@ export const SystemPanel: React.FC<SystemPanelProps> = ({ envStatus, logs }) => 
       </div>
       
       <div className="flex-1 flex flex-col min-h-[220px]">
-        <div className="flex justify-between items-center mb-2 shrink-0">
-          <p className="label text-[0.6rem] sm:text-[0.65rem]">Live Telemetry Console</p>
-          <span className="label text-[0.55rem] text-accent/80">{logs.length} logs</span>
+        <div className="flex flex-col gap-1.5 mb-2 shrink-0">
+          <div className="flex justify-between items-center gap-2">
+            <p className="label text-[0.6rem] sm:text-[0.65rem]">Live Telemetry Console</p>
+            <span className="label text-[0.55rem] text-accent/80 shrink-0">{logs.length} logs</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportLogs}
+            aria-label="Export Logs"
+            title="Download current log history as a structured JSON file"
+            className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 hover:border-cyan-400 text-cyan-300 font-mono text-[0.62rem] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            {exportedRecently ? (
+              <>
+                <Check size={12} className="text-emerald-400" />
+                <span className="text-emerald-300">Exported JSON</span>
+              </>
+            ) : (
+              <>
+                <Download size={12} />
+                <span>Export Logs (.json)</span>
+              </>
+            )}
+          </button>
         </div>
         <div className="console flex-1 custom-scrollbar overflow-y-auto min-h-[160px] text-[0.65rem] sm:text-[0.7rem]" ref={consoleRef}>
           {logs.length === 0 && <div className="opacity-50">System initialized. Awaiting commands...</div>}
           {logs.map((log, i) => (
-            <div key={i} className="mb-1 leading-relaxed">
+            <div key={log.id || i} className="mb-1 leading-relaxed">
               <span className="opacity-70">[{log.timestamp.split(' ')[1] || log.timestamp}]</span> 
               <span className="ml-1 opacity-90 text-slate-300">[{log.module}]</span> 
-              <span className={`ml-2 break-words ${log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-emerald-400' : 'text-accent'}`}>
+              <span className={`ml-2 break-words ${log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-emerald-400' : log.type === 'warning' ? 'text-amber-400' : 'text-accent'}`}>
                 {log.message}
               </span>
             </div>

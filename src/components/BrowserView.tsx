@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Globe, 
   CheckCircle2, 
@@ -6,12 +6,17 @@ import {
   Trash2, 
   Copy, 
   Check, 
-  ExternalLink, 
   ShieldCheck, 
   FileCode,
   RefreshCw
 } from 'lucide-react';
 import { DepartmentProfile } from '../types';
+import {
+  buildStateSiteListXml,
+  filterSitesForState,
+  getStateDefaultCompatMode,
+  resolveUbdState,
+} from '../utils/siteListGenerator';
 
 interface BrowserViewProps {
   selectedProfile: DepartmentProfile;
@@ -24,32 +29,37 @@ export const BrowserView: React.FC<BrowserViewProps> = ({
   onApplyEdgePolicy,
   isApplyingPolicy,
 }) => {
-  const [siteList, setSiteList] = useState<string[]>(selectedProfile.siteList);
+  const activeState = resolveUbdState(selectedProfile.id || selectedProfile.name);
+  const defaultCompat = getStateDefaultCompatMode(activeState);
+
+  const [siteList, setSiteList] = useState<string[]>(() =>
+    filterSitesForState(activeState, selectedProfile.siteList)
+  );
   const [newUrl, setNewUrl] = useState('');
   const [copiedXml, setCopiedXml] = useState(false);
 
-  const [selectedCompatMode, setSelectedCompatMode] = useState<'IE5' | 'IE8Enterprise' | 'IE11'>('IE5');
+  const [selectedCompatMode, setSelectedCompatMode] = useState<'IE5' | 'IE7' | 'IE8Enterprise' | 'IE11'>(defaultCompat);
   const [injectedStatus, setInjectedStatus] = useState<string | null>(null);
 
+  useEffect(() => {
+    setSiteList(filterSitesForState(activeState, selectedProfile.siteList));
+    setSelectedCompatMode(getStateDefaultCompatMode(activeState));
+    setInjectedStatus(null);
+  }, [activeState, selectedProfile]);
+
   const handleAddDomain = () => {
-    if (newUrl.trim() && !siteList.includes(newUrl.trim())) {
-      setSiteList([...siteList, newUrl.trim()]);
-      setNewUrl('');
-    }
+    const trimmed = newUrl.trim();
+    if (!trimmed) return;
+    const filtered = filterSitesForState(activeState, [...siteList, trimmed]);
+    setSiteList(filtered);
+    setNewUrl('');
   };
 
   const handleRemoveDomain = (domain: string) => {
     setSiteList(siteList.filter(s => s !== domain));
   };
 
-  const siteListXml = `<site-list version="2">
-  <!-- E-Vedhika Enterprise IE Mode Force Injector -->
-  <!-- Enforces IE5 Quirks & Legacy ActiveX Support Regardless of Edge Version -->
-${siteList.map(site => `  <site url="${site}">
-    <compat-mode>${selectedCompatMode}</compat-mode>
-    <open-in>IE11</open-in>
-  </site>`).join('\n')}
-</site-list>`;
+  const siteListXml = buildStateSiteListXml(activeState, siteList, selectedCompatMode);
 
   const copyXmlToClipboard = () => {
     navigator.clipboard.writeText(siteListXml);
@@ -59,7 +69,7 @@ ${siteList.map(site => `  <site url="${site}">
 
   const handleInjectIe5SiteList = () => {
     onApplyEdgePolicy();
-    setInjectedStatus(`యుఆర్‌ఎల్ (ubd.telangana.gov.in) సక్సెస్‌ఫుల్‌గా IE5 Enterprise Mode సైట్ లిస్ట్‌లోకి ఇంజెక్ట్ అయ్యింది! Edge v90-v125+ లో IE5 Quirks Mode తోనే ఓపెన్ అవుతుంది.`);
+    setInjectedStatus(`${activeState} UBD (${selectedProfile.primaryUrl}) సక్సెస్‌ఫుల్‌గా ${selectedCompatMode} Enterprise Mode సైట్ లిస్ట్‌లోకి ఇంజెక్ట్ అయ్యింది! (${activeState === 'Telangana' ? 'AP సైట్లు లేవు' : 'Telangana సైట్లు లేవు'})`);
   };
 
   return (
@@ -71,9 +81,11 @@ ${siteList.map(site => `  <site url="${site}">
             <Globe className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Microsoft Edge IE Mode & Enterprise Site List Configuration</h2>
+            <h2 className="text-xl font-bold text-slate-900">
+              Microsoft Edge IE Mode &amp; Enterprise Site List ({activeState} UBD Only)
+            </h2>
             <p className="text-xs text-slate-500">
-              Microsoft Edge ఏ వెర్షన్ అయినా సరే, UBD (ubd.telangana.gov.in) పోర్టల్‌ను తప్పనిసరిగా IE5 Quirks Mode లో ఓపెన్ అయ్యేలా Enterprise Site List XML జెనరేట్ చేసి పాలసీలోకి ఇన్జెక్ట్ చేస్తుంది.
+              {activeState} కోసం కేవలం {selectedProfile.primaryUrl} మాత్రమే {selectedCompatMode} Mode లో `sites.xml` ద్వారా కాన్ఫిగర్ చేయబడుతుంది (ఇతర రాష్ట్రాల సైట్లు, PFMS లేదా ఇతర పోర్టల్స్ చేర్చబడవు).
             </p>
           </div>
         </div>
@@ -85,7 +97,7 @@ ${siteList.map(site => `  <site url="${site}">
           className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
         >
           {isApplyingPolicy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-          <span>{isApplyingPolicy ? 'Pushing Policy...' : 'Force Inject IE5 Site List XML'}</span>
+          <span>{isApplyingPolicy ? 'Pushing Policy...' : `Force Inject ${selectedCompatMode} Site List XML`}</span>
         </button>
       </div>
 
@@ -95,7 +107,7 @@ ${siteList.map(site => `  <site url="${site}">
           <div className="flex items-center gap-2.5">
             <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
             <h3 className="text-sm font-bold tracking-wide text-emerald-300">
-              IE Mode Configuration & Site List XML Injector
+              IE Mode Configuration &amp; Site List XML Injector ({activeState})
             </h3>
           </div>
           <div className="text-xs text-slate-300 font-mono bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-700">
@@ -109,15 +121,16 @@ ${siteList.map(site => `  <site url="${site}">
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Select Document Compat Mode</label>
             <select
               value={selectedCompatMode}
-              onChange={(e) => setSelectedCompatMode(e.target.value as 'IE5' | 'IE8Enterprise' | 'IE11')}
+              onChange={(e) => setSelectedCompatMode(e.target.value as 'IE5' | 'IE7' | 'IE8Enterprise' | 'IE11')}
               className="w-full bg-slate-800 text-slate-100 font-semibold text-xs rounded-lg px-2.5 py-2 border border-slate-600 focus:outline-hidden focus:border-emerald-400"
             >
-              <option value="IE5">IE5 (Quirks Mode) - UBD Portal Recommended</option>
+              <option value="IE5">IE5 (Quirks Mode) - Telangana UBD Recommended</option>
+              <option value="IE7">IE7 Mode - Andhra Pradesh UBD Recommended</option>
               <option value="IE8Enterprise">IE8 Enterprise Mode</option>
               <option value="IE11">IE11 Strict Mode</option>
             </select>
             <p className="text-[10px] text-slate-400">
-              Edge ఏ వర్షన్ అయినా సరే, UBD కోసం IE5 పాత డిజిటల్ సిగ్నేచర్ అండ్ ActiveX మోడ్ రన్ అవుతుంది.
+              Edge ఏ వర్షన్ అయినా సరే, {activeState} UBD కోసం డిజిటల్ సిగ్నేచర్ &amp; ActiveX సపోర్ట్‌తో రన్ అవుతుంది.
             </p>
           </div>
 
@@ -125,7 +138,7 @@ ${siteList.map(site => `  <site url="${site}">
           <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-700 space-y-1.5">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Target SiteList XML Location</div>
             <div className="font-mono text-emerald-300 font-bold truncate text-[11px]">
-              C:\ProgramData\EVedhika\sites.xml
+              C:\enterprise_compat\sites.xml
             </div>
             <p className="text-[10px] text-slate-400">
               Windows registry policy <code>InternetExplorerIntegrationSiteList</code> కి బైండ్ చేయబడుతుంది.
@@ -223,7 +236,7 @@ ${siteList.map(site => `  <site url="${site}">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-slate-300">
               <div className="flex items-center gap-2 font-bold text-xs">
                 <FileCode className="w-4 h-4 text-emerald-400" />
-                <span>Enterprise Site List XML (C:\EVedhika_UBD\sites.xml)</span>
+                <span>Enterprise Site List XML (C:\enterprise_compat\sites.xml)</span>
               </div>
 
               <button
