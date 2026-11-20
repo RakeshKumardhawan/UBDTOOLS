@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   return (
-    <aside className="p-5 sm:p-6 lg:p-7 flex flex-col gap-6 sm:gap-7 h-full bg-[#0C0C0E]/95 overflow-y-auto custom-scrollbar border-r border-ink-faint">
+    <aside className="p-3 sm:p-3.5 flex flex-col gap-3.5 h-full bg-[#0C0C0E]/95 overflow-y-auto custom-scrollbar border-r border-ink-faint">
       {renderNavGroup('[01] Workflow', workflowItems)}
       {renderNavGroup('[02] Engines', engineItems)}
       {renderNavGroup('[03] System', systemItems)}

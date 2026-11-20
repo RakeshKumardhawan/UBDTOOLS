@@ -6,23 +6,23 @@ test('GITHUB_ADMIN_LIVE_LINK points to GitHub Pages dedicated /admin/ portal', (
   assert.equal(GITHUB_ADMIN_LIVE_LINK, 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/');
 });
 
-test('resolves GitHub Pages subpath /UBDTOOLS/live-pc-reports to report-center', () => {
+test('resolves GitHub Pages subpath /UBDTOOLS/live-pc-reports strictly into admin-portal (login-gated /admin/)', () => {
   const res = resolveRouteFromLocation('/UBDTOOLS/live-pc-reports', '', '');
-  assert.equal(res.tab, 'report-center');
+  assert.deepEqual(res, { tab: 'admin-portal', adminSection: 'reports' });
 });
 
-test('resolves GitHub Pages 404 redirect query /UBDTOOLS/?/live-pc-reports to report-center', () => {
+test('resolves GitHub Pages 404 redirect query /UBDTOOLS/?/live-pc-reports strictly into admin-portal', () => {
   const res = resolveRouteFromLocation('/UBDTOOLS/', '?/live-pc-reports', '');
-  assert.equal(res.tab, 'report-center');
+  assert.deepEqual(res, { tab: 'admin-portal', adminSection: 'reports' });
 });
 
-test('resolves hash route #/live-pc-reports and query ?tab=live-pc-reports to report-center', () => {
-  assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '', '#/live-pc-reports').tab, 'report-center');
-  assert.equal(resolveRouteFromLocation('/', '?tab=live-pc-reports', '').tab, 'report-center');
+test('resolves hash route #/live-pc-reports and query ?tab=live-pc-reports strictly into admin-portal', () => {
+  assert.deepEqual(resolveRouteFromLocation('/UBDTOOLS/', '', '#/live-pc-reports'), { tab: 'admin-portal', adminSection: 'reports' });
+  assert.deepEqual(resolveRouteFromLocation('/', '?tab=live-pc-reports', ''), { tab: 'admin-portal', adminSection: 'reports' });
 });
 
-test('resolves root /live-pc-reports and unrelated tabs properly', () => {
-  assert.equal(resolveRouteFromLocation('/live-pc-reports', '', '').tab, 'report-center');
+test('resolves root /live-pc-reports into admin-portal and unrelated tabs properly', () => {
+  assert.deepEqual(resolveRouteFromLocation('/live-pc-reports', '', ''), { tab: 'admin-portal', adminSection: 'reports' });
   assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '?tab=downloads', '').tab, 'downloads');
   assert.equal(resolveRouteFromLocation('/UBDTOOLS/', '', '').tab, null);
 });

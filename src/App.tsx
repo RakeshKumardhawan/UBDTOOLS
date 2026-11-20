@@ -279,6 +279,18 @@ function MainAppContent() {
         setAdminInitialSection(resolved.adminSection);
       }
       if (resolved.tab) {
+        if (resolved.tab === 'admin-portal') {
+          try {
+            const url = new URL(window.location.href);
+            const lowerP = url.pathname.toLowerCase();
+            if (lowerP.includes('live-pc-reports') || lowerP.includes('report-center')) {
+              const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
+              url.pathname = `${basePrefix}/admin/`;
+              url.searchParams.delete('tab');
+              window.history.replaceState({}, '', url.toString());
+            }
+          } catch {}
+        }
         setActiveTab(resolved.tab as NavigationTab);
       }
     };
@@ -312,26 +324,25 @@ function MainAppContent() {
   };
 
   const changeTab = (tab: NavigationTab) => {
-    setActiveTab(tab);
+    const effectiveTab: NavigationTab = tab === 'report-center' ? 'admin-portal' : tab;
+    if (tab === 'report-center') {
+      setAdminInitialSection('reports');
+    }
+    setActiveTab(effectiveTab);
     setIsMobileMenuOpen(false);
     try {
       const url = new URL(window.location.href);
-      if (tab !== 'report-center' && tab !== 'pay-checkout') {
+      if (effectiveTab !== 'pay-checkout') {
         url.searchParams.delete('pay');
         url.searchParams.delete('pcId');
         url.searchParams.delete('pcName');
       }
-      if (tab === 'admin-portal') {
+      if (effectiveTab === 'admin-portal') {
         const lowerP = url.pathname.toLowerCase();
         const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
         url.pathname = `${basePrefix}/admin/`;
         url.searchParams.delete('tab');
-      } else if (tab === 'report-center') {
-        const lowerP = url.pathname.toLowerCase();
-        const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
-        url.pathname = `${basePrefix}/live-pc-reports`;
-        url.searchParams.delete('tab');
-      } else if (tab === 'pay-checkout') {
+      } else if (effectiveTab === 'pay-checkout') {
         const lowerP = url.pathname.toLowerCase();
         const basePrefix = lowerP.startsWith('/ubdtools') ? '/UBDTOOLS' : '';
         url.pathname = `${basePrefix}/pay-checkout`;
@@ -771,7 +782,7 @@ Report Timestamp: ${reportDate}
       
       <div className="flex-1 flex overflow-hidden relative">
         {/* Desktop Sidebar (visible on lg screens and up) */}
-        <div className="hidden lg:block w-60 xl:w-68 shrink-0 h-full overflow-hidden">
+        <div className="hidden lg:block w-56 xl:w-60 shrink-0 h-full overflow-hidden">
           <Sidebar
             activeTab={activeTab}
             setActiveTab={changeTab}
@@ -811,8 +822,8 @@ Report Timestamp: ${reportDate}
           </div>
         )}
 
-        {/* Main Content Workspace with Screen-Friendly Responsive Padding */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-5 md:p-6 lg:p-8 z-10 relative">
+        {/* Main Content Workspace with Compact Screen-Friendly Padding */}
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-2.5 sm:p-3.5 md:p-4 z-10 relative">
           {activeTab === 'dashboard' && (
             <DashboardView
               envStatus={envStatus}
@@ -945,7 +956,7 @@ Report Timestamp: ${reportDate}
         </main>
 
         {/* Desktop System Panel (visible on xl screens and up) */}
-        <div className="hidden xl:block w-72 2xl:w-80 shrink-0 h-full overflow-hidden">
+        <div className="hidden xl:block w-64 2xl:w-72 shrink-0 h-full overflow-hidden">
           <SystemPanel envStatus={envStatus} logs={logs} />
         </div>
 

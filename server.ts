@@ -8,6 +8,7 @@ import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import * as XLSX from 'xlsx';
 import nodemailer from 'nodemailer';
+import { buildDateWiseInstallSummary, extractRecordInstallDateYmd } from './src/utils/dailyReportSummary';
 
 dotenv.config();
 
@@ -1648,9 +1649,21 @@ async function startServer() {
         if (!monthlyArchive[monthKey]) monthlyArchive[monthKey] = [];
         const existingIdx = monthlyArchive[monthKey].findIndex(item => item.pcId === pc.pcId || item.pcName === pc.pcName);
         if (existingIdx !== -1) {
-          monthlyArchive[monthKey][existingIdx] = pc;
+          const existing = monthlyArchive[monthKey][existingIdx];
+          const earliestDate = extractRecordInstallDateYmd(existing, dateKey);
+          const candidateDate = extractRecordInstallDateYmd(pc, dateKey);
+          const preservedInstallDate = earliestDate < candidateDate ? earliestDate : candidateDate;
+          monthlyArchive[monthKey][existingIdx] = {
+            ...existing,
+            ...pc,
+            initialInstallDate: preservedInstallDate
+          };
         } else {
-          monthlyArchive[monthKey].push(pc);
+          const preservedInstallDate = extractRecordInstallDateYmd(pc, dateKey);
+          monthlyArchive[monthKey].push({
+            ...pc,
+            initialInstallDate: preservedInstallDate
+          });
         }
       }
 
@@ -1663,6 +1676,76 @@ async function startServer() {
     }
   };
 
+  // Collect all authentic historical & live PC records across monthly archive + in-memory stores
+  // while preserving each PC's earliest initialInstallDate so date-wise totals never reset on restart
+  const collectHistoricalAuthenticPcs = (extraRecords?: any[]): any[] => {
+    const mergedMap = new Map<string, any>();
+    const fallbackToday = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const upsertRecord = (rec: any, preferNewFields: boolean) => {
+      if (!rec || !isRealPcRecord(rec)) return;
+      const key = String(rec.pcId || rec.pcName || '').toUpperCase().trim();
+      if (!key) return;
+
+      const recInstallDate = extractRecordInstallDateYmd(rec, fallbackToday);
+      const existing = mergedMap.get(key);
+      if (!existing) {
+        mergedMap.set(key, { ...rec, initialInstallDate: recInstallDate });
+        return;
+      }
+
+      const existingInstallDate = extractRecordInstallDateYmd(existing, fallbackToday);
+      const earliestInstallDate = existingInstallDate < recInstallDate ? existingInstallDate : recInstallDate;
+
+      if (preferNewFields) {
+        mergedMap.set(key, {
+          ...existing,
+          ...rec,
+          initialInstallDate: earliestInstallDate
+        });
+      } else {
+        mergedMap.set(key, {
+          ...rec,
+          ...existing,
+          initialInstallDate: earliestInstallDate
+        });
+      }
+    };
+
+    // 1. Historical disk archive (survives restarts so previous days' counts are preserved)
+    const archivePaths = [
+      MONTHLY_ARCHIVE_PATH,
+      path.join(process.cwd(), 'monthly_reports_archive.json')
+    ];
+    for (const archiveFile of archivePaths) {
+      if (fs.existsSync(archiveFile)) {
+        try {
+          const archiveData = JSON.parse(fs.readFileSync(archiveFile, 'utf8'));
+          Object.values(archiveData).forEach((monthList: any) => {
+            if (Array.isArray(monthList)) {
+              monthList.forEach((rec: any) => upsertRecord(rec, false));
+            }
+          });
+        } catch (e) {}
+      }
+    }
+
+    // 2. Live telemetry & consolidated stores (newer operational details, keeping earliest install date)
+    telemetryLogsStore.forEach((r) => upsertRecord(r, true));
+    Array.from(consolidatedMachineStore.values()).forEach((m) => upsertRecord(m, true));
+    Array.from(appHeartbeatStore.values()).forEach((h) => upsertRecord(h, false));
+    try {
+      Array.from(fleetReceiverStore.values()).forEach((f) => upsertRecord(f, true));
+    } catch (e) {}
+
+    // 3. Any explicit custom records passed by caller
+    if (Array.isArray(extraRecords)) {
+      extraRecords.forEach((r) => upsertRecord(r, true));
+    }
+
+    return Array.from(mergedMap.values());
+  };
+
   // Generate real Excel (.xlsx) workbook containing reported PCs (supports custom records list)
   const generateConsolidatedExcelWorkbook = (customRecords?: any[], isMonthlyMaster: boolean = false) => {
     const reportsDir = path.join(process.cwd(), 'public', 'reports');
@@ -1670,21 +1753,36 @@ async function startServer() {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
-    const sourceLogs = (customRecords && customRecords.length > 0) ? customRecords : telemetryLogsStore;
+    const sourceLogs = (customRecords && customRecords.length > 0) ? customRecords : collectHistoricalAuthenticPcs();
 
-    // Deduplicate by pcId to capture the latest state of each unique real PC
+    // Deduplicate by pcId to capture the latest state of each unique real PC (preserving earliest install date)
+    const fallbackToday = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const uniquePcMap = new Map<string, any>();
     for (const record of sourceLogs) {
       if (!isRealPcRecord(record)) continue; // Exclude dummy test records
       const key = String(record.pcId || record.pcName || '').toUpperCase().trim();
+      if (!key) continue;
+      const recInstallDate = extractRecordInstallDateYmd(record, fallbackToday);
       if (!uniquePcMap.has(key)) {
-        uniquePcMap.set(key, record);
+        uniquePcMap.set(key, { ...record, initialInstallDate: recInstallDate });
+      } else {
+        const existing = uniquePcMap.get(key);
+        const existingInstallDate = extractRecordInstallDateYmd(existing, fallbackToday);
+        existing.initialInstallDate = existingInstallDate < recInstallDate ? existingInstallDate : recInstallDate;
       }
     }
 
     const uniquePcs = Array.from(uniquePcMap.values());
 
-    // 1. Detailed Matrix Sheet Rows
+    // Compute Date-Wise Installed PCs Summary across all historical + current authentic PCs
+    const allHistoricalPcsForSummary = collectHistoricalAuthenticPcs(uniquePcs);
+    const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const dateStr = nowIST.toISOString().slice(0, 10);
+    const monthYearStr = nowIST.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase();
+    const timestampIST = nowIST.toISOString().replace('T', ' ').slice(0, 19) + ' IST';
+    const dateSummary = buildDateWiseInstallSummary(allHistoricalPcsForSummary, dateStr);
+
+    // 1. Detailed Matrix Sheet Rows (Preserves ALL 26 existing audit columns intact)
     const detailRows = uniquePcs.map((pc, index) => {
       const isFail = String(pc.status || '').toUpperCase().includes('FAIL');
       const healthData = calculateWorkstationHealthScore(pc);
@@ -1732,21 +1830,19 @@ async function startServer() {
     const failedPcs = totalPcs - passedPcs;
     const activeTokens = uniquePcs.filter(p => String(p.dscStatus || '').toLowerCase().includes('active') || String(p.dscStatus || '').toLowerCase().includes('detected') || String(p.dscStatus || '').toLowerCase().includes('token')).length;
 
-    const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-    const dateStr = nowIST.toISOString().slice(0, 10);
-    const monthYearStr = nowIST.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase();
-    const timestampIST = nowIST.toISOString().replace('T', ' ').slice(0, 19) + ' IST';
-
     const reportTitle = isMonthlyMaster 
       ? `E-Vedhika UBD Deployment Tool - All-Month Cumulative Master Report (${monthYearStr})`
-      : `E-Vedhika UBD Deployment Tool - Rolling 24-Hour PC Installation Report (${dateStr})`;
+      : `E-Vedhika UBD Deployment Tool - Daily Consolidated PC Installation Report (${dateStr})`;
 
     const summaryRows = [
       { 'Metric': 'Report Name', 'Value': reportTitle },
-      { 'Metric': 'Report Type', 'Value': isMonthlyMaster ? 'Monthly Master Cumulative Workbook (30th/31st End of Month)' : 'Rolling 24-Hour Automated Report (19:01 to 19:00 IST)' },
+      { 'Metric': 'Report Type', 'Value': isMonthlyMaster ? 'Monthly Master Cumulative Workbook (30th/31st End of Month)' : 'Daily 7:00 PM Automated Report + Cumulative Date-Wise Install Summary' },
       { 'Metric': 'Report Generated At', 'Value': timestampIST },
       { 'Metric': 'Target Administrator Email', 'Value': emailConfig.recipientEmail },
-      { 'Metric': 'Total Authentic PCs Installed/Reported', 'Value': totalPcs },
+      { 'Metric': 'Total PCs Installed Up to Yesterday', 'Value': dateSummary.installedUpToYesterday },
+      { 'Metric': `New PCs Installed Today (${dateSummary.todayLabel})`, 'Value': dateSummary.installedToday },
+      { 'Metric': 'Cumulative Total Installed PCs (All Dates)', 'Value': dateSummary.grandTotal },
+      { 'Metric': 'Total Authentic PCs in Audit Matrix', 'Value': totalPcs },
       { 'Metric': 'Successful PCs (17/17 Steps Verified)', 'Value': passedPcs },
       { 'Metric': 'Action Required / Failed PCs', 'Value': failedPcs },
       { 'Metric': 'Active USB DSC Tokens Verified', 'Value': activeTokens },
@@ -1757,18 +1853,59 @@ async function startServer() {
     // Build XLSX Workbook
     const wb = XLSX.utils.book_new();
     const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+
+    // Append horizontal Date-Wise Installed PCs Summary directly below Executive Summary metrics
+    XLSX.utils.sheet_add_aoa(
+      wsSummary,
+      [
+        [],
+        ['Date-Wise Installed PCs Summary (Up to Yesterday + Today)'],
+        ...dateSummary.horizontalRows
+      ],
+      { origin: -1 }
+    );
+
+    // Build Dedicated Sheet: Date-Wise Install Summary (Exact horizontal table matching admin screenshot + breakdown)
+    const wsDateWise = XLSX.utils.aoa_to_sheet([
+      ...dateSummary.horizontalRows,
+      [],
+      ['Summary Breakdown', 'Installed PCs'],
+      ['Total PCs Installed Up to Yesterday', dateSummary.installedUpToYesterday],
+      [`New PCs Installed Today (${dateSummary.todayLabel})`, dateSummary.installedToday],
+      ['Grand Total Installed PCs', dateSummary.grandTotal],
+      [],
+      ['Date', 'Period', 'Installed PCs', 'Cumulative Total'],
+      ...dateSummary.verticalRows.map((row) => [
+        row.Date,
+        row.Period,
+        row['Installed PCs'],
+        row['Cumulative Total']
+      ])
+    ]);
+
     const wsDetails = XLSX.utils.json_to_sheet(detailRows.length > 0 ? detailRows : [{ 'Notice': 'No authentic PC telemetry records available yet.' }]);
 
-    // Set column widths for clean readability
-    wsSummary['!cols'] = [{ wch: 38 }, { wch: 65 }];
+    // Set column widths for clean readability across all 3 sheets
+    const horizontalColCount = dateSummary.horizontalRows[0]?.length || 3;
+    wsSummary['!cols'] = [
+      { wch: 42 },
+      { wch: 65 },
+      ...Array.from({ length: Math.max(0, horizontalColCount - 2) }, () => ({ wch: 15 }))
+    ];
+    wsDateWise['!cols'] = [
+      { wch: 36 },
+      ...Array.from({ length: Math.max(3, horizontalColCount - 1) }, () => ({ wch: 18 }))
+    ];
     wsDetails['!cols'] = [
       { wch: 8 }, { wch: 20 }, { wch: 22 }, { wch: 32 }, { wch: 18 }, { wch: 36 },
-      { wch: 18 }, { wch: 24 }, { wch: 18 }, { wch: 35 }, { wch: 22 }, { wch: 15 },
-      { wch: 16 }, { wch: 22 }, { wch: 26 }, { wch: 24 }, { wch: 20 }, { wch: 20 },
-      { wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 45 }
+      { wch: 18 }, { wch: 28 }, { wch: 28 }, { wch: 20 }, { wch: 30 }, { wch: 22 },
+      { wch: 15 }, { wch: 16 }, { wch: 18 }, { wch: 30 }, { wch: 22 }, { wch: 24 },
+      { wch: 24 }, { wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 14 },
+      { wch: 14 }, { wch: 45 }
     ];
 
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Executive Summary');
+    XLSX.utils.book_append_sheet(wb, wsDateWise, 'Date-Wise Install Summary');
     XLSX.utils.book_append_sheet(wb, wsDetails, 'All PCs Live Audit Matrix');
 
     const fileName = isMonthlyMaster 
@@ -1793,12 +1930,13 @@ async function startServer() {
       activeTokens,
       dateStr,
       monthYearStr,
-      timestampIST
+      timestampIST,
+      dateSummary
     };
   };
 
-  // Dispatch daily 7:00 PM email with Excel attachment to administrator (Enforces >= 5 PC Threshold & 24h Rolling Window)
-  const sendDailyExcelReportToAdmin = async (isManualTrigger: boolean = false) => {
+  // Dispatch daily 7:00 PM email with Excel attachment to administrator (Includes Cumulative Date-Wise Install Summary)
+  const sendDailyExcelReportToAdmin = async (isManualTrigger: boolean = false, externalRecords?: any[]) => {
     try {
       const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
       const yesterdayIST = new Date(nowIST.getTime() - 24 * 60 * 60 * 1000);
@@ -1811,61 +1949,51 @@ async function startServer() {
         return recIST >= yesterdayIST && recIST <= nowIST;
       });
 
-      // Cumulative fleet deduplication: Include all authentic machines where tool is installed
-      const cumulativePcMap = new Map<string, any>();
-      Array.from(fleetReceiverStore.values()).forEach(m => {
-        if (isRealPcRecord(m)) {
-          const key = String(m.pcId || m.pcName || '').toUpperCase().trim();
-          cumulativePcMap.set(key, m);
-        }
-      });
-      Array.from(consolidatedMachineStore.values()).forEach(m => {
-        if (isRealPcRecord(m)) {
-          const key = String(m.pcId || m.pcName || '').toUpperCase().trim();
-          if (!cumulativePcMap.has(key)) cumulativePcMap.set(key, m);
-        }
-      });
-      telemetryLogsStore.forEach(r => {
-        if (isRealPcRecord(r)) {
-          const key = String(r.pcId || r.pcName || '').toUpperCase().trim();
-          if (!cumulativePcMap.has(key)) cumulativePcMap.set(key, r);
-        }
-      });
+      const validExternalRecords = Array.isArray(externalRecords)
+        ? externalRecords.filter((r) => r && isRealPcRecord(r))
+        : [];
 
-      // Also ensure all live authentic PCs from telemetry store are buffered & archived
-      archivePcReportsToMonthlyStore(telemetryLogsStore);
+      // Archive both live telemetry store and any authenticated Firebase records pushed from Admin UI
+      archivePcReportsToMonthlyStore([
+        ...telemetryLogsStore,
+        ...validExternalRecords
+      ]);
 
-      const allRealPcsCount = cumulativePcMap.size;
-      console.log(`[DAILY 7 PM CHECK] Cumulative Installed Authentic PCs: ${allRealPcsCount} (24h Rolling Window: ${rolling24hRecords.length})`);
+      // Cumulative fleet deduplication across live stores, persisted monthly archive, and Firebase live sync
+      const reportMachines = collectHistoricalAuthenticPcs(validExternalRecords);
+      console.log(`[DAILY 7 PM CHECK] Cumulative Installed Authentic PCs: ${reportMachines.length} (Firebase Synced: ${validExternalRecords.length}, 24h Rolling Window: ${rolling24hRecords.length})`);
 
       // Daily 7:00 PM Scheduled Email & Telegram Dispatch (Sends report for all authentic PCs in fleet)
-      const reportMachines = Array.from(cumulativePcMap.values());
       const excelInfo = generateConsolidatedExcelWorkbook(reportMachines, false);
+      const { dateSummary } = excelInfo;
       const targetEmail = emailConfig.recipientEmail || 'Rakeshkumardhawan123@gmail.com';
       const triggerLabel = isManualTrigger ? 'Manual Dispatch' : 'Daily 7:00 PM IST Automated Run';
 
-      const emailSubject = `📊 E-Vedhika UBD Deployment Tool - Daily Consolidated PC Status Report [${excelInfo.dateStr}]`;
+      const emailSubject = `📊 E-Vedhika UBD Deployment Tool - Daily Consolidated PC Status Report [${excelInfo.dateStr}] (Total: ${dateSummary.grandTotal} PCs)`;
       const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="font-family: Arial, sans-serif; max-width: 720px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
           <div style="background: linear-gradient(135deg, #1e3a8a, #0284c7); padding: 20px; color: white;">
             <h2 style="margin: 0 0 6px 0; font-size: 20px;">🏛️ E-Vedhika UBD Deployment Tool</h2>
-            <p style="margin: 0; font-size: 14px; opacity: 0.9;">Daily 7:00 PM Consolidated PC Status Report (${triggerLabel})</p>
+            <p style="margin: 0; font-size: 14px; opacity: 0.9;">Daily 7:00 PM Consolidated PC Status &amp; Date-Wise Installation Report (${triggerLabel})</p>
           </div>
           <div style="padding: 24px; background: #ffffff;">
             <p style="color: #334155; font-size: 15px; margin-top: 0;">
-              నమస్కారం! ఆంధ్రప్రదేశ్ & తెలంగాణ గ్రామ పంచాయతీ మరియు మండల ఆఫీస్ కంప్యూటర్లలో గత 24 గంటల వ్యవధిలో (19:01 నుండి 19:00 IST వరకు) ఇన్స్టాల్ అయిన E-Vedhika UBD Deployment Tool యొక్క డైలీ కన్సాలిడేటెడ్ స్టేటస్ ఎక్సెల్ రిపోర్ట్ సిద్ధంగా ఉంది.
+              నమస్కారం! ఆంధ్రప్రదేశ్ &amp; తెలంగాణ గ్రామ పంచాయతీ మరియు మండల ఆఫీస్ కంప్యూటర్లలో నిన్నటి వరకు మరియు ఈ రోజు ఇన్స్టాల్ అయిన E-Vedhika UBD Deployment Tool యొక్క పూర్తి ఆడిట్ డేటా మరియు తేదీల వారీగా ఇన్‌స్టాలేషన్ సమ్మరీ ఎక్సెల్ రిపోర్ట్ సిద్ధంగా ఉంది.
             </p>
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
               <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                 <tr><td style="padding: 6px 0; color: #64748b;">📅 <b>Report Timestamp:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${excelInfo.timestampIST}</td></tr>
-                <tr><td style="padding: 6px 0; color: #64748b;">🖥️ <b>24h Authentic PCs Deployed:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${excelInfo.totalPcs} Computers</td></tr>
+                <tr><td style="padding: 6px 0; color: #64748b;">📌 <b>Installed Up to Yesterday (నిన్నటి వరకు మొత్తం):</b></td><td style="padding: 6px 0; font-weight: bold; color: #1e3a8a;">${dateSummary.installedUpToYesterday} Computers</td></tr>
+                <tr><td style="padding: 6px 0; color: #64748b;">🆕 <b>New PCs Installed Today (${dateSummary.todayLabel}):</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${dateSummary.installedToday} Computers</td></tr>
+                <tr><td style="padding: 6px 0; color: #64748b;">🏆 <b>Cumulative Total Installed PCs:</b></td><td style="padding: 6px 0; font-weight: bold; color: #15803d;">${dateSummary.grandTotal} Computers</td></tr>
                 <tr><td style="padding: 6px 0; color: #64748b;">✅ <b>Successful (17/17 Steps):</b></td><td style="padding: 6px 0; font-weight: bold; color: #16a34a;">${excelInfo.passedPcs} PCs (100% Verified)</td></tr>
                 <tr><td style="padding: 6px 0; color: #64748b;">⚠️ <b>Action Required:</b></td><td style="padding: 6px 0; font-weight: bold; color: ${excelInfo.failedPcs > 0 ? '#dc2626' : '#16a34a'};">${excelInfo.failedPcs} PCs</td></tr>
                 <tr><td style="padding: 6px 0; color: #64748b;">🔐 <b>Active DSC Tokens:</b></td><td style="padding: 6px 0; font-weight: bold; color: #0284c7;">${excelInfo.activeTokens} Tokens Ready</td></tr>
               </table>
             </div>
+            ${dateSummary.htmlTable}
             <p style="color: #475569; font-size: 13px;">
-              ఈ ఇమెయిల్‌కు జతచేయబడిన <b>${excelInfo.fileName}</b> ఫైల్‌లో ప్రతి పంచాయతీ PC యొక్క రామ్, డిస్క్, CPU, ఐపీ, లొకేషన్, DSC మరియు Edge IE మోడ్ పూర్తి ఆడిట్ సమాచారం పొందుపరచబడింది.
+              ఈ ఇమెయిల్‌కు జతచేయబడిన <b>${excelInfo.fileName}</b> ఫైల్‌లో <b>Date-Wise Install Summary</b> షీట్‌తో పాటు ప్రతి పంచాయతీ PC యొక్క రామ్, డిస్క్, CPU, ఐపీ, లొకేషన్, DSC మరియు Edge IE మోడ్ పూర్తి 26-కాలమ్ ఆడిట్ సమాచారం పొందుపరచబడింది.
             </p>
             <div style="margin-top: 24px; text-align: center;">
               <a href="https://www.e-vedhika.in/api/reports/download-excel" style="display: inline-block; background: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
@@ -1918,12 +2046,13 @@ async function startServer() {
       try {
         const tgReportText = `📊 <b>E-Vedhika UBD Deployment Tool - Daily 7:00 PM Consolidated Status Report</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `📅 <b>Date & Time:</b> ${excelInfo.timestampIST}\n` +
+          `📅 <b>Date &amp; Time:</b> ${excelInfo.timestampIST}\n` +
           `📧 <b>Target Admin Email:</b> ${targetEmail}\n` +
-          `🖥️ <b>24h PCs Deployed:</b> <b>${excelInfo.totalPcs} Computers</b>\n` +
+          `🖥️ <b>Total Authentic PCs:</b> <b>${dateSummary.grandTotal} Computers</b>\n` +
           `✅ <b>100% Verified (17/17):</b> ${excelInfo.passedPcs} PCs\n` +
           `⚠️ <b>Failed / Attention:</b> ${excelInfo.failedPcs} PCs\n` +
           `🔐 <b>Active DSC Tokens:</b> ${excelInfo.activeTokens} Tokens Ready\n\n` +
+          `${dateSummary.telegramBreakdown}\n\n` +
           `📥 <b>Download Consolidated Excel Report:</b>\n` +
           `https://www.e-vedhika.in/api/reports/download-excel\n\n` +
           `🌐 <b>Central Live Dashboard:</b> https://www.e-vedhika.in`;
@@ -1943,6 +2072,10 @@ async function startServer() {
         targetEmail,
         fileName: excelInfo.fileName,
         totalPcs: excelInfo.totalPcs,
+        installedUpToYesterday: dateSummary.installedUpToYesterday,
+        installedToday: dateSummary.installedToday,
+        grandTotalInstalled: dateSummary.grandTotal,
+        dateWiseSummary: dateSummary.entries,
         downloadUrl: '/api/reports/download-excel',
         channelDelivery: {
           websiteDashboard: { status: 'VERIFIED', activePcs: excelInfo.totalPcs, timestamp: excelInfo.timestampIST },
@@ -5857,7 +5990,8 @@ ${aiAnalysis || 'Analysis in progress.'}
   // API Route: Download Consolidated Daily Excel Report (.xlsx)
   app.get('/api/reports/download-excel', (req, res) => {
     try {
-      const excelInfo = generateConsolidatedExcelWorkbook();
+      const allHistoricalPcs = collectHistoricalAuthenticPcs();
+      const excelInfo = generateConsolidatedExcelWorkbook(allHistoricalPcs, false);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${excelInfo.fileName}"`);
       return res.send(excelInfo.buffer);
@@ -5916,10 +6050,11 @@ ${aiAnalysis || 'Analysis in progress.'}
     }
   });
 
-  // API Route: Trigger Daily 7:00 PM Excel Status Email to Admin
+  // API Route: Trigger Daily 7:00 PM Excel Status Email to Admin (optionally accepting live Firebase PCs from Admin UI)
   app.post('/api/reports/send-daily-email', async (req, res) => {
     try {
-      const result = await sendDailyExcelReportToAdmin(true);
+      const incomingRecords = Array.isArray(req.body?.records) ? req.body.records : undefined;
+      const result = await sendDailyExcelReportToAdmin(true, incomingRecords);
       return res.json(result);
     } catch (err: any) {
       console.error('Failed to trigger daily email:', err);

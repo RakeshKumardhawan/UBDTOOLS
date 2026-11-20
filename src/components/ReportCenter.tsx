@@ -24,7 +24,10 @@ import {
   OperationType,
   ADMIN_EMAIL
 } from '../firebase';
+import * as XLSX from 'xlsx';
 import { extractTelegramField } from '../utils/reportHelpers';
+import { buildFirebaseConsolidatedWorkbook } from '../utils/firebaseExcelExport';
+import { getTodayYmdIST, normalizeToYmd } from '../utils/dailyReportSummary';
 
 interface ReportEvent {
   eventId: string;
@@ -68,6 +71,7 @@ export const ReportCenter: React.FC = () => {
   const [fsReports, setFsReports] = useState<ReportEvent[]>([]);
   const [fsFeedbacks, setFsFeedbacks] = useState<any[]>([]);
   const [fsPermissionNotice, setFsPermissionNotice] = useState<string>('');
+  const [sendingEmailReport, setSendingEmailReport] = useState<boolean>(false);
 
   const [releases, setReleases] = useState<any[]>([]);
   const [phpSourceCode, setPhpSourceCode] = useState<string>('');
@@ -131,7 +135,7 @@ export const ReportCenter: React.FC = () => {
       return;
     }
 
-    const qPcs = query(collection(db, 'installed_pcs'), orderBy('updatedAt', 'desc'), limit(200));
+    const qPcs = query(collection(db, 'installed_pcs'), orderBy('updatedAt', 'desc'), limit(2000));
     const unsubPcs = onSnapshot(
       qPcs,
       (snap) => {
@@ -158,7 +162,8 @@ export const ReportCenter: React.FC = () => {
             edgeIeMode: data.edgeIeMode || 'IE5 Quirks Active',
             healthScore: Number(data.healthScore ?? 100),
             lastSeenAt: data.lastSeenAt || (updatedMs ? new Date(updatedMs).toLocaleString() : 'Live'),
-            lastSeenEpoch: updatedMs
+            lastSeenEpoch: updatedMs,
+            date: normalizeToYmd(updatedMs) || normalizeToYmd(data.lastSeenAt) || getTodayYmdIST()
           };
         });
         setFsInstalledPcs(rows);
@@ -170,7 +175,7 @@ export const ReportCenter: React.FC = () => {
       }
     );
 
-    const qReports = query(collection(db, 'pc_reports'), orderBy('createdAt', 'desc'), limit(200));
+    const qReports = query(collection(db, 'pc_reports'), orderBy('createdAt', 'desc'), limit(2000));
     const unsubReports = onSnapshot(
       qReports,
       (snap) => {
@@ -266,13 +271,33 @@ export const ReportCenter: React.FC = () => {
     });
 
     // Cross-reference reports so every PC with a VERSION_UPGRADE / OTA_VERIFIED / INSTALLATION report is accurately tagged
+    // AND preserve each PC's earliest install date across pc_reports + installed_pcs
     const pcReportCounts = new Map<string, number>();
     const pcUpgradeInfo = new Map<string, { transition: string; details: string; timestamp: string }>();
+    const pcEarliestInstallYmd = new Map<string, string>();
+    const recordEarliestDate = (key: string, candidate: unknown) => {
+      const ymd = normalizeToYmd(candidate);
+      if (!ymd) return;
+      const prev = pcEarliestInstallYmd.get(key);
+      if (!prev || ymd < prev) {
+        pcEarliestInstallYmd.set(key, ymd);
+      }
+    };
+
+    map.forEach((pc, key) => {
+      recordEarliestDate(key, pc.initialInstallDate);
+      recordEarliestDate(key, pc.firstInstalledAt);
+      recordEarliestDate(key, pc.date);
+      recordEarliestDate(key, pc.lastSeenEpoch);
+      recordEarliestDate(key, pc.lastSeenAt);
+    });
 
     reports.forEach((r) => {
       const k = String(r.pcId || r.pcName || '').toUpperCase();
       if (!k) return;
       pcReportCounts.set(k, (pcReportCounts.get(k) || 0) + 1);
+      recordEarliestDate(k, r.timestampUtc);
+      recordEarliestDate(k, r.timestampIst);
 
       const detailsStr = String(r.details || r.remarks || '');
       const isUpgReport =
@@ -331,8 +356,12 @@ export const ReportCenter: React.FC = () => {
           upgradeTransition = m ? `${m[1]} ➔ ${m[2]}` : `Upgraded ➔ ${pc.appVersion || 'v1.1.0'}`;
         }
 
+        const initialInstallDate = pcEarliestInstallYmd.get(k) || normalizeToYmd(pc.date) || getTodayYmdIST();
+
         return {
           ...pc,
+          initialInstallDate,
+          date: pc.date || initialInstallDate,
           isUpgradedPc,
           upgradeTransition: isUpgradedPc ? upgradeTransition : '',
           verification:
@@ -714,31 +743,82 @@ export const ReportCenter: React.FC = () => {
   };
 
   const handleExportExcel = () => {
-    if (!window.location.hostname.endsWith('github.io')) {
-      window.location.href = '/api/reports/export-excel';
-      showInfo('మాస్టర్ ఎక్సెల్ రిపోర్ట్ డౌన్‌లోడ్ అవుతోంది...', 'Excel Export Started');
+    if (installedPcs.length === 0) {
+      showError(
+        isVerifiedAdmin
+          ? 'Firebase లో ఇంకా PC రికార్డులు లోడ్ కాలేదు. దయచేసి Refresh Live క్లిక్ చేయండి.'
+          : 'ముందుగా "Connect Google Admin Live Sync" బటన్‌తో Google లాగిన్ అయితేనే Firebase లైవ్ PC డేటా డౌన్‌లోడ్ అవుతుంది.',
+        'Firebase Data Required'
+      );
       return;
     }
 
-    // Static GitHub Pages CSV Export directly from Firestore live data
-    const headers = ['PC Name', 'Machine ID', 'Operator', 'District', 'State', 'Office Location', 'Version', 'Build', 'Connectivity', 'Verification', 'Last Seen'];
-    const csvRows = [headers.join(',')];
-    installedPcs.forEach((pc) => {
-      const vals = [
-        pc.pcName, pc.pcId, pc.userName, pc.district, pc.state,
-        pc.officeLocation, pc.appVersion, pc.resourceBuild,
-        pc.pcConnectivity, pc.verification, pc.lastSeenAt
-      ].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`);
-      csvRows.push(vals.join(','));
-    });
-    const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `EVedhika_Live_PCs_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showSuccess('Firebase లైవ్ PC రిపోర్ట్ CSV/Excel లో డౌన్‌లోడ్ అయింది!', 'CSV Exported');
+    try {
+      const { workbook, fileName, dateSummary } = buildFirebaseConsolidatedWorkbook(installedPcs, {
+        recipientEmail: ADMIN_EMAIL
+      });
+      XLSX.writeFile(workbook, fileName);
+      showSuccess(
+        `✅ Firebase లైవ్ Excel (.xlsx) డౌన్‌లోడ్ అయింది! (నిన్నటి వరకు: ${dateSummary.installedUpToYesterday} | ఈ రోజు: ${dateSummary.installedToday} | మొత్తం: ${dateSummary.grandTotal} PCs)`,
+        'Full Firebase Excel Ready'
+      );
+    } catch (err: any) {
+      showError(err?.message || 'Excel generation failed', 'Export Error');
+    }
+  };
+
+  const handleEmailFirebaseReport = async () => {
+    if (installedPcs.length === 0) {
+      showError(
+        isVerifiedAdmin
+          ? 'Firebase లో ఇంకా PC రికార్డులు లోడ్ కాలేదు. దయచేసి కొద్దిగా ఆగి మళ్లీ ప్రయత్నించండి.'
+          : 'ముందుగా "Connect Google Admin Live Sync" తో లాగిన్ అవ్వండి, అప్పుడే Firebase అసలు PC డేటాతో ఈమెయిల్ వెళ్తుంది.',
+        'Admin Sign-In Required'
+      );
+      return;
+    }
+
+    setSendingEmailReport(true);
+    try {
+      const apiEndpoints = window.location.hostname.endsWith('github.io')
+        ? ['https://ais-pre-a4f3swnj3idossrn6dk4cm-585783354343.asia-southeast1.run.app/api/reports/send-daily-email']
+        : ['/api/reports/send-daily-email'];
+
+      let responseData: any = null;
+      let lastErr = '';
+
+      for (const endpoint of apiEndpoints) {
+        try {
+          const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records: installedPcs })
+          });
+          if (resp.ok) {
+            responseData = await resp.json();
+            if (responseData?.success) break;
+          } else {
+            lastErr = `HTTP ${resp.status}`;
+          }
+        } catch (e: any) {
+          lastErr = e?.message || 'Network error';
+        }
+      }
+
+      if (responseData?.success) {
+        showSuccess(
+          `📧 అసలు Firebase ఫుల్ రిపోర్ట్ ${responseData.targetEmail} కు పంపబడింది! (నిన్నటి వరకు: ${responseData.installedUpToYesterday} | ఈ రోజు: ${responseData.installedToday} | మొత్తం: ${responseData.grandTotalInstalled} PCs)`,
+          'Full Firebase Report Emailed'
+        );
+      } else {
+        showError(
+          `ఈమెయిల్ పంపడం విఫలమైంది (${lastErr || 'Server unreachable'}). మీరు పక్కనే ఉన్న "Excel Export" తో వెంటనే ఫుల్ Firebase Excel డౌన్‌లోడ్ చేసుకోవచ్చు.`,
+          'Email Dispatch Notice'
+        );
+      }
+    } finally {
+      setSendingEmailReport(false);
+    }
   };
 
   const handleCopyWebsiteCode = () => {
@@ -792,10 +872,10 @@ export const ReportCenter: React.FC = () => {
   }, [reports, activeCategory, searchTerm]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans text-slate-100">
+    <div className="p-3 sm:p-4 lg:p-5 max-w-[1440px] mx-auto space-y-4 font-sans text-slate-100">
       
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-3xl p-6 text-white shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 text-white shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-3xl rounded-full pointer-events-none"></div>
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap font-mono text-[10px] font-bold">
@@ -862,11 +942,19 @@ export const ReportCenter: React.FC = () => {
             <span>{refreshing ? 'Syncing...' : 'Refresh Live'}</span>
           </button>
           <button
+            onClick={handleEmailFirebaseReport}
+            disabled={sendingEmailReport}
+            className="bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white px-3.5 py-2.5 rounded-xl font-mono text-xs font-bold transition flex items-center gap-2 shadow-lg cursor-pointer"
+          >
+            <Send className={`w-4 h-4 ${sendingEmailReport ? 'animate-spin' : ''}`} />
+            <span>{sendingEmailReport ? 'Sending Email...' : 'Email Firebase Report'}</span>
+          </button>
+          <button
             onClick={handleExportExcel}
             className="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-2.5 rounded-xl font-mono text-xs font-bold transition flex items-center gap-2 shadow-lg cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            <span>Excel Export</span>
+            <span>Excel Export (.xlsx)</span>
           </button>
         </div>
       </div>

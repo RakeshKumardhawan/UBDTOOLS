@@ -98,7 +98,7 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
     routeSurface.includes('report-center') ||
     (routeSurface.includes('/admin') && !isLegacyTelemetryAdminSubpath)
   ) {
-    return { tab: 'report-center' };
+    return { tab: 'admin-portal', adminSection: 'reports' };
   }
 
   if (routeSurface.includes('version-fleet') || routeSurface.includes('fleet') || routeSurface.includes('v1-fleet')) {
@@ -152,7 +152,7 @@ export function resolveRouteFromLocation(pathname: string, search: string, hash:
       normalized === 'live-pc-reports' ||
       normalized === 'live-reports'
     ) {
-      return { tab: 'report-center' };
+      return { tab: 'admin-portal', adminSection: 'reports' };
     }
     if (
       normalized.includes('monitoring') ||

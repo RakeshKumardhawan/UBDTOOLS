@@ -914,17 +914,50 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     try
                     {
-                        // Register 24x7 Windows Startup Key & Desktop Shortcuts
-                        AutoRepairEngine.RegisterStartupAndShortcuts(delegate(string msg)
-                        {
-                            SafeInvoke(delegate() { LogMessage("GUARDIAN", msg); });
-                        });
+                        // Check cloud license before starting 24x7 background self-healing guardian
+                        var startupLic = LicenseManager.CheckRemoteLicenseStatus();
+                        SafeInvoke(delegate() { LogMessage("LICENSE", $"[PLAN] {startupLic.SummaryText}"); });
 
-                        // Launch 24x7 Background Self-Healing Guardian Monitor Loop
-                        AutoRepairEngine.Start24x7BackgroundGuardian(delegate(string msg)
+                        if (startupLic.IsAllowed)
                         {
-                            SafeInvoke(delegate() { LogMessage("GUARDIAN", msg); });
-                        });
+                            // Register 24x7 Windows Startup Key & Desktop Shortcuts
+                            AutoRepairEngine.RegisterStartupAndShortcuts(delegate(string msg)
+                            {
+                                SafeInvoke(delegate() { LogMessage("GUARDIAN", msg); });
+                            });
+
+                            // Launch 24x7 Background Self-Healing Guardian Monitor Loop
+                            AutoRepairEngine.Start24x7BackgroundGuardian(delegate(string msg)
+                            {
+                                SafeInvoke(delegate() { LogMessage("GUARDIAN", msg); });
+                            });
+                        }
+                        else
+                        {
+                            SafeInvoke(delegate()
+                            {
+                                LogMessage("LICENSE", "[LOCKED] Paid Mode Active - Background Guardian paused until subscription is activated.");
+                                if (toolStripStatusLabel != null)
+                                {
+                                    toolStripStatusLabel.Text = $"SUBSCRIPTION REQUIRED (Rs.{startupLic.MonthlyPriceInr:0}/{startupLic.DurationDays}d) | Click any tool to Pay & Auto-Unlock";
+                                }
+                                LicenseManager.ShowSubscriptionModal(this, startupLic);
+                                var postModalLic = LicenseManager.CheckRemoteLicenseStatus();
+                                if (postModalLic.IsAllowed)
+                                {
+                                    LogMessage("LICENSE", $"[UNLOCKED] {postModalLic.SummaryText}");
+                                    ThreadPool.QueueUserWorkItem(delegate {
+                                        try
+                                        {
+                                            AutoRepairEngine.RegisterStartupAndShortcuts(m => SafeInvoke(delegate() { LogMessage("GUARDIAN", m); }));
+                                            AutoRepairEngine.Start24x7BackgroundGuardian(m => SafeInvoke(delegate() { LogMessage("GUARDIAN", m); }));
+                                            AutoRepairEngine.PerformSelfHealingAudit(m => SafeInvoke(delegate() { LogMessage("UBD_AUDIT", m); }));
+                                        }
+                                        catch { }
+                                    });
+                                }
+                            });
+                        }
 
                         // Only audit activation status, never invoke KMS auto-activation silently
                         var activationStatus = WindowsActivationEngine.CheckWindowsActivation();
@@ -1003,16 +1036,24 @@ namespace EVedhikaUBDDeploymentTool
                         SafeInvoke(delegate() { LogMessage("ACTIVATION", "[INFO] Activation check: " + ex.Message); });
                     }
 
-                    try
-                    {
-                        var licStatus = LicenseManager.CheckRemoteLicenseStatus();
-                        SafeInvoke(delegate() { LogMessage("LICENSE", $"[PLAN] {licStatus.SummaryText}"); });
-                    }
-                    catch { }
                 });
 
                 GuardianStartupGreeting();
             };
+        }
+
+        private bool EnsureLicensedAction(string actionLabel)
+        {
+            try
+            {
+                if (!LicenseManager.EnsureAllowedOrShowSubscriptionDialog(this))
+                {
+                    LogMessage("LICENSE", $"[LOCKED] {actionLabel} requires an active subscription. Waiting for Admin activation.");
+                    return false;
+                }
+            }
+            catch { }
+            return true;
         }
 
         private void GuardianStartupGreeting()
@@ -1021,6 +1062,9 @@ namespace EVedhikaUBDDeploymentTool
             {
                 try
                 {
+                    var lic = LicenseManager.CheckRemoteLicenseStatus();
+                    if (!lic.IsAllowed) return;
+
                     AutoRepairEngine.PerformSelfHealingAudit(delegate(string msg)
                     {
                         SafeInvoke(delegate() { LogMessage("UBD_AUDIT", msg); });
@@ -1032,15 +1076,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnStartDeploy_Click(object sender, EventArgs e)
         {
-            try
-            {
-                if (!LicenseManager.EnsureAllowedOrShowSubscriptionDialog(this))
-                {
-                    LogMessage("LICENSE", "Subscription required (Rs.10 / 30 Days). Waiting for Admin activation.");
-                    return;
-                }
-            }
-            catch { }
+            if (!EnsureLicensedAction("One-Click Deployment")) return;
 
             btnStartDeploy.Enabled = false;
             progressBarDeploy.Value = 0;
@@ -1635,6 +1671,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnInstallMToken_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Install mToken Driver")) return;
             LogMessage("DRIVER", "Triggering Longmai mToken (Class 3) installer executable...");
             bool started = DriverInstaller.InstallMTokenManual();
             if (started)
@@ -1645,6 +1682,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnRegisterActiveXManual_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Register ActiveX Components")) return;
             LogMessage("ACTIVEX", "Registering DigiSignHelper and CAPICOM ActiveX components...");
             bool ok = DriverInstaller.RegisterActiveXComponents();
             if (ok)
@@ -1659,6 +1697,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnScanDscTokens_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Scan USB DSC Tokens")) return;
             if (txtTokenScanOutput == null) return;
             txtTokenScanOutput.Text = "Scanning USB DSC Tokens and SmartCard Cryptographic Hardware...\r\n";
             txtTokenScanOutput.AppendText("Timestamp: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n");
@@ -1722,6 +1761,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnCleanOldDscCerts_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Clean Old DSC Certificates")) return;
             var existing = DiagnosticsEngine.GetCachedPersonalDscCertificates();
             if (existing.Count == 0)
             {
@@ -1962,11 +2002,13 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnRunDiagnostics_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("System Diagnostics")) return;
             RunSystemDiagnostics();
         }
 
         private void btnActivateWindows_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Windows Activation Tool")) return;
             txtDiagnosticOutput.AppendText("\r\n=========================================\r\n");
             txtDiagnosticOutput.AppendText("Initializing Windows Activation Process...\r\n");
             txtDiagnosticOutput.AppendText("=========================================\r\n");
@@ -1985,6 +2027,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnPCBoost_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("PC Boost & Optimization")) return;
             txtDiagnosticOutput.AppendText("\r\n=========================================\r\n");
             txtDiagnosticOutput.AppendText("Initializing PC Boost & System Optimization...\r\n");
             txtDiagnosticOutput.AppendText("=========================================\r\n");
@@ -2003,6 +2046,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnFixPrinter_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Printer Auto-Fix")) return;
             txtDiagnosticOutput.AppendText("\r\n=========================================\r\n");
             txtDiagnosticOutput.AppendText("Initializing Printer Auto-Configuration...\r\n");
             txtDiagnosticOutput.AppendText("=========================================\r\n");
@@ -2021,6 +2065,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnDeepRepair_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("OS Deep Repair")) return;
             txtDiagnosticOutput.AppendText("\r\n=========================================\r\n");
             txtDiagnosticOutput.AppendText("Initializing OS Deep Repair (SFC & DISM)...\r\n");
             txtDiagnosticOutput.AppendText("=========================================\r\n");
@@ -2039,6 +2084,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnSyncTime_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Time Synchronization")) return;
             txtDiagnosticOutput.AppendText("\r\n=========================================\r\n");
             txtDiagnosticOutput.AppendText("Initializing Time & Date Synchronization...\r\n");
             txtDiagnosticOutput.AppendText("=========================================\r\n");
@@ -2057,6 +2103,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnRepairEdge_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Edge Browser Repair")) return;
             txtDiagnosticOutput.AppendText("\r\n=========================================\r\n");
             txtDiagnosticOutput.AppendText("Checking, Updating & Installing Microsoft Edge Browser...\r\n");
             txtDiagnosticOutput.AppendText("=========================================\r\n");
@@ -2298,6 +2345,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnBackup_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Registry Backup")) return;
             string path = BackupEngine.ExportRegistrySnapshot("Manual User Backup");
             if (!string.IsNullOrEmpty(path))
             {
@@ -2308,6 +2356,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnRollback_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Security Zone Rollback")) return;
             DialogResult dr = MessageBox.Show(
                 "Are you sure you want to rollback all Internet Security Settings and Zone policies to the previous pre-deployment backup snapshot?",
                 "Rollback Security Zones",
@@ -2332,6 +2381,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnVerifyZones_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Security Zones Audit")) return;
             LogMessage("AUDIT", "Performing deep live verification of Security Zones (Zone 1, Zone 2, Zone 3)...");
             var results = RegistryManager.VerifyAllSecurityZones();
             string report = RegistryManager.GenerateAuditReportText(results);
@@ -2433,6 +2483,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnInstallProxKey_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Install ProxKey Driver")) return;
             LogMessage("DRIVER", "Triggering ProxKey / WD Key PKCS#11 installer executable and refreshing CSP providers...");
             DriverInstaller.RegisterSmartCardAndCspProviders();
             bool started = DriverInstaller.InstallWDProxKeyManual();
@@ -2444,6 +2495,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnInstallHYP2003_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("Install HYP2003 Driver")) return;
             LogMessage("DRIVER", "Triggering HYP2003 CSP driver installer executable and refreshing CSP providers...");
             DriverInstaller.RegisterSmartCardAndCspProviders();
             bool started = DriverInstaller.InstallHYP2003Manual();

@@ -39,9 +39,9 @@ export const Header: React.FC<HeaderProps> = ({
   const [showBadgeModal, setShowBadgeModal] = useState(false);
 
   return (
-    <header className="border-b-[1.5px] border-ink px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center z-20 bg-bg shrink-0">
+    <header className="border-b-[1.5px] border-ink px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 flex justify-between items-center gap-2 z-20 bg-bg shrink-0">
       {/* Left: Hamburger (mobile/tablet) + Logo & App Title */}
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-2.5 sm:gap-3">
         {setMobileMenuOpen && (
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -66,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right Controls: Profile dropdown, Post button, High Contrast Toggle, Admin pill & System Console button */}
-      <div className="flex gap-2 sm:gap-3 items-center">
+      <div className="flex gap-1.5 sm:gap-2 items-center flex-wrap justify-end">
         {/* High Contrast Accessibility Toggle Button */}
         {onToggleHighContrast && (
           <button
@@ -172,11 +172,17 @@ export const Header: React.FC<HeaderProps> = ({
           <QrCode size={11} className="text-emerald-400 ml-0.5" />
         </button>
 
-        {/* Admin Badge */}
-        <div className="pill text-accent border-accent font-bold hidden md:inline-flex items-center gap-1">
+        {/* Admin Mode Button -> Navigates directly to Admin Panel (/admin/) */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('admin-portal')}
+          className="pill text-accent border-accent bg-accent/10 hover:bg-accent hover:text-bg font-bold inline-flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+          title="Open Admin Panel (Live PC Reports & Payments)"
+          aria-label="Open Admin Panel"
+        >
           <ShieldCheck size={11} />
           <span>ADMIN_MODE</span>
-        </div>
+        </button>
       </div>
 
       {/* Badge Modal Overlay */}
