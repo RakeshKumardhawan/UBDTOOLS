@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal, Copy, Search } from 'lucide-react';
+import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal, Copy, Search, Download, Link2 } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useToast } from './Toast';
 import { PublicPaymentCheckout } from './PublicPaymentCheckout';
@@ -32,7 +32,11 @@ import {
   isPcPaymentExempt,
   inspectPaymentClaimDuplicate,
   detectPhoneExposedInUpi,
-  buildUpiPaymentUri
+  buildUpiPaymentUri,
+  computePaymentHubStats,
+  filterPaymentClaims,
+  buildOperatorCheckoutUrl,
+  buildPaymentsCsv
 } from '../utils/licensePolicy';
 
 interface PaymentLicenseHubViewProps {
@@ -68,7 +72,11 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
   const [bypassPcIdInput, setBypassPcIdInput] = useState<string>('');
   const [bypassPcNameInput, setBypassPcNameInput] = useState<string>('');
   const [claimStatusFilter, setClaimStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [claimSearchFilter, setClaimSearchFilter] = useState<string>('');
   const [pcSearchFilter, setPcSearchFilter] = useState<string>('');
+  const [customActivateDays, setCustomActivateDays] = useState<number>(30);
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState<boolean>(false);
+  const [bulkApproving, setBulkApproving] = useState<boolean>(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -85,6 +93,7 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       const utrParam = params.get('utr');
       if (utrParam) {
         setClaimStatusFilter('ALL');
+        setClaimSearchFilter(utrParam);
         setPcSearchFilter(utrParam);
       }
     } catch {}
@@ -316,7 +325,7 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     }
   };
 
-  const handleActivatePcSubscription = async (pc: any) => {
+  const handleActivatePcSubscription = async (pc: any, overrideDays?: number) => {
     if (!isVerifiedAdmin) {
       showError('Please sign in as Admin first.', 'Admin Auth Required');
       return;
@@ -326,10 +335,11 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       showError('దయచేసి సరైన PC Machine ID (ఉదా: EVD-TS-MNCL-01) ఇవ్వండి.', 'PC ID Required');
       return;
     }
+    const grantDays = Math.max(1, Math.min(3650, Math.floor(overrideDays || customActivateDays || licensePolicy.durationDays || 30)));
     setActivatingPcId(rawId);
     try {
       const existingRec = pcLicensesMap[rawId.toUpperCase()];
-      const validUntilIso = computeRenewalExpiryIso(existingRec?.validUntilIso, licensePolicy.durationDays || 30);
+      const validUntilIso = computeRenewalExpiryIso(existingRec?.validUntilIso, grantDays);
       await setDoc(doc(db, 'pc_licenses', rawId), {
         pcId: rawId,
         pcName: String(pc.pcName || rawId || 'GP-OFFICE-PC').trim().slice(0, 128),
@@ -337,12 +347,12 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
         status: 'ACTIVE',
         amountInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr || 10))),
         validUntilIso,
-        paymentRef: `INR${licensePolicy.monthlyPriceInr || 10}-${new Date().toISOString().slice(0, 10)}`,
+        paymentRef: `INR${licensePolicy.monthlyPriceInr || 10}-${grantDays}D-${new Date().toISOString().slice(0, 10)}`,
         updatedAt: serverTimestamp()
       });
       setBypassPcIdInput('');
       setBypassPcNameInput('');
-      showSuccess(`${pc.pcName || rawId} (${rawId}) కు ₹${licensePolicy.monthlyPriceInr || 10} / ${licensePolicy.durationDays || 30} రోజుల లైసెన్స్ యాక్టివేట్ అయింది!`, '30-Day License Activated');
+      showSuccess(`${pc.pcName || rawId} (${rawId}) కు +${grantDays} రోజుల లైసెన్స్ యాక్టివేట్ అయింది!`, 'License Activated');
     } catch (err: any) {
       setAuthNotice('License Activate Error: ' + (err?.message || 'Permission denied'));
       showError(err?.message || 'Failed to activate PC license', 'Activation Failed');
@@ -503,14 +513,23 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     }
   };
 
-  const pendingClaimsCount = paymentClaims.filter((c) => c.status === 'PENDING').length;
-  const activePaidPcsCount = (Object.values(pcLicensesMap) as PcLicenseRecord[]).filter(
-    (rec) => rec.planType === 'PAID_30_DAYS' && evaluateLicenseState(licensePolicy, rec).allowed
-  ).length;
-  const freeBypassPcsCount = (Object.values(pcLicensesMap) as PcLicenseRecord[]).filter(
-    (rec) => isPcPaymentExempt(rec)
-  ).length;
-  const filteredClaims = paymentClaims.filter((c) => claimStatusFilter === 'ALL' || c.status === claimStatusFilter);
+  const hubStats = computePaymentHubStats(paymentClaims, pcLicensesMap);
+  const { pendingClaimsCount, totalApprovedRevenueInr, activePaidPcsCount, expiringSoonPcsCount, freeBypassPcsCount } = hubStats;
+  const filteredClaims = filterPaymentClaims(paymentClaims, claimStatusFilter, claimSearchFilter);
+
+  const handleExportClaimsCsv = () => {
+    const csv = buildPaymentsCsv(filteredClaims);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `EVedhika_Payment_Claims_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess(`${filteredClaims.length} పేమెంట్ క్లెయిమ్‌లు CSV గా డౌన్‌లోడ్ అయ్యాయి!`, 'CSV Exported');
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans text-slate-100">
@@ -659,20 +678,28 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       {subTab === 'admin-controls' && (
         <div className="space-y-6 font-mono text-xs">
           {/* Quick Payment Mode & License Metrics Strip */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
               <div className="text-[10px] text-slate-400 font-bold">GLOBAL MODE</div>
               <div className={`text-sm font-black mt-1 ${licensePolicy.mode === 'PAID_MONTHLY' ? 'text-amber-300' : 'text-emerald-300'}`}>
                 {licensePolicy.mode === 'PAID_MONTHLY' ? `PAID (₹${licensePolicy.monthlyPriceInr}/${licensePolicy.durationDays}d)` : 'FREE FOR ALL'}
               </div>
             </div>
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-4">
+              <div className="text-[10px] text-emerald-300 font-bold">TOTAL REVENUE</div>
+              <div className="text-xl font-black text-emerald-400 mt-1">₹{totalApprovedRevenueInr}</div>
+            </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-              <div className="text-[10px] text-slate-400 font-bold">PENDING UTR CLAIMS</div>
+              <div className="text-[10px] text-slate-400 font-bold">PENDING UTR</div>
               <div className="text-xl font-black text-amber-400 mt-1">{pendingClaimsCount}</div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
               <div className="text-[10px] text-slate-400 font-bold">ACTIVE PAID PCs</div>
-              <div className="text-xl font-black text-emerald-400 mt-1">{activePaidPcsCount}</div>
+              <div className="text-xl font-black text-cyan-400 mt-1">{activePaidPcsCount}</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+              <div className="text-[10px] text-slate-400 font-bold">EXPIRING (&le;5d)</div>
+              <div className={`text-xl font-black mt-1 ${expiringSoonPcsCount > 0 ? 'text-rose-400' : 'text-slate-300'}`}>{expiringSoonPcsCount}</div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
               <div className="text-[10px] text-slate-400 font-bold">FREE BYPASS PCs</div>
@@ -852,48 +879,97 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="p-4 border-b border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-              <div>
-                <h3 className="text-sm font-black text-white uppercase">
-                  🧾 UPI PAYMENT CLAIMS &amp; ANTI-DUPLICATE QUEUE ({pendingClaimsCount} PENDING)
-                </h3>
-                <p className="text-[11px] text-slate-400 font-sans mt-0.5">
-                  ప్రతి UTR నంబర్ Firestore లో ఒకేసారి సేవ్ అవుతుంది (Duplicate UTR ను సిస్టమ్ బ్లాక్ చేస్తుంది). మీ PhonePe/GPay లో UTR మ్యాచ్ అయిన తర్వాత Approve నొక్కండి.
-                </p>
+            <div className="p-4 border-b border-slate-800 space-y-3">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase">
+                    UPI PAYMENT CLAIMS &amp; ANTI-DUPLICATE QUEUE ({pendingClaimsCount} PENDING)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-sans mt-0.5">
+                    ప్రతి UTR నంబర్ Firestore లో ఒకేసారి సేవ్ అవుతుంది (Duplicate UTR ను సిస్టమ్ బ్లాక్ చేస్తుంది). మీ PhonePe/GPay లో UTR మ్యాచ్ అయిన తర్వాత Approve నొక్కండి.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {pendingClaimsCount > 0 && !confirmBulkApprove && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmBulkApprove(true)}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer transition flex items-center gap-1 mr-1"
+                    >
+                      <span>Bulk Approve All ({pendingClaimsCount})</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleExportClaimsCsv}
+                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 cursor-pointer transition flex items-center gap-1 mr-1"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Export CSV</span>
+                  </button>
+                  {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((statusKey) => (
+                    <button
+                      key={statusKey}
+                      type="button"
+                      onClick={() => setClaimStatusFilter(statusKey)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition ${
+                        claimStatusFilter === statusKey
+                          ? 'bg-cyan-600 text-white'
+                          : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      {statusKey}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {pendingClaimsCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!confirm(`Are you sure you want to approve all ${pendingClaimsCount} pending payment claims instantly?`)) return;
-                      const pending = paymentClaims.filter((c) => c.status === 'PENDING');
-                      for (const claim of pending) {
-                        try {
-                          await handleApprovePaymentClaim(claim);
-                        } catch {}
-                      }
-                      showSuccess(`Approved all ${pendingClaimsCount} pending claims!`, 'Emergency Bulk Approve');
-                    }}
-                    className="px-3 py-1 rounded-lg text-[10px] font-bold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer transition flex items-center gap-1 mr-2"
-                  >
-                    <span>⚡ Emergency Approve All ({pendingClaimsCount})</span>
-                  </button>
-                )}
-                {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((statusKey) => (
-                  <button
-                    key={statusKey}
-                    type="button"
-                    onClick={() => setClaimStatusFilter(statusKey)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition ${
-                      claimStatusFilter === statusKey
-                        ? 'bg-cyan-600 text-white'
-                        : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
-                    }`}
-                  >
-                    {statusKey}
-                  </button>
-                ))}
+
+              {confirmBulkApprove && pendingClaimsCount > 0 && (
+                <div className="bg-amber-950/60 border border-amber-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs text-amber-200 font-sans">
+                    మొత్తం <strong>{pendingClaimsCount}</strong> Pending UTR క్లెయిమ్‌లను ఒకేసారి Approve చేయాలా?
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={bulkApproving}
+                      onClick={async () => {
+                        setBulkApproving(true);
+                        const pending = paymentClaims.filter((c) => c.status === 'PENDING');
+                        for (const claim of pending) {
+                          try {
+                            await handleApprovePaymentClaim(claim);
+                          } catch {}
+                        }
+                        setBulkApproving(false);
+                        setConfirmBulkApprove(false);
+                        showSuccess(`Approved all ${pending.length} pending claims!`, 'Bulk Approve Complete');
+                      }}
+                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                    >
+                      {bulkApproving ? 'Approving...' : `Confirm Approve (${pendingClaimsCount})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmBulkApprove(false)}
+                      className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="relative max-w-md">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  aria-label="Search UTR claims"
+                  value={claimSearchFilter}
+                  onChange={(e) => setClaimSearchFilter(e.target.value)}
+                  placeholder="Search UTR number, PC ID, Operator, District..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                />
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -1033,21 +1109,32 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                     onChange={(e) => setBypassPcNameInput(e.target.value)}
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white"
                   />
+                  <select
+                    aria-label="Subscription Duration Preset"
+                    value={customActivateDays}
+                    onChange={(e) => setCustomActivateDays(Number(e.target.value) || 30)}
+                    className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-amber-300 font-bold shrink-0"
+                  >
+                    <option value={30}>+30 Days (1 Mo)</option>
+                    <option value={90}>+90 Days (3 Mo)</option>
+                    <option value={180}>+180 Days (6 Mo)</option>
+                    <option value={365}>+365 Days (1 Yr)</option>
+                  </select>
                   <button
                     type="button"
                     disabled={!bypassPcIdInput.trim() || activatingPcId === resolveExactPcId(bypassPcIdInput)}
                     onClick={() => handleSetPcFreeBypass(bypassPcIdInput, bypassPcNameInput, true)}
                     className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
                   >
-                    🔓 Free PC
+                    Free PC
                   </button>
                   <button
                     type="button"
                     disabled={!bypassPcIdInput.trim() || activatingPcId === resolveExactPcId(bypassPcIdInput)}
-                    onClick={() => handleActivatePcSubscription({ pcId: bypassPcIdInput, pcName: bypassPcNameInput })}
+                    onClick={() => handleActivatePcSubscription({ pcId: bypassPcIdInput, pcName: bypassPcNameInput }, customActivateDays)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
                   >
-                    ✅ +{licensePolicy.durationDays}d Paid
+                    +{customActivateDays}d Paid
                   </button>
                 </div>
 
@@ -1174,10 +1261,23 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                             <button
                               type="button"
                               disabled={activatingPcId === cleanId}
-                              onClick={() => handleActivatePcSubscription(pc)}
+                              onClick={() => handleActivatePcSubscription(pc, customActivateDays)}
                               className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
                             >
-                              ✅ +{licensePolicy.durationDays}d Paid
+                              +{customActivateDays}d Paid
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const link = buildOperatorCheckoutUrl(cleanId, pc.pcName);
+                                navigator.clipboard.writeText(link);
+                                showInfo(`${pc.pcName} వ్యక్తిగత QR Pay Link కాపీ అయింది!`, 'Pay Link Copied');
+                              }}
+                              className="bg-slate-800 hover:bg-cyan-700 text-cyan-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer inline-flex items-center gap-1"
+                              title="Copy personalized QR Checkout Link for WhatsApp/Telegram"
+                            >
+                              <Link2 className="w-3 h-3" />
+                              <span>Pay Link</span>
                             </button>
                             <button
                               type="button"
@@ -1185,7 +1285,7 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                               onClick={() => handleRevokePcSubscription(pc)}
                               className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
                             >
-                              🚫 Revoke
+                              Revoke
                             </button>
                           </td>
                         </tr>

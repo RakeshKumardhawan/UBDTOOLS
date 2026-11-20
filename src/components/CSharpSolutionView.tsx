@@ -42,7 +42,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
     public class AutoUpdateEngine
     {
         public const string CurrentVersion = "v1.1.0";
-        public const string CurrentResourceBuild = "2026.11.20.R13";
+        public const string CurrentResourceBuild = "2026.11.20.R14";
 
         public static void ShowWhatsNewDialog(IWin32Window owner, string prevVer, string currVer, string prevBuild, string currBuild, string relDate, string installStatus, string integrityStatus, string restartStatus, string releaseNotes)
         {
@@ -100,7 +100,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
               <Code className="w-3.5 h-3.5" /> C# WINFORMS DEPLOYMENT SOLUTION
             </span>
             <span className="bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold px-2.5 py-1 rounded border border-emerald-500/30">
-              v1.1.0 ENTERPRISE READY (Build 2026.11.20.R13)
+              v1.1.0 ENTERPRISE READY (Build 2026.11.20.R14)
             </span>
           </div>
           <h1 className="text-2xl font-bold font-syne">EVedhikaUBDDeploymentTool.sln</h1>

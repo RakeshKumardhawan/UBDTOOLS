@@ -24,7 +24,6 @@ WizardSmallImageFile=WizardSmallImageFile.bmp
 UninstallDisplayIcon={app}\{#MyAppExeName},0
 WizardStyle=modern
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog commandline
 ; Universal Windows Support: Windows Vista (6.0), Windows 7 RTM (SP0), Windows 7 SP1, Windows 8, 8.1, 10, 11 (32-bit & 64-bit)
 MinVersion=6.0
 UninstallDisplayName={#MyAppName} (v{#MyAppVersion})
@@ -59,11 +58,11 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 [Run]
 Filename: "{app}\Installers\ndp48-x86-x64-allos-enu.exe"; Parameters: "/q /norestart"; StatusMsg: "Checking optional .NET Framework support..."; Flags: runhidden skipifdoesntexist; Check: NeedsDotNet48
 Filename: "{app}\Installers\vc_redist.x86.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Checking optional runtime components..."; Flags: runhidden skipifdoesntexist; Check: NeedsVCRedist
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--post-install"; Flags: runhidden skipifdoesntexist
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--post-install"; Flags: runhidden shellexec waituntilterminated skipifdoesntexist
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent shellexec skipifdoesntexist
 
 [UninstallRun]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall --silent"; Flags: runhidden skipifdoesntexist; RunOnceId: "EVedhikaRevert"
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall --silent"; Flags: runhidden shellexec waituntilterminated skipifdoesntexist; RunOnceId: "EVedhikaRevert"
 
 [UninstallDelete]
 Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"

@@ -1216,7 +1216,7 @@ async function startServer() {
       `<b>Overall Status:</b> <b>${isFail ? '❌ FAILED' : '✅ SUCCESS'}</b>\n` +
       `<b>Health Score:</b> <b>${healthScore}% (${healthStatus})</b>\n` +
       `<b>Health Diagnosis:</b> ${healthDiagnosis}\n` +
-      `<b>Software Version:</b> v1.1.0 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R13'})\n` +
+      `<b>Software Version:</b> v1.1.0 (Resource Build ${newRecord.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R14'})\n` +
       `<b>Total Checks:</b> ${totalChecks} (Passed: ${passedCount}, Failed: ${failedCount}, Warnings: ${warningCount})\n` +
       `<b>Internet Connectivity:</b> ${internetStat}\n\n` +
       `🔐 <b>Service & Security Verification</b>\n` +
@@ -2250,13 +2250,13 @@ async function startServer() {
     silent: false,
     downloadSize: '8.5 MB',
     sha256: '',
-    releaseNotes: 'v1.1.0 Resource Update (2026.11.20.R13):\n- Upgraded SignatureDemoLib.dll to v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage)\n- Fixes \'Unable to read token: Invalid algorithm specified.\' on Modify Token Number / Read Token (filters out Encryption-only certs, supports CNG KSP & legacy CSP)\n- Fixes \'Both signing methods failed.\' on MeeSeva Approvals / Birth & Death Signing via 5-tier universal signing cascade\n- Fixes \'Unable to Sign: [object Error]\' on Bulk Signing by enforcing Fusion-synced COM registration & clearing IE ActiveX Kill-Bits\n- Keeps Anti-Tamper protection, Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml',
+    releaseNotes: 'v1.1.0 Resource Update (2026.11.20.R14):\n- Fixes Setup CreateProcess failed code 740 elevation error (enforced admin UAC + shellexec launch)\n- Upgraded Payment Mode: true PAID_MONTHLY enforcement with resilient offline cache, live 10s desktop auto-unlock, Copy UPI ID, live web UTR tracker, Admin revenue KPIs, UTR search, CSV export & 30d/90d/365d duration presets\n- Keeps SignatureDemoLib v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage fixes Read Token, MeeSeva Approvals, Bulk Signing & Anti-Tamper)\n- Keeps Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml',
     publisher: 'E-Vedhika.in (Rakesh Dhawan)',
     telemetryRelayUrl: FIRESTORE_COMMIT_URL,
-    latestResourceBuild: '2026.11.20.R13',
+    latestResourceBuild: '2026.11.20.R14',
     resourceBuildDate: '2026-11-20',
-    resourceBuild: '2026.11.20.R13',
-    manifestVersion: '2026.11.20.R13',
+    resourceBuild: '2026.11.20.R14',
+    manifestVersion: '2026.11.20.R14',
     adminDashboardUrl: 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/'
   };
 
@@ -2319,12 +2319,12 @@ async function startServer() {
           currentVersionConfig.versionCode = highestWeight;
           currentVersionConfig.downloadUrl = highestDownloadUrl;
           currentVersionConfig.executableName = highestExeName;
-          currentVersionConfig.latestResourceBuild = '2026.11.20.R13';
+          currentVersionConfig.latestResourceBuild = '2026.11.20.R14';
           currentVersionConfig.resourceBuildDate = '2026-11-20';
-          currentVersionConfig.resourceBuild = '2026.11.20.R13';
-          currentVersionConfig.manifestVersion = '2026.11.20.R13';
+          currentVersionConfig.resourceBuild = '2026.11.20.R14';
+          currentVersionConfig.manifestVersion = '2026.11.20.R14';
           currentVersionConfig.releaseDate = '2026-11-20';
-          currentVersionConfig.releaseNotes = 'v1.1.0 Resource Update (2026.11.20.R13):\n- Upgraded SignatureDemoLib.dll to v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage)\n- Fixes \'Unable to read token: Invalid algorithm specified.\' on Modify Token Number / Read Token (filters out Encryption-only certs, supports CNG KSP & legacy CSP)\n- Fixes \'Both signing methods failed.\' on MeeSeva Approvals / Birth & Death Signing via 5-tier universal signing cascade\n- Fixes \'Unable to Sign: [object Error]\' on Bulk Signing by enforcing Fusion-synced COM registration & clearing IE ActiveX Kill-Bits\n- Keeps Anti-Tamper protection, Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml';
+          currentVersionConfig.releaseNotes = 'v1.1.0 Resource Update (2026.11.20.R14):\n- Fixes Setup CreateProcess failed code 740 elevation error (enforced admin UAC + shellexec launch)\n- Upgraded Payment Mode: true PAID_MONTHLY enforcement with resilient offline cache, live 10s desktop auto-unlock, Copy UPI ID, live web UTR tracker, Admin revenue KPIs, UTR search, CSV export & 30d/90d/365d duration presets\n- Keeps SignatureDemoLib v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage fixes Read Token, MeeSeva Approvals, Bulk Signing & Anti-Tamper)\n- Keeps Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml';
           (currentVersionConfig as any).adminDashboardUrl = 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/';
           
           try {
@@ -2333,7 +2333,7 @@ async function startServer() {
             if (!fs.existsSync(apiVersionDir)) fs.mkdirSync(apiVersionDir, { recursive: true });
             fs.writeFileSync(path.join(apiVersionDir, 'version.json'), JSON.stringify(currentVersionConfig, null, 2));
           } catch (err) {}
-          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.20.R13)`);
+          console.log(`[GITHUB 5-MIN SYNC] Auto-synced highest release version: ${highestVer} (Resource Build: 2026.11.20.R14)`);
         }
       }
     } catch (e: any) {
@@ -2833,7 +2833,7 @@ async function startServer() {
         osVersion: hb?.osVersion || cons?.osVersion || fleet?.osVersion || 'Windows 10/11',
         winBuild: hb?.winBuild || cons?.winBuild || fleet?.winBuild || 'Verified',
         appVersion: hb?.appVersion || cons?.appVersion || fleet?.version || 'v1.1.0',
-        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R13',
+        resourceBuild: hb?.resourceBuild || fleet?.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R14',
         pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
         appState,
         isOnline,
@@ -2892,7 +2892,7 @@ async function startServer() {
           runningApps,
           closedApps,
           latestVersion: currentVersionConfig.latestVersion || 'v1.1.0',
-          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.20.R13',
+          latestResourceBuild: currentVersionConfig.latestResourceBuild || '2026.11.20.R14',
           totalDeployments,
           successfulDeployments,
           failedDeployments,
@@ -2978,7 +2978,7 @@ async function startServer() {
         'District': m.district,
         'State': m.state,
         'App Version': m.appVersion || 'v1.1.0',
-        'Resource Build': '2026.11.20.R13',
+        'Resource Build': '2026.11.20.R14',
         'OS Version': m.osVersion,
         'Overall Status': m.overallStatus,
         'Verified Steps': `${m.deployment?.verifiedSteps || 17}/17`,
@@ -3035,7 +3035,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.1.0',
-            resourceBuild: (m as any).resourceBuild || '2026.11.20.R13',
+            resourceBuild: (m as any).resourceBuild || '2026.11.20.R14',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -3065,7 +3065,7 @@ async function startServer() {
             district: m.district || 'District',
             state: m.state || 'Telangana',
             appVersion: m.appVersion || 'v1.1.0',
-            resourceBuild: (m as any).resourceBuild || '2026.11.20.R13',
+            resourceBuild: (m as any).resourceBuild || '2026.11.20.R14',
             osVersion: m.osVersion || 'Windows 11 Pro',
             winBuild: m.winBuild || 'Build 22631',
             status: 'SUCCESS',
@@ -3101,7 +3101,7 @@ async function startServer() {
               district: l.district || 'District',
               state: l.state || 'Telangana',
               appVersion: l.version || l.appVersion || 'v1.1.0',
-              resourceBuild: l.resourceBuild || '2026.11.20.R13',
+              resourceBuild: l.resourceBuild || '2026.11.20.R14',
               osVersion: l.osVersion || 'Windows 11 Pro',
               winBuild: l.winBuild || 'Build 22631',
               status: l.status || 'SUCCESS',
@@ -3145,11 +3145,11 @@ async function startServer() {
     return res.json({
       success: true,
       currentVersion: 'v1.1.0',
-      currentResourceBuild: '2026.11.20.R13',
+      currentResourceBuild: '2026.11.20.R14',
       releases: [
         {
           version: 'v1.1.0',
-          resourceBuild: '2026.11.20.R13',
+          resourceBuild: '2026.11.20.R14',
           releaseId: 'REL-2026-11-17-R10',
           releaseDate: '2026-11-17',
           packageSize: '8.8 MB',
@@ -3923,7 +3923,7 @@ async function startServer() {
         osVersion: body.osVersion || 'Windows 11 Pro',
         winBuild: body.winBuild || 'Build 22631',
         appVersion: body.appVersion || body.version || 'v1.1.0',
-        resourceBuild: body.resourceBuild || '2026.11.20.R13',
+        resourceBuild: body.resourceBuild || '2026.11.20.R14',
         pcConnectivity: 'ONLINE',
         appState,
         lastHeartbeatEpoch: nowEpoch,
@@ -4073,7 +4073,7 @@ async function startServer() {
           const pcId = String(body.pcId || 'EVD-PC').trim();
           const osVersion = String(body.osVersion || 'Windows 10/11').trim();
           const appVersion = String(body.appVersion || body.version || 'v1.1.0').trim();
-          const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R13').trim();
+          const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R14').trim();
           const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
           const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';
           const feedbackRecord = {
@@ -4897,7 +4897,7 @@ async function startServer() {
               verification: '17/17 steps passed.',
               osVersion: rec.osVersion,
               version: 'v1.1.0',
-              resourceBuild: '2026.11.20.R13',
+              resourceBuild: '2026.11.20.R14',
               lastUpdatedEpoch: Number(lastTs),
               updateReceivedDate: rec.lastTelemetryUpdate,
               receivedVia: 'Exhaustive-Recovery'
@@ -4979,7 +4979,7 @@ async function startServer() {
         installTypeDisplay: isExisting ? 'Existing PC (Synced via New Update)' : 'Fresh Installation',
         initialInstallDate,
         updateReceivedDate,
-        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.20.R13',
+        updateBuild: body.updateBuild || body.resourceBuild || '2026.11.20.R14',
         version: body.version || 'v1.1.0',
         osVersion: body.osVersion || body.winEdition || 'Windows 11 Pro (64-Bit)',
         winBuild: body.winBuild || '10.0.26300',
@@ -5424,7 +5424,7 @@ ${aiAnalysis || 'Analysis in progress.'}
       const pcId = String(body.pcId || 'EVD-PC').trim();
       const osVersion = String(body.osVersion || 'Windows 10/11').trim();
       const appVersion = String(body.appVersion || 'v1.1.0').trim();
-      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R13').trim();
+      const resourceBuild = String(body.resourceBuild || currentVersionConfig.latestResourceBuild || '2026.11.20.R14').trim();
 
       const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
       const timestampIST = nowIST.toISOString().replace('T', ' ').substring(0, 19) + ' IST';

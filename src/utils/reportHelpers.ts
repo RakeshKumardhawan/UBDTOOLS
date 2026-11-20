@@ -51,7 +51,7 @@ export function resolvePcModalDisplay(
     osVersion: String(src.osVersion || 'Windows OS'),
     winBuild: String(src.winBuild || 'Active Build'),
     appVersion: String(src.appVersion || 'v1.1.0'),
-    resourceBuild: String(src.resourceBuild || '2026.11.20.R13'),
+    resourceBuild: String(src.resourceBuild || '2026.11.20.R14'),
     pcConnectivity: String(src.pcConnectivity || (src.isOnline ? 'ONLINE' : 'OFFLINE')),
     appState: String(src.appState || (src.isOnline ? 'RUNNING' : 'CLOSED')),
     lastHeartbeatTime: String(src.lastHeartbeatTime || src.lastSeenAt || 'Synced'),

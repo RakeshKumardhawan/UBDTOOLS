@@ -230,3 +230,178 @@ export function evaluateLicenseState(
   };
 }
 
+export interface PaymentHubStats {
+  pendingClaimsCount: number;
+  approvedClaimsCount: number;
+  rejectedClaimsCount: number;
+  totalApprovedRevenueInr: number;
+  activePaidPcsCount: number;
+  expiringSoonPcsCount: number;
+  freeBypassPcsCount: number;
+  revokedPcsCount: number;
+}
+
+export function computePaymentHubStats(
+  claims: PaymentClaimRecord[],
+  licensesMap: Record<string, PcLicenseRecord>,
+  nowMs: number = Date.now()
+): PaymentHubStats {
+  let pendingClaimsCount = 0;
+  let approvedClaimsCount = 0;
+  let rejectedClaimsCount = 0;
+  let totalApprovedRevenueInr = 0;
+
+  for (const c of claims || []) {
+    if (c.status === 'PENDING') pendingClaimsCount++;
+    else if (c.status === 'APPROVED') {
+      approvedClaimsCount++;
+      const amt = Number(c.amountInr || 0);
+      if (Number.isFinite(amt) && amt > 0) totalApprovedRevenueInr += amt;
+    } else if (c.status === 'REJECTED') {
+      rejectedClaimsCount++;
+    }
+  }
+
+  let activePaidPcsCount = 0;
+  let expiringSoonPcsCount = 0;
+  let freeBypassPcsCount = 0;
+  let revokedPcsCount = 0;
+
+  for (const rec of Object.values(licensesMap || {})) {
+    if (!rec) continue;
+    if (isPcPaymentExempt(rec)) {
+      freeBypassPcsCount++;
+      continue;
+    }
+    if (rec.status === 'REVOKED') {
+      revokedPcsCount++;
+      continue;
+    }
+    if (rec.planType === 'PAID_30_DAYS' && rec.status === 'ACTIVE') {
+      const expiryMs = Date.parse(rec.validUntilIso || '');
+      if (!Number.isNaN(expiryMs) && expiryMs > nowMs) {
+        activePaidPcsCount++;
+        const daysLeft = Math.ceil((expiryMs - nowMs) / (86400 * 1000));
+        if (daysLeft <= 5) expiringSoonPcsCount++;
+      }
+    }
+  }
+
+  return {
+    pendingClaimsCount,
+    approvedClaimsCount,
+    rejectedClaimsCount,
+    totalApprovedRevenueInr,
+    activePaidPcsCount,
+    expiringSoonPcsCount,
+    freeBypassPcsCount,
+    revokedPcsCount
+  };
+}
+
+export function filterPaymentClaims(
+  claims: PaymentClaimRecord[],
+  statusFilter: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED',
+  searchTerm: string = ''
+): PaymentClaimRecord[] {
+  const q = String(searchTerm || '').trim().toLowerCase();
+  return (claims || []).filter((c) => {
+    if (statusFilter !== 'ALL' && c.status !== statusFilter) return false;
+    if (!q) return true;
+    return (
+      String(c.utrNumber || '').toLowerCase().includes(q) ||
+      String(c.claimId || '').toLowerCase().includes(q) ||
+      String(c.pcId || '').toLowerCase().includes(q) ||
+      String(c.pcName || '').toLowerCase().includes(q) ||
+      String(c.operatorName || '').toLowerCase().includes(q) ||
+      String(c.district || '').toLowerCase().includes(q) ||
+      String(c.state || '').toLowerCase().includes(q)
+    );
+  });
+}
+
+export function buildOperatorCheckoutUrl(
+  pcId?: string,
+  pcName?: string,
+  baseUrl: string = 'https://rakeshkumardhawan.github.io/UBDTOOLS/pay-checkout'
+): string {
+  const params = new URLSearchParams({ pay: '1' });
+  const cleanId = String(pcId || '').trim();
+  const cleanName = String(pcName || '').trim();
+  if (cleanId) params.set('pcId', cleanId);
+  if (cleanName) params.set('pcName', cleanName);
+  return `${baseUrl}?${params.toString()}`;
+}
+
+export function buildPaymentsCsv(claims: PaymentClaimRecord[]): string {
+  const esc = (v: unknown) => {
+    const s = String(v ?? '').replace(/\r?\n/g, ' ');
+    return /[",]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = ['ClaimID', 'UTR', 'PC_ID', 'PC_Name', 'Operator', 'District', 'State', 'Amount_INR', 'Status', 'Created_ISO', 'Note'];
+  const rows = (claims || []).map((c) =>
+    [
+      c.claimId,
+      c.utrNumber,
+      c.pcId,
+      c.pcName,
+      c.operatorName || '',
+      c.district || '',
+      c.state || '',
+      c.amountInr,
+      c.status,
+      c.createdAtIso || '',
+      c.note || ''
+    ]
+      .map(esc)
+      .join(',')
+  );
+  return [header.join(','), ...rows].join('\n');
+}
+
+export interface UtrInputFeedback {
+  cleanUtr: string;
+  length: number;
+  isValid: boolean;
+  tone: 'idle' | 'warning' | 'ready' | 'error';
+  message: string;
+}
+
+export function getUtrInputFeedback(rawUtr: string): UtrInputFeedback {
+  const cleanUtr = normalizeUtrNumber(rawUtr);
+  const length = cleanUtr.length;
+  if (length === 0) {
+    return {
+      cleanUtr,
+      length,
+      isValid: false,
+      tone: 'idle',
+      message: 'PhonePe / GPay / Paytm లోని 12-అంకెల UTR ఎంటర్ చేయండి'
+    };
+  }
+  if (length < 8) {
+    return {
+      cleanUtr,
+      length,
+      isValid: false,
+      tone: 'warning',
+      message: `${length}/12 అంకెలు — కనీసం 8 అక్షరాలు/అంకెలు అవసరం`
+    };
+  }
+  if (length > 36) {
+    return {
+      cleanUtr,
+      length,
+      isValid: false,
+      tone: 'error',
+      message: `చాలా పొడవుగా ఉంది (${length}/36 గరిష్టం)`
+    };
+  }
+  return {
+    cleanUtr,
+    length,
+    isValid: true,
+    tone: 'ready',
+    message: `${length} అంకెలు సిద్ధంగా ఉన్నాయి (${cleanUtr})`
+  };
+}

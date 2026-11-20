@@ -9,7 +9,13 @@ import {
   inspectPaymentClaimDuplicate,
   detectPhoneExposedInUpi,
   buildUpiPaymentUri,
-  PaymentClaimRecord
+  computePaymentHubStats,
+  filterPaymentClaims,
+  buildOperatorCheckoutUrl,
+  buildPaymentsCsv,
+  getUtrInputFeedback,
+  PaymentClaimRecord,
+  PcLicenseRecord
 } from '../src/utils/licensePolicy';
 
 test('FREE_FOR_ALL mode allows access regardless of per-PC record', () => {
@@ -147,3 +153,64 @@ test('Per-PC FREE_ACCESS bypasses payment even when global mode is PAID_MONTHLY'
   assert.equal(exemptRes.daysRemaining, 9999);
 });
 
+test('computePaymentHubStats aggregates revenue, pending claims, expiring soon, and free bypass counts', () => {
+  const now = Date.UTC(2026, 10, 20);
+  const claims: PaymentClaimRecord[] = [
+    { claimId: 'UTR-111122223333', utrNumber: '111122223333', pcId: 'PC-1', pcName: 'GP-1', amountInr: 10, status: 'APPROVED' },
+    { claimId: 'UTR-222233334444', utrNumber: '222233334444', pcId: 'PC-2', pcName: 'GP-2', amountInr: 30, status: 'APPROVED' },
+    { claimId: 'UTR-333344445555', utrNumber: '333344445555', pcId: 'PC-3', pcName: 'GP-3', amountInr: 10, status: 'PENDING' },
+    { claimId: 'UTR-444455556666', utrNumber: '444455556666', pcId: 'PC-4', pcName: 'GP-4', amountInr: 10, status: 'REJECTED' }
+  ];
+  const licenses: Record<string, PcLicenseRecord> = {
+    'PC-1': { pcId: 'PC-1', planType: 'PAID_30_DAYS', status: 'ACTIVE', amountInr: 10, validUntilIso: new Date(now + 20 * 86400000).toISOString() },
+    'PC-2': { pcId: 'PC-2', planType: 'PAID_30_DAYS', status: 'ACTIVE', amountInr: 10, validUntilIso: new Date(now + 3 * 86400000).toISOString() },
+    'PC-3': { pcId: 'PC-3', planType: 'FREE_ACCESS', status: 'ACTIVE', amountInr: 0, validUntilIso: '2099-12-31T00:00:00.000Z' },
+    'PC-4': { pcId: 'PC-4', planType: 'PAID_30_DAYS', status: 'REVOKED', amountInr: 0, validUntilIso: new Date(now - 1000).toISOString() }
+  };
+
+  const stats = computePaymentHubStats(claims, licenses, now);
+  assert.equal(stats.totalApprovedRevenueInr, 40);
+  assert.equal(stats.approvedClaimsCount, 2);
+  assert.equal(stats.pendingClaimsCount, 1);
+  assert.equal(stats.rejectedClaimsCount, 1);
+  assert.equal(stats.activePaidPcsCount, 2);
+  assert.equal(stats.expiringSoonPcsCount, 1);
+  assert.equal(stats.freeBypassPcsCount, 1);
+  assert.equal(stats.revokedPcsCount, 1);
+});
+
+test('filterPaymentClaims filters by status and search term across UTR, PC, and district', () => {
+  const claims: PaymentClaimRecord[] = [
+    { claimId: 'UTR-432198765432', utrNumber: '432198765432', pcId: 'EVD-PC-01', pcName: 'GP-MANCHERIAL', district: 'Mancherial', amountInr: 10, status: 'PENDING' },
+    { claimId: 'UTR-998877665544', utrNumber: '998877665544', pcId: 'EVD-PC-02', pcName: 'GP-WARANGAL', district: 'Warangal', amountInr: 10, status: 'APPROVED' }
+  ];
+
+  assert.equal(filterPaymentClaims(claims, 'ALL', '432198765432').length, 1);
+  assert.equal(filterPaymentClaims(claims, 'PENDING', 'warangal').length, 0);
+  assert.equal(filterPaymentClaims(claims, 'APPROVED', 'warangal').length, 1);
+});
+
+test('buildOperatorCheckoutUrl, buildPaymentsCsv, and getUtrInputFeedback work deterministically', () => {
+  const url = buildOperatorCheckoutUrl('EVD-TS-01', 'GP-OFFICE');
+  assert.match(url, /\?pay=1&pcId=EVD-TS-01&pcName=GP-OFFICE$/);
+
+  const csv = buildPaymentsCsv([
+    {
+      claimId: 'UTR-123456789012',
+      utrNumber: '123456789012',
+      pcId: 'EVD-TS-01',
+      pcName: 'GP, Main',
+      amountInr: 10,
+      status: 'APPROVED',
+      note: 'Verified "OK"'
+    }
+  ]);
+  assert.match(csv, /^ClaimID,UTR,PC_ID,/);
+  assert.match(csv, /"GP, Main"/);
+  assert.match(csv, /"Verified ""OK"""/);
+
+  assert.equal(getUtrInputFeedback('').tone, 'idle');
+  assert.equal(getUtrInputFeedback('1234').tone, 'warning');
+  assert.equal(getUtrInputFeedback('4321-9876 5432').isValid, true);
+  assert.equal(getUtrInputFeedback('4321-9876 5432').cleanUtr, '432198765432');
+});

@@ -12,13 +12,13 @@
   "silent": true,
   "downloadSize": "8.5 MB",
   "sha256": "",
-  "releaseNotes": "v1.1.0 Resource Update (2026.11.20.R13):\n- Upgraded SignatureDemoLib.dll to v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage)\n- Fixes 'Unable to read token: Invalid algorithm specified.' on Modify Token Number / Read Token (filters out Encryption-only certs, supports CNG KSP & legacy CSP)\n- Fixes 'Both signing methods failed.' on MeeSeva Approvals / Birth & Death Signing via 5-tier universal signing cascade\n- Fixes 'Unable to Sign: [object Error]' on Bulk Signing by enforcing Fusion-synced COM registration & clearing IE ActiveX Kill-Bits\n- Keeps Anti-Tamper protection, Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml",
+  "releaseNotes": "v1.1.0 Resource Update (2026.11.20.R14):\n- Fixes Setup CreateProcess failed code 740 elevation error (enforced admin UAC + shellexec launch)\n- Upgraded Payment Mode: true PAID_MONTHLY enforcement with resilient offline cache, live 10s desktop auto-unlock, Copy UPI ID, live web UTR tracker, Admin revenue KPIs, UTR search, CSV export & 30d/90d/365d duration presets\n- Keeps SignatureDemoLib v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage fixes Read Token, MeeSeva Approvals, Bulk Signing & Anti-Tamper)\n- Keeps Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml",
   "publisher": "E-Vedhika.in (Rakesh Dhawan)",
   "telemetryRelayUrl": "https://firestore.googleapis.com/v1/projects/e-vedhika-258f2/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/documents:commit?key=AIzaSyC_oLAFLdpErutmSmR9bQnm0ETq5hd9qnU",
-  "latestResourceBuild": "2026.11.20.R13",
+  "latestResourceBuild": "2026.11.20.R14",
   "resourceBuildDate": "2026-11-20",
-  "resourceBuild": "2026.11.20.R13",
-  "manifestVersion": "2026.11.20.R13",
+  "resourceBuild": "2026.11.20.R14",
+  "manifestVersion": "2026.11.20.R14",
   "adminDashboardUrl": "https://rakeshkumardhawan.github.io/UBDTOOLS/admin/",
   "license": "MIT (100% Free & Open-Source - Zero Activation Required)"
 }
