@@ -127,6 +127,9 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       },
       (error) => {
         console.warn('Licensing policy listener notice:', error.message);
+        if (/quota|resource-exhausted/i.test(String(error?.code || error?.message || ''))) {
+          setAuthNotice('Firestore Daily Free Quota Exceeded (429 RESOURCE_EXHAUSTED). Quota resets tomorrow, or upgrade in Firebase Console.');
+        }
       }
     );
     return () => unsubPolicy();
@@ -560,8 +563,28 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
             Operator QR UPI Checkout, 12-Digit UTR Anti-Duplicate Queue, &amp; Per-PC Subscription Control — పూర్తిగా ప్రత్యేకమైన పేమెంట్ టాబ్.
           </p>
           {authNotice && (
-            <div className="mt-2 text-xs text-amber-300 bg-amber-950/50 border border-amber-500/40 rounded-lg px-3 py-1.5">
-              {authNotice}
+            <div className="mt-2 text-xs text-amber-200 bg-amber-950/60 border border-amber-500/50 rounded-lg px-3 py-2 space-y-1">
+              <div>{authNotice}</div>
+              {/quota|resource-exhausted/i.test(authNotice) && (
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <a
+                    href="https://console.firebase.google.com/project/e-vedhika-258f2/firestore/databases/ai-studio-ubdtools-ed9d3074-cce9-4bfd-90c3-8779cab02a82/data?openUpgradeDialog=true"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline font-bold text-cyan-300 hover:text-cyan-200"
+                  >
+                    Open Firebase Console Upgrade Dialog
+                  </a>
+                  <a
+                    href="https://firebase.google.com/pricing#cloud-firestore"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-slate-300 hover:text-white"
+                  >
+                    Firestore Spark/Enterprise Quota Limits
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </div>

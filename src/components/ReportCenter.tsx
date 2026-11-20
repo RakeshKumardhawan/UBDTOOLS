@@ -94,7 +94,7 @@ export const ReportCenter: React.FC = () => {
     runningApps: 0,
     closedApps: 0,
     latestVersion: 'v1.1.0',
-    latestResourceBuild: '2026.11.20.R14',
+    latestResourceBuild: '2026.11.20.R15',
     totalDeployments: 0,
     successfulDeployments: 0,
     failedDeployments: 0,
@@ -135,7 +135,7 @@ export const ReportCenter: React.FC = () => {
       return;
     }
 
-    const qPcs = query(collection(db, 'installed_pcs'), orderBy('updatedAt', 'desc'), limit(2000));
+    const qPcs = query(collection(db, 'installed_pcs'), orderBy('updatedAt', 'desc'), limit(250));
     const unsubPcs = onSnapshot(
       qPcs,
       (snap) => {
@@ -153,7 +153,7 @@ export const ReportCenter: React.FC = () => {
             officeLocation: data.officeLocation || 'Grama Panchayat Office',
             osVersion: data.osVersion || 'Windows 10/11',
             appVersion: data.appVersion || 'v1.1.0',
-            resourceBuild: data.resourceBuild || '2026.11.20.R14',
+            resourceBuild: data.resourceBuild || '2026.11.20.R15',
             appState: isOnline ? (data.appState || 'RUNNING') : 'CLOSED',
             pcConnectivity: isOnline ? 'ONLINE' : 'OFFLINE',
             isOnline,
@@ -175,7 +175,7 @@ export const ReportCenter: React.FC = () => {
       }
     );
 
-    const qReports = query(collection(db, 'pc_reports'), orderBy('createdAt', 'desc'), limit(2000));
+    const qReports = query(collection(db, 'pc_reports'), orderBy('createdAt', 'desc'), limit(150));
     const unsubReports = onSnapshot(
       qReports,
       (snap) => {
@@ -196,7 +196,7 @@ export const ReportCenter: React.FC = () => {
               district: data.district || 'District',
               state: data.state || 'Telangana',
               appVersion: data.appVersion || 'v1.1.0',
-              resourceBuild: data.resourceBuild || '2026.11.20.R14',
+              resourceBuild: data.resourceBuild || '2026.11.20.R15',
               status: data.status || 'SUCCESS',
               appState: 'RUNNING',
               timestampIst: new Date(createdMs).toLocaleString(),
@@ -214,7 +214,7 @@ export const ReportCenter: React.FC = () => {
       }
     );
 
-    const qFeedback = query(collection(db, 'user_feedbacks'), orderBy('createdAt', 'desc'), limit(200));
+    const qFeedback = query(collection(db, 'user_feedbacks'), orderBy('createdAt', 'desc'), limit(100));
     const unsubFeedback = onSnapshot(
       qFeedback,
       (snap) => {
@@ -327,7 +327,7 @@ export const ReportCenter: React.FC = () => {
           officeLocation: r.officeLocation || 'Grama Panchayat Office',
           osVersion: 'Windows 10/11',
           appVersion: r.appVersion || 'v1.1.0',
-          resourceBuild: r.resourceBuild || '2026.11.20.R14',
+          resourceBuild: r.resourceBuild || '2026.11.20.R15',
           appState: 'CLOSED',
           pcConnectivity: 'OFFLINE',
           isOnline: false,
@@ -508,7 +508,7 @@ export const ReportCenter: React.FC = () => {
               {
                 releaseId: `REL-${vd.latestVersion || 'v1.1.0'}`,
                 version: vd.latestVersion || 'v1.1.0',
-                resourceBuild: vd.latestResourceBuild || '2026.11.20.R14',
+                resourceBuild: vd.latestResourceBuild || '2026.11.20.R15',
                 releaseDate: vd.releaseDate || '2026-11-17',
                 packageSize: vd.downloadSize || '25.0 MB',
                 signatureStatus: 'SHA-256 + Authenticode Signed',
@@ -614,7 +614,7 @@ export const ReportCenter: React.FC = () => {
         pcName: 'WEB-PORTAL-USER',
         pcId: cleanPcId,
         appVersion: 'v1.1.0',
-        resourceBuild: '2026.11.20.R14'
+        resourceBuild: '2026.11.20.R15'
       };
       await fetchWithLiveGateway('/api/feedback', {
         method: 'POST',
@@ -665,7 +665,7 @@ export const ReportCenter: React.FC = () => {
         const state = officeLocation.toLowerCase().includes('andhra') ? 'Andhra Pradesh' : 'Telangana';
         const osVersion = (extractField(block, ['Windows Edition', 'Windows OS']) || 'Windows 10/11').slice(0, 120);
         const appVersion = (extractField(block, ['Application Version']) || 'v1.1.0').slice(0, 32);
-        const resourceBuild = (extractField(block, ['Build Version']) || '2026.11.20.R14').slice(0, 48);
+        const resourceBuild = (extractField(block, ['Build Version']) || '2026.11.20.R15').slice(0, 48);
         const verTransition = extractField(block, ['Version Upgraded', 'Version Transition', 'Version Status']);
         const isUpgradeBlock =
           block.includes('VERSION UPGRADED') ||
@@ -880,7 +880,7 @@ export const ReportCenter: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap font-mono text-[10px] font-bold">
             <span className="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded border border-cyan-500/30">
-              v1.1.0 • Build 2026.11.20.R14
+              v1.1.0 • Build 2026.11.20.R15
             </span>
             <span className="bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded border border-amber-500/30">
               ★ Avg Rating: {avgRatingComputed}/5.0 ({feedbacks.length} Reviews)
@@ -1048,7 +1048,7 @@ export const ReportCenter: React.FC = () => {
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow">
           <span className="text-[10px] text-slate-400 block font-bold">LATEST BUILD</span>
-          <span className="text-sm font-black text-emerald-300 mt-2 block">2026.11.20.R14</span>
+          <span className="text-sm font-black text-emerald-300 mt-2 block">2026.11.20.R15</span>
           <span className="text-[10px] text-slate-500 mt-0.5 block">v1.1.0 Active</span>
         </div>
 
@@ -1111,7 +1111,7 @@ export const ReportCenter: React.FC = () => {
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>5. Release History (2026.11.20.R14)</span>
+          <span>5. Release History (2026.11.20.R15)</span>
         </button>
 
         <button
@@ -1500,7 +1500,7 @@ export const ReportCenter: React.FC = () => {
                         <td className="p-3.5 text-emerald-300">{fb.officeLocation}</td>
                         <td className="p-3.5">
                           <div className="text-white">{fb.pcName}</div>
-                          <div className="text-[10px] text-cyan-400">{fb.resourceBuild || '2026.11.20.R14'}</div>
+                          <div className="text-[10px] text-cyan-400">{fb.resourceBuild || '2026.11.20.R15'}</div>
                         </td>
                         <td className="p-3.5 max-w-md text-slate-200">{fb.comments}</td>
                         <td className="p-3.5 text-slate-400 whitespace-nowrap">{fb.timestampIST || fb.submittedAt}</td>
@@ -1610,7 +1610,7 @@ export const ReportCenter: React.FC = () => {
                           <div className="text-[10px] text-slate-500">{r.pcId}</div>
                         </td>
                         <td className="p-3.5 text-slate-300 max-w-md">
-                          <div className="font-bold text-indigo-300">{r.appVersion || 'v1.1.0'} <span className="text-emerald-400 text-[10px]">({r.resourceBuild || '2026.11.20.R14'})</span></div>
+                          <div className="font-bold text-indigo-300">{r.appVersion || 'v1.1.0'} <span className="text-emerald-400 text-[10px]">({r.resourceBuild || '2026.11.20.R15'})</span></div>
                           {(r.details || r.remarks) && (
                             <div className="text-[10px] text-slate-400 mt-0.5 break-words">{r.details || r.remarks}</div>
                           )}
@@ -1695,7 +1695,7 @@ export const ReportCenter: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
             <div>
               <h3 className="text-base font-black text-white font-mono">
-                /admin/ubd_monitoring.php — Complete Website Source Code (v1.1.0 • 2026.11.20.R14)
+                /admin/ubd_monitoring.php — Complete Website Source Code (v1.1.0 • 2026.11.20.R15)
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 Deploy or copy this file directly to your central server to display all Installed PCs, Live Online PCs, User Ratings &amp; Feedback, and 17-step audits.

@@ -43,13 +43,13 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
-    version: 'v1.1.0 (Resource Build 2026.11.20.R14)',
+    version: 'v1.1.0 (Resource Build 2026.11.20.R15)',
     date: 'November 2026',
     changes: [
+      'Security Patch Update: Latest security hardening, stability improvements, and system protection updates applied',
       'Added global window.onerror & unhandledrejection listener specifically capturing runtime errors on Windows 7, 8, 10 & 11 and sending diagnostic reports to central telemetry logs',
       'Converted all C# WinForms dialogs, Selection labels, Status screens, Metric cards & Release Notes into clean English (eliminates box glyphs on Windows 7/8/10/11)',
       'Background async OTA update download with live progress bar (prevents UI freeze / Not Responding)',
-      'Separated Admin Payments & Live Reports at /admin/ and cleaned duplicate shortcuts & Control Panel entries',
       'Real-Time Central Cloud Admin & PC Monitoring Hub backed by Google Cloud Firestore'
     ]
   },
@@ -155,7 +155,7 @@ export const CURRENT_APP_VERSION = 'v1.1.0';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.20.R14',
+  manifestVersion: '2026.11.20.R15',
   appVersion: 'v1.1.0',
   lastSyncTimestamp: new Date().toISOString(),
   totalResources: 5,
@@ -496,7 +496,7 @@ export async function checkForUpdates(
   };
 }
 
-export const LOCAL_BUILD_VERSION = '2026.11.20.R14';
+export const LOCAL_BUILD_VERSION = '2026.11.20.R15';
 
 export interface OtaCheckResult {
   hasOtaUpdate: boolean;

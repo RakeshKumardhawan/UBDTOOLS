@@ -48,6 +48,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
             try
             {
                 if (_60SecHeartbeatTimer != null) return;
+                // 15-minute quota-friendly live presence interval (cuts Firestore writes by 93% vs 60s!)
                 _60SecHeartbeatTimer = new System.Threading.Timer(delegate
                 {
                     try
@@ -55,7 +56,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                         Send60SecondHeartbeatPing();
                     }
                     catch { }
-                }, null, 5000, 60000); // First run after 5s, then every 60s
+                }, null, 120000, 900000); // First run after 2m, then every 15m
             }
             catch { }
         }
@@ -677,16 +678,26 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
         public static bool HasAlreadyReportedToTelegram(string pcId, string currentBuild = "")
         {
-            if (string.IsNullOrEmpty(currentBuild)) currentBuild = Engine.AutoUpdateEngine.CurrentResourceBuild;
             if (string.Equals(pcId, "EVD-PC-1900-62E8", StringComparison.OrdinalIgnoreCase)) return true;
 
+            // Strictly FIRST-TIME EVER per PC for Telegram (prevents repeat spam when user runs app 10 times)
             try
             {
                 string marker = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EVedhika", "telegram_reported.marker");
                 if (File.Exists(marker))
                 {
                     string content = File.ReadAllText(marker);
-                    if (content.Contains(currentBuild)) return true;
+                    if (!string.IsNullOrWhiteSpace(content)) return true;
+                }
+            }
+            catch { }
+
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\EVedhika"))
+                {
+                    object sentVal = key?.GetValue("TelegramReportSent");
+                    if (sentVal != null && !string.IsNullOrWhiteSpace(sentVal.ToString())) return true;
                 }
             }
             catch { }
@@ -789,7 +800,7 @@ namespace EVedhikaUBDDeploymentTool.Helpers
 
             bool force = data.ContainsKey("forceTelegram") && (data["forceTelegram"] == "true" || data["forceTelegram"] == "True");
             bool alreadyReported = HasAlreadyReportedToTelegram(machineId, Engine.AutoUpdateEngine.CurrentResourceBuild);
-            if (alreadyReported && !force)
+            if (alreadyReported)
             {
                 data["pcAlreadyReported"] = "true";
             }
@@ -810,19 +821,21 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 || (data.ContainsKey("verification") && data["verification"].IndexOf("Setup Completed", StringComparison.OrdinalIgnoreCase) >= 0)
             );
 
-            // Full DSC Execution Gate: Only dispatch Telegram report after full DSC run finishes, or for installations/forced updates
+            // Full DSC Execution Gate: Only dispatch Telegram report ONCE on very first install/run on this PC!
+            // Repeat runs (2nd, 3rd, 10th time) ALWAYS save complete run history to Admin Cloud Hub (/admin/), NEVER spam Telegram!
             bool isDscFinished = (data.ContainsKey("dscRunCompleted") && (data["dscRunCompleted"] == "true" || data["dscRunCompleted"] == "True"))
                 || (data.ContainsKey("verification") && (data["verification"].Contains("17/17") || data["verification"].Contains("90/90")))
                 || (data.ContainsKey("verificationCompleted") && data["verificationCompleted"].Contains("COMPLETED"))
                 || isInstallationReport;
 
-            // Flag whether this report will trigger Telegram
-            bool willTriggerTelegram = !isRoutineHeartbeat && (!alreadyReported || force || isInstallationReport || isExplicitFinal || isExplicitSend) && !isExplicitSuppress && (isDscFinished || force || isInstallationReport) && (isExplicitFinal || isExplicitSend || isInstallationReport || currentStatus.ToUpper().Contains("FAIL"));
-            if (willTriggerTelegram)
+            bool willTriggerTelegram = !alreadyReported && !isRoutineHeartbeat && !isExplicitSuppress && (isDscFinished || isInstallationReport) && (isExplicitFinal || isExplicitSend || isInstallationReport || force);
+            if (willTriggerTelegram || alreadyReported)
             {
-                // Tell the server that C# client is already dispatching Telegram directly so server NEVER sends a second duplicate!
+                // Always prevent duplicate server-side Telegram dispatch; C# client handles first-time-only Telegram directly
                 data["directTelegramSent"] = "true";
                 data["suppressTelegram"] = "true";
+                data["forceTelegram"] = "false";
+                data["sendTelegram"] = "false";
             }
 
             if (!data.ContainsKey("district"))
@@ -888,13 +901,10 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
             });
 
-            // 2. Anti-Spam Batching & Strict Telegram Filter
-            bool allowTelegram = !isExplicitSuppress && (isDscFinished || force || isInstallationReport || isExplicitFinal || isExplicitSend);
-            bool isDuplicateBlocked = alreadyReported && !force && !isInstallationReport && !isExplicitFinal && !isExplicitSend;
-
-            if (!allowTelegram || isDuplicateBlocked || (isRoutineHeartbeat && !isExplicitFinal && !isExplicitSend && !isInstallationReport))
+            // 2. Anti-Spam Batching & Strict First-Time-Only Telegram Filter
+            // Note: Pipeline 1 above ALWAYS persists every single run to Admin Cloud Hub (/admin/) for full history!
+            if (!willTriggerTelegram || alreadyReported || isRoutineHeartbeat)
             {
-                // Strictly suppress intermediate checks, routine heartbeats, and token presence polls
                 return;
             }
 
@@ -1398,7 +1408,8 @@ namespace EVedhikaUBDDeploymentTool.Helpers
                 }
                 catch { }
 
-                if (!recentlySentInstallTg)
+                bool alreadySentFirstTimeTg = HasAlreadyReportedToTelegram(data["pcId"]);
+                if (!recentlySentInstallTg && !alreadySentFirstTimeTg)
                 {
                     try
                     {

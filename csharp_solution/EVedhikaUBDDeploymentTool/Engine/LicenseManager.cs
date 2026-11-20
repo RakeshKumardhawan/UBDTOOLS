@@ -31,6 +31,20 @@ namespace EVedhikaUBDDeploymentTool.Engine
     {
         private const string FirestoreApiKeyParam = "?key=AIzaSyC_oLAFLdpErutmSmR9bQnm0ETq5hd9qnU";
         private const string DefaultCheckoutBaseUrl = "https://rakeshkumardhawan.github.io/UBDTOOLS/pay-checkout";
+        private const string FallbackVersionManifestUrl = "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json";
+        private static readonly object _memCacheLock = new object();
+        private static LicenseStatusResult _memCachedResult = null;
+        private static DateTime _memCachedUtc = DateTime.MinValue;
+        private const int MemoryCacheTtlSeconds = 45;
+
+        public static void InvalidateMemoryCache()
+        {
+            lock (_memCacheLock)
+            {
+                _memCachedResult = null;
+                _memCachedUtc = DateTime.MinValue;
+            }
+        }
 
         private static string GetLicenseCachePath()
         {
@@ -85,8 +99,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
             catch { }
         }
 
-        private static LicenseStatusResult TryReadOfflineCache(string pcId)
+        private static LicenseStatusResult TryReadOfflineCache(string pcId, out DateTime cachedUtc)
         {
+            cachedUtc = DateTime.MinValue;
             try
             {
                 string path = GetLicenseCachePath();
@@ -100,6 +115,13 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 {
                     return null;
                 }
+
+                string cachedUtcStr = ExtractFlatString(json, "cachedUtc");
+                DateTime.TryParse(
+                    cachedUtcStr,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                    out cachedUtc);
 
                 LicenseStatusResult res = new LicenseStatusResult();
                 string mode = ExtractFlatString(json, "mode");
@@ -142,7 +164,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     res.IsAllowed = false;
                     res.StatusCode = "REVOKED";
                     res.DaysRemaining = 0;
-                    res.SummaryText = "Access Revoked by Admin - Connect Internet to Renew";
+                    res.SummaryText = "Access Revoked by Admin - Subscription Renewal Required";
                     return res;
                 }
 
@@ -163,7 +185,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     return res;
                 }
 
-                return null;
+                // PAID_MONTHLY is cached and this PC does NOT have an active unexpired license -> STRICTLY BLOCK!
+                res.IsAllowed = false;
+                res.StatusCode = "PAYMENT_REQUIRED";
+                res.DaysRemaining = 0;
+                res.SummaryText = $"Subscription Required (Rs.{res.MonthlyPriceInr:0} / {res.DurationDays} Days)";
+                return res;
             }
             catch
             {
@@ -171,8 +198,99 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        private static bool TryReadFallbackVersionPolicy(out string mode, out DateTime policyUpdatedUtc, out double price, out int days, out string upiId, out string payLink)
+        {
+            mode = "";
+            policyUpdatedUtc = DateTime.MinValue;
+            price = 10;
+            days = 30;
+            upiId = "";
+            payLink = "";
+            try
+            {
+                string json = DownloadJsonSafe(FallbackVersionManifestUrl + "?t=" + DateTime.UtcNow.Ticks);
+                if (string.IsNullOrWhiteSpace(json)) return false;
+
+                mode = ExtractFlatString(json, "paymentMode");
+                if (string.IsNullOrWhiteSpace(mode)) return false;
+
+                string updatedStr = ExtractFlatString(json, "paymentPolicyUpdatedAt");
+                DateTime.TryParse(
+                    updatedStr,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                    out policyUpdatedUtc);
+
+                price = ExtractFlatNumber(json, "monthlyPriceInr", 10);
+                days = (int)ExtractFlatNumber(json, "durationDays", 30);
+                upiId = ExtractFlatString(json, "upiId");
+                payLink = ExtractFlatString(json, "paymentLinkUrl");
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static LicenseStatusResult BuildPaidFallbackDecision(string pcId, LicenseStatusResult cached, double price, int days, string upiId, string payLink)
+        {
+            // Only honor offline cache if it proves an active unexpired paid license or explicit admin free bypass
+            if (cached != null && cached.IsAllowed &&
+                (string.Equals(cached.StatusCode, "FREE_BYPASS", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(cached.StatusCode, "OFFLINE_CACHE", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(cached.StatusCode, "EXPIRING_SOON", StringComparison.OrdinalIgnoreCase)))
+            {
+                return cached;
+            }
+
+            LicenseStatusResult locked = new LicenseStatusResult();
+            locked.Mode = "PAID_MONTHLY";
+            locked.StatusCode = (cached != null && string.Equals(cached.StatusCode, "REVOKED", StringComparison.OrdinalIgnoreCase))
+                ? "REVOKED"
+                : "PAYMENT_REQUIRED";
+            locked.MonthlyPriceInr = price >= 0 ? price : 10;
+            locked.DurationDays = days >= 1 ? days : 30;
+            locked.UpiId = !string.IsNullOrEmpty(upiId) ? upiId : (cached != null ? cached.UpiId : "");
+            locked.PaymentLinkUrl = !string.IsNullOrEmpty(payLink) ? payLink : (cached != null ? cached.PaymentLinkUrl : "");
+            locked.IsAllowed = false;
+            locked.DaysRemaining = 0;
+            locked.SummaryText = locked.StatusCode == "REVOKED"
+                ? "Access Revoked by Admin - Subscription Renewal Required"
+                : $"Subscription Required (Rs.{locked.MonthlyPriceInr:0} / {locked.DurationDays} Days)";
+            SaveLicenseCache(pcId, locked, "PAID_30_DAYS", locked.StatusCode == "REVOKED" ? "REVOKED" : "EXPIRED");
+            return locked;
+        }
+
+        private static LicenseStatusResult StoreMemoryCache(LicenseStatusResult result)
+        {
+            lock (_memCacheLock)
+            {
+                _memCachedResult = result;
+                _memCachedUtc = DateTime.UtcNow;
+            }
+            return result;
+        }
+
         public static LicenseStatusResult CheckRemoteLicenseStatus()
         {
+            return CheckRemoteLicenseStatus(false);
+        }
+
+        public static LicenseStatusResult CheckRemoteLicenseStatus(bool forceRefresh)
+        {
+            if (!forceRefresh)
+            {
+                lock (_memCacheLock)
+                {
+                    if (_memCachedResult != null &&
+                        (DateTime.UtcNow - _memCachedUtc).TotalSeconds < MemoryCacheTtlSeconds)
+                    {
+                        return _memCachedResult;
+                    }
+                }
+            }
+
             LicenseStatusResult res = new LicenseStatusResult();
             string pcId = Logger.SanitizeFirestoreId(Logger.GetUniqueMachineId(), "EVD-PC");
             try
@@ -183,15 +301,41 @@ namespace EVedhikaUBDDeploymentTool.Engine
 
                 if (string.IsNullOrEmpty(policyJson) || policyJson.IndexOf("\"error\"", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    LicenseStatusResult cached = TryReadOfflineCache(pcId);
-                    if (cached != null) return cached;
+                    DateTime cachedUtc;
+                    LicenseStatusResult cached = TryReadOfflineCache(pcId, out cachedUtc);
+
+                    // Zero-quota fallback mirror from GitHub public/version.json (works even if Firestore returns 429 Quota Exceeded!)
+                    string fbMode;
+                    DateTime fbUpdatedUtc;
+                    double fbPrice;
+                    int fbDays;
+                    string fbUpi;
+                    string fbPayLink;
+                    bool hasFallbackManifest = TryReadFallbackVersionPolicy(out fbMode, out fbUpdatedUtc, out fbPrice, out fbDays, out fbUpi, out fbPayLink);
+
+                    if (hasFallbackManifest &&
+                        string.Equals(fbMode, "PAID_MONTHLY", StringComparison.OrdinalIgnoreCase) &&
+                        (cached == null || fbUpdatedUtc > cachedUtc || !string.Equals(cached.Mode, "FREE_FOR_ALL", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return StoreMemoryCache(BuildPaidFallbackDecision(pcId, cached, fbPrice, fbDays, fbUpi, fbPayLink));
+                    }
+
+                    if (cached != null)
+                    {
+                        return StoreMemoryCache(cached);
+                    }
+
+                    if (hasFallbackManifest && string.Equals(fbMode, "PAID_MONTHLY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return StoreMemoryCache(BuildPaidFallbackDecision(pcId, null, fbPrice, fbDays, fbUpi, fbPayLink));
+                    }
 
                     res.Mode = "FREE_FOR_ALL";
                     res.StatusCode = "OFFLINE_GRACE";
                     res.IsAllowed = true;
                     res.DaysRemaining = 999;
                     res.SummaryText = "Free Early Access Active (Offline Mode)";
-                    return res;
+                    return StoreMemoryCache(res);
                 }
 
                 string mode = ExtractFirestoreString(policyJson, "mode");
@@ -219,7 +363,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     res.DaysRemaining = 999;
                     res.SummaryText = $"Free Early Access Active (Future Rate: Rs.{res.MonthlyPriceInr:0}/Month)";
                     SaveLicenseCache(pcId, res, "FREE_ACCESS", "ACTIVE");
-                    return res;
+                    return StoreMemoryCache(res);
                 }
 
                 // PAID_MONTHLY is enabled by Admin -> validate pc_licenses/{pcId}
@@ -227,11 +371,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 bool pcDocNotFound;
                 string pcJson = DownloadJsonWithStatus(pcUrl, out pcDocNotFound);
 
-                // Network glitch while checking pc_licenses (not a 404): honor valid offline cache if available
-                if (string.IsNullOrEmpty(pcJson) && !pcDocNotFound)
+                // Network glitch or 429 while checking pc_licenses (not a 404): honor ONLY valid active paid/bypass cache; NEVER fall back to FREE!
+                if ((string.IsNullOrEmpty(pcJson) || pcJson.IndexOf("\"error\"", StringComparison.OrdinalIgnoreCase) >= 0) && !pcDocNotFound)
                 {
-                    LicenseStatusResult cached = TryReadOfflineCache(pcId);
-                    if (cached != null) return cached;
+                    DateTime cachedUtc;
+                    LicenseStatusResult cached = TryReadOfflineCache(pcId, out cachedUtc);
+                    return StoreMemoryCache(BuildPaidFallbackDecision(pcId, cached, res.MonthlyPriceInr, res.DurationDays, res.UpiId, res.PaymentLinkUrl));
                 }
 
                 if (pcDocNotFound || string.IsNullOrEmpty(pcJson) || pcJson.IndexOf("\"fields\"", StringComparison.OrdinalIgnoreCase) < 0)
@@ -241,7 +386,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     res.DaysRemaining = 0;
                     res.SummaryText = $"Subscription Required (Rs.{res.MonthlyPriceInr:0} / {res.DurationDays} Days)";
                     SaveLicenseCache(pcId, res, "PAID_30_DAYS", "EXPIRED");
-                    return res;
+                    return StoreMemoryCache(res);
                 }
 
                 string pcPlanType = ExtractFirestoreString(pcJson, "planType");
@@ -257,7 +402,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     res.DaysRemaining = 9999;
                     res.SummaryText = "Admin Free Access Active (Payment Mode OFF for this PC)";
                     SaveLicenseCache(pcId, res, pcPlanType, pcStatus);
-                    return res;
+                    return StoreMemoryCache(res);
                 }
 
                 if (string.Equals(pcStatus, "REVOKED", StringComparison.OrdinalIgnoreCase))
@@ -267,7 +412,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     res.DaysRemaining = 0;
                     res.SummaryText = "Access Revoked by Admin - Subscription Renewal Required";
                     SaveLicenseCache(pcId, res, pcPlanType, pcStatus);
-                    return res;
+                    return StoreMemoryCache(res);
                 }
 
                 DateTime expiryUtc;
@@ -299,32 +444,32 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
             catch
             {
-                LicenseStatusResult cached = TryReadOfflineCache(pcId);
-                if (cached != null) return cached;
+                DateTime cachedUtc;
+                LicenseStatusResult cached = TryReadOfflineCache(pcId, out cachedUtc);
+                if (cached != null) return StoreMemoryCache(cached);
 
-                // Fail-open when completely offline with no prior paid cache so rural offices aren't blocked by ISP outage
                 res.IsAllowed = true;
                 res.StatusCode = "OFFLINE_GRACE";
                 res.DaysRemaining = 999;
                 res.SummaryText = "Free Early Access Active (Offline Mode)";
             }
 
-            return res;
+            return StoreMemoryCache(res);
         }
 
         public static bool EnsureAllowedOrShowSubscriptionDialog(Form owner)
         {
-            LicenseStatusResult status = CheckRemoteLicenseStatus();
+            LicenseStatusResult status = CheckRemoteLicenseStatus(false);
             if (status.IsAllowed) return true;
 
             ShowSubscriptionModal(owner, status);
-            LicenseStatusResult recheck = CheckRemoteLicenseStatus();
+            LicenseStatusResult recheck = CheckRemoteLicenseStatus(true);
             return recheck.IsAllowed;
         }
 
         public static void OpenSubscriptionCenter(Form owner)
         {
-            LicenseStatusResult status = CheckRemoteLicenseStatus();
+            LicenseStatusResult status = CheckRemoteLicenseStatus(true);
             ShowSubscriptionModal(owner, status);
         }
 
@@ -795,7 +940,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         LicenseStatusResult fresh = null;
                         try
                         {
-                            fresh = CheckRemoteLicenseStatus();
+                            fresh = CheckRemoteLicenseStatus(true);
                         }
                         catch { }
                         if (!dlg.IsDisposed && dlg.IsHandleCreated)

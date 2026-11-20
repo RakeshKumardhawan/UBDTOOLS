@@ -44,6 +44,9 @@ namespace EVedhikaUBDDeploymentTool
         private DateTime lastDscPlugTime = DateTime.MinValue;
         private System.Windows.Forms.Timer dscPollTimer;
         private string lastDscDetectedStatus = "";
+        private Panel _pnlLicenseLockBanner;
+        private Label _lblLicenseLockBanner;
+        private Button _btnUnlockSubscription;
 
         public MainForm(string initialState = "Telangana", bool startSilent = false)
         {
@@ -492,6 +495,7 @@ namespace EVedhikaUBDDeploymentTool
             btnCustomLevel.Font = new Font("Segoe UI", 9, FontStyle.Bold);
             btnCustomLevel.Margin = new Padding(8, 0, 0, 0);
             btnCustomLevel.Click += delegate(object s, EventArgs ev) {
+                if (!EnsureLicensedAction("Security Custom Level")) return;
                 try {
                     try {
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
@@ -522,7 +526,10 @@ namespace EVedhikaUBDDeploymentTool
             btnHeaderPortal.Cursor = Cursors.Hand;
             btnHeaderPortal.Font = new Font("Segoe UI", 9, FontStyle.Bold);
             btnHeaderPortal.Margin = new Padding(8, 0, 0, 0);
-            btnHeaderPortal.Click += delegate(object s, EventArgs ev) { LaunchGovernmentPortal(currentTargetLaunchUrl); };
+            btnHeaderPortal.Click += delegate(object s, EventArgs ev) {
+                if (!EnsureLicensedAction("UBD Portal (IE Mode)")) return;
+                LaunchGovernmentPortal(currentTargetLaunchUrl);
+            };
 
             pnlHeaderActions.Controls.Add(btnTour);
             pnlHeaderActions.Controls.Add(btnCustomLevel);
@@ -752,6 +759,7 @@ namespace EVedhikaUBDDeploymentTool
                 btnLaunchTG.Location = new Point(8, 36);
                 btnLaunchTG.Cursor = Cursors.Hand;
                 btnLaunchTG.Click += delegate(object s, EventArgs ev) {
+                    if (!EnsureLicensedAction("Telangana UBD Portal")) return;
                     LaunchGovernmentPortal("https://ubd.telangana.gov.in");
                 };
                 pnlDeployHub.Controls.Add(btnLaunchTG);
@@ -768,6 +776,7 @@ namespace EVedhikaUBDDeploymentTool
                 btnLaunchAP.Location = new Point(210, 36);
                 btnLaunchAP.Cursor = Cursors.Hand;
                 btnLaunchAP.Click += delegate(object s, EventArgs ev) {
+                    if (!EnsureLicensedAction("AP UBD Portal")) return;
                     LaunchGovernmentPortal("http://www.ubd.ap.gov.in:8080/");
                 };
                 pnlDeployHub.Controls.Add(btnLaunchAP);
@@ -800,6 +809,7 @@ namespace EVedhikaUBDDeploymentTool
                 btnInetcpl.Location = new Point(614, 36);
                 btnInetcpl.Cursor = Cursors.Hand;
                 btnInetcpl.Click += delegate(object s, EventArgs ev) {
+                    if (!EnsureLicensedAction("Internet Options (Zone 2)")) return;
                     try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = "inetcpl.cpl", UseShellExecute = true }); } catch { }
                 };
                 pnlDeployHub.Controls.Add(btnInetcpl);
@@ -914,9 +924,13 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     try
                     {
-                        // Check cloud license before starting 24x7 background self-healing guardian
-                        var startupLic = LicenseManager.CheckRemoteLicenseStatus();
-                        SafeInvoke(delegate() { LogMessage("LICENSE", $"[PLAN] {startupLic.SummaryText}"); });
+                        // Single authoritative cloud license check on startup (saves 50% Firestore reads)
+                        var startupLic = LicenseManager.CheckRemoteLicenseStatus(true);
+                        SafeInvoke(delegate()
+                        {
+                            LogMessage("LICENSE", $"[PLAN] {startupLic.SummaryText}");
+                            ApplyLicenseLockUi(startupLic);
+                        });
 
                         if (startupLic.IsAllowed)
                         {
@@ -931,18 +945,21 @@ namespace EVedhikaUBDDeploymentTool
                             {
                                 SafeInvoke(delegate() { LogMessage("GUARDIAN", msg); });
                             });
+
+                            AutoRepairEngine.PerformSelfHealingAudit(delegate(string msg)
+                            {
+                                SafeInvoke(delegate() { LogMessage("UBD_AUDIT", msg); });
+                            });
                         }
                         else
                         {
                             SafeInvoke(delegate()
                             {
-                                LogMessage("LICENSE", "[LOCKED] Paid Mode Active - Background Guardian paused until subscription is activated.");
-                                if (toolStripStatusLabel != null)
-                                {
-                                    toolStripStatusLabel.Text = $"SUBSCRIPTION REQUIRED (Rs.{startupLic.MonthlyPriceInr:0}/{startupLic.DurationDays}d) | Click any tool to Pay & Auto-Unlock";
-                                }
+                                LogMessage("LICENSE", "[LOCKED] Paid Mode Active - All features locked until subscription is activated.");
+                                ApplyLicenseLockUi(startupLic);
                                 LicenseManager.ShowSubscriptionModal(this, startupLic);
-                                var postModalLic = LicenseManager.CheckRemoteLicenseStatus();
+                                var postModalLic = LicenseManager.CheckRemoteLicenseStatus(true);
+                                ApplyLicenseLockUi(postModalLic);
                                 if (postModalLic.IsAllowed)
                                 {
                                     LogMessage("LICENSE", $"[UNLOCKED] {postModalLic.SummaryText}");
@@ -1042,11 +1059,80 @@ namespace EVedhikaUBDDeploymentTool
             };
         }
 
+        private void ApplyLicenseLockUi(LicenseStatusResult lic)
+        {
+            if (lic == null) return;
+            try
+            {
+                if (!lic.IsAllowed)
+                {
+                    if (toolStripStatusLabel != null)
+                    {
+                        toolStripStatusLabel.Text = $"LOCKED: SUBSCRIPTION REQUIRED (Rs.{lic.MonthlyPriceInr:0}/{lic.DurationDays}d) | Pay & Enter UTR to Unlock";
+                    }
+                    if (_pnlLicenseLockBanner == null)
+                    {
+                        _pnlLicenseLockBanner = new Panel();
+                        _pnlLicenseLockBanner.Dock = DockStyle.Top;
+                        _pnlLicenseLockBanner.Height = 42;
+                        _pnlLicenseLockBanner.BackColor = Color.FromArgb(153, 27, 27); // Red-800 alert banner
+                        _pnlLicenseLockBanner.Padding = new Padding(12, 6, 12, 6);
+
+                        _btnUnlockSubscription = new Button();
+                        _btnUnlockSubscription.Text = $"Pay Rs.{lic.MonthlyPriceInr:0} / Unlock Now";
+                        _btnUnlockSubscription.UseMnemonic = false;
+                        _btnUnlockSubscription.Dock = DockStyle.Right;
+                        _btnUnlockSubscription.Width = 190;
+                        _btnUnlockSubscription.BackColor = Color.FromArgb(245, 158, 11);
+                        _btnUnlockSubscription.ForeColor = Color.FromArgb(15, 23, 42);
+                        _btnUnlockSubscription.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
+                        _btnUnlockSubscription.FlatStyle = FlatStyle.Flat;
+                        _btnUnlockSubscription.FlatAppearance.BorderSize = 0;
+                        _btnUnlockSubscription.Cursor = Cursors.Hand;
+                        _btnUnlockSubscription.Click += delegate {
+                            LicenseManager.OpenSubscriptionCenter(this);
+                            var fresh = LicenseManager.CheckRemoteLicenseStatus(true);
+                            ApplyLicenseLockUi(fresh);
+                        };
+
+                        _lblLicenseLockBanner = new Label();
+                        _lblLicenseLockBanner.Dock = DockStyle.Fill;
+                        _lblLicenseLockBanner.ForeColor = Color.White;
+                        _lblLicenseLockBanner.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+                        _lblLicenseLockBanner.TextAlign = ContentAlignment.MiddleLeft;
+                        _lblLicenseLockBanner.UseMnemonic = false;
+
+                        _pnlLicenseLockBanner.Controls.Add(_lblLicenseLockBanner);
+                        _pnlLicenseLockBanner.Controls.Add(_btnUnlockSubscription);
+                        this.Controls.Add(_pnlLicenseLockBanner);
+                    }
+                    _lblLicenseLockBanner.Text = $"[SUBSCRIPTION REQUIRED] {lic.SummaryText} — Click 'Pay / Unlock Now' to activate.";
+                    if (_btnUnlockSubscription != null)
+                    {
+                        _btnUnlockSubscription.Text = $"Pay Rs.{lic.MonthlyPriceInr:0} / Unlock Now";
+                    }
+                    _pnlLicenseLockBanner.Visible = true;
+                    _pnlLicenseLockBanner.BringToFront();
+                }
+                else
+                {
+                    if (_pnlLicenseLockBanner != null)
+                    {
+                        _pnlLicenseLockBanner.Visible = false;
+                    }
+                }
+            }
+            catch { }
+        }
+
         private bool EnsureLicensedAction(string actionLabel)
         {
             try
             {
-                if (!LicenseManager.EnsureAllowedOrShowSubscriptionDialog(this))
+                bool allowed = LicenseManager.EnsureAllowedOrShowSubscriptionDialog(this);
+                var currentLic = LicenseManager.CheckRemoteLicenseStatus(false);
+                ApplyLicenseLockUi(currentLic);
+                if (!allowed)
                 {
                     LogMessage("LICENSE", $"[LOCKED] {actionLabel} requires an active subscription. Waiting for Admin activation.");
                     return false;
@@ -1058,20 +1144,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void GuardianStartupGreeting()
         {
-            ThreadPool.QueueUserWorkItem(delegate
-            {
-                try
-                {
-                    var lic = LicenseManager.CheckRemoteLicenseStatus();
-                    if (!lic.IsAllowed) return;
-
-                    AutoRepairEngine.PerformSelfHealingAudit(delegate(string msg)
-                    {
-                        SafeInvoke(delegate() { LogMessage("UBD_AUDIT", msg); });
-                    });
-                }
-                catch { }
-            });
+            // Self-healing audit now runs inside the single startup license check block above to save Firestore quota.
         }
 
         private void btnStartDeploy_Click(object sender, EventArgs e)
@@ -1317,7 +1390,7 @@ namespace EVedhikaUBDDeploymentTool
                     { "verification", "17/17 steps passed." },
                     { "isFinalReport", "true" },
                     { "sendTelegram", "true" },
-                    { "forceTelegram", "true" },
+                    { "forceTelegram", "false" },
                     { "dscRunCompleted", "true" },
                     { "architecture", SystemInfoHelper.GetSystemArchitecture() },
                     { "registryVerification", "Verified (Zone 2, Flags, Emulation)" },
@@ -2291,6 +2364,7 @@ namespace EVedhikaUBDDeploymentTool
 
         private void btnAskAi_Click(object sender, EventArgs e)
         {
+            if (!EnsureLicensedAction("AI Troubleshooter")) return;
             string userQuery = txtAiQuery.Text;
             if (string.IsNullOrWhiteSpace(userQuery)) return;
 
@@ -2581,7 +2655,7 @@ namespace EVedhikaUBDDeploymentTool
                 { "errorDetails", "None" },
                 { "isFinalReport", "true" },
                 { "sendTelegram", "true" },
-                { "forceTelegram", "true" },
+                { "forceTelegram", "false" },
                 { "lastReportUploadTime", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                 { "userPrivileges", SystemInfoHelper.GetUserPrivileges() },
                 { "ramInfo", SystemInfoHelper.GetRamInfo() },
