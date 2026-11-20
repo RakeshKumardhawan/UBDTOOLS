@@ -1,0 +1,12 @@
+{
+  "name": "ubdtools",
+  "main": "cloudflare_worker/ubdtools_worker.js",
+  "compatibility_date": "2025-01-01",
+  "workers_dev": true,
+  "kv_namespaces": [
+    {
+      "binding": "UBD_LICENSES",
+      "id": "253203bf9e8d4b6886e59dc2453ae1a2"
+    }
+  ]
+}

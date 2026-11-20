@@ -14,6 +14,11 @@ import {
   isPcPaymentExempt,
   normalizeUtrNumber
 } from '../utils/licensePolicy';
+import {
+  discoverCloudflareWorkerUrl,
+  fetchWorkerPublicCheck,
+  submitWorkerUtrClaim
+} from '../utils/cloudflareWorkerClient';
 
 export const PublicPaymentCheckout: React.FC = () => {
   const { showSuccess, showError, showInfo } = useToast();
@@ -36,11 +41,25 @@ export const PublicPaymentCheckout: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submittedUtrTracking, setSubmittedUtrTracking] = useState<{ utr: string; pcId: string; approved: boolean } | null>(null);
   const [submitState, setSubmitState] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [workerUrl, setWorkerUrl] = useState<string>('');
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
+        const discoveredWorker = await discoverCloudflareWorkerUrl();
+        if (active && discoveredWorker) {
+          setWorkerUrl(discoveredWorker);
+          const workerCheck = await fetchWorkerPublicCheck(discoveredWorker, pcIdInput.trim() || undefined);
+          if (active && workerCheck) {
+            setPolicy(workerCheck.policy);
+            if (workerCheck.pcLicense) {
+              setPcLicense(workerCheck.pcLicense);
+            }
+            setLoading(false);
+            return;
+          }
+        }
         const snap = await getDocFromServer(doc(db, 'app_settings', 'licensing'));
         if (active && snap.exists()) {
           const d: any = snap.data();
@@ -73,6 +92,28 @@ export const PublicPaymentCheckout: React.FC = () => {
     }
     setRefreshingLicense(true);
     try {
+      const activeWorker = workerUrl || (await discoverCloudflareWorkerUrl());
+      if (activeWorker) {
+        try {
+          const workerRes = await fetchWorkerPublicCheck(activeWorker, cleanPcId);
+          if (workerRes) {
+            setPolicy(workerRes.policy);
+            setPcLicense(workerRes.pcLicense);
+            if (showFeedback) {
+              showInfo(
+                workerRes.pcLicense
+                  ? `PC (${cleanPcId}) లైసెన్స్ స్టేటస్ అప్డేట్ అయింది (Cloudflare).`
+                  : `PC (${cleanPcId}) కు ఇంకా యాక్టివ్ పెయిడ్ లైసెన్స్ రికార్డ్ లేదు.`,
+                'Status Refreshed'
+              );
+            }
+            return workerRes.pcLicense;
+          }
+        } catch {
+          // Fallback to Firestore below
+        }
+      }
+
       const snap = await getDocFromServer(doc(db, 'pc_licenses', cleanPcId));
       if (snap.exists()) {
         const d: any = snap.data();
@@ -101,7 +142,7 @@ export const PublicPaymentCheckout: React.FC = () => {
     } finally {
       setRefreshingLicense(false);
     }
-  }, [showInfo]);
+  }, [showInfo, workerUrl]);
 
   useEffect(() => {
     const cleanPcId = pcIdInput.trim().replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -176,6 +217,55 @@ export const PublicPaymentCheckout: React.FC = () => {
 
     setSubmitting(true);
     try {
+      const activeWorker = workerUrl || (await discoverCloudflareWorkerUrl());
+      if (activeWorker) {
+        const workerSubmit = await submitWorkerUtrClaim(activeWorker, {
+          utrNumber: cleanUtr,
+          pcId: safePcId,
+          pcName: cleanPcName,
+          operatorName: cleanOperator,
+          district: cleanDistrict,
+          state: stateInput,
+          amountInr: Math.max(1, Math.min(10000, Number(policy.monthlyPriceInr || 10))),
+          note: `Submitted via QR Checkout Portal (?pay=1) for ₹${policy.monthlyPriceInr}/${policy.durationDays}d`
+        });
+
+        if (workerSubmit.duplicate) {
+          setSubmitState({
+            type: 'error',
+            text: `Duplicate / Already Used UTR! ఈ UTR (${cleanUtr}) ఇప్పటికే వేరే/పాత క్లెయిమ్‌లో వాడబడింది. ప్రతి చెల్లింపునకు కొత్త 12-అంకెల UTR మాత్రమే ఇవ్వండి.`
+          });
+          showError('Duplicate UTR rejected!', 'Duplicate UTR Blocked');
+          return;
+        }
+
+        if (workerSubmit.ok) {
+          // Best-effort Firestore mirror (never fails if Firestore is on 429 quota limit)
+          setDoc(doc(db, 'payment_claims', claimId), {
+            claimId,
+            utrNumber: cleanUtr,
+            pcId: safePcId,
+            pcName: cleanPcName,
+            operatorName: cleanOperator,
+            district: cleanDistrict,
+            state: stateInput,
+            amountInr: Math.max(1, Math.min(10000, Number(policy.monthlyPriceInr || 10))),
+            status: 'PENDING',
+            note: `Submitted via QR Checkout Portal (?pay=1) for ₹${policy.monthlyPriceInr}/${policy.durationDays}d`,
+            createdAt: serverTimestamp()
+          }).catch(() => {});
+
+          setSubmittedUtrTracking({ utr: cleanUtr, pcId: safePcId, approved: false });
+          setSubmitState({
+            type: 'success',
+            text: `UTR (${cleanUtr}) Admin క్యూకు చేరింది (Cloudflare)! ఈ పేజీ మరియు మీ డెస్క్‌టాప్ యాప్ ప్రతి 10–12 సెకన్లకు ఆటో-చెక్ చేస్తాయి.`
+          });
+          showSuccess(`UTR ${cleanUtr} submitted for verification!`, 'UTR Submitted');
+          setUtrInput('');
+          return;
+        }
+      }
+
       await setDoc(doc(db, 'payment_claims', claimId), {
         claimId,
         utrNumber: cleanUtr,

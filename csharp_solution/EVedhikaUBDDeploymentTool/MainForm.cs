@@ -1073,10 +1073,10 @@ namespace EVedhikaUBDDeploymentTool
                     if (_pnlLicenseLockBanner == null)
                     {
                         _pnlLicenseLockBanner = new Panel();
-                        _pnlLicenseLockBanner.Dock = DockStyle.Top;
-                        _pnlLicenseLockBanner.Height = 42;
+                        _pnlLicenseLockBanner.Dock = DockStyle.Bottom;
+                        _pnlLicenseLockBanner.Height = 40;
                         _pnlLicenseLockBanner.BackColor = Color.FromArgb(153, 27, 27); // Red-800 alert banner
-                        _pnlLicenseLockBanner.Padding = new Padding(12, 6, 12, 6);
+                        _pnlLicenseLockBanner.Padding = new Padding(12, 5, 12, 5);
 
                         _btnUnlockSubscription = new Button();
                         _btnUnlockSubscription.Text = $"Pay Rs.{lic.MonthlyPriceInr:0} / Unlock Now";
@@ -1105,6 +1105,13 @@ namespace EVedhikaUBDDeploymentTool
                         _pnlLicenseLockBanner.Controls.Add(_lblLicenseLockBanner);
                         _pnlLicenseLockBanner.Controls.Add(_btnUnlockSubscription);
                         this.Controls.Add(_pnlLicenseLockBanner);
+                        try
+                        {
+                            // Place just before tabControlMain so it docks neatly above statusStrip1 with ZERO overlap
+                            int tabIdx = this.Controls.GetChildIndex(this.tabControlMain);
+                            if (tabIdx >= 0) this.Controls.SetChildIndex(_pnlLicenseLockBanner, tabIdx + 1);
+                        }
+                        catch { }
                     }
                     _lblLicenseLockBanner.Text = $"[SUBSCRIPTION REQUIRED] {lic.SummaryText} — Click 'Pay / Unlock Now' to activate.";
                     if (_btnUnlockSubscription != null)
@@ -1112,7 +1119,6 @@ namespace EVedhikaUBDDeploymentTool
                         _btnUnlockSubscription.Text = $"Pay Rs.{lic.MonthlyPriceInr:0} / Unlock Now";
                     }
                     _pnlLicenseLockBanner.Visible = true;
-                    _pnlLicenseLockBanner.BringToFront();
                 }
                 else
                 {

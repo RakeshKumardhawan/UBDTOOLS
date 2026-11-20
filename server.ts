@@ -2391,7 +2391,8 @@ async function startServer() {
     resourceBuild: '2026.11.20.R15',
     manifestVersion: '2026.11.20.R15',
     adminDashboardUrl: 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/',
-    paymentMode: 'PAID_MONTHLY',
+    cloudflareWorkerUrl: '',
+    paymentMode: '',
     paymentPolicyUpdatedAt: '2026-11-20T19:55:00Z',
     monthlyPriceInr: 10,
     durationDays: 30,
@@ -2464,7 +2465,8 @@ async function startServer() {
           currentVersionConfig.releaseDate = '2026-11-20';
           currentVersionConfig.releaseNotes = 'v1.1.0 Resource Update (2026.11.20.R15):\n- Security Patch Update: Latest security hardening, stability improvements, and system protection updates applied\n- Fixes Setup CreateProcess failed code 740 elevation error (enforced admin UAC + shellexec launch)\n- Keeps SignatureDemoLib v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage fixes Read Token, MeeSeva Approvals, Bulk Signing & Anti-Tamper)\n- Keeps Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml';
           (currentVersionConfig as any).adminDashboardUrl = 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/';
-          (currentVersionConfig as any).paymentMode = (currentVersionConfig as any).paymentMode || 'PAID_MONTHLY';
+          (currentVersionConfig as any).cloudflareWorkerUrl = (currentVersionConfig as any).cloudflareWorkerUrl || '';
+          (currentVersionConfig as any).paymentMode = (currentVersionConfig as any).paymentMode || '';
           (currentVersionConfig as any).paymentPolicyUpdatedAt = (currentVersionConfig as any).paymentPolicyUpdatedAt || '2026-11-20T19:55:00Z';
           (currentVersionConfig as any).monthlyPriceInr = (currentVersionConfig as any).monthlyPriceInr ?? 10;
           (currentVersionConfig as any).durationDays = (currentVersionConfig as any).durationDays ?? 30;

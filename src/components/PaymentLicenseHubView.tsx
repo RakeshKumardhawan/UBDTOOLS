@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal, Copy, Search, Download, Link2 } from 'lucide-react';
+import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal, Copy, Search, Download, Link2, Cloud, ExternalLink, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useToast } from './Toast';
 import { PublicPaymentCheckout } from './PublicPaymentCheckout';
@@ -38,6 +38,19 @@ import {
   buildOperatorCheckoutUrl,
   buildPaymentsCsv
 } from '../utils/licensePolicy';
+import {
+  CLOUDFLARE_WORKER_DASHBOARD_URL,
+  checkCloudflareWorkerHealth,
+  discoverCloudflareWorkerUrl,
+  fetchWorkerAdminState,
+  isDashboardLinkNotWorkerUrl,
+  normalizeCloudflareWorkerUrl,
+  reviewWorkerClaim,
+  saveCloudflareWorkerUrl,
+  saveWorkerPcLicense,
+  saveWorkerPolicy
+} from '../utils/cloudflareWorkerClient';
+import { CLOUDFLARE_WORKER_SOURCE } from '../utils/cloudflareWorkerSource';
 
 interface PaymentLicenseHubViewProps {
   defaultSubTab?: 'qr-checkout' | 'admin-controls';
@@ -78,6 +91,13 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
   const [confirmBulkApprove, setConfirmBulkApprove] = useState<boolean>(false);
   const [bulkApproving, setBulkApproving] = useState<boolean>(false);
 
+  // Cloudflare Worker (`ubdtools`) Zero-Quota License Engine state
+  const [cfWorkerUrlInput, setCfWorkerUrlInput] = useState<string>('');
+  const [activeCfWorkerUrl, setActiveCfWorkerUrl] = useState<string>('');
+  const [cfWorkerStatus, setCfWorkerStatus] = useState<'idle' | 'testing' | 'connected' | 'kv-missing' | 'error'>('idle');
+  const [cfWorkerMessage, setCfWorkerMessage] = useState<string>('');
+  const [cfSyncing, setCfSyncing] = useState<boolean>(false);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setFirebaseUser(u);
@@ -105,6 +125,128 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     firebaseUser &&
     firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
   );
+
+  const syncFromCloudflareWorker = useCallback(
+    async (workerBaseUrl: string, showToastOnSuccess: boolean = false) => {
+      if (!workerBaseUrl || !firebaseUser) return false;
+      setCfSyncing(true);
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        const state = await fetchWorkerAdminState(workerBaseUrl, idToken);
+        setLicensePolicy(state.policy);
+        setPcLicensesMap((prev) => ({ ...prev, ...state.pcLicenses }));
+        setPaymentClaims((prev) => {
+          const map = new Map<string, PaymentClaimRecord>();
+          prev.forEach((c) => map.set(c.claimId, c));
+          state.claims.forEach((c) => map.set(c.claimId, c));
+          return Array.from(map.values()).sort(
+            (a, b) => Date.parse(b.createdAtIso || '0') - Date.parse(a.createdAtIso || '0')
+          );
+        });
+        setCfWorkerStatus('connected');
+        setCfWorkerMessage(`Cloudflare Worker Connected (Synced ${new Date().toLocaleTimeString()})`);
+        if (showToastOnSuccess) {
+          showSuccess('Cloudflare Worker (ubdtools) KV నుండి లైవ్ డేటా సింక్ అయింది!', 'Cloudflare Synced');
+        }
+        return true;
+      } catch (err: any) {
+        const msg = String(err?.message || 'Worker sync failed');
+        if (msg.includes('KV_NOT_BOUND')) {
+          setCfWorkerStatus('kv-missing');
+          setCfWorkerMessage('Worker Live, కానీ UBD_LICENSES KV Namespace ఇంకా Bind చేయలేదు.');
+        } else {
+          setCfWorkerStatus('error');
+          setCfWorkerMessage(msg);
+        }
+        return false;
+      } finally {
+        setCfSyncing(false);
+      }
+    },
+    [firebaseUser, showSuccess]
+  );
+
+  // Discover saved/manifest Cloudflare Worker URL on mount
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const discovered = await discoverCloudflareWorkerUrl();
+      if (!active || !discovered) return;
+      setCfWorkerUrlInput(discovered);
+      setActiveCfWorkerUrl(discovered);
+      const health = await checkCloudflareWorkerHealth(discovered);
+      if (!active) return;
+      if (health.ok && health.kvBound) {
+        setCfWorkerStatus('connected');
+        setCfWorkerMessage('Cloudflare Worker (ubdtools) + UBD_LICENSES KV Active (100,000 free reads/day)');
+      } else if (health.ok && !health.kvBound) {
+        setCfWorkerStatus('kv-missing');
+        setCfWorkerMessage('Worker Online — Settings -> Bindings లో "UBD_LICENSES" KV Namespace Bind చేయండి.');
+      } else {
+        setCfWorkerStatus('error');
+        setCfWorkerMessage(health.error || 'Worker connection failed');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load Admin state from Cloudflare Worker whenever verified Admin + Worker URL are ready
+  useEffect(() => {
+    if (isVerifiedAdmin && activeCfWorkerUrl) {
+      void syncFromCloudflareWorker(activeCfWorkerUrl, false);
+    }
+  }, [isVerifiedAdmin, activeCfWorkerUrl, syncFromCloudflareWorker]);
+
+  const handleTestAndSaveCloudflareWorker = async () => {
+    if (isDashboardLinkNotWorkerUrl(cfWorkerUrlInput)) {
+      setCfWorkerStatus('error');
+      setCfWorkerMessage('అది Cloudflare Dashboard లింక్! Worker deploy చేసిన తర్వాత వచ్చే https://ubdtools.<subdomain>.workers.dev URL ఇక్కడ పేస్ట్ చేయండి.');
+      showError('Dashboard లింక్ కాదు — మీ live https://ubdtools.<subdomain>.workers.dev URL ఇవ్వండి.', 'Use workers.dev URL');
+      return;
+    }
+    const normalized = normalizeCloudflareWorkerUrl(cfWorkerUrlInput);
+    if (!normalized) {
+      setCfWorkerStatus('error');
+      setCfWorkerMessage('సరైన Worker URL ఇవ్వండి (ఉదా: https://ubdtools.<your-subdomain>.workers.dev)');
+      showError('సరైన Cloudflare Worker URL ఎంటర్ చేయండి.', 'Invalid Worker URL');
+      return;
+    }
+    setCfWorkerStatus('testing');
+    setCfWorkerMessage('Cloudflare Worker health చెక్ చేస్తున్నాం...');
+    const health = await checkCloudflareWorkerHealth(normalized);
+    if (!health.ok) {
+      setCfWorkerStatus('error');
+      setCfWorkerMessage(health.error || 'Cloudflare Worker రెస్పాండ్ అవ్వలేదు.');
+      showError(health.error || 'Failed to connect to Worker', 'Worker Check Failed');
+      return;
+    }
+    saveCloudflareWorkerUrl(normalized);
+    setCfWorkerUrlInput(normalized);
+    setActiveCfWorkerUrl(normalized);
+    if (!health.kvBound) {
+      setCfWorkerStatus('kv-missing');
+      setCfWorkerMessage('Worker URL సేవ్ అయింది! కానీ UBD_LICENSES KV Bind చేయలేదు — Cloudflare Worker -> Settings -> Bindings లో Add చేయండి.');
+      showInfo('Worker కనెక్ట్ అయింది, కానీ UBD_LICENSES KV Bind చేయాలి.', 'Bind KV Namespace');
+      return;
+    }
+    setCfWorkerStatus('connected');
+    setCfWorkerMessage('Cloudflare Worker (ubdtools) + UBD_LICENSES KV Connected (Zero Firebase Quota Issues!)');
+    showSuccess('Cloudflare Worker కనెక్ట్ అయింది! ఇక Firebase 429 Quota సమస్య రాదు.', 'Cloudflare Worker Connected');
+    if (isVerifiedAdmin) {
+      await syncFromCloudflareWorker(normalized, false);
+    }
+  };
+
+  const handleCopyCloudflareWorkerCode = async () => {
+    try {
+      await navigator.clipboard.writeText(CLOUDFLARE_WORKER_SOURCE);
+      showSuccess('ubdtools Cloudflare Worker కోడ్ కాపీ అయింది! Cloudflare Dashboard లో పేస్ట్ చేసి Deploy నొక్కండి.', 'Worker Code Copied');
+    } catch {
+      showError('Clipboard copy failed. Please retry.', 'Copy Failed');
+    }
+  };
 
   // Public read listener for global licensing config
   useEffect(() => {
@@ -285,27 +427,39 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     }
     const cleanNote = String(licensePolicy.paymentNote || DEFAULT_LICENSE_POLICY.paymentNote).trim().slice(0, 400);
 
+    const nextPolicyPayload: LicensePolicyConfig = {
+      policyId: 'licensing',
+      mode: nextMode,
+      monthlyPriceInr: safePrice,
+      durationDays: safeDays,
+      upiId: cleanUpi,
+      paymentLinkUrl: cleanLink,
+      paymentNote: cleanNote || DEFAULT_LICENSE_POLICY.paymentNote
+    };
+
     setSavingPolicy(true);
     try {
-      await setDoc(doc(db, 'app_settings', 'licensing'), {
-        policyId: 'licensing',
-        mode: nextMode,
-        monthlyPriceInr: safePrice,
-        durationDays: safeDays,
-        upiId: cleanUpi,
-        paymentLinkUrl: cleanLink,
-        paymentNote: cleanNote || DEFAULT_LICENSE_POLICY.paymentNote,
-        updatedAt: serverTimestamp()
-      });
-      setLicensePolicy((prev) => ({
-        ...prev,
-        mode: nextMode,
-        monthlyPriceInr: safePrice,
-        durationDays: safeDays,
-        upiId: cleanUpi,
-        paymentLinkUrl: cleanLink,
-        paymentNote: cleanNote || DEFAULT_LICENSE_POLICY.paymentNote
-      }));
+      let savedViaWorker = false;
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        await saveWorkerPolicy(activeCfWorkerUrl, idToken, nextPolicyPayload);
+        savedViaWorker = true;
+      }
+
+      if (savedViaWorker) {
+        // Best-effort Firestore mirror (ignore 429 quota failures)
+        setDoc(doc(db, 'app_settings', 'licensing'), {
+          ...nextPolicyPayload,
+          updatedAt: serverTimestamp()
+        }).catch(() => {});
+      } else {
+        await setDoc(doc(db, 'app_settings', 'licensing'), {
+          ...nextPolicyPayload,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      setLicensePolicy(nextPolicyPayload);
       if (nextMode === 'PAID_MONTHLY' && !cleanUpi && !cleanLink) {
         showInfo(
           'PAID_MONTHLY ఆన్ అయింది! దయచేసి Alias UPI ID లేదా Payment Gateway Link కూడా సేవ్ చేయండి (అప్పుడే యూజర్లకు QR కోడ్ కనిపిస్తుంది).',
@@ -314,15 +468,17 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       } else {
         showSuccess(
           nextMode === 'FREE_FOR_ALL'
-            ? '🟢 FREE_FOR_ALL ఆన్ అయింది — అందరికీ పూర్తిగా ఉచితం!'
-            : `💳 PAID_MONTHLY (₹${safePrice} / ${safeDays} రోజులు) ఆన్ చేయబడింది!`,
+            ? `🟢 FREE_FOR_ALL ఆన్ అయింది${savedViaWorker ? ' (Cloudflare KV)' : ''} — అందరికీ పూర్తిగా ఉచితం!`
+            : `💳 PAID_MONTHLY (₹${safePrice} / ${safeDays} రోజులు) ఆన్ చేయబడింది${savedViaWorker ? ' (Cloudflare KV)' : ''}!`,
           'License Mode Saved'
         );
       }
     } catch (err: any) {
       setAuthNotice('Save License Policy Error: ' + (err?.message || 'Permission denied'));
       showError(err?.message || 'Failed to save license policy', 'Save Failed');
-      handleFirestoreError(err, OperationType.WRITE, 'app_settings/licensing');
+      if (!activeCfWorkerUrl) {
+        handleFirestoreError(err, OperationType.WRITE, 'app_settings/licensing');
+      }
     } finally {
       setSavingPolicy(false);
     }
@@ -343,23 +499,39 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     try {
       const existingRec = pcLicensesMap[rawId.toUpperCase()];
       const validUntilIso = computeRenewalExpiryIso(existingRec?.validUntilIso, grantDays);
-      await setDoc(doc(db, 'pc_licenses', rawId), {
+      const nextRec: PcLicenseRecord = {
         pcId: rawId,
         pcName: String(pc.pcName || rawId || 'GP-OFFICE-PC').trim().slice(0, 128),
         planType: 'PAID_30_DAYS',
         status: 'ACTIVE',
         amountInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr || 10))),
         validUntilIso,
-        paymentRef: `INR${licensePolicy.monthlyPriceInr || 10}-${grantDays}D-${new Date().toISOString().slice(0, 10)}`,
-        updatedAt: serverTimestamp()
-      });
+        paymentRef: `INR${licensePolicy.monthlyPriceInr || 10}-${grantDays}D-${new Date().toISOString().slice(0, 10)}`
+      };
+
+      let savedViaWorker = false;
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        await saveWorkerPcLicense(activeCfWorkerUrl, idToken, nextRec);
+        savedViaWorker = true;
+        setPcLicensesMap((prev) => ({ ...prev, [rawId.toUpperCase()]: nextRec }));
+      }
+
+      if (savedViaWorker) {
+        setDoc(doc(db, 'pc_licenses', rawId), { ...nextRec, updatedAt: serverTimestamp() }).catch(() => {});
+      } else {
+        await setDoc(doc(db, 'pc_licenses', rawId), { ...nextRec, updatedAt: serverTimestamp() });
+      }
+
       setBypassPcIdInput('');
       setBypassPcNameInput('');
-      showSuccess(`${pc.pcName || rawId} (${rawId}) కు +${grantDays} రోజుల లైసెన్స్ యాక్టివేట్ అయింది!`, 'License Activated');
+      showSuccess(`${pc.pcName || rawId} (${rawId}) కు +${grantDays} రోజుల లైసెన్స్ యాక్టివేట్ అయింది${savedViaWorker ? ' (Cloudflare KV)' : ''}!`, 'License Activated');
     } catch (err: any) {
       setAuthNotice('License Activate Error: ' + (err?.message || 'Permission denied'));
       showError(err?.message || 'Failed to activate PC license', 'Activation Failed');
-      handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+      if (!activeCfWorkerUrl) {
+        handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+      }
     } finally {
       setActivatingPcId(null);
     }
@@ -374,21 +546,36 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     if (!rawId) return;
     setActivatingPcId(rawId);
     try {
-      await setDoc(doc(db, 'pc_licenses', rawId), {
+      const nextRec: PcLicenseRecord = {
         pcId: rawId,
         pcName: String(pc.pcName || rawId || 'GP-OFFICE-PC').trim().slice(0, 128),
         planType: 'PAID_30_DAYS',
         status: 'REVOKED',
         amountInr: 0,
         validUntilIso: new Date(Date.now() - 60000).toISOString(),
-        paymentRef: 'REVOKED_BY_ADMIN',
-        updatedAt: serverTimestamp()
-      });
+        paymentRef: 'REVOKED_BY_ADMIN'
+      };
+
+      let savedViaWorker = false;
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        await saveWorkerPcLicense(activeCfWorkerUrl, idToken, nextRec);
+        savedViaWorker = true;
+        setPcLicensesMap((prev) => ({ ...prev, [rawId.toUpperCase()]: nextRec }));
+      }
+
+      if (savedViaWorker) {
+        setDoc(doc(db, 'pc_licenses', rawId), { ...nextRec, updatedAt: serverTimestamp() }).catch(() => {});
+      } else {
+        await setDoc(doc(db, 'pc_licenses', rawId), { ...nextRec, updatedAt: serverTimestamp() });
+      }
       showInfo(`${pc.pcName || rawId} (${rawId}) సబ్‌స్క్రిప్షన్ నిలిపివేయబడింది.`, 'License Revoked');
     } catch (err: any) {
       setAuthNotice('Revoke License Error: ' + (err?.message || 'Permission denied'));
       showError(err?.message || 'Failed to revoke license', 'Revoke Failed');
-      handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+      if (!activeCfWorkerUrl) {
+        handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+      }
     } finally {
       setActivatingPcId(null);
     }
@@ -407,32 +594,46 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     const safeName = String(pcNameRaw || rawId || 'GP-OFFICE-PC').trim().slice(0, 128);
     setActivatingPcId(rawId);
     try {
+      const nextRec: PcLicenseRecord = enableFree
+        ? {
+            pcId: rawId,
+            pcName: safeName,
+            planType: 'FREE_ACCESS',
+            status: 'ACTIVE',
+            amountInr: 0,
+            validUntilIso: '2099-12-31T23:59:59.000Z',
+            paymentRef: 'ADMIN_FREE_BYPASS'
+          }
+        : {
+            pcId: rawId,
+            pcName: safeName,
+            planType: 'PAID_30_DAYS',
+            status: 'EXPIRED',
+            amountInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr || 10))),
+            validUntilIso: new Date(Date.now() - 60000).toISOString(),
+            paymentRef: 'PAYMENT_REQUIRED_BY_ADMIN'
+          };
+
+      let savedViaWorker = false;
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        await saveWorkerPcLicense(activeCfWorkerUrl, idToken, nextRec);
+        savedViaWorker = true;
+        setPcLicensesMap((prev) => ({ ...prev, [rawId.toUpperCase()]: nextRec }));
+      }
+
+      if (savedViaWorker) {
+        setDoc(doc(db, 'pc_licenses', rawId), { ...nextRec, updatedAt: serverTimestamp() }).catch(() => {});
+      } else {
+        await setDoc(doc(db, 'pc_licenses', rawId), { ...nextRec, updatedAt: serverTimestamp() });
+      }
+
       if (enableFree) {
-        await setDoc(doc(db, 'pc_licenses', rawId), {
-          pcId: rawId,
-          pcName: safeName,
-          planType: 'FREE_ACCESS',
-          status: 'ACTIVE',
-          amountInr: 0,
-          validUntilIso: '2099-12-31T23:59:59.000Z',
-          paymentRef: 'ADMIN_FREE_BYPASS',
-          updatedAt: serverTimestamp()
-        });
         showSuccess(
-          `🔓 ${safeName} (${rawId}) కు Payment Mode OFF చేయబడింది!`,
+          `🔓 ${safeName} (${rawId}) కు Payment Mode OFF చేయబడింది${savedViaWorker ? ' (Cloudflare KV)' : ''}!`,
           'PC Payment Mode OFF'
         );
       } else {
-        await setDoc(doc(db, 'pc_licenses', rawId), {
-          pcId: rawId,
-          pcName: safeName,
-          planType: 'PAID_30_DAYS',
-          status: 'EXPIRED',
-          amountInr: Math.max(0, Math.min(10000, Number(licensePolicy.monthlyPriceInr || 10))),
-          validUntilIso: new Date(Date.now() - 60000).toISOString(),
-          paymentRef: 'PAYMENT_REQUIRED_BY_ADMIN',
-          updatedAt: serverTimestamp()
-        });
         showInfo(
           `💳 ${safeName} (${rawId}) కు మళ్ళీ సాధారణ Payment Mode (₹${licensePolicy.monthlyPriceInr}/Month) ఆన్ చేయబడింది.`,
           'PC Payment Mode ON'
@@ -443,7 +644,9 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     } catch (err: any) {
       setAuthNotice('Per-PC Override Error: ' + (err?.message || 'Permission denied'));
       showError(err?.message || 'Failed to update PC override', 'Update Failed');
-      handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+      if (!activeCfWorkerUrl) {
+        handleFirestoreError(err, OperationType.WRITE, `pc_licenses/${rawId}`);
+      }
     } finally {
       setActivatingPcId(null);
     }
@@ -460,35 +663,72 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     try {
       const existingRec = pcLicensesMap[cleanPcId.toUpperCase()];
       const validUntilIso = computeRenewalExpiryIso(existingRec?.validUntilIso, licensePolicy.durationDays || 30);
+      const approvedNote = `Verified UTR ${claim.utrNumber} by Admin on ${new Date().toLocaleDateString()}`.slice(0, 300);
 
-      await setDoc(
-        doc(db, 'payment_claims', claim.claimId),
-        {
-          status: 'APPROVED',
-          note: `Verified UTR ${claim.utrNumber} by Admin on ${new Date().toLocaleDateString()}`.slice(0, 300)
-        },
-        { merge: true }
-      );
+      let savedViaWorker = false;
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        const reviewed = await reviewWorkerClaim(activeCfWorkerUrl, idToken, {
+          claimId: claim.claimId,
+          decision: 'APPROVED',
+          utrNumber: claim.utrNumber,
+          pcId: cleanPcId,
+          pcName: String(claim.pcName || 'GP-OFFICE-PC').trim().slice(0, 128),
+          operatorName: claim.operatorName,
+          district: claim.district,
+          state: claim.state,
+          amountInr: Math.max(0, Math.min(10000, Number(claim.amountInr || licensePolicy.monthlyPriceInr || 10))),
+          durationDays: licensePolicy.durationDays || 30,
+          validUntilIso,
+          note: approvedNote
+        });
+        savedViaWorker = true;
+        setPaymentClaims((prev) => prev.map((c) => (c.claimId === claim.claimId ? reviewed.claim : c)));
+        if (reviewed.pcLicense) {
+          setPcLicensesMap((prev) => ({ ...prev, [cleanPcId.toUpperCase()]: reviewed.pcLicense! }));
+        }
+      }
 
-      await setDoc(doc(db, 'pc_licenses', cleanPcId), {
-        pcId: cleanPcId,
-        pcName: String(claim.pcName || 'GP-OFFICE-PC').trim().slice(0, 128),
-        planType: 'PAID_30_DAYS',
-        status: 'ACTIVE',
-        amountInr: Math.max(0, Math.min(10000, Number(claim.amountInr || licensePolicy.monthlyPriceInr || 10))),
-        validUntilIso,
-        paymentRef: `UTR-${claim.utrNumber}`.slice(0, 128),
-        updatedAt: serverTimestamp()
-      });
+      if (savedViaWorker) {
+        setDoc(doc(db, 'payment_claims', claim.claimId), { status: 'APPROVED', note: approvedNote }, { merge: true }).catch(() => {});
+        setDoc(doc(db, 'pc_licenses', cleanPcId), {
+          pcId: cleanPcId,
+          pcName: String(claim.pcName || 'GP-OFFICE-PC').trim().slice(0, 128),
+          planType: 'PAID_30_DAYS',
+          status: 'ACTIVE',
+          amountInr: Math.max(0, Math.min(10000, Number(claim.amountInr || licensePolicy.monthlyPriceInr || 10))),
+          validUntilIso,
+          paymentRef: `UTR-${claim.utrNumber}`.slice(0, 128),
+          updatedAt: serverTimestamp()
+        }).catch(() => {});
+      } else {
+        await setDoc(
+          doc(db, 'payment_claims', claim.claimId),
+          { status: 'APPROVED', note: approvedNote },
+          { merge: true }
+        );
+        await setDoc(doc(db, 'pc_licenses', cleanPcId), {
+          pcId: cleanPcId,
+          pcName: String(claim.pcName || 'GP-OFFICE-PC').trim().slice(0, 128),
+          planType: 'PAID_30_DAYS',
+          status: 'ACTIVE',
+          amountInr: Math.max(0, Math.min(10000, Number(claim.amountInr || licensePolicy.monthlyPriceInr || 10))),
+          validUntilIso,
+          paymentRef: `UTR-${claim.utrNumber}`.slice(0, 128),
+          updatedAt: serverTimestamp()
+        });
+      }
 
       showSuccess(
-        `UTR ${claim.utrNumber} వెరిఫై అయింది! ${claim.pcName} కు +${licensePolicy.durationDays || 30} రోజులు యాక్టివేట్ చేయబడింది.`,
+        `UTR ${claim.utrNumber} వెరిఫై అయింది! ${claim.pcName} కు +${licensePolicy.durationDays || 30} రోజులు యాక్టివేట్ చేయబడింది${savedViaWorker ? ' (Cloudflare KV)' : ''}.`,
         'Payment Claim Approved'
       );
     } catch (err: any) {
       setAuthNotice('Approve UTR Error: ' + (err?.message || 'Permission denied'));
       showError(err?.message || 'Failed to approve UTR claim', 'Approve Failed');
-      handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
+      if (!activeCfWorkerUrl) {
+        handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
+      }
     } finally {
       setReviewingClaimId(null);
     }
@@ -498,19 +738,38 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     if (!isVerifiedAdmin || !claim.claimId) return;
     setReviewingClaimId(claim.claimId);
     try {
-      await setDoc(
-        doc(db, 'payment_claims', claim.claimId),
-        {
-          status: 'REJECTED',
-          note: `Rejected (Duplicate / Unmatched UTR ${claim.utrNumber}) on ${new Date().toLocaleDateString()}`.slice(0, 300)
-        },
-        { merge: true }
-      );
+      const rejectedNote = `Rejected (Duplicate / Unmatched UTR ${claim.utrNumber}) on ${new Date().toLocaleDateString()}`.slice(0, 300);
+      let savedViaWorker = false;
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        const reviewed = await reviewWorkerClaim(activeCfWorkerUrl, idToken, {
+          claimId: claim.claimId,
+          decision: 'REJECTED',
+          utrNumber: claim.utrNumber,
+          pcId: claim.pcId,
+          pcName: claim.pcName,
+          note: rejectedNote
+        });
+        savedViaWorker = true;
+        setPaymentClaims((prev) => prev.map((c) => (c.claimId === claim.claimId ? reviewed.claim : c)));
+      }
+
+      if (savedViaWorker) {
+        setDoc(doc(db, 'payment_claims', claim.claimId), { status: 'REJECTED', note: rejectedNote }, { merge: true }).catch(() => {});
+      } else {
+        await setDoc(
+          doc(db, 'payment_claims', claim.claimId),
+          { status: 'REJECTED', note: rejectedNote },
+          { merge: true }
+        );
+      }
       showInfo(`UTR ${claim.utrNumber} తిరస్కరించబడింది.`, 'UTR Claim Rejected');
     } catch (err: any) {
       setAuthNotice('Reject UTR Error: ' + (err?.message || 'Permission denied'));
       showError(err?.message || 'Failed to reject UTR claim', 'Reject Failed');
-      handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
+      if (!activeCfWorkerUrl) {
+        handleFirestoreError(err, OperationType.WRITE, `payment_claims/${claim.claimId}`);
+      }
     } finally {
       setReviewingClaimId(null);
     }
@@ -744,6 +1003,129 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
               </button>
             </div>
           )}
+
+          {/* Cloudflare Worker (ubdtools) Zero-Quota License Engine */}
+          <div className="bg-slate-900 border border-orange-500/35 rounded-3xl p-5 space-y-3.5 shadow-xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-black text-white uppercase tracking-wide inline-flex items-center gap-2">
+                    <Cloud className="w-5 h-5 text-orange-400 shrink-0" />
+                    <span>Cloudflare Worker (ubdtools) — Zero-Quota License Backend</span>
+                  </h2>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      cfWorkerStatus === 'connected'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : cfWorkerStatus === 'kv-missing'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : cfWorkerStatus === 'error'
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    {cfWorkerStatus === 'connected'
+                      ? 'CLOUDFLARE KV ACTIVE (100K FREE/DAY)'
+                      : cfWorkerStatus === 'kv-missing'
+                        ? 'BIND UBD_LICENSES KV'
+                        : cfWorkerStatus === 'error'
+                          ? 'CHECK WORKER URL'
+                          : 'READY TO CONNECT'}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-[11px] font-sans mt-1">
+                  Firebase 429 Quota లిమిట్ రాకుండా మీ <strong className="text-orange-300">ubdtools</strong> Cloudflare Worker + <strong className="text-cyan-300">UBD_LICENSES</strong> KV ద్వారా రోజుకు 1,00,000 ఉచిత లైసెన్స్ చెక్స్ రన్ అవుతాయి.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCopyCloudflareWorkerCode}
+                  className="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy ubdtools Worker Code</span>
+                </button>
+                <a
+                  href={CLOUDFLARE_WORKER_DASHBOARD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-orange-300 border border-slate-700 text-[11px] font-bold flex items-center gap-1.5 transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Cloudflare ubdtools</span>
+                </a>
+                {activeCfWorkerUrl && isVerifiedAdmin && (
+                  <button
+                    type="button"
+                    disabled={cfSyncing}
+                    onClick={() => syncFromCloudflareWorker(activeCfWorkerUrl, true)}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-cyan-700 text-cyan-300 hover:text-white border border-slate-700 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${cfSyncing ? 'animate-spin' : ''}`} />
+                    <span>{cfSyncing ? 'Syncing...' : 'Sync KV'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+              <label htmlFor="cf-worker-url-input" className="sr-only">
+                Cloudflare Worker Live URL
+              </label>
+              <input
+                id="cf-worker-url-input"
+                type="text"
+                value={cfWorkerUrlInput}
+                onChange={(e) => setCfWorkerUrlInput(e.target.value)}
+                placeholder="https://ubdtools.<your-subdomain>.workers.dev"
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-orange-200 font-mono placeholder-slate-500 focus:outline-none focus:border-orange-400"
+              />
+              <button
+                type="button"
+                disabled={cfWorkerStatus === 'testing'}
+                onClick={handleTestAndSaveCloudflareWorker}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition disabled:opacity-50 shrink-0"
+              >
+                {cfWorkerStatus === 'testing' ? 'Testing...' : 'Test & Connect Worker'}
+              </button>
+              {activeCfWorkerUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveCloudflareWorkerUrl('');
+                    setActiveCfWorkerUrl('');
+                    setCfWorkerUrlInput('');
+                    setCfWorkerStatus('idle');
+                    setCfWorkerMessage('');
+                    showInfo('Cloudflare Worker URL తొలగించబడింది (Firestore Fallback Active).', 'Worker Cleared');
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer shrink-0"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {cfWorkerMessage && (
+              <div
+                className={`rounded-xl px-3 py-2 text-xs font-sans flex items-center gap-2 border ${
+                  cfWorkerStatus === 'connected'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                    : cfWorkerStatus === 'kv-missing'
+                      ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
+                      : 'bg-rose-500/10 border-rose-500/40 text-rose-200'
+                }`}
+              >
+                {cfWorkerStatus === 'connected' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                )}
+                <span>{cfWorkerMessage}</span>
+              </div>
+            )}
+          </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">

@@ -23,6 +23,7 @@ namespace EVedhikaUBDDeploymentTool.Engine
         public string PaymentLinkUrl = "";
         public string PaymentNote = "Currently Free for all Operators (Future Plan: Rs.10/Month).";
         public bool IsAllowed = true;
+        public bool IsQuotaExceeded = false;
         public string SummaryText = "Free Early Access Active (Future Rs.10/Mo Plan)";
         public string ValidUntilIso = "";
     }
@@ -36,6 +37,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
         private static LicenseStatusResult _memCachedResult = null;
         private static DateTime _memCachedUtc = DateTime.MinValue;
         private const int MemoryCacheTtlSeconds = 45;
+        private static string _cachedWorkerBaseUrl = null;
+        private static DateTime _cachedWorkerCheckUtc = DateTime.MinValue;
+        private const int WorkerUrlDiscoveryTtlHours = 6;
 
         public static void InvalidateMemoryCache()
         {
@@ -198,6 +202,143 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
         }
 
+        private static string GetWorkerUrlCachePath()
+        {
+            try
+            {
+                string cachePath = GetLicenseCachePath();
+                if (!string.IsNullOrEmpty(cachePath))
+                {
+                    string dir = Path.GetDirectoryName(cachePath);
+                    if (!string.IsNullOrEmpty(dir)) return Path.Combine(dir, "worker_url.txt");
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        private static string NormalizeWorkerBaseUrl(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+            string trimmed = raw.Trim().TrimEnd('/');
+            if (trimmed.IndexOf("dash.cloudflare.com", StringComparison.OrdinalIgnoreCase) >= 0) return "";
+            if (!trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+                !trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "";
+            }
+            return trimmed;
+        }
+
+        private static string GetConfiguredCloudflareWorkerUrl(bool forceRefresh)
+        {
+            try
+            {
+                if (!forceRefresh &&
+                    _cachedWorkerBaseUrl != null &&
+                    (DateTime.UtcNow - _cachedWorkerCheckUtc).TotalHours < WorkerUrlDiscoveryTtlHours)
+                {
+                    return _cachedWorkerBaseUrl;
+                }
+
+                string localPath = GetWorkerUrlCachePath();
+                if (!forceRefresh && !string.IsNullOrEmpty(localPath) && File.Exists(localPath))
+                {
+                    string fileVal = NormalizeWorkerBaseUrl(File.ReadAllText(localPath, Encoding.UTF8));
+                    DateTime lastWriteUtc = File.GetLastWriteTimeUtc(localPath);
+                    if (!string.IsNullOrEmpty(fileVal) && (DateTime.UtcNow - lastWriteUtc).TotalHours < WorkerUrlDiscoveryTtlHours)
+                    {
+                        _cachedWorkerBaseUrl = fileVal;
+                        _cachedWorkerCheckUtc = DateTime.UtcNow;
+                        return _cachedWorkerBaseUrl;
+                    }
+                }
+
+                string manifestJson = DownloadJsonSafe(FallbackVersionManifestUrl + "?t=" + DateTime.UtcNow.Ticks);
+                string discovered = NormalizeWorkerBaseUrl(ExtractFlatString(manifestJson, "cloudflareWorkerUrl"));
+                if (!string.IsNullOrEmpty(discovered))
+                {
+                    _cachedWorkerBaseUrl = discovered;
+                    _cachedWorkerCheckUtc = DateTime.UtcNow;
+                    if (!string.IsNullOrEmpty(localPath))
+                    {
+                        try { File.WriteAllText(localPath, discovered, Encoding.UTF8); } catch { }
+                    }
+                    return discovered;
+                }
+
+                if (!string.IsNullOrEmpty(localPath) && File.Exists(localPath))
+                {
+                    string existingVal = NormalizeWorkerBaseUrl(File.ReadAllText(localPath, Encoding.UTF8));
+                    if (!string.IsNullOrEmpty(existingVal))
+                    {
+                        _cachedWorkerBaseUrl = existingVal;
+                        _cachedWorkerCheckUtc = DateTime.UtcNow;
+                        return existingVal;
+                    }
+                }
+            }
+            catch { }
+
+            _cachedWorkerBaseUrl = "";
+            _cachedWorkerCheckUtc = DateTime.UtcNow;
+            return "";
+        }
+
+        private static bool TryCheckLicenseViaCloudflareWorker(string workerBaseUrl, string pcId, out LicenseStatusResult workerRes)
+        {
+            workerRes = null;
+            if (string.IsNullOrEmpty(workerBaseUrl)) return false;
+            try
+            {
+                string url = workerBaseUrl + "/api/license/check?pcId=" + Uri.EscapeDataString(pcId) + "&t=" + DateTime.UtcNow.Ticks;
+                bool notFound;
+                bool quotaExceeded;
+                string json = DownloadJsonWithStatus(url, out notFound, out quotaExceeded);
+                if (string.IsNullOrWhiteSpace(json) || json.IndexOf("\"ok\":true", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    return false;
+                }
+
+                LicenseStatusResult res = new LicenseStatusResult();
+                string mode = ExtractFlatString(json, "mode");
+                string statusCode = ExtractFlatString(json, "statusCode");
+                string upiId = ExtractFlatString(json, "upiId");
+                string payLink = ExtractFlatString(json, "paymentLinkUrl");
+                string payNote = ExtractFlatString(json, "paymentNote");
+                string validUntilIso = ExtractFlatString(json, "validUntilIso");
+                string planType = ExtractFlatString(json, "planType");
+                string pcStatus = ExtractFlatString(json, "pcStatus");
+                string summary = ExtractFlatString(json, "summaryText");
+
+                res.Mode = string.IsNullOrEmpty(mode) ? "FREE_FOR_ALL" : mode;
+                res.StatusCode = string.IsNullOrEmpty(statusCode) ? res.Mode : statusCode;
+                res.IsAllowed = ExtractFlatBool(json, "isAllowed", string.Equals(res.Mode, "FREE_FOR_ALL", StringComparison.OrdinalIgnoreCase));
+                res.DaysRemaining = (int)ExtractFlatNumber(json, "daysRemaining", res.IsAllowed ? 999 : 0);
+                res.MonthlyPriceInr = ExtractFlatNumber(json, "monthlyPriceInr", 10);
+                res.DurationDays = Math.Max(1, (int)ExtractFlatNumber(json, "durationDays", 30));
+                res.UpiId = upiId;
+                res.PaymentLinkUrl = payLink;
+                if (!string.IsNullOrEmpty(payNote)) res.PaymentNote = payNote;
+                res.ValidUntilIso = validUntilIso;
+                if (!string.IsNullOrEmpty(summary)) res.SummaryText = summary;
+                res.IsQuotaExceeded = false;
+
+                SaveLicenseCache(
+                    pcId,
+                    res,
+                    string.IsNullOrEmpty(planType) ? (res.IsAllowed ? "FREE_ACCESS" : "PAID_30_DAYS") : planType,
+                    string.IsNullOrEmpty(pcStatus) ? (res.IsAllowed ? "ACTIVE" : "EXPIRED") : pcStatus);
+
+                workerRes = res;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static bool TryReadFallbackVersionPolicy(out string mode, out DateTime policyUpdatedUtc, out double price, out int days, out string upiId, out string payLink)
         {
             mode = "";
@@ -296,15 +437,36 @@ namespace EVedhikaUBDDeploymentTool.Engine
             try
             {
                 OSCompatibilityEngine.ConfigureResilientTls();
-                string policyUrl = $"https://firestore.googleapis.com/v1/{Logger.FirestoreDocBase}/app_settings/licensing{FirestoreApiKeyParam}";
-                string policyJson = DownloadJsonSafe(policyUrl);
 
-                if (string.IsNullOrEmpty(policyJson) || policyJson.IndexOf("\"error\"", StringComparison.OrdinalIgnoreCase) >= 0)
+                // 0. Zero-Quota Primary Engine: Cloudflare Worker (`ubdtools`) if configured in version.json / local cache
+                string workerBaseUrl = GetConfiguredCloudflareWorkerUrl(forceRefresh);
+                if (!string.IsNullOrEmpty(workerBaseUrl))
                 {
+                    LicenseStatusResult workerRes;
+                    if (TryCheckLicenseViaCloudflareWorker(workerBaseUrl, pcId, out workerRes) && workerRes != null)
+                    {
+                        return StoreMemoryCache(workerRes);
+                    }
+                }
+
+                string policyUrl = $"https://firestore.googleapis.com/v1/{Logger.FirestoreDocBase}/app_settings/licensing{FirestoreApiKeyParam}";
+                bool policyNotFound;
+                bool policyQuotaExceeded;
+                string policyJson = DownloadJsonWithStatus(policyUrl, out policyNotFound, out policyQuotaExceeded);
+
+                if (policyQuotaExceeded || string.IsNullOrEmpty(policyJson) || policyJson.IndexOf("\"error\"", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (!policyQuotaExceeded && !string.IsNullOrEmpty(policyJson) &&
+                        (policyJson.IndexOf("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         policyJson.IndexOf("Quota exceeded", StringComparison.OrdinalIgnoreCase) >= 0))
+                    {
+                        policyQuotaExceeded = true;
+                    }
+
                     DateTime cachedUtc;
                     LicenseStatusResult cached = TryReadOfflineCache(pcId, out cachedUtc);
 
-                    // Zero-quota fallback mirror from GitHub public/version.json (works even if Firestore returns 429 Quota Exceeded!)
+                    // Zero-quota fallback mirror from GitHub public/version.json (only if explicitly configured)
                     string fbMode;
                     DateTime fbUpdatedUtc;
                     double fbPrice;
@@ -317,24 +479,33 @@ namespace EVedhikaUBDDeploymentTool.Engine
                         string.Equals(fbMode, "PAID_MONTHLY", StringComparison.OrdinalIgnoreCase) &&
                         (cached == null || fbUpdatedUtc > cachedUtc || !string.Equals(cached.Mode, "FREE_FOR_ALL", StringComparison.OrdinalIgnoreCase)))
                     {
-                        return StoreMemoryCache(BuildPaidFallbackDecision(pcId, cached, fbPrice, fbDays, fbUpi, fbPayLink));
+                        var fbRes = BuildPaidFallbackDecision(pcId, cached, fbPrice, fbDays, fbUpi, fbPayLink);
+                        fbRes.IsQuotaExceeded = policyQuotaExceeded;
+                        if (policyQuotaExceeded && !fbRes.IsAllowed)
+                        {
+                            fbRes.SummaryText = "Firebase Cloud Quota Exceeded (HTTP 429) - Admin approval cannot sync until Firebase daily quota resets or is upgraded.";
+                        }
+                        return StoreMemoryCache(fbRes);
                     }
 
                     if (cached != null)
                     {
+                        cached.IsQuotaExceeded = policyQuotaExceeded;
+                        if (policyQuotaExceeded && !cached.IsAllowed)
+                        {
+                            cached.SummaryText = "Firebase Cloud Quota Exceeded (HTTP 429) - Admin approval cannot sync until Firebase daily quota resets or is upgraded.";
+                        }
                         return StoreMemoryCache(cached);
                     }
 
-                    if (hasFallbackManifest && string.Equals(fbMode, "PAID_MONTHLY", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return StoreMemoryCache(BuildPaidFallbackDecision(pcId, null, fbPrice, fbDays, fbUpi, fbPayLink));
-                    }
-
                     res.Mode = "FREE_FOR_ALL";
-                    res.StatusCode = "OFFLINE_GRACE";
+                    res.StatusCode = policyQuotaExceeded ? "QUOTA_EXCEEDED_GRACE" : "OFFLINE_GRACE";
                     res.IsAllowed = true;
+                    res.IsQuotaExceeded = policyQuotaExceeded;
                     res.DaysRemaining = 999;
-                    res.SummaryText = "Free Early Access Active (Offline Mode)";
+                    res.SummaryText = policyQuotaExceeded
+                        ? "Cloud Quota Limit Reached (HTTP 429) - Temporary Grace Access Active"
+                        : "Free Early Access Active (Offline Mode)";
                     return StoreMemoryCache(res);
                 }
 
@@ -369,14 +540,21 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 // PAID_MONTHLY is enabled by Admin -> validate pc_licenses/{pcId}
                 string pcUrl = $"https://firestore.googleapis.com/v1/{Logger.FirestoreDocBase}/pc_licenses/{Uri.EscapeDataString(pcId)}{FirestoreApiKeyParam}";
                 bool pcDocNotFound;
-                string pcJson = DownloadJsonWithStatus(pcUrl, out pcDocNotFound);
+                bool pcQuotaExceeded;
+                string pcJson = DownloadJsonWithStatus(pcUrl, out pcDocNotFound, out pcQuotaExceeded);
 
                 // Network glitch or 429 while checking pc_licenses (not a 404): honor ONLY valid active paid/bypass cache; NEVER fall back to FREE!
-                if ((string.IsNullOrEmpty(pcJson) || pcJson.IndexOf("\"error\"", StringComparison.OrdinalIgnoreCase) >= 0) && !pcDocNotFound)
+                if ((pcQuotaExceeded || string.IsNullOrEmpty(pcJson) || pcJson.IndexOf("\"error\"", StringComparison.OrdinalIgnoreCase) >= 0) && !pcDocNotFound)
                 {
                     DateTime cachedUtc;
                     LicenseStatusResult cached = TryReadOfflineCache(pcId, out cachedUtc);
-                    return StoreMemoryCache(BuildPaidFallbackDecision(pcId, cached, res.MonthlyPriceInr, res.DurationDays, res.UpiId, res.PaymentLinkUrl));
+                    var pcFallback = BuildPaidFallbackDecision(pcId, cached, res.MonthlyPriceInr, res.DurationDays, res.UpiId, res.PaymentLinkUrl);
+                    pcFallback.IsQuotaExceeded = pcQuotaExceeded;
+                    if (pcQuotaExceeded && !pcFallback.IsAllowed)
+                    {
+                        pcFallback.SummaryText = "Firebase Cloud Quota Exceeded (HTTP 429) - Admin approval cannot sync until Firebase daily quota resets or is upgraded.";
+                    }
+                    return StoreMemoryCache(pcFallback);
                 }
 
                 if (pcDocNotFound || string.IsNullOrEmpty(pcJson) || pcJson.IndexOf("\"fields\"", StringComparison.OrdinalIgnoreCase) < 0)
@@ -499,6 +677,70 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 ? Math.Min(10000, Math.Max(1, Math.Round(status.MonthlyPriceInr)))
                 : 10;
             int durationDays = status != null && status.DurationDays >= 1 ? status.DurationDays : 30;
+
+            // 0. Zero-Quota Primary Engine: Submit UTR directly to Cloudflare Worker (`ubdtools`) if configured
+            string workerBaseUrl = GetConfiguredCloudflareWorkerUrl(false);
+            if (!string.IsNullOrEmpty(workerBaseUrl))
+            {
+                string workerPayload =
+                    "{" +
+                    $"\"utrNumber\":\"{EscapeJson(cleanUtr)}\"," +
+                    $"\"pcId\":\"{EscapeJson(pcId)}\"," +
+                    $"\"pcName\":\"{EscapeJson(Truncate(pcName, 128))}\"," +
+                    $"\"operatorName\":\"{EscapeJson(Truncate(opName, 128))}\"," +
+                    $"\"district\":\"{EscapeJson(Truncate(district, 100))}\"," +
+                    $"\"state\":\"{EscapeJson(Truncate(state, 64))}\"," +
+                    $"\"amountInr\":{Math.Round(amount)}," +
+                    $"\"note\":\"Submitted from desktop v1.1.0 for Rs.{Math.Round(amount)} / {durationDays}d verification\"" +
+                    "}";
+                try
+                {
+                    OSCompatibilityEngine.ConfigureResilientTls();
+                    using (TimeoutWebClient wcWorker = new TimeoutWebClient(10000))
+                    {
+                        wcWorker.Encoding = Encoding.UTF8;
+                        wcWorker.Headers[HttpRequestHeader.ContentType] = "application/json";
+                        wcWorker.Headers[HttpRequestHeader.UserAgent] = "EVedhikaUBDTool/1.1.0";
+                        wcWorker.UploadString(workerBaseUrl + "/api/license/claim", "POST", workerPayload);
+                    }
+                    resultMessage =
+                        $"[OK] Payment UTR ({cleanUtr}) submitted to Admin verification queue (Cloudflare)!\n\n" +
+                        $"This window is now auto-checking every 10 seconds.\n" +
+                        $"As soon as Admin approves Rs.{Math.Round(amount)} in PhonePe/GPay, your app will unlock automatically!";
+                    return true;
+                }
+                catch (WebException wexWorker)
+                {
+                    string errBodyWorker = "";
+                    int statusCodeWorker = 0;
+                    try
+                    {
+                        HttpWebResponse respW = wexWorker.Response as HttpWebResponse;
+                        if (respW != null) statusCodeWorker = (int)respW.StatusCode;
+                        if (wexWorker.Response != null)
+                        {
+                            using (var srW = new StreamReader(wexWorker.Response.GetResponseStream(), Encoding.UTF8))
+                            {
+                                errBodyWorker = srW.ReadToEnd();
+                            }
+                        }
+                    }
+                    catch { }
+
+                    if (statusCodeWorker == 409 ||
+                        errBodyWorker.IndexOf("ALREADY_EXISTS", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        resultMessage =
+                            $"[BLOCKED] Duplicate / Already Used UTR!\n\n" +
+                            $"This UTR number ({cleanUtr}) was already used in an existing or previous claim.\n" +
+                            $"Reusing the same UTR across submissions or other PCs is not allowed.\n" +
+                            $"Please enter a fresh 12-digit UTR for your Rs.{Math.Round(amount)} payment.";
+                        return false;
+                    }
+                    // Otherwise fall through to Firestore backup below
+                }
+                catch { }
+            }
 
             string payload =
                 "{\"writes\":[{\"update\":{" +
@@ -968,10 +1210,18 @@ namespace EVedhikaUBDDeploymentTool.Engine
                                 else
                                 {
                                     string sum = fresh != null ? fresh.SummaryText : status.SummaryText;
-                                    lblLiveStatus.Text = $"Live Auto-Check ({DateTime.Now:HH:mm:ss}): Waiting for Admin approval (checks every 10s)";
+                                    bool quotaHit = fresh != null && fresh.IsQuotaExceeded;
+                                    lblLiveStatus.ForeColor = quotaHit ? Color.FromArgb(251, 191, 36) : Color.FromArgb(56, 189, 248);
+                                    lblLiveStatus.Text = quotaHit
+                                        ? $"[HTTP 429 QUOTA LIMIT] Firebase daily free quota reached - retrying automatically..."
+                                        : $"Live Auto-Check ({DateTime.Now:HH:mm:ss}): Waiting for Admin approval (checks every 10s)";
                                     if (manualClick)
                                     {
-                                        MessageBox.Show(dlg, $"Still waiting for Admin activation.\n{sum}", "Not Active Yet", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                        string title = quotaHit ? "Firebase Cloud Quota Exceeded (HTTP 429)" : "Not Active Yet";
+                                        string body = quotaHit
+                                            ? "Firebase Cloud database daily free quota is currently exhausted (HTTP 429).\n\nEven if Admin already clicked Approve or Free PC, this PC cannot read the update until Firebase quota resets tomorrow or Admin upgrades the Firebase plan."
+                                            : $"Still waiting for Admin activation.\n{sum}";
+                                        MessageBox.Show(dlg, body, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                     }
                                 }
                             });
@@ -1093,12 +1343,14 @@ namespace EVedhikaUBDDeploymentTool.Engine
         private static string DownloadJsonSafe(string url)
         {
             bool notFound;
-            return DownloadJsonWithStatus(url, out notFound);
+            bool quotaExceeded;
+            return DownloadJsonWithStatus(url, out notFound, out quotaExceeded);
         }
 
-        private static string DownloadJsonWithStatus(string url, out bool notFound)
+        private static string DownloadJsonWithStatus(string url, out bool notFound, out bool isQuotaExceeded)
         {
             notFound = false;
+            isQuotaExceeded = false;
             try
             {
                 using (TimeoutWebClient wc = new TimeoutWebClient(8000))
@@ -1113,9 +1365,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 try
                 {
                     HttpWebResponse resp = wex.Response as HttpWebResponse;
-                    if (resp != null && resp.StatusCode == HttpStatusCode.NotFound)
+                    if (resp != null)
                     {
-                        notFound = true;
+                        int code = (int)resp.StatusCode;
+                        if (resp.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            notFound = true;
+                        }
+                        else if (code == 429)
+                        {
+                            isQuotaExceeded = true;
+                        }
                     }
                 }
                 catch { }
@@ -1136,6 +1396,17 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 RegexOptions.Singleline);
             if (!m.Success) return "";
             return m.Groups[1].Value.Replace("\\\"", "\"").Replace("\\\\", "\\");
+        }
+
+        private static bool ExtractFlatBool(string json, string fieldName, bool fallbackVal)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(fieldName)) return fallbackVal;
+            Match m = Regex.Match(
+                json,
+                "\"" + Regex.Escape(fieldName) + "\"\\s*:\\s*(true|false)",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (!m.Success) return fallbackVal;
+            return string.Equals(m.Groups[1].Value, "true", StringComparison.OrdinalIgnoreCase);
         }
 
         private static double ExtractFlatNumber(string json, string fieldName, double fallbackVal)
