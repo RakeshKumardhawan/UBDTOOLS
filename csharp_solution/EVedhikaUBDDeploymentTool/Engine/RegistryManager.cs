@@ -755,14 +755,11 @@ namespace EVedhikaUBDDeploymentTool.Engine
                     StampSafeForScriptingCategories(nativeClsids);
                 }
 
-                // Always enforce clean SignatureDemoLib.DigiSignHelper COM registration & purge any stale HKCU capicom.dll overrides
+                // Always enforce latest SignatureDemoLib.dll v2.0.3.0 on disk BEFORE COM registration (prevents Fusion version mismatch [object Error])
+                UBDSigningFixEngine.VerifyAndEnforceIntegrity();
                 if (File.Exists(@"C:\enterprise_compat\SignatureDemoLib.dll"))
                 {
                     UBDSigningFixEngine.RegisterCompiledAssemblyForCom(@"C:\enterprise_compat\SignatureDemoLib.dll");
-                }
-                else
-                {
-                    UBDSigningFixEngine.VerifyAndEnforceIntegrity();
                 }
                 StampSafeForScriptingCategories(new string[] { "{1FC6E67B-8F52-4F80-8321-FCF7CE940052}" });
 

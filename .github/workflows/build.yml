@@ -122,8 +122,8 @@ jobs:
           csharp_solution/EVedhikaUBDDeploymentTool/Output/*.exe
           csharp_solution/EVedhikaUBDDeploymentTool/bin/Release/net48/*.exe
           public/downloads/Unblock_EVedhika_Antivirus_Exclusion.bat
-        name: Latest Stable Build v1.1.0 (Guardian Build - Resource Build 2026.11.19.R12)
-        body: "Automatic build from GitHub Actions. Enterprise v1.1.0 Guardian Build (Resource Build 2026.11.19.R12) - SignatureDemoLib v2.0.2.0 Anti-Tamper COM-Safe (Fixes UBD Bulk Signing 'Verification failed, Data might be Tampered' & Windows 7 'Unable to Deactivation[object Error]'), Auto & Manual Old/Other-User DSC Certificate Cleaner, Strict State-Isolated UBD sites.xml (TS-only IE5 / AP-only IE7), Single Particular GitHub Admin Live Hub (https://rakeshkumardhawan.github.io/UBDTOOLS/admin/), and Automatic OTA Upgrade."
+        name: Latest Stable Build v1.1.0 (Guardian Build - Resource Build 2026.11.20.R13)
+        body: "Automatic build from GitHub Actions. Enterprise v1.1.0 Guardian Build (Resource Build 2026.11.20.R13) - SignatureDemoLib v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage fixes 'Unable to read token: Invalid algorithm specified.', 'Both signing methods failed.', 'Unable to Sign: [object Error]', and 'Verification failed, Data might be Tampered'; strict DigitalSignature/NonRepudiation cert filter; Fusion-synced COM & IE ActiveX Kill-Bit auto-clear), Auto & Manual Old/Other-User DSC Cert Cleaner, Strict State-Isolated UBD sites.xml (TS-only IE5 / AP-only IE7), Single Particular GitHub Admin Live Hub (https://rakeshkumardhawan.github.io/UBDTOOLS/admin/), and Automatic OTA Upgrade."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

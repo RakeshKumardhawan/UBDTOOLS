@@ -43,7 +43,7 @@ export interface ResourceManifest {
 
 export const VERSION_HISTORY = [
   {
-    version: 'v1.1.0 (Resource Build 2026.11.19.R12)',
+    version: 'v1.1.0 (Resource Build 2026.11.20.R13)',
     date: 'November 2026',
     changes: [
       'Added global window.onerror & unhandledrejection listener specifically capturing runtime errors on Windows 7, 8, 10 & 11 and sending diagnostic reports to central telemetry logs',
@@ -155,7 +155,7 @@ export const CURRENT_APP_VERSION = 'v1.1.0';
 export const DEFAULT_GITHUB_RAW_URL = 'https://github.com/RakeshKumardhawan/UBDTOOLS/releases/tag/latest';
 
 export const DEFAULT_RESOURCE_MANIFEST: ResourceManifest = {
-  manifestVersion: '2026.11.19.R12',
+  manifestVersion: '2026.11.20.R13',
   appVersion: 'v1.1.0',
   lastSyncTimestamp: new Date().toISOString(),
   totalResources: 5,
@@ -496,7 +496,7 @@ export async function checkForUpdates(
   };
 }
 
-export const LOCAL_BUILD_VERSION = '2026.11.19.R12';
+export const LOCAL_BUILD_VERSION = '2026.11.20.R13';
 
 export interface OtaCheckResult {
   hasOtaUpdate: boolean;

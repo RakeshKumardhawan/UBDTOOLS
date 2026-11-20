@@ -39,8 +39,8 @@ namespace EVedhikaUBDDeploymentTool.Engine
                 RegistryManager.ConfigureTrustedSites(isAp ? "ubd.ap.gov.in" : "ubd.telangana.gov.in");
                 RegistryManager.ConfigureActiveXAndTLS();
 
-                // 5. Register SmartCard CSPs + Rebuild COM-Safe SignatureDemoLib.dll + Heal ActiveX & CAPICOM safely
-                logCallback("Rebuilding Anti-Tamper COM-Safe Signature Engine (v2.0.2.0) and repairing ActiveX / CAPICOM...");
+                // 5. Register SmartCard CSPs + Rebuild Universal CNG+CSP COM-Safe SignatureDemoLib.dll + Heal ActiveX & CAPICOM safely
+                logCallback("Rebuilding Universal CNG+CSP Anti-Tamper COM-Safe Signature Engine (v2.0.3.0) and repairing ActiveX / CAPICOM...");
                 DriverInstaller.RegisterSmartCardAndCspProviders();
                 UBDSigningFixEngine.ApplyUniversalTokenFix(logCallback);
                 DriverInstaller.RegisterActiveXComponents();

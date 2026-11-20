@@ -241,7 +241,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       category: 'Web App / Portal Integration',
       primaryUrl: selectedProfile?.primaryUrl || 'https://ubd.telangana.gov.in',
       appVersion: 'v1.1.0',
-      resourceBuild: '2026.11.19.R12',
+      resourceBuild: '2026.11.20.R13',
       source: 'E-Vedhika Web App Settings'
     };
 

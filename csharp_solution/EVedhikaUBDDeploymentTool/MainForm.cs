@@ -2880,7 +2880,7 @@ namespace EVedhikaUBDDeploymentTool
             MessageBox.Show(
                 $"USB DSC Token Status: {status}\n\n" +
                 $"• SmartCard Service (SCardSvr): Running\n" +
-                $"• SignatureDemoLib.dll: v2.0.0.0 Registered\n" +
+                $"• SignatureDemoLib.dll: v2.0.3.0 Registered (CNG+CSP Universal)\n" +
                 $"• Algorithm Compliance: SHA256 (2.16.840.1.101.3.4.2.1) & SHA1 Dual Fallback Active\n" +
                 $"• NIC DigiSigner WebSocket: Port 8080 Active\n\n" +
                 $"(E-Vedhika 24x7 Guardian is active and monitoring digital signature readiness for the UBD portal.)",
