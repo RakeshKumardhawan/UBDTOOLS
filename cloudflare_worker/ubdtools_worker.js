@@ -286,6 +286,13 @@ async function appendIndexKey(kv, indexKey, value, maxItems) {
   await kv.put(indexKey, JSON.stringify(list.slice(0, maxItems)));
 }
 
+async function removeIndexKey(kv, indexKey, valuesToRemove) {
+  const removeSet = new Set(Array.isArray(valuesToRemove) ? valuesToRemove : [valuesToRemove]);
+  const existing = (await kv.get(indexKey, 'json')) || [];
+  const list = Array.isArray(existing) ? existing.filter((k) => !removeSet.has(k)) : [];
+  await kv.put(indexKey, JSON.stringify(list));
+}
+
 function computeRenewalExpiryIso(existingValidUntilIso, durationDays) {
   const now = Date.now();
   const existingMs = existingValidUntilIso ? Date.parse(existingValidUntilIso) : NaN;
@@ -346,7 +353,7 @@ export default {
       return jsonResponse(request, {
         ok: true,
         service: 'ubdtools-cloudflare-worker',
-        version: '1.0.0',
+        version: '1.1.0',
         kvBound: Boolean(kv),
         timestamp: new Date().toISOString(),
         hint: kv ? 'UBD_LICENSES KV Ready (100,000 free reads/day)' : 'Bind KV Namespace named UBD_LICENSES in Worker Settings -> Bindings'
@@ -544,7 +551,7 @@ export default {
         return jsonResponse(request, { ok: true, policy: nextPolicy });
       }
 
-      // 7. Admin Set Per-PC License (Free Bypass / +30d Paid / Revoke / Turn Payment ON)
+      // 7. Admin Set or Reset Per-PC License (Free Bypass / +30d Paid / Revoke / Reset Trial)
       if (request.method === 'POST' && pathname === '/api/admin/pc-license') {
         let body = {};
         try {
@@ -559,6 +566,12 @@ export default {
         }
 
         const keyUpper = cleanPcId.toUpperCase();
+        if (String(body.action || '').toUpperCase() === 'RESET' || body.reset === true) {
+          await kv.delete(`pc:${keyUpper}`);
+          await removeIndexKey(kv, 'pcs:index', keyUpper);
+          return jsonResponse(request, { ok: true, reset: true, pcId: cleanPcId });
+        }
+
         const record = {
           pcId: cleanPcId,
           pcName: String(body.pcName || cleanPcId).trim().slice(0, 128),
@@ -575,6 +588,50 @@ export default {
         await kv.put(`pc:${keyUpper}`, JSON.stringify(record));
         await appendIndexKey(kv, 'pcs:index', keyUpper, 5000);
         return jsonResponse(request, { ok: true, pcLicense: record });
+      }
+
+      // 7b. Admin Reset One or Multiple Trial / Custom PC Licenses (Deletes KV override cleanly)
+      if (request.method === 'POST' && pathname === '/api/admin/pc-license/reset') {
+        let body = {};
+        try {
+          body = await request.json();
+        } catch {
+          return jsonResponse(request, { ok: false, error: 'INVALID_JSON', message: 'Invalid JSON body' }, 400);
+        }
+
+        const rawList = Array.isArray(body.pcIds) ? body.pcIds : body.pcId ? [body.pcId] : [];
+        const resetKeys = [];
+        for (const raw of rawList) {
+          const clean = sanitizePcId(raw);
+          if (clean) resetKeys.push(clean.toUpperCase());
+        }
+        if (resetKeys.length === 0) {
+          return jsonResponse(request, { ok: false, error: 'PC_ID_REQUIRED', message: 'Provide pcId or pcIds[] to reset' }, 400);
+        }
+
+        await Promise.all(resetKeys.map((k) => kv.delete(`pc:${k}`)));
+        await removeIndexKey(kv, 'pcs:index', resetKeys);
+        return jsonResponse(request, { ok: true, reset: true, resetCount: resetKeys.length, resetPcIds: resetKeys });
+      }
+
+      // 7c. Admin Delete Test / Duplicate UTR Payment Claims
+      if (request.method === 'POST' && pathname === '/api/admin/claim/delete') {
+        let body = {};
+        try {
+          body = await request.json();
+        } catch {
+          return jsonResponse(request, { ok: false, error: 'INVALID_JSON', message: 'Invalid JSON body' }, 400);
+        }
+
+        const rawList = Array.isArray(body.claimIds) ? body.claimIds : body.claimId ? [body.claimId] : [];
+        const deleteIds = rawList.map((id) => String(id || '').trim()).filter(Boolean);
+        if (deleteIds.length === 0) {
+          return jsonResponse(request, { ok: false, error: 'CLAIM_ID_REQUIRED', message: 'Provide claimId or claimIds[] to delete' }, 400);
+        }
+
+        await Promise.all(deleteIds.map((id) => kv.delete(`claim:${id}`)));
+        await removeIndexKey(kv, 'claims:index', deleteIds);
+        return jsonResponse(request, { ok: true, deleted: true, deletedCount: deleteIds.length, deletedClaimIds: deleteIds });
       }
 
       // 8. Admin Review UTR Payment Claim (APPROVE or REJECT)

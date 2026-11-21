@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   FileText, Download, Search, RefreshCw,
-  Laptop, FileSpreadsheet, Code, Copy, Sparkles, Star, Send, Trash2, ShieldCheck, LogOut
+  Laptop, FileSpreadsheet, Code, Copy, Sparkles, Star, Send, Trash2, ShieldCheck, LogOut, AlertTriangle, CheckSquare
 } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useToast } from './Toast';
@@ -16,6 +16,7 @@ import {
   doc,
   onSnapshot,
   setDoc,
+  deleteDoc,
   serverTimestamp,
   query,
   orderBy,
@@ -28,6 +29,11 @@ import * as XLSX from 'xlsx';
 import { extractTelegramField } from '../utils/reportHelpers';
 import { buildFirebaseConsolidatedWorkbook } from '../utils/firebaseExcelExport';
 import { getTodayYmdIST, normalizeToYmd } from '../utils/dailyReportSummary';
+import {
+  findDuplicateInstalledPcs,
+  findDuplicateReportEvents,
+  isTrialOrDummyPc
+} from '../utils/pcCleanupHelpers';
 
 interface ReportEvent {
   eventId: string;
@@ -54,7 +60,7 @@ export const ReportCenter: React.FC = () => {
   const { showInfo, showSuccess, showError } = useToast();
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [mainSection, setMainSection] = useState<'installed-pcs' | 'live-pcs' | 'feedback' | 'reports' | 'updates' | 'website-code'>('installed-pcs');
-  const [pcVersionFilter, setPcVersionFilter] = useState<'ALL' | 'V110_UPGRADED' | 'FRESH_INSTALLED'>('ALL');
+  const [pcVersionFilter, setPcVersionFilter] = useState<'ALL' | 'V110_UPGRADED' | 'FRESH_INSTALLED' | 'DUPLICATES'>('ALL');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [startDate] = useState<string>('');
@@ -76,6 +82,16 @@ export const ReportCenter: React.FC = () => {
   const [releases, setReleases] = useState<any[]>([]);
   const [phpSourceCode, setPhpSourceCode] = useState<string>('');
   const [selectedPcId, setSelectedPcId] = useState<string | null>(null);
+
+  // PC & Report Cleanup / Deduplication State (inline confirmations — no window.confirm)
+  const [selectedPcIds, setSelectedPcIds] = useState<Set<string>>(new Set());
+  const [deletingPcs, setDeletingPcs] = useState<boolean>(false);
+  const [confirmDeletePc, setConfirmDeletePc] = useState<{ pcId: string; pcName: string } | null>(null);
+  const [confirmBulkDeleteSelected, setConfirmBulkDeleteSelected] = useState<boolean>(false);
+  const [confirmDeduplicatePcs, setConfirmDeduplicatePcs] = useState<boolean>(false);
+  const [confirmDeleteReport, setConfirmDeleteReport] = useState<ReportEvent | null>(null);
+  const [confirmDeduplicateReports, setConfirmDeduplicateReports] = useState<boolean>(false);
+  const [deletingReports, setDeletingReports] = useState<boolean>(false);
 
   // Interactive Web Feedback & Star Rating Form State
   const [fbRating, setFbRating] = useState<number>(5);
@@ -417,6 +433,9 @@ export const ReportCenter: React.FC = () => {
     ).length;
   }, [reports]);
 
+  const duplicatePcAnalysis = useMemo(() => findDuplicateInstalledPcs(installedPcs), [installedPcs]);
+  const duplicateReportAnalysis = useMemo(() => findDuplicateReportEvents(reports), [reports]);
+
   const handleAdminGoogleSignIn = async () => {
     try {
       const res = await signInWithPopup(auth, googleProvider);
@@ -557,13 +576,116 @@ export const ReportCenter: React.FC = () => {
     fetchReportsData();
   }, [activeCategory, startDate, endDate]);
 
+  const deletePcsFromCloudAndLocal = async (pcIdsToDelete: string[], reasonLabel: string) => {
+    const cleanIds = Array.from(new Set(pcIdsToDelete.map((id) => String(id || '').trim()).filter(Boolean)));
+    if (cleanIds.length === 0) return;
+
+    const targetUpperSet = new Set(cleanIds.map((id) => id.toUpperCase()));
+    setDeletingPcs(true);
+    try {
+      // 1. Delete from Google Cloud Firestore when verified Admin
+      if (isVerifiedAdmin) {
+        const pcDeletes = cleanIds.map((id) =>
+          deleteDoc(doc(db, 'installed_pcs', id)).catch(() => {})
+        );
+        const matchingReportIds = fsReports
+          .filter((r) => targetUpperSet.has(String(r.pcId || '').trim().toUpperCase()))
+          .map((r) => String(r.reportId || r.eventId || '').trim())
+          .filter(Boolean);
+        const reportDeletes = matchingReportIds.map((rid) =>
+          deleteDoc(doc(db, 'pc_reports', rid)).catch(() => {})
+        );
+        await Promise.all([...pcDeletes, ...reportDeletes]);
+      }
+
+      // 2. Delete from local Express gateway if running locally
+      await fetchWithLiveGateway('/api/reports/delete-pc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pcIds: cleanIds, deleteReports: true })
+      });
+
+      // 3. Immediately update UI stores
+      setFsInstalledPcs((prev) => prev.filter((p) => !targetUpperSet.has(String(p.pcId || '').trim().toUpperCase())));
+      setApiInstalledPcs((prev) => prev.filter((p) => !targetUpperSet.has(String(p.pcId || '').trim().toUpperCase())));
+      setApiLiveOnlinePcs((prev) => prev.filter((p) => !targetUpperSet.has(String(p.pcId || '').trim().toUpperCase())));
+      setFsReports((prev) => prev.filter((r) => !targetUpperSet.has(String(r.pcId || '').trim().toUpperCase())));
+      setApiReports((prev) => prev.filter((r) => !targetUpperSet.has(String(r.pcId || '').trim().toUpperCase())));
+      setSelectedPcIds((prev) => {
+        const next = new Set(prev);
+        cleanIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      if (selectedPcId && targetUpperSet.has(selectedPcId.toUpperCase())) {
+        setSelectedPcId(null);
+      }
+
+      setConfirmDeletePc(null);
+      setConfirmBulkDeleteSelected(false);
+      setConfirmDeduplicatePcs(false);
+      showSuccess(`🗑️ ${cleanIds.length} PC రిపోర్ట్(లు) విజయవంతంగా డిలీట్ చేయబడ్డాయి (${reasonLabel})!`, 'PC Reports Deleted');
+    } catch (err: any) {
+      showError(err?.message || 'Failed to delete PC report(s)', 'Delete Failed');
+    } finally {
+      setDeletingPcs(false);
+    }
+  };
+
+  const deleteReportsFromCloudAndLocal = async (reportIdsToDelete: string[], reasonLabel: string) => {
+    const cleanIds = Array.from(new Set(reportIdsToDelete.map((id) => String(id || '').trim()).filter(Boolean)));
+    if (cleanIds.length === 0) return;
+
+    const targetSet = new Set(cleanIds);
+    setDeletingReports(true);
+    try {
+      if (isVerifiedAdmin) {
+        await Promise.all(cleanIds.map((rid) => deleteDoc(doc(db, 'pc_reports', rid)).catch(() => {})));
+      }
+      await fetchWithLiveGateway('/api/reports/delete-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportIds: cleanIds })
+      });
+
+      setFsReports((prev) => prev.filter((r) => !targetSet.has(String(r.reportId || r.eventId || ''))));
+      setApiReports((prev) => prev.filter((r) => !targetSet.has(String(r.reportId || r.eventId || ''))));
+      setConfirmDeleteReport(null);
+      setConfirmDeduplicateReports(false);
+      showSuccess(`🗑️ ${cleanIds.length} రిపోర్ట్ ఈవెంట్(లు) డిలీట్ చేయబడ్డాయి (${reasonLabel})!`, 'Report Logs Deleted');
+    } catch (err: any) {
+      showError(err?.message || 'Failed to delete report event(s)', 'Delete Failed');
+    } finally {
+      setDeletingReports(false);
+    }
+  };
+
+  const togglePcSelection = (pcId: string) => {
+    setSelectedPcIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(pcId)) next.delete(pcId);
+      else next.add(pcId);
+      return next;
+    });
+  };
+
   const handlePurgeDummyPcs = async () => {
     try {
+      let totalPurged = 0;
+      const dummyCloudIds = installedPcs.filter(isTrialOrDummyPc).map((p) => String(p.pcId || '')).filter(Boolean);
+      if (dummyCloudIds.length > 0 && isVerifiedAdmin) {
+        await deletePcsFromCloudAndLocal(dummyCloudIds, 'Dummy / Trial Cleanup');
+        totalPurged += dummyCloudIds.length;
+      }
+
       const res = await fetchWithLiveGateway('/api/reports/purge-dummy-pcs', { method: 'POST' });
       if (res) {
         const data = await res.json();
-        showSuccess(data.message || 'డమ్మీ PC రిపోర్టులు తొలగించబడ్డాయి!', 'Dummy PCs Purged');
+        totalPurged += Number(data.purgedCount || 0);
         await fetchReportsData();
+      }
+
+      if (totalPurged === 0) {
+        showInfo('ఎటువంటి డమ్మీ లేదా టెస్ట్ PC రిపోర్టులు లేవు — డేటాబేస్ క్లీన్‌గా ఉంది.', 'Already Clean');
       }
     } catch (e: any) {
       showError(e.message || 'Failed to purge dummy PCs', 'Error');
@@ -832,6 +954,9 @@ export const ReportCenter: React.FC = () => {
       return false;
     }
     if (pcVersionFilter === 'FRESH_INSTALLED' && pc.isUpgradedPc) {
+      return false;
+    }
+    if (pcVersionFilter === 'DUPLICATES' && !duplicatePcAnalysis.allInvolvedPcIds.has(String(pc.pcId || ''))) {
       return false;
     }
     if (!searchTerm.trim()) return true;
@@ -1128,64 +1253,205 @@ export const ReportCenter: React.FC = () => {
       {/* SECTION 1: INSTALLED PCs REPORT */}
       {mainSection === 'installed-pcs' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl font-mono text-xs">
-          <div className="p-4 border-b border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-            <div>
-              <h2 className="text-sm font-black text-white uppercase">🖥️ INSTALLED &amp; UPGRADED PCs MASTER REPORT (ఇన్‌స్టాల్ &amp; అప్డేట్ అయిన PCలు)</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                డమ్మీ PCలు పూర్తిగా తొలగించబడ్డాయి. కొత్త వెర్షన్ (v1.1.0) అప్డేట్ చేసుకున్న ప్రతి PC వివరాలు వెంటనే ఇక్కడ నమోదు అవుతాయి.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setPcVersionFilter('ALL')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-                    pcVersionFilter === 'ALL'
-                      ? 'bg-cyan-600 text-white'
-                      : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
-                  }`}
-                >
-                  All PCs ({installedPcs.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPcVersionFilter('V110_UPGRADED')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-                    pcVersionFilter === 'V110_UPGRADED'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-950 text-indigo-300 border border-slate-800 hover:text-white'
-                  }`}
-                >
-                  🔄 Upgraded PCs (పాత వెర్షన్ నుండి అప్డేట్ అయినవి: {upgradedPcsCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPcVersionFilter('FRESH_INSTALLED')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-                    pcVersionFilter === 'FRESH_INSTALLED'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-950 text-emerald-300 border border-slate-800 hover:text-white'
-                  }`}
-                >
-                  🆕 Fresh Installed PCs (కొత్తగా ఇన్‌స్టాల్ అయినవి: {freshInstalledPcsCount})
-                </button>
+          <div className="p-4 border-b border-slate-800 space-y-3">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+              <div>
+                <h2 className="text-sm font-black text-white uppercase">🖥️ INSTALLED &amp; UPGRADED PCs MASTER REPORT (ఇన్‌స్టాల్ &amp; అప్డేట్ అయిన PCలు)</h2>
+                <p className="text-[11px] text-slate-400 mt-0.5 font-sans">
+                  అవసరం లేని ట్రయల్ PCలు లేదా డబుల్ రిపోర్ట్ PCలను ఇక్కడి నుండే 1-క్లిక్‌తో లేదా చెక్‌బాక్స్‌తో డిలీట్ చేయవచ్చు.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setPcVersionFilter('ALL')}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                      pcVersionFilter === 'ALL'
+                        ? 'bg-cyan-600 text-white'
+                        : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    All PCs ({installedPcs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPcVersionFilter('V110_UPGRADED')}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                      pcVersionFilter === 'V110_UPGRADED'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-950 text-indigo-300 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    🔄 Upgraded PCs ({upgradedPcsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPcVersionFilter('FRESH_INSTALLED')}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                      pcVersionFilter === 'FRESH_INSTALLED'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-950 text-emerald-300 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    🆕 Fresh Installed ({freshInstalledPcsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPcVersionFilter('DUPLICATES')}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer inline-flex items-center gap-1 ${
+                      pcVersionFilter === 'DUPLICATES'
+                        ? 'bg-amber-600 text-white'
+                        : duplicatePcAnalysis.duplicateCount > 0
+                          ? 'bg-amber-950/60 text-amber-300 border border-amber-500/40 hover:bg-amber-600 hover:text-white'
+                          : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>Double-Report PCs ({duplicatePcAnalysis.duplicateCount})</span>
+                  </button>
+
+                  {duplicatePcAnalysis.duplicateCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeduplicatePcs(true)}
+                      className="px-3 py-1 rounded-lg text-[10px] font-bold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer inline-flex items-center gap-1 shadow transition"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete Double-Report PCs ({duplicatePcAnalysis.duplicateCount})</span>
+                    </button>
+                  )}
+
+                  {selectedPcIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmBulkDeleteSelected(true)}
+                      className="px-3 py-1 rounded-lg text-[10px] font-bold bg-rose-700 hover:bg-rose-600 text-white cursor-pointer inline-flex items-center gap-1 shadow transition"
+                    >
+                      <CheckSquare className="w-3 h-3" />
+                      <span>Delete Selected ({selectedPcIds.size})</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="relative w-full lg:w-72">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  aria-label="Search installed PCs"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search PC Name, District, GP Office..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                />
               </div>
             </div>
-            <div className="relative w-full lg:w-72">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search PC Name, District, GP Office..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
+
+            {confirmDeduplicatePcs && duplicatePcAnalysis.duplicateCount > 0 && (
+              <div className="bg-amber-950/60 border border-amber-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-sans">
+                <span className="text-xs text-amber-200">
+                  మొత్తం <strong>{duplicatePcAnalysis.duplicateCount}</strong> పాత డబుల్-రిపోర్ట్ PC రికార్డులను డిలీట్ చేయాలా? (ప్రతి PC యొక్క తాజా/ఆన్‌లైన్ రికార్డ్ సురక్షితంగా ఉంచబడుతుంది)
+                </span>
+                <div className="flex items-center gap-2 shrink-0 font-mono">
+                  <button
+                    type="button"
+                    disabled={deletingPcs}
+                    onClick={() =>
+                      deletePcsFromCloudAndLocal(
+                        Array.from(duplicatePcAnalysis.duplicatePcIds),
+                        'Double-Report PC Cleanup'
+                      )
+                    }
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    {deletingPcs ? 'Deleting...' : `Confirm Delete (${duplicatePcAnalysis.duplicateCount})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeduplicatePcs(false)}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {confirmBulkDeleteSelected && selectedPcIds.size > 0 && (
+              <div className="bg-rose-950/60 border border-rose-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-sans">
+                <span className="text-xs text-rose-200">
+                  మీరు ఎంచుకున్న <strong>{selectedPcIds.size}</strong> PC రిపోర్ట్(లు) మరియు వాటి ఈవెంట్ లాగ్స్‌ను శాశ్వతంగా డిలీట్ చేయాలా?
+                </span>
+                <div className="flex items-center gap-2 shrink-0 font-mono">
+                  <button
+                    type="button"
+                    disabled={deletingPcs}
+                    onClick={() =>
+                      deletePcsFromCloudAndLocal(Array.from(selectedPcIds), 'Selected PCs Deleted')
+                    }
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    {deletingPcs ? 'Deleting...' : `Confirm Delete (${selectedPcIds.size})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmBulkDeleteSelected(false)}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {confirmDeletePc && (
+              <div className="bg-rose-950/60 border border-rose-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-sans">
+                <span className="text-xs text-rose-200">
+                  PC <strong className="font-mono text-white">{confirmDeletePc.pcName} ({confirmDeletePc.pcId})</strong> మరియు దాని రిపోర్ట్ హిస్టరీని శాశ్వతంగా డిలీట్ చేయాలా?
+                </span>
+                <div className="flex items-center gap-2 shrink-0 font-mono">
+                  <button
+                    type="button"
+                    disabled={deletingPcs}
+                    onClick={() =>
+                      deletePcsFromCloudAndLocal([confirmDeletePc.pcId], confirmDeletePc.pcName)
+                    }
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    {deletingPcs ? 'Deleting...' : 'Confirm Delete PC'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeletePc(null)}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[11px]">
                 <tr>
+                  <th className="p-3.5 w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all visible PCs"
+                      checked={
+                        filteredInstalledPcs.length > 0 &&
+                        filteredInstalledPcs.every((p) => selectedPcIds.has(String(p.pcId || '')))
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPcIds(new Set(filteredInstalledPcs.map((p) => String(p.pcId || '')).filter(Boolean)));
+                        } else {
+                          setSelectedPcIds(new Set());
+                        }
+                      }}
+                      className="rounded border-slate-600 bg-slate-900 accent-rose-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="p-3.5">PC NAME &amp; MACHINE ID</th>
                   <th className="p-3.5">INSTALL / UPGRADE TYPE</th>
                   <th className="p-3.5">LIVE STATUS</th>
@@ -1201,73 +1467,120 @@ export const ReportCenter: React.FC = () => {
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
                 {filteredInstalledPcs.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="p-12 text-center text-slate-400">
+                    <td colSpan={11} className="p-12 text-center text-slate-400">
                       <Laptop className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
                       <div className="font-bold text-white text-sm mb-1">
-                        {pcVersionFilter === 'V110_UPGRADED'
-                          ? '⏳ ఇంకా ఏ PC పాత వెర్షన్ నుండి అప్డేట్ రిపోర్ట్ పంపలేదు'
-                          : '⏳ డమ్మీ PCలు తొలగించబడ్డాయి — మొదటి రియల్ PC రిపోర్ట్ కోసం వేచి ఉంది'}
+                        {pcVersionFilter === 'DUPLICATES'
+                          ? '✅ డబుల్ రిపోర్ట్ PCలు ఏవీ లేవు — అన్ని PCలు యూనిక్‌గా ఉన్నాయి!'
+                          : pcVersionFilter === 'V110_UPGRADED'
+                            ? '⏳ ఇంకా ఏ PC పాత వెర్షన్ నుండి అప్డేట్ రిపోర్ట్ పంపలేదు'
+                            : '⏳ డమ్మీ PCలు తొలగించబడ్డాయి — మొదటి రియల్ PC రిపోర్ట్ కోసం వేచి ఉంది'}
                       </div>
                       <div className="text-xs text-slate-400">
-                        పాత వెర్షన్ ఉన్న కంప్యూటర్‌లో కొత్త v1.1.0 ఇన్‌స్టాల్ లేదా ఆటో-అప్డేట్ అయిన వెంటనే ఇక్కడ "🔄 UPGRADED" బ్యాడ్జ్‌తో ఖచ్చితమైన వివరాలు కనిపిస్తాయి.
+                        {pcVersionFilter === 'DUPLICATES'
+                          ? 'ఒకే PC రెండుసార్లు రిపోర్ట్ చేస్తే ఇక్కడ ఆటోమేటిక్‌గా గుర్తించి 1-క్లిక్ డిలీట్ ఆప్షన్ చూపిస్తుంది.'
+                          : 'పాత వెర్షన్ ఉన్న కంప్యూటర్‌లో కొత్త v1.1.0 ఇన్‌స్టాల్ లేదా ఆటో-అప్డేట్ అయిన వెంటనే ఇక్కడ "🔄 UPGRADED" బ్యాడ్జ్‌తో ఖచ్చితమైన వివరాలు కనిపిస్తాయి.'}
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  filteredInstalledPcs.map((pc, i) => (
-                    <tr key={pc.pcId || i} className="hover:bg-slate-950/60 transition">
-                      <td className="p-3.5">
-                        <div className="font-bold text-white">{pc.pcName}</div>
-                        <div className="text-[10px] text-cyan-400">{pc.pcId}</div>
-                      </td>
-                      <td className="p-3.5">
-                        {pc.isUpgradedPc ? (
-                          <div className="inline-flex flex-col gap-0.5 px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[10px] font-bold">
-                            <span>🔄 UPGRADED PC</span>
-                            <span className="text-[9px] text-emerald-300">{pc.upgradeTransition || `➔ ${pc.appVersion}`}</span>
+                  filteredInstalledPcs.map((pc, i) => {
+                    const pcIdStr = String(pc.pcId || '');
+                    const isDupOld = duplicatePcAnalysis.duplicatePcIds.has(pcIdStr);
+                    const isDupPrimary = duplicatePcAnalysis.primaryPcIds.has(pcIdStr);
+                    return (
+                      <tr
+                        key={pcIdStr || i}
+                        className={`hover:bg-slate-950/60 transition ${isDupOld ? 'bg-amber-950/15' : ''}`}
+                      >
+                        <td className="p-3.5">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select PC ${pc.pcName || pcIdStr}`}
+                            checked={selectedPcIds.has(pcIdStr)}
+                            onChange={() => togglePcSelection(pcIdStr)}
+                            className="rounded border-slate-600 bg-slate-900 accent-rose-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-white">{pc.pcName}</span>
+                            {isDupOld && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold">
+                                ⚠️ DUPLICATE (OLD)
+                              </span>
+                            )}
+                            {isDupPrimary && (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[9px] font-bold">
+                                ✅ KEEP (LATEST)
+                              </span>
+                            )}
                           </div>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
-                            🆕 FRESH INSTALL
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3.5">
-                        {pc.isOnline ? (
-                          <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
-                            🟢 ONLINE
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold">
-                            ⚪ OFFLINE
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3.5 font-bold text-slate-200">{pc.userName}</td>
-                      <td className="p-3.5">
-                        <div className="font-bold text-emerald-300">{pc.district} ({pc.state})</div>
-                        <div className="text-[10px] text-slate-400">{pc.officeLocation}</div>
-                      </td>
-                      <td className="p-3.5 text-[11px]">{pc.osVersion}</td>
-                      <td className="p-3.5">
-                        <div className="text-indigo-300 font-bold">{pc.appVersion}</div>
-                        <div className="text-[10px] text-emerald-400">{pc.resourceBuild}</div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="text-emerald-400 font-bold">{pc.verification}</div>
-                        <div className="text-[10px] text-cyan-400">{pc.dscStatus}</div>
-                      </td>
-                      <td className="p-3.5 text-[11px] text-slate-400 whitespace-nowrap">{pc.lastSeenAt}</td>
-                      <td className="p-3.5">
-                        <button
-                          onClick={() => setSelectedPcId(pc.pcId)}
-                          className="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-500/40 px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                        >
-                          Inspect ➔
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                          <div className="text-[10px] text-cyan-400">{pc.pcId}</div>
+                        </td>
+                        <td className="p-3.5">
+                          {pc.isUpgradedPc ? (
+                            <div className="inline-flex flex-col gap-0.5 px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[10px] font-bold">
+                              <span>🔄 UPGRADED PC</span>
+                              <span className="text-[9px] text-emerald-300">{pc.upgradeTransition || `➔ ${pc.appVersion}`}</span>
+                            </div>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
+                              🆕 FRESH INSTALL
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5">
+                          {pc.isOnline ? (
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                              🟢 ONLINE
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold">
+                              ⚪ OFFLINE
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5 font-bold text-slate-200">{pc.userName}</td>
+                        <td className="p-3.5">
+                          <div className="font-bold text-emerald-300">{pc.district} ({pc.state})</div>
+                          <div className="text-[10px] text-slate-400">{pc.officeLocation}</div>
+                        </td>
+                        <td className="p-3.5 text-[11px]">{pc.osVersion}</td>
+                        <td className="p-3.5">
+                          <div className="text-indigo-300 font-bold">{pc.appVersion}</div>
+                          <div className="text-[10px] text-emerald-400">{pc.resourceBuild}</div>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="text-emerald-400 font-bold">{pc.verification}</div>
+                          <div className="text-[10px] text-cyan-400">{pc.dscStatus}</div>
+                        </td>
+                        <td className="p-3.5 text-[11px] text-slate-400 whitespace-nowrap">{pc.lastSeenAt}</td>
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPcId(pc.pcId)}
+                              className="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-500/40 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer whitespace-nowrap"
+                            >
+                              Inspect ➔
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Delete PC ${pc.pcName || pcIdStr}`}
+                              disabled={deletingPcs}
+                              onClick={() => setConfirmDeletePc({ pcId: pcIdStr, pcName: pc.pcName || pcIdStr })}
+                              className="bg-slate-800 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-2 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                              title="Delete unnecessary, trial, or duplicate PC report"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1278,16 +1591,45 @@ export const ReportCenter: React.FC = () => {
       {/* SECTION 2: LIVE ONLINE PCs REPORT */}
       {mainSection === 'live-pcs' && (
         <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl overflow-hidden shadow-xl font-mono text-xs">
-          <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-            <div>
-              <h2 className="text-sm font-black text-emerald-400 uppercase">🟢 LIVE ONLINE PCs REPORT (ప్రస్తుతం ఆన్‌లైన్‌లో ఉన్న PCలు మాత్రమే)</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                గత 3 నిమిషాలలో (60-సెకన్ల హార్ట్‌బీట్ ద్వారా) యాక్టివ్‌గా ఆన్‌లైన్‌లో రన్ అవుతున్న PCలు.
-              </p>
+          <div className="p-4 border-b border-slate-800 space-y-3">
+            <div className="flex justify-between items-center gap-2 flex-wrap">
+              <div>
+                <h2 className="text-sm font-black text-emerald-400 uppercase">🟢 LIVE ONLINE PCs REPORT (ప్రస్తుతం ఆన్‌లైన్‌లో ఉన్న PCలు మాత్రమే)</h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  గత 3 నిమిషాలలో (60-సెకన్ల హార్ట్‌బీట్ ద్వారా) యాక్టివ్‌గా ఆన్‌లైన్‌లో రన్ అవుతున్న PCలు.
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold">
+                🟢 Active Now: {liveOnlinePcs.length} PCs
+              </span>
             </div>
-            <span className="px-3 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold">
-              🟢 Active Now: {liveOnlinePcs.length} PCs
-            </span>
+
+            {confirmDeletePc && (
+              <div className="bg-rose-950/60 border border-rose-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-sans">
+                <span className="text-xs text-rose-200">
+                  PC <strong className="font-mono text-white">{confirmDeletePc.pcName} ({confirmDeletePc.pcId})</strong> మరియు దాని రిపోర్ట్ హిస్టరీని శాశ్వతంగా డిలీట్ చేయాలా?
+                </span>
+                <div className="flex items-center gap-2 shrink-0 font-mono">
+                  <button
+                    type="button"
+                    disabled={deletingPcs}
+                    onClick={() =>
+                      deletePcsFromCloudAndLocal([confirmDeletePc.pcId], confirmDeletePc.pcName)
+                    }
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    {deletingPcs ? 'Deleting...' : 'Confirm Delete PC'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeletePc(null)}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -1338,12 +1680,25 @@ export const ReportCenter: React.FC = () => {
                       </td>
                       <td className="p-3.5 text-emerald-300 whitespace-nowrap">{pc.lastSeenAt}</td>
                       <td className="p-3.5">
-                        <button
-                          onClick={() => setSelectedPcId(pc.pcId)}
-                          className="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-200 hover:text-white border border-emerald-500/40 px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                        >
-                          Inspect ➔
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPcId(pc.pcId)}
+                            className="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-200 hover:text-white border border-emerald-500/40 px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer whitespace-nowrap"
+                          >
+                            Inspect ➔
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Delete online PC ${pc.pcName || pc.pcId}`}
+                            disabled={deletingPcs}
+                            onClick={() => setConfirmDeletePc({ pcId: String(pc.pcId || ''), pcName: pc.pcName || String(pc.pcId || '') })}
+                            className="bg-slate-800 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-2 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1543,11 +1898,22 @@ export const ReportCenter: React.FC = () => {
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 w-full lg:w-auto">
+              <div className="flex items-center gap-2 w-full lg:w-auto flex-wrap">
+                {duplicateReportAnalysis.duplicateCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeduplicateReports(true)}
+                    className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold transition shrink-0 cursor-pointer inline-flex items-center gap-1.5 text-[11px]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Duplicate Logs ({duplicateReportAnalysis.duplicateCount})</span>
+                  </button>
+                )}
                 <div className="relative flex-1 lg:w-64">
                   <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
+                    aria-label="Search report events"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && fetchReportsData()}
@@ -1556,6 +1922,7 @@ export const ReportCenter: React.FC = () => {
                   />
                 </div>
                 <button
+                  type="button"
                   onClick={fetchReportsData}
                   className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition shrink-0 cursor-pointer"
                 >
@@ -1563,6 +1930,66 @@ export const ReportCenter: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {confirmDeduplicateReports && duplicateReportAnalysis.duplicateCount > 0 && (
+              <div className="bg-amber-950/60 border border-amber-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-sans">
+                <span className="text-xs text-amber-200">
+                  మొత్తం <strong>{duplicateReportAnalysis.duplicateCount}</strong> డబుల్ / అదనపు రిపోర్ట్ లాగ్స్‌ను డిలీట్ చేయాలా? (ప్రతి PC యొక్క తాజా రిపోర్ట్ ఉంచబడుతుంది)
+                </span>
+                <div className="flex items-center gap-2 shrink-0 font-mono">
+                  <button
+                    type="button"
+                    disabled={deletingReports}
+                    onClick={() =>
+                      deleteReportsFromCloudAndLocal(
+                        Array.from(duplicateReportAnalysis.duplicateReportIds),
+                        'Duplicate Report Logs Cleanup'
+                      )
+                    }
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    {deletingReports ? 'Deleting...' : `Confirm Delete (${duplicateReportAnalysis.duplicateCount})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeduplicateReports(false)}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {confirmDeleteReport && (
+              <div className="bg-rose-950/60 border border-rose-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-sans">
+                <span className="text-xs text-rose-200">
+                  ఈ రిపోర్ట్ <strong className="font-mono text-white">{confirmDeleteReport.reportId || confirmDeleteReport.eventId}</strong> ({confirmDeleteReport.pcName}) ను శాశ్వతంగా డిలీట్ చేయాలా?
+                </span>
+                <div className="flex items-center gap-2 shrink-0 font-mono">
+                  <button
+                    type="button"
+                    disabled={deletingReports}
+                    onClick={() =>
+                      deleteReportsFromCloudAndLocal(
+                        [String(confirmDeleteReport.reportId || confirmDeleteReport.eventId || '')],
+                        confirmDeleteReport.pcName
+                      )
+                    }
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    {deletingReports ? 'Deleting...' : 'Confirm Delete Log'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteReport(null)}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Reports Data Table */}
@@ -1589,52 +2016,77 @@ export const ReportCenter: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredReports.map((r, idx) => (
-                      <tr key={r.eventId || idx} className="hover:bg-slate-950/60 transition">
-                        <td className="p-3.5 text-cyan-400 font-bold text-[11px]">
-                          <div>{r.eventId || r.reportId}</div>
-                          <div className="text-[9px] text-emerald-400 mt-0.5">{r.recordSource || 'FIREBASE_LIVE_CLOUD'}</div>
-                        </td>
-                        <td className="p-3.5">
-                          <span className={`text-[10px] px-2.5 py-1 rounded border font-bold ${
-                            r.reportType === 'VERSION_UPGRADE' || r.reportType === 'OTA_VERIFIED'
-                              ? 'bg-indigo-950/80 text-indigo-300 border-indigo-600/50'
-                              : 'bg-slate-950 text-slate-300 border-slate-800'
-                          }`}>
-                            {r.reportType}
-                          </span>
-                        </td>
-                        <td className="p-3.5">
-                          <div className="font-bold text-white">{r.pcName} ({r.userName || 'Operator'})</div>
-                          <div className="text-[10px] text-emerald-300">{r.district} ({r.state}) — {r.officeLocation}</div>
-                          <div className="text-[10px] text-slate-500">{r.pcId}</div>
-                        </td>
-                        <td className="p-3.5 text-slate-300 max-w-md">
-                          <div className="font-bold text-indigo-300">{r.appVersion || 'v1.1.0'} <span className="text-emerald-400 text-[10px]">({r.resourceBuild || '2026.11.20.R15'})</span></div>
-                          {(r.details || r.remarks) && (
-                            <div className="text-[10px] text-slate-400 mt-0.5 break-words">{r.details || r.remarks}</div>
-                          )}
-                        </td>
-                        <td className="p-3.5">
-                          <span className={`text-[10px] px-2.5 py-0.5 rounded font-bold ${
-                            r.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                            r.status === 'FAILED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                            'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          }`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="p-3.5 text-slate-400 text-[11px] whitespace-nowrap">{r.timestampIst || r.timestampUtc}</td>
-                        <td className="p-3.5">
-                          <button
-                            onClick={() => setSelectedPcId(r.pcId)}
-                            className="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-3 py-1 rounded-lg text-[11px] transition font-bold cursor-pointer"
-                          >
-                            View PC History
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    filteredReports.map((r, idx) => {
+                      const rid = String(r.reportId || r.eventId || '');
+                      const isDupEvent = duplicateReportAnalysis.duplicateReportIds.has(rid);
+                      return (
+                        <tr key={rid || idx} className={`hover:bg-slate-950/60 transition ${isDupEvent ? 'bg-amber-950/15' : ''}`}>
+                          <td className="p-3.5 text-cyan-400 font-bold text-[11px]">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{rid}</span>
+                              {isDupEvent && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px]">
+                                  DUPLICATE
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[9px] text-emerald-400 mt-0.5">{r.recordSource || 'FIREBASE_LIVE_CLOUD'}</div>
+                          </td>
+                          <td className="p-3.5">
+                            <span className={`text-[10px] px-2.5 py-1 rounded border font-bold ${
+                              r.reportType === 'VERSION_UPGRADE' || r.reportType === 'OTA_VERIFIED'
+                                ? 'bg-indigo-950/80 text-indigo-300 border-indigo-600/50'
+                                : 'bg-slate-950 text-slate-300 border-slate-800'
+                            }`}>
+                              {r.reportType}
+                            </span>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="font-bold text-white">{r.pcName} ({r.userName || 'Operator'})</div>
+                            <div className="text-[10px] text-emerald-300">{r.district} ({r.state}) — {r.officeLocation}</div>
+                            <div className="text-[10px] text-slate-500">{r.pcId}</div>
+                          </td>
+                          <td className="p-3.5 text-slate-300 max-w-md">
+                            <div className="font-bold text-indigo-300">{r.appVersion || 'v1.1.0'} <span className="text-emerald-400 text-[10px]">({r.resourceBuild || '2026.11.20.R15'})</span></div>
+                            {(r.details || r.remarks) && (
+                              <div className="text-[10px] text-slate-400 mt-0.5 break-words">{r.details || r.remarks}</div>
+                            )}
+                          </td>
+                          <td className="p-3.5">
+                            <span className={`text-[10px] px-2.5 py-0.5 rounded font-bold ${
+                              r.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                              r.status === 'FAILED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                              'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            }`}>
+                              {r.status}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-slate-400 text-[11px] whitespace-nowrap">{r.timestampIst || r.timestampUtc}</td>
+                          <td className="p-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPcId(r.pcId)}
+                                className="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-2.5 py-1 rounded-lg text-[10px] transition font-bold cursor-pointer whitespace-nowrap"
+                              >
+                                View PC
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Delete report ${rid}`}
+                                disabled={deletingReports}
+                                onClick={() => setConfirmDeleteReport(r)}
+                                className="bg-slate-800 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-2 py-1 rounded-lg text-[10px] transition font-bold cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                                title="Delete this report event"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

@@ -3,6 +3,8 @@ import { LicensePolicyConfig, PcLicenseRecord, PaymentClaimRecord, DEFAULT_LICEN
 export const CLOUDFLARE_WORKER_DASHBOARD_URL =
   'https://dash.cloudflare.com/8ace4e3f2324eda23d28f8e8ddd1ffb4/workers/services/view/ubdtools/production';
 
+export const DEFAULT_CLOUDFLARE_WORKER_URL = 'https://ubdtools.rakeshkumardhawan123.workers.dev';
+
 export const CLOUDFLARE_WORKER_STORAGE_KEY = 'evedhika_cf_worker_url_v1';
 
 export function normalizeCloudflareWorkerUrl(raw: string): string {
@@ -62,7 +64,7 @@ export async function discoverCloudflareWorkerUrl(): Promise<string> {
       if (fromManifest) return fromManifest;
     }
   } catch {}
-  return '';
+  return DEFAULT_CLOUDFLARE_WORKER_URL;
 }
 
 export interface WorkerHealthResult {
@@ -307,3 +309,100 @@ export async function reviewWorkerClaim(
   }
   return { claim: data.claim, pcLicense: data.pcLicense || null };
 }
+
+export async function resetWorkerPcLicense(
+  workerUrl: string,
+  idToken: string,
+  pcId: string,
+  pcName?: string
+): Promise<{ ok: boolean; mode: 'kv-deleted' | 'kv-reset-fallback'; fallbackRecord?: PcLicenseRecord }> {
+  const base = normalizeCloudflareWorkerUrl(workerUrl);
+  const resp = await fetch(`${base}/api/admin/pc-license/reset`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`
+    },
+    body: JSON.stringify({ pcId })
+  });
+
+  if (resp.status === 404) {
+    // Graceful compatibility if live Cloudflare Worker is still on v1.0.0 before Admin clicks Deploy:
+    // Clear Free Bypass / Active Paid immediately by writing a clean EXPIRED reset record.
+    const fallbackRecord: PcLicenseRecord = {
+      pcId,
+      pcName: String(pcName || pcId).trim().slice(0, 128),
+      planType: 'PAID_30_DAYS',
+      status: 'EXPIRED',
+      amountInr: 0,
+      validUntilIso: new Date(Date.now() - 60000).toISOString(),
+      paymentRef: 'TRIAL_RESET_BY_ADMIN'
+    };
+    await saveWorkerPcLicense(base, idToken, fallbackRecord);
+    return { ok: true, mode: 'kv-reset-fallback', fallbackRecord };
+  }
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data?.ok) {
+    throw new Error(data?.message || data?.error || `Worker HTTP ${resp.status}`);
+  }
+  return { ok: true, mode: 'kv-deleted' };
+}
+
+export async function resetMultipleWorkerPcLicenses(
+  workerUrl: string,
+  idToken: string,
+  pcs: Array<{ pcId: string; pcName?: string }>
+): Promise<{ ok: boolean; mode: 'kv-deleted' | 'kv-reset-fallback'; count: number }> {
+  const base = normalizeCloudflareWorkerUrl(workerUrl);
+  const pcIds = pcs.map((p) => p.pcId).filter(Boolean);
+  if (pcIds.length === 0) return { ok: true, mode: 'kv-deleted', count: 0 };
+
+  const resp = await fetch(`${base}/api/admin/pc-license/reset`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`
+    },
+    body: JSON.stringify({ pcIds })
+  });
+
+  if (resp.status === 404) {
+    for (const pc of pcs) {
+      if (!pc.pcId) continue;
+      await resetWorkerPcLicense(base, idToken, pc.pcId, pc.pcName);
+    }
+    return { ok: true, mode: 'kv-reset-fallback', count: pcIds.length };
+  }
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data?.ok) {
+    throw new Error(data?.message || data?.error || `Worker HTTP ${resp.status}`);
+  }
+  return { ok: true, mode: 'kv-deleted', count: Number(data.resetCount ?? pcIds.length) };
+}
+
+export async function deleteWorkerClaim(
+  workerUrl: string,
+  idToken: string,
+  claimId: string
+): Promise<{ ok: boolean; supported: boolean }> {
+  const base = normalizeCloudflareWorkerUrl(workerUrl);
+  const resp = await fetch(`${base}/api/admin/claim/delete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`
+    },
+    body: JSON.stringify({ claimId })
+  });
+  if (resp.status === 404) {
+    return { ok: false, supported: false };
+  }
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data?.ok) {
+    throw new Error(data?.message || data?.error || `Worker HTTP ${resp.status}`);
+  }
+  return { ok: true, supported: true };
+}
+

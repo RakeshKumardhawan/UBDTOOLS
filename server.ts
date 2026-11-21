@@ -2391,7 +2391,7 @@ async function startServer() {
     resourceBuild: '2026.11.20.R15',
     manifestVersion: '2026.11.20.R15',
     adminDashboardUrl: 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/',
-    cloudflareWorkerUrl: '',
+    cloudflareWorkerUrl: 'https://ubdtools.rakeshkumardhawan123.workers.dev',
     paymentMode: '',
     paymentPolicyUpdatedAt: '2026-11-20T19:55:00Z',
     monthlyPriceInr: 10,
@@ -2465,7 +2465,7 @@ async function startServer() {
           currentVersionConfig.releaseDate = '2026-11-20';
           currentVersionConfig.releaseNotes = 'v1.1.0 Resource Update (2026.11.20.R15):\n- Security Patch Update: Latest security hardening, stability improvements, and system protection updates applied\n- Fixes Setup CreateProcess failed code 740 elevation error (enforced admin UAC + shellexec launch)\n- Keeps SignatureDemoLib v2.0.3.0 Universal CNG+CSP Engine (Native Win32 CryptSignMessage fixes Read Token, MeeSeva Approvals, Bulk Signing & Anti-Tamper)\n- Keeps Windows 7 Deactivation fix, Old DSC Cert Cleaner, and State-Isolated UBD sites.xml';
           (currentVersionConfig as any).adminDashboardUrl = 'https://rakeshkumardhawan.github.io/UBDTOOLS/admin/';
-          (currentVersionConfig as any).cloudflareWorkerUrl = (currentVersionConfig as any).cloudflareWorkerUrl || '';
+          (currentVersionConfig as any).cloudflareWorkerUrl = (currentVersionConfig as any).cloudflareWorkerUrl || 'https://ubdtools.rakeshkumardhawan123.workers.dev';
           (currentVersionConfig as any).paymentMode = (currentVersionConfig as any).paymentMode || '';
           (currentVersionConfig as any).paymentPolicyUpdatedAt = (currentVersionConfig as any).paymentPolicyUpdatedAt || '2026-11-20T19:55:00Z';
           (currentVersionConfig as any).monthlyPriceInr = (currentVersionConfig as any).monthlyPriceInr ?? 10;
@@ -3104,6 +3104,99 @@ async function startServer() {
       saveReportsArchiveStore();
 
       return res.json({ success: true, purgedCount: purged, message: `Purged ${purged} dummy/test records.` });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // POST: Delete one or multiple PCs (and optionally their associated report history)
+  app.post(['/api/reports/delete-pc', '/api/version-fleet/delete-machine'], (req, res) => {
+    try {
+      const rawIds: string[] = Array.isArray(req.body?.pcIds)
+        ? req.body.pcIds
+        : req.body?.pcId
+          ? [String(req.body.pcId)]
+          : [];
+      const pcNameTarget = String(req.body?.pcName || '').trim().toUpperCase();
+      const deleteReports = req.body?.deleteReports !== false;
+      const targetIdSet = new Set(rawIds.map((id) => String(id || '').trim().toUpperCase()).filter(Boolean));
+
+      if (targetIdSet.size === 0 && !pcNameTarget) {
+        return res.status(400).json({ success: false, error: 'pcId or pcIds[] is required' });
+      }
+
+      const matchesTarget = (key: string, val: any) => {
+        const kUp = String(key || '').trim().toUpperCase();
+        const idUp = String(val?.pcId || '').trim().toUpperCase();
+        const nameUp = String(val?.pcName || '').trim().toUpperCase();
+        if (targetIdSet.size > 0 && (targetIdSet.has(kUp) || targetIdSet.has(idUp))) return true;
+        if (targetIdSet.size === 0 && pcNameTarget && nameUp === pcNameTarget) return true;
+        return false;
+      };
+
+      let deletedPcs = 0;
+      for (const [k, v] of Array.from(appHeartbeatStore.entries())) {
+        if (matchesTarget(k, v)) { appHeartbeatStore.delete(k); deletedPcs++; }
+      }
+      for (const [k, v] of Array.from(consolidatedMachineStore.entries())) {
+        if (matchesTarget(k, v)) { consolidatedMachineStore.delete(k); deletedPcs++; }
+      }
+      for (const [k, v] of Array.from(fleetReceiverStore.entries())) {
+        if (matchesTarget(k, v)) { fleetReceiverStore.delete(k); deletedPcs++; }
+      }
+
+      let deletedReports = 0;
+      if (deleteReports) {
+        const before = reportsArchiveStore.length;
+        const kept = reportsArchiveStore.filter((r) => !matchesTarget(String(r?.pcId || ''), r));
+        reportsArchiveStore.length = 0;
+        reportsArchiveStore.push(...kept);
+        deletedReports = before - kept.length;
+        saveReportsArchiveStore();
+      }
+
+      saveAppHeartbeatStore();
+      saveConsolidatedHealthStore();
+      saveFleetReceiverStore();
+
+      return res.json({
+        success: true,
+        deletedPcs,
+        deletedReports,
+        message: `Deleted ${deletedPcs} PC record(s) and ${deletedReports} report log(s).`
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // POST: Delete one or multiple specific report log events by reportId / eventId
+  app.post('/api/reports/delete-report', (req, res) => {
+    try {
+      const rawIds: string[] = Array.isArray(req.body?.reportIds)
+        ? req.body.reportIds
+        : req.body?.reportId || req.body?.eventId
+          ? [String(req.body.reportId || req.body.eventId)]
+          : [];
+      const targetSet = new Set(rawIds.map((id) => String(id || '').trim()).filter(Boolean));
+      if (targetSet.size === 0) {
+        return res.status(400).json({ success: false, error: 'reportId or reportIds[] is required' });
+      }
+
+      const before = reportsArchiveStore.length;
+      const kept = reportsArchiveStore.filter(
+        (r) => !targetSet.has(String(r?.reportId || '')) && !targetSet.has(String(r?.eventId || ''))
+      );
+      reportsArchiveStore.length = 0;
+      reportsArchiveStore.push(...kept);
+      const deletedCount = before - kept.length;
+      saveReportsArchiveStore();
+
+      return res.json({
+        success: true,
+        deletedCount,
+        message: `Deleted ${deletedCount} report event(s).`
+      });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }

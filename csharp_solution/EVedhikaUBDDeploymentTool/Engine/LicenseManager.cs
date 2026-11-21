@@ -33,11 +33,12 @@ namespace EVedhikaUBDDeploymentTool.Engine
         private const string FirestoreApiKeyParam = "?key=AIzaSyC_oLAFLdpErutmSmR9bQnm0ETq5hd9qnU";
         private const string DefaultCheckoutBaseUrl = "https://rakeshkumardhawan.github.io/UBDTOOLS/pay-checkout";
         private const string FallbackVersionManifestUrl = "https://raw.githubusercontent.com/RakeshKumardhawan/UBDTOOLS/main/public/version.json";
+        private const string DefaultCloudflareWorkerUrl = "https://ubdtools.rakeshkumardhawan123.workers.dev";
         private static readonly object _memCacheLock = new object();
         private static LicenseStatusResult _memCachedResult = null;
         private static DateTime _memCachedUtc = DateTime.MinValue;
-        private const int MemoryCacheTtlSeconds = 45;
-        private static string _cachedWorkerBaseUrl = null;
+        private const int MemoryCacheTtlSeconds = 8;
+        private static string _cachedWorkerBaseUrl = DefaultCloudflareWorkerUrl;
         private static DateTime _cachedWorkerCheckUtc = DateTime.MinValue;
         private const int WorkerUrlDiscoveryTtlHours = 6;
 
@@ -280,9 +281,9 @@ namespace EVedhikaUBDDeploymentTool.Engine
             }
             catch { }
 
-            _cachedWorkerBaseUrl = "";
+            _cachedWorkerBaseUrl = DefaultCloudflareWorkerUrl;
             _cachedWorkerCheckUtc = DateTime.UtcNow;
-            return "";
+            return DefaultCloudflareWorkerUrl;
         }
 
         private static bool TryCheckLicenseViaCloudflareWorker(string workerBaseUrl, string pcId, out LicenseStatusResult workerRes)

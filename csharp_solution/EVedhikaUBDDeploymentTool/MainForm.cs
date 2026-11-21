@@ -47,6 +47,10 @@ namespace EVedhikaUBDDeploymentTool
         private Panel _pnlLicenseLockBanner;
         private Label _lblLicenseLockBanner;
         private Button _btnUnlockSubscription;
+        private System.Windows.Forms.Timer _liveLicenseSyncTimer;
+        private bool _liveLicensePollBusy = false;
+        private bool? _lastKnownLicenseAllowed = null;
+        private bool _isSubscriptionModalOpen = false;
 
         public MainForm(string initialState = "Telangana", bool startSilent = false)
         {
@@ -924,12 +928,14 @@ namespace EVedhikaUBDDeploymentTool
                 {
                     try
                     {
-                        // Single authoritative cloud license check on startup (saves 50% Firestore reads)
+                        // Single authoritative cloud license check on startup (via Cloudflare Worker zero-quota engine)
                         var startupLic = LicenseManager.CheckRemoteLicenseStatus(true);
+                        _lastKnownLicenseAllowed = startupLic.IsAllowed;
                         SafeInvoke(delegate()
                         {
                             LogMessage("LICENSE", $"[PLAN] {startupLic.SummaryText}");
                             ApplyLicenseLockUi(startupLic);
+                            StartLiveLicenseSyncTimer();
                         });
 
                         if (startupLic.IsAllowed)
@@ -957,8 +963,17 @@ namespace EVedhikaUBDDeploymentTool
                             {
                                 LogMessage("LICENSE", "[LOCKED] Paid Mode Active - All features locked until subscription is activated.");
                                 ApplyLicenseLockUi(startupLic);
-                                LicenseManager.ShowSubscriptionModal(this, startupLic);
+                                _isSubscriptionModalOpen = true;
+                                try
+                                {
+                                    LicenseManager.ShowSubscriptionModal(this, startupLic);
+                                }
+                                finally
+                                {
+                                    _isSubscriptionModalOpen = false;
+                                }
                                 var postModalLic = LicenseManager.CheckRemoteLicenseStatus(true);
+                                _lastKnownLicenseAllowed = postModalLic.IsAllowed;
                                 ApplyLicenseLockUi(postModalLic);
                                 if (postModalLic.IsAllowed)
                                 {
@@ -1059,6 +1074,66 @@ namespace EVedhikaUBDDeploymentTool
             };
         }
 
+        private void StartLiveLicenseSyncTimer()
+        {
+            try
+            {
+                if (_liveLicenseSyncTimer != null) return;
+                _liveLicenseSyncTimer = new System.Windows.Forms.Timer();
+                _liveLicenseSyncTimer.Interval = 10000; // Real-time 10-second live sync with Cloudflare Worker (100K free reads/day)
+                _liveLicenseSyncTimer.Tick += delegate
+                {
+                    if (_liveLicensePollBusy || _isSubscriptionModalOpen || this.IsDisposed) return;
+                    _liveLicensePollBusy = true;
+                    ThreadPool.QueueUserWorkItem(delegate
+                    {
+                        try
+                        {
+                            var liveLic = LicenseManager.CheckRemoteLicenseStatus(true);
+                            bool? prevAllowed = _lastKnownLicenseAllowed;
+                            _lastKnownLicenseAllowed = liveLic.IsAllowed;
+
+                            SafeInvoke(delegate()
+                            {
+                                if (this.IsDisposed) return;
+                                ApplyLicenseLockUi(liveLic);
+
+                                // Live transition: Admin just UNLOCKED or switched to FREE_FOR_ALL / FREE_BYPASS
+                                if (prevAllowed.HasValue && !prevAllowed.Value && liveLic.IsAllowed)
+                                {
+                                    LogMessage("LICENSE", $"[LIVE ADMIN UNLOCK] {liveLic.SummaryText}");
+                                }
+                                // Live transition: Admin just ENABLED PAID_MONTHLY or REVOKED this PC while app was open!
+                                else if (prevAllowed.HasValue && prevAllowed.Value && !liveLic.IsAllowed && !_isSubscriptionModalOpen && this.Visible)
+                                {
+                                    LogMessage("LICENSE", $"[LIVE ADMIN LOCK] {liveLic.SummaryText}");
+                                    _isSubscriptionModalOpen = true;
+                                    try
+                                    {
+                                        LicenseManager.ShowSubscriptionModal(this, liveLic);
+                                    }
+                                    finally
+                                    {
+                                        _isSubscriptionModalOpen = false;
+                                    }
+                                    var afterLic = LicenseManager.CheckRemoteLicenseStatus(true);
+                                    _lastKnownLicenseAllowed = afterLic.IsAllowed;
+                                    ApplyLicenseLockUi(afterLic);
+                                }
+                            });
+                        }
+                        catch { }
+                        finally
+                        {
+                            _liveLicensePollBusy = false;
+                        }
+                    });
+                };
+                _liveLicenseSyncTimer.Start();
+            }
+            catch { }
+        }
+
         private void ApplyLicenseLockUi(LicenseStatusResult lic)
         {
             if (lic == null) return;
@@ -1090,8 +1165,17 @@ namespace EVedhikaUBDDeploymentTool
                         _btnUnlockSubscription.FlatAppearance.BorderSize = 0;
                         _btnUnlockSubscription.Cursor = Cursors.Hand;
                         _btnUnlockSubscription.Click += delegate {
-                            LicenseManager.OpenSubscriptionCenter(this);
+                            _isSubscriptionModalOpen = true;
+                            try
+                            {
+                                LicenseManager.OpenSubscriptionCenter(this);
+                            }
+                            finally
+                            {
+                                _isSubscriptionModalOpen = false;
+                            }
                             var fresh = LicenseManager.CheckRemoteLicenseStatus(true);
+                            _lastKnownLicenseAllowed = fresh.IsAllowed;
                             ApplyLicenseLockUi(fresh);
                         };
 
@@ -1125,6 +1209,13 @@ namespace EVedhikaUBDDeploymentTool
                     if (_pnlLicenseLockBanner != null)
                     {
                         _pnlLicenseLockBanner.Visible = false;
+                    }
+                    if (toolStripStatusLabel != null &&
+                        toolStripStatusLabel.Text != null &&
+                        toolStripStatusLabel.Text.StartsWith("LOCKED:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string pcIdNow = Logger.SanitizeFirestoreId(Logger.GetUniqueMachineId(), "EVD-PC");
+                        toolStripStatusLabel.Text = $"Developer: Rakesh Kumar Dhawan (Admin) | E-Vedhika UBD Tool | PC ID: {pcIdNow} | Status: {lic.SummaryText}";
                     }
                 }
             }
@@ -3680,6 +3771,8 @@ namespace EVedhikaUBDDeploymentTool
             {
                 healthTimer?.Stop();
                 healthTimer?.Dispose();
+                _liveLicenseSyncTimer?.Stop();
+                _liveLicenseSyncTimer?.Dispose();
             }
             catch { }
             base.OnFormClosed(e);

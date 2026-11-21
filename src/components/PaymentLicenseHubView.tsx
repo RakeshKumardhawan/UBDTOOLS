@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal, Copy, Search, Download, Link2, Cloud, ExternalLink, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { CreditCard, ShieldCheck, LogOut, QrCode, SlidersHorizontal, Copy, Search, Download, Link2, Cloud, ExternalLink, RefreshCw, CheckCircle2, AlertTriangle, RotateCcw, Trash2 } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useToast } from './Toast';
 import { PublicPaymentCheckout } from './PublicPaymentCheckout';
@@ -14,6 +14,7 @@ import {
   doc,
   onSnapshot,
   setDoc,
+  deleteDoc,
   serverTimestamp,
   query,
   orderBy,
@@ -41,10 +42,13 @@ import {
 import {
   CLOUDFLARE_WORKER_DASHBOARD_URL,
   checkCloudflareWorkerHealth,
+  deleteWorkerClaim,
   discoverCloudflareWorkerUrl,
   fetchWorkerAdminState,
   isDashboardLinkNotWorkerUrl,
   normalizeCloudflareWorkerUrl,
+  resetMultipleWorkerPcLicenses,
+  resetWorkerPcLicense,
   reviewWorkerClaim,
   saveCloudflareWorkerUrl,
   saveWorkerPcLicense,
@@ -90,6 +94,11 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
   const [customActivateDays, setCustomActivateDays] = useState<number>(30);
   const [confirmBulkApprove, setConfirmBulkApprove] = useState<boolean>(false);
   const [bulkApproving, setBulkApproving] = useState<boolean>(false);
+  const [confirmResetPc, setConfirmResetPc] = useState<{ pcId: string; pcName: string } | null>(null);
+  const [confirmResetAllOverrides, setConfirmResetAllOverrides] = useState<boolean>(false);
+  const [resettingAllOverrides, setResettingAllOverrides] = useState<boolean>(false);
+  const [confirmDeleteClaim, setConfirmDeleteClaim] = useState<PaymentClaimRecord | null>(null);
+  const [deletingClaimId, setDeletingClaimId] = useState<string | null>(null);
 
   // Cloudflare Worker (`ubdtools`) Zero-Quota License Engine state
   const [cfWorkerUrlInput, setCfWorkerUrlInput] = useState<string>('');
@@ -134,15 +143,12 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
         const idToken = await firebaseUser.getIdToken();
         const state = await fetchWorkerAdminState(workerBaseUrl, idToken);
         setLicensePolicy(state.policy);
-        setPcLicensesMap((prev) => ({ ...prev, ...state.pcLicenses }));
-        setPaymentClaims((prev) => {
-          const map = new Map<string, PaymentClaimRecord>();
-          prev.forEach((c) => map.set(c.claimId, c));
-          state.claims.forEach((c) => map.set(c.claimId, c));
-          return Array.from(map.values()).sort(
+        setPcLicensesMap(state.pcLicenses || {});
+        setPaymentClaims(
+          (Array.isArray(state.claims) ? state.claims : []).sort(
             (a, b) => Date.parse(b.createdAtIso || '0') - Date.parse(a.createdAtIso || '0')
-          );
-        });
+          )
+        );
         setCfWorkerStatus('connected');
         setCfWorkerMessage(`Cloudflare Worker Connected (Synced ${new Date().toLocaleTimeString()})`);
         if (showToastOnSuccess) {
@@ -192,11 +198,14 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     };
   }, []);
 
-  // Load Admin state from Cloudflare Worker whenever verified Admin + Worker URL are ready
+  // Load Admin state from Cloudflare Worker whenever verified Admin + Worker URL are ready (plus live 15s auto-refresh)
   useEffect(() => {
-    if (isVerifiedAdmin && activeCfWorkerUrl) {
+    if (!isVerifiedAdmin || !activeCfWorkerUrl) return;
+    void syncFromCloudflareWorker(activeCfWorkerUrl, false);
+    const interval = window.setInterval(() => {
       void syncFromCloudflareWorker(activeCfWorkerUrl, false);
-    }
+    }, 15000);
+    return () => window.clearInterval(interval);
   }, [isVerifiedAdmin, activeCfWorkerUrl, syncFromCloudflareWorker]);
 
   const handleTestAndSaveCloudflareWorker = async () => {
@@ -248,8 +257,9 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
     }
   };
 
-  // Public read listener for global licensing config
+  // Public read listener for global licensing config (only when Cloudflare Worker is NOT active)
   useEffect(() => {
+    if (activeCfWorkerUrl) return;
     const policyRef = doc(db, 'app_settings', 'licensing');
     const unsubPolicy = onSnapshot(
       policyRef,
@@ -275,9 +285,9 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       }
     );
     return () => unsubPolicy();
-  }, []);
+  }, [activeCfWorkerUrl]);
 
-  // Admin-only listeners for UTR claims, per-PC licenses, and registered PCs
+  // Admin-only listeners: installed_pcs directory (best-effort) + Firestore fallback only when Cloudflare Worker is not active
   useEffect(() => {
     if (!isVerifiedAdmin) {
       setPaymentClaims([]);
@@ -304,11 +314,19 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
         setInstalledPcs(rows);
       },
       (error) => {
-        setAuthNotice('Firestore Read Error (installed_pcs): ' + error.message);
-        showError(error.message || 'Failed to load installed PCs', 'Firestore Read Error');
-        handleFirestoreError(error, OperationType.LIST, 'installed_pcs');
+        if (!activeCfWorkerUrl) {
+          setAuthNotice('Firestore Read Error (installed_pcs): ' + error.message);
+          showError(error.message || 'Failed to load installed PCs', 'Firestore Read Error');
+          handleFirestoreError(error, OperationType.LIST, 'installed_pcs');
+        }
       }
     );
+
+    if (activeCfWorkerUrl) {
+      return () => {
+        unsubPcs();
+      };
+    }
 
     const qLicList = query(collection(db, 'pc_licenses'), limit(200));
     const unsubLicenses = onSnapshot(
@@ -372,7 +390,7 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       unsubLicenses();
       unsubClaims();
     };
-  }, [isVerifiedAdmin, showError]);
+  }, [isVerifiedAdmin, activeCfWorkerUrl, showError]);
 
   const handleAdminGoogleSignIn = async () => {
     try {
@@ -772,6 +790,141 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
       }
     } finally {
       setReviewingClaimId(null);
+    }
+  };
+
+  const handleResetPcTrialLicense = async (pcIdRaw: string, pcNameRaw?: string) => {
+    if (!isVerifiedAdmin) {
+      showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
+      return;
+    }
+    const rawId = resolveExactPcId(pcIdRaw);
+    if (!rawId) {
+      showError('దయచేసి సరైన PC Machine ID (ఉదా: EVD-TS-MNCL-53) ఇవ్వండి.', 'PC ID Required');
+      return;
+    }
+    const safeName = String(pcNameRaw || rawId).trim().slice(0, 128);
+    setActivatingPcId(rawId);
+    try {
+      let resetMode: 'kv-deleted' | 'kv-reset-fallback' | 'firestore' = 'firestore';
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        const res = await resetWorkerPcLicense(activeCfWorkerUrl, idToken, rawId, safeName);
+        resetMode = res.mode;
+        if (res.mode === 'kv-deleted') {
+          setPcLicensesMap((prev) => {
+            const next = { ...prev };
+            delete next[rawId.toUpperCase()];
+            return next;
+          });
+        } else if (res.fallbackRecord) {
+          setPcLicensesMap((prev) => ({ ...prev, [rawId.toUpperCase()]: res.fallbackRecord! }));
+        }
+        deleteDoc(doc(db, 'pc_licenses', rawId)).catch(() => {});
+      } else {
+        await deleteDoc(doc(db, 'pc_licenses', rawId));
+        setPcLicensesMap((prev) => {
+          const next = { ...prev };
+          delete next[rawId.toUpperCase()];
+          return next;
+        });
+      }
+
+      setConfirmResetPc(null);
+      setBypassPcIdInput('');
+      setBypassPcNameInput('');
+
+      if (resetMode === 'kv-reset-fallback') {
+        showInfo(
+          `🔄 ${safeName} (${rawId}) ట్రయల్/లైసెన్స్ రీసెట్ అయింది! లిస్ట్ నుండి పూర్తిగా తొలగించాలంటే పైన ఉన్న "Copy ubdtools Worker Code" తో Worker ను ఒకసారి Deploy చేయండి.`,
+          'Trial PC Reset Applied'
+        );
+      } else {
+        showSuccess(
+          `🔄 ${safeName} (${rawId}) ట్రయల్ / కస్టమ్ లైసెన్స్ పూర్తిగా రీసెట్ అయింది — ఇక ఫ్రెష్‌గా గ్లోబల్ పాలసీ ప్రకారం పనిచేస్తుంది!`,
+          'Trial PC Reset Complete'
+        );
+      }
+    } catch (err: any) {
+      setAuthNotice('Reset Trial PC Error: ' + (err?.message || 'Permission denied'));
+      showError(err?.message || 'Failed to reset trial PC license', 'Reset Failed');
+      if (!activeCfWorkerUrl) {
+        handleFirestoreError(err, OperationType.DELETE, `pc_licenses/${rawId}`);
+      }
+    } finally {
+      setActivatingPcId(null);
+    }
+  };
+
+  const handleResetAllPcOverrides = async () => {
+    if (!isVerifiedAdmin) {
+      showError('Please sign in with Admin Google Account first.', 'Admin Auth Required');
+      return;
+    }
+    const entries = Object.values(pcLicensesMap) as PcLicenseRecord[];
+    if (entries.length === 0) {
+      setConfirmResetAllOverrides(false);
+      return;
+    }
+    setResettingAllOverrides(true);
+    try {
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        const res = await resetMultipleWorkerPcLicenses(
+          activeCfWorkerUrl,
+          idToken,
+          entries.map((e) => ({ pcId: e.pcId, pcName: e.pcName }))
+        );
+        await Promise.all(entries.map((e) => deleteDoc(doc(db, 'pc_licenses', e.pcId)).catch(() => {})));
+        if (res.mode === 'kv-deleted') {
+          setPcLicensesMap({});
+          showSuccess(`🔄 మొత్తం ${res.count} ట్రయల్/కస్టమ్ PC లైసెన్స్‌లు పూర్తిగా రీసెట్ అయ్యాయి!`, 'All Trial Overrides Reset');
+        } else {
+          await syncFromCloudflareWorker(activeCfWorkerUrl, false);
+          showInfo(`🔄 ${res.count} PC లైసెన్స్‌లు రీసెట్ అయ్యాయి! పూర్తి KV క్లీనప్ కోసం కొత్త ubdtools Worker కోడ్‌ను Deploy చేయండి.`, 'Trial Overrides Reset');
+        }
+      } else {
+        await Promise.all(entries.map((e) => deleteDoc(doc(db, 'pc_licenses', e.pcId))));
+        setPcLicensesMap({});
+        showSuccess(`🔄 మొత్తం ${entries.length} ట్రయల్/కస్టమ్ PC లైసెన్స్‌లు రీసెట్ అయ్యాయి!`, 'All Trial Overrides Reset');
+      }
+      setConfirmResetAllOverrides(false);
+    } catch (err: any) {
+      showError(err?.message || 'Failed to reset all trial overrides', 'Bulk Reset Failed');
+    } finally {
+      setResettingAllOverrides(false);
+    }
+  };
+
+  const handleDeletePaymentClaim = async (claim: PaymentClaimRecord) => {
+    if (!isVerifiedAdmin || !claim.claimId) return;
+    setDeletingClaimId(claim.claimId);
+    try {
+      let workerDeleted = false;
+      if (activeCfWorkerUrl && firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        const res = await deleteWorkerClaim(activeCfWorkerUrl, idToken, claim.claimId);
+        workerDeleted = res.supported;
+        deleteDoc(doc(db, 'payment_claims', claim.claimId)).catch(() => {});
+      } else {
+        await deleteDoc(doc(db, 'payment_claims', claim.claimId));
+        workerDeleted = true;
+      }
+
+      setPaymentClaims((prev) => prev.filter((c) => c.claimId !== claim.claimId));
+      setConfirmDeleteClaim(null);
+      if (activeCfWorkerUrl && !workerDeleted) {
+        showInfo(
+          `UTR ${claim.utrNumber} తొలగించబడింది (Cloudflare KV లో శాశ్వతంగా డిలీట్ అవ్వడానికి కొత్త ubdtools Worker కోడ్‌ను Deploy చేయండి).`,
+          'Claim Removed'
+        );
+      } else {
+        showSuccess(`🗑️ టెస్ట్ / అదనపు UTR క్లెయిమ్ (${claim.utrNumber}) డిలీట్ చేయబడింది.`, 'UTR Claim Deleted');
+      }
+    } catch (err: any) {
+      showError(err?.message || 'Failed to delete UTR claim', 'Delete Failed');
+    } finally {
+      setDeletingClaimId(null);
     }
   };
 
@@ -1365,6 +1518,31 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                 </div>
               )}
 
+              {confirmDeleteClaim && (
+                <div className="bg-rose-950/60 border border-rose-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs text-rose-200 font-sans">
+                    UTR క్లెయిమ్ <strong className="font-mono text-white">{confirmDeleteClaim.utrNumber}</strong> ({confirmDeleteClaim.pcName}) ను శాశ్వతంగా డిలీట్ చేయాలా?
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={deletingClaimId === confirmDeleteClaim.claimId}
+                      onClick={() => handleDeletePaymentClaim(confirmDeleteClaim)}
+                      className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                    >
+                      {deletingClaimId === confirmDeleteClaim.claimId ? 'Deleting...' : 'Confirm Delete UTR'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteClaim(null)}
+                      className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="relative max-w-md">
                 <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -1448,7 +1626,7 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                               {claim.status}
                             </span>
                           </td>
-                          <td className="p-3.5 flex items-center gap-2">
+                          <td className="p-3.5 flex flex-wrap items-center gap-2">
                             {claim.status === 'PENDING' ? (
                               <>
                                 <button
@@ -1471,6 +1649,17 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                             ) : (
                               <span className="text-[10px] text-slate-400 font-sans">{claim.note || claim.status}</span>
                             )}
+                            <button
+                              type="button"
+                              aria-label={`Delete UTR claim ${claim.utrNumber}`}
+                              disabled={deletingClaimId === claim.claimId}
+                              onClick={() => setConfirmDeleteClaim(claim)}
+                              className="bg-slate-800 hover:bg-rose-700 text-rose-300 hover:text-white px-2 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                              title="Delete test or unnecessary UTR claim"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1489,11 +1678,73 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                     🖥️ PER-PC SUBSCRIPTION &amp; ADMIN FREE-BYPASS MANAGER (₹{licensePolicy.monthlyPriceInr} / {licensePolicy.durationDays} DAYS)
                   </h3>
                   <p className="text-[11px] text-slate-400 font-sans mt-0.5">
-                    మీకు నచ్చిన ఏ PC కైనా <strong>"🔓 Payment OFF (Free PC)"</strong> నొక్కితే, అందరికీ Paid Mode ఆన్‌లో ఉన్నా ఆ ఒక్క PC కి మాత్రం 100% ఉచితంగా ఓపెన్ అవుతుంది.
+                    ఏ PC కైనా <strong>"🔓 Payment OFF (Free PC)"</strong> ఇవ్వవచ్చు, లేదా ట్రయల్ వేసిన PCలను <strong>"🔄 Reset Trial"</strong> తో తిరిగి ఫ్రెష్ డిఫాల్ట్ స్థితికి రీసెట్ చేయవచ్చు.
                   </p>
                 </div>
-                <span className="text-[11px] text-emerald-400 font-bold">Per-PC Payment Override Ready</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {Object.keys(pcLicensesMap).length > 0 && !confirmResetAllOverrides && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmResetAllOverrides(true)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/40 text-[10px] font-bold cursor-pointer inline-flex items-center gap-1.5 transition"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset All Trial Overrides ({Object.keys(pcLicensesMap).length})</span>
+                    </button>
+                  )}
+                  <span className="text-[11px] text-emerald-400 font-bold">Per-PC Payment Override Ready</span>
+                </div>
               </div>
+
+              {confirmResetAllOverrides && Object.keys(pcLicensesMap).length > 0 && (
+                <div className="bg-amber-950/60 border border-amber-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs text-amber-200 font-sans">
+                    మొత్తం <strong>{Object.keys(pcLicensesMap).length}</strong> ట్రయల్ / కస్టమ్ PC లైసెన్స్ రికార్డులను ఒకేసారి రీసెట్ చేయాలా? (ఆ తర్వాత అన్ని PCలు గ్లోబల్ పాలసీ ప్రకారం ఫ్రెష్‌గా పనిచేస్తాయి)
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={resettingAllOverrides}
+                      onClick={handleResetAllPcOverrides}
+                      className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                    >
+                      {resettingAllOverrides ? 'Resetting...' : `Confirm Reset All (${Object.keys(pcLicensesMap).length})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmResetAllOverrides(false)}
+                      className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {confirmResetPc && (
+                <div className="bg-amber-950/60 border border-amber-500/50 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs text-amber-200 font-sans">
+                    ట్రయల్ PC <strong className="font-mono text-white">{confirmResetPc.pcName} ({confirmResetPc.pcId})</strong> లైసెన్స్/బైపాస్‌ను రీసెట్ చేయాలా? (ఇది Free PC / Paid / Revoked ఓవర్‌రైడ్‌ను తొలగించి ఫ్రెష్ స్టేట్‌కు తెస్తుంది)
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={activatingPcId === confirmResetPc.pcId}
+                      onClick={() => handleResetPcTrialLicense(confirmResetPc.pcId, confirmResetPc.pcName)}
+                      className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                    >
+                      {activatingPcId === confirmResetPc.pcId ? 'Resetting...' : 'Confirm Reset Trial'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmResetPc(null)}
+                      className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5">
                 <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
@@ -1502,6 +1753,7 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                   </div>
                   <input
                     type="text"
+                    aria-label="PC Machine ID"
                     placeholder="PC Machine ID (ఉదా: EVD-TS-MNCL-01)"
                     value={bypassPcIdInput}
                     onChange={(e) => setBypassPcIdInput(e.target.value)}
@@ -1509,6 +1761,7 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                   />
                   <input
                     type="text"
+                    aria-label="PC Name or Office Name"
                     placeholder="PC Name / ఆఫీస్ పేరు (Optional)"
                     value={bypassPcNameInput}
                     onChange={(e) => setBypassPcNameInput(e.target.value)}
@@ -1541,12 +1794,28 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                   >
                     +{customActivateDays}d Paid
                   </button>
+                  <button
+                    type="button"
+                    disabled={!bypassPcIdInput.trim() || activatingPcId === resolveExactPcId(bypassPcIdInput)}
+                    onClick={() =>
+                      setConfirmResetPc({
+                        pcId: resolveExactPcId(bypassPcIdInput),
+                        pcName: bypassPcNameInput.trim() || resolveExactPcId(bypassPcIdInput)
+                      })
+                    }
+                    className="bg-slate-800 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/40 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0 inline-flex items-center gap-1"
+                    title="Reset Trial / Clear custom license for this PC ID"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Trial</span>
+                  </button>
                 </div>
 
                 <div className="relative lg:w-64">
                   <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
+                    aria-label="Search managed PCs"
                     value={pcSearchFilter}
                     onChange={(e) => setPcSearchFilter(e.target.value)}
                     placeholder="Search PC Name, ID, District..."
@@ -1686,11 +1955,23 @@ export const PaymentLicenseHubView: React.FC<PaymentLicenseHubViewProps> = ({
                             </button>
                             <button
                               type="button"
+                              aria-label={`Revoke license for ${pc.pcName || cleanId}`}
                               disabled={activatingPcId === cleanId}
                               onClick={() => handleRevokePcSubscription(pc)}
                               className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
                             >
                               Revoke
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Reset trial license for ${pc.pcName || cleanId}`}
+                              disabled={activatingPcId === cleanId}
+                              onClick={() => setConfirmResetPc({ pcId: cleanId, pcName: pc.pcName || cleanId })}
+                              className="bg-slate-800 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/30 px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                              title="Reset Trial / Clear custom license record for this PC"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Reset Trial</span>
                             </button>
                           </td>
                         </tr>

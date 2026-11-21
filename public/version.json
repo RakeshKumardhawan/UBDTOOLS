@@ -20,7 +20,7 @@
   "resourceBuild": "2026.11.20.R15",
   "manifestVersion": "2026.11.20.R15",
   "adminDashboardUrl": "https://rakeshkumardhawan.github.io/UBDTOOLS/admin/",
-  "cloudflareWorkerUrl": "",
+  "cloudflareWorkerUrl": "https://ubdtools.rakeshkumardhawan123.workers.dev",
   "paymentMode": "",
   "paymentPolicyUpdatedAt": "2026-11-20T19:55:00Z",
   "monthlyPriceInr": 10,

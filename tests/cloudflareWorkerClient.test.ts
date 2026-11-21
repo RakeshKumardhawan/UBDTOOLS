@@ -3,18 +3,23 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  DEFAULT_CLOUDFLARE_WORKER_URL,
   normalizeCloudflareWorkerUrl,
   isDashboardLinkNotWorkerUrl
 } from '../src/utils/cloudflareWorkerClient';
 import worker from '../cloudflare_worker/ubdtools_worker.js';
 
-test('wrangler.jsonc binds UBD_LICENSES KV namespace and points to ubdtools_worker.js', () => {
+test('wrangler.jsonc and public/version.json wire live ubdtools worker with UBD_LICENSES KV namespace', () => {
   const rootCfg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'wrangler.jsonc'), 'utf8'));
   assert.equal(rootCfg.name, 'ubdtools');
   assert.equal(rootCfg.main, 'cloudflare_worker/ubdtools_worker.js');
   assert.ok(fs.existsSync(path.join(process.cwd(), rootCfg.main)));
   assert.equal(rootCfg.kv_namespaces[0].binding, 'UBD_LICENSES');
   assert.equal(rootCfg.kv_namespaces[0].id, '253203bf9e8d4b6886e59dc2453ae1a2');
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public', 'version.json'), 'utf8'));
+  assert.equal(DEFAULT_CLOUDFLARE_WORKER_URL, 'https://ubdtools.rakeshkumardhawan123.workers.dev');
+  assert.equal(manifest.cloudflareWorkerUrl, DEFAULT_CLOUDFLARE_WORKER_URL);
 });
 
 function createMockKv() {
@@ -251,4 +256,55 @@ test('ubdtools Cloudflare Worker end-to-end PAID_MONTHLY, anti-duplicate UTR 409
   assert.equal(stateBody.claims.length, 1);
   assert.equal(stateBody.claims[0].status, 'APPROVED');
   assert.equal(stateBody.pcLicenses['EVD-TS-MNCL-53'].planType, 'FREE_ACCESS');
+
+  // 9. Admin resets Trial PC license -> KV entry removed cleanly and PC returns to PAYMENT_REQUIRED under PAID_MONTHLY
+  const resetRes = await worker.fetch(
+    new Request('https://ubdtools.test.workers.dev/api/admin/pc-license/reset', {
+      method: 'POST',
+      headers: adminHeaders,
+      body: JSON.stringify({ pcId: 'EVD-TS-MNCL-53' })
+    }),
+    env,
+    {}
+  );
+  assert.equal(resetRes.status, 200);
+  const resetBody: any = await resetRes.json();
+  assert.equal(resetBody.ok, true);
+  assert.equal(resetBody.resetCount, 1);
+
+  const checkAfterResetRes = await worker.fetch(
+    new Request('https://ubdtools.test.workers.dev/api/license/check?pcId=EVD-TS-MNCL-53'),
+    env,
+    {}
+  );
+  const checkAfterReset: any = await checkAfterResetRes.json();
+  assert.equal(checkAfterReset.isAllowed, false);
+  assert.equal(checkAfterReset.statusCode, 'PAYMENT_REQUIRED');
+  assert.equal(checkAfterReset.pcLicense, null);
+
+  // 10. Admin deletes test UTR claim -> removed from KV and claims list
+  const delClaimRes = await worker.fetch(
+    new Request('https://ubdtools.test.workers.dev/api/admin/claim/delete', {
+      method: 'POST',
+      headers: adminHeaders,
+      body: JSON.stringify({ claimId: 'UTR-432198765432' })
+    }),
+    env,
+    {}
+  );
+  assert.equal(delClaimRes.status, 200);
+  const delClaimBody: any = await delClaimRes.json();
+  assert.equal(delClaimBody.deletedCount, 1);
+
+  const finalStateRes = await worker.fetch(
+    new Request('https://ubdtools.test.workers.dev/api/admin/state', {
+      headers: adminHeaders
+    }),
+    env,
+    {}
+  );
+  const finalState: any = await finalStateRes.json();
+  assert.equal(finalState.claims.length, 0);
+  assert.equal(finalState.pcLicenses['EVD-TS-MNCL-53'], undefined);
 });
+
